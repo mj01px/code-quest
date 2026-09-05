@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from .managers import UserManager
+from .rbac import permissions_for_role
 from .validators import (
     NICKNAME_MAX_LENGTH,
     nickname_format_validator,
@@ -141,6 +142,22 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def is_platform_admin(self) -> bool:
         return self.role == self.Role.ADMIN
+
+    def has_perm(self, perm, obj=None) -> bool:
+        if not self.is_active:
+            return False
+        if self.role == self.Role.ADMIN:
+            return True
+        if not isinstance(perm, str):
+            return super().has_perm(perm, obj)
+        return perm in self.get_role_permissions()
+
+    def get_role_permissions(self) -> frozenset[str]:
+        cache = getattr(self, "_perm_cache", None)
+        if cache is None or cache[0] != self.role:
+            cache = (self.role, permissions_for_role(self.role))
+            self._perm_cache = cache
+        return cache[1]
 
     @property
     def is_anonymized(self) -> bool:

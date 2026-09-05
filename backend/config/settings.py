@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    'rest_framework',
+    'apps.core',
     'apps.contas',
     'apps.gamificacao',
 ]
@@ -94,12 +96,21 @@ DATABASES = {
 
 AUTH_USER_MODEL = 'contas.User'
 
+
+ADMIN_URL = env('ADMIN_URL', default='admin/')
+
 PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.Argon2PasswordHasher',
     'django.contrib.auth.hashers.PBKDF2PasswordHasher',
     'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
     'django.contrib.auth.hashers.ScryptPasswordHasher',
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
 
 AUTH_PASSWORD_VALIDATORS = [
     {
