@@ -2,6 +2,9 @@ Django==6.0.8
 django-environ==0.14.0
 argon2-cffi==25.1.0
 djangorestframework==3.18.0
+djangorestframework-simplejwt==5.5.1
+django-cors-headers==4.9.0
+drf-spectacular==0.30.0
 
 # Desenvolvimento e testes
 pytest==9.1.1
