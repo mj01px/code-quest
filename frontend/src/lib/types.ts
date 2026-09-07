@@ -24,6 +24,10 @@ export interface Criatura {
   dominio: Dominio;
   dominio_rotulo: string;
   chamada: string;
+  tipo: string;
+  descricao: string;
+  atributo_nome: string;
+  atributo_valor: number;
   cor_base: string;
   cor_contorno: string;
   cor_acento: string;
@@ -60,7 +64,7 @@ export interface Sessao {
 export const MATERIAS_DOMINIO: Record<Dominio, string> = {
   FUNDAMENTOS: "Lógica de programação",
   SCRIPTING: "Python",
-  COMPILADAS: "Java, C#",
+  COMPILADAS: "Java",
   WEB: "JavaScript, React",
   DADOS: "Banco de dados",
 };
