@@ -8,7 +8,7 @@ const BASE =
 
 const VARIANTES: Record<Variante, string> = {
   primaria:
-    "w-full px-4 py-4 border-[3px] border-brand-light bg-brand-deep text-ink " +
+    "px-4 py-4 border-[3px] border-brand-light bg-brand-deep text-ink " +
     "text-xs leading-[1.7] shadow-[0_0_0_3px_var(--color-brand-void),6px_6px_0_rgba(0,0,0,0.7)] " +
     "hover:bg-brand-strong hover:translate-x-0.5 hover:translate-y-0.5 " +
     "hover:shadow-[0_0_0_3px_var(--color-brand-void),2px_2px_0_rgba(0,0,0,0.7)] " +

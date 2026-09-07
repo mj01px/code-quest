@@ -1,7 +1,8 @@
 "use client";
 
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
-import { useId } from "react";
+import { useId, useState } from "react";
+import { IconeOlho, IconeOlhoFechado } from "./icones";
 
 interface Props extends Omit<ComponentPropsWithoutRef<"input">, "id"> {
   rotulo: string;
@@ -9,6 +10,7 @@ interface Props extends Omit<ComponentPropsWithoutRef<"input">, "id"> {
   erro?: string | null;
   dica?: string;
   acao?: ReactNode;
+  revelavel?: boolean;
 }
 
 export function PixelField({
@@ -17,13 +19,17 @@ export function PixelField({
   erro,
   dica,
   acao,
+  revelavel = false,
   className = "",
+  type,
   ...props
 }: Props) {
   const id = useId();
   const dicaId = `${id}-dica`;
   const erroId = `${id}-erro`;
+  const [revelado, setRevelado] = useState(false);
 
+  const tipo = revelavel && revelado ? "text" : type;
   const borda = erro ? "border-danger" : "border-brand-strong";
 
   return (
@@ -48,11 +54,23 @@ export function PixelField({
         ) : null}
         <input
           {...props}
+          type={tipo}
           id={id}
           aria-invalid={erro ? true : undefined}
           aria-describedby={erro ? erroId : dica ? dicaId : undefined}
           className={`min-w-0 flex-1 rounded-none border-0 bg-transparent py-[11px] font-label text-[13px] tracking-wide text-ink outline-none ${className}`.trim()}
         />
+        {revelavel ? (
+          <button
+            type="button"
+            onClick={() => setRevelado((atual) => !atual)}
+            aria-label={revelado ? "Ocultar senha" : "Mostrar senha"}
+            aria-pressed={revelado}
+            className="shrink-0 cursor-pointer text-brand hover:text-brand-pale"
+          >
+            {revelado ? <IconeOlhoFechado /> : <IconeOlho />}
+          </button>
+        ) : null}
       </div>
 
       {erro ? (
