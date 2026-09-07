@@ -34,6 +34,10 @@ class CriaturaSerializer(serializers.ModelSerializer):
     dominio = serializers.CharField(source="domain", read_only=True)
     dominio_rotulo = serializers.CharField(source="get_domain_display", read_only=True)
     chamada = serializers.CharField(source="tagline", read_only=True)
+    tipo = serializers.CharField(source="type_label", read_only=True)
+    descricao = serializers.CharField(source="description", read_only=True)
+    atributo_nome = serializers.CharField(source="attribute_label", read_only=True)
+    atributo_valor = serializers.IntegerField(source="attribute_value", read_only=True)
     cor_base = serializers.CharField(source="base_color", read_only=True)
     cor_contorno = serializers.CharField(source="outline_color", read_only=True)
     cor_acento = serializers.CharField(source="accent_color", read_only=True)
@@ -50,6 +54,10 @@ class CriaturaSerializer(serializers.ModelSerializer):
             "dominio",
             "dominio_rotulo",
             "chamada",
+            "tipo",
+            "descricao",
+            "atributo_nome",
+            "atributo_valor",
             "cor_base",
             "cor_contorno",
             "cor_acento",

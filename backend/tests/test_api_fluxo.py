@@ -194,6 +194,14 @@ class CatalogoTest(APITestCase):
             slugs, ["shellby", "slyth", "blaze", "raposa", "elefante"]
         )
 
+    def test_traz_a_ficha_de_cada_criatura(self):
+        r = self.client.get(reverse("gamificacao:catalogo"))
+        blaze = next(c for c in r.data if c["slug"] == "blaze")
+        self.assertEqual(blaze["tipo"], "Backend / Fogo")
+        self.assertEqual(blaze["atributo_nome"], "Força")
+        self.assertEqual(blaze["atributo_valor"], 5)
+        self.assertTrue(blaze["descricao"].strip())
+
     def test_marca_quais_estao_disponiveis(self):
         r = self.client.get(reverse("gamificacao:catalogo"))
         por_slug = {c["slug"]: c["disponivel"] for c in r.data}

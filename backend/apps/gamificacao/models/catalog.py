@@ -1,8 +1,10 @@
-from django.core.validators import RegexValidator
+from django.core.validators import MaxValueValidator, RegexValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 BRAND_ACCENT = "#A855F7"
+
+ATRIBUTO_MAXIMO = 5
 
 hex_color_validator = RegexValidator(
     regex=r"^#[0-9A-Fa-f]{6}$",
@@ -71,6 +73,36 @@ class Creature(models.Model):
         blank=True,
         verbose_name=_("chamada"),
         help_text=_("Frase curta exibida na tela de escolha da criatura."),
+    )
+
+    type_label = models.CharField(
+        max_length=60,
+        blank=True,
+        default="",
+        verbose_name=_("tipo"),
+        help_text=_("Linha curta de sabor, no formato \"Domínio / Elemento\"."),
+    )
+
+    description = models.TextField(
+        blank=True,
+        default="",
+        verbose_name=_("descrição"),
+        help_text=_("Texto do cartão na tela de escolha da criatura."),
+    )
+
+    attribute_label = models.CharField(
+        max_length=30,
+        blank=True,
+        default="",
+        verbose_name=_("atributo"),
+        help_text=_("Nome do atributo destacado, por exemplo Força ou Lógica."),
+    )
+
+    attribute_value = models.PositiveSmallIntegerField(
+        default=0,
+        validators=[MaxValueValidator(ATRIBUTO_MAXIMO)],
+        verbose_name=_("valor do atributo"),
+        help_text=_("De 0 a 5. É apenas decorativo: não altera nenhuma regra."),
     )
 
     base_color = models.CharField(
