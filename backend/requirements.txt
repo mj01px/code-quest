@@ -9,4 +9,8 @@ drf-spectacular==0.30.0
 # Desenvolvimento e testes
 pytest==9.1.1
 pytest-django==4.14.0
+pytest-cov==7.1.0
 ruff==0.16.6
+mypy==2.3.1
+django-stubs==6.1.0
+djangorestframework-stubs==3.18.1

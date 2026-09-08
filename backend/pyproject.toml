@@ -15,5 +15,46 @@ known-first-party = ["apps", "config"]
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py"]
-testpaths = ["tests"]
+# Os testes de cada app moram dentro do proprio app; `tests/` continua aqui
+# porque os testes transversais (admin, RBAC, permissoes) foram escritos la.
+testpaths = ["tests", "apps"]
 addopts = "--reuse-db"
+
+[tool.coverage.run]
+source = ["apps", "config"]
+omit = [
+    "*/tests/*",
+    "*/tests.py",
+    "*/migrations/*",
+    "*/__init__.py",
+    "config/asgi.py",
+    "config/wsgi.py",
+    "manage.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+# Escopo limitado ao app novo: contas e gamificacao nunca passaram por
+# type check e anota-las e uma entrega propria, nao um efeito colateral desta.
+files = ["apps/trilhas"]
+exclude = "apps/trilhas/migrations/"
+
+[[tool.mypy.overrides]]
+module = ["apps.contas.*", "apps.gamificacao.*", "apps.core.*", "config.*"]
+ignore_errors = true
+
+# Os testes ficam fora do mypy. O idioma `cls.x = ...` dentro de setUpTestData
+# e invisivel para o django-stubs, que reporta attr-defined em todo atributo
+# assim. O que o strict protege e o codigo de producao.
+[[tool.mypy.overrides]]
+module = ["apps.trilhas.tests.*"]
+ignore_errors = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings"

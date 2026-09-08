@@ -68,3 +68,62 @@ export const MATERIAS_DOMINIO: Record<Dominio, string> = {
   WEB: "JavaScript, React",
   DADOS: "Banco de dados",
 };
+
+export type Dificuldade = "INICIANTE" | "INTERMEDIARIO" | "AVANCADO";
+export type TipoExercicio = "CODIGO" | "TEORICO";
+
+export interface ExercicioResumo {
+  id: number;
+  titulo: string;
+  slug: string;
+  tipo: TipoExercicio;
+  tipo_label: string;
+  dificuldade: Dificuldade;
+  dificuldade_label: string;
+  ordem: number;
+}
+
+export interface Aula {
+  id: number;
+  titulo: string;
+  slug: string;
+  conteudo: string;
+  ordem: number;
+  pre_requisito: string | null;
+  exercicios: ExercicioResumo[];
+}
+
+export interface TrilhaResumo {
+  id: number;
+  nome: string;
+  slug: string;
+  descricao: string;
+  ordem: number;
+  total_aulas: number;
+  total_exercicios: number;
+}
+
+export interface TrilhaDetalhe {
+  id: number;
+  nome: string;
+  slug: string;
+  descricao: string;
+  ordem: number;
+  aulas: Aula[];
+}
+
+export interface ExercicioDetalhe {
+  id: number;
+  titulo: string;
+  slug: string;
+  enunciado: string;
+  tipo: TipoExercicio;
+  tipo_label: string;
+  dificuldade: Dificuldade;
+  dificuldade_label: string;
+  ordem: number;
+  aula_titulo: string;
+  aula_slug: string;
+  trilha_nome: string;
+  trilha_slug: string;
+}

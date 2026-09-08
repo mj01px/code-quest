@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'apps.core',
     'apps.contas',
     'apps.gamificacao',
+    'apps.trilhas',
 ]
 
 MIDDLEWARE = [
@@ -111,6 +112,11 @@ PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.ScryptPasswordHasher',
 ]
 
+# Limite do catalogo publico de trilhas. As views de trilhas declaram
+# ScopedRateThrottle por conta propria, fora das classes padrao: assim o
+# trafego do catalogo nao consome o balde `anon` das demais rotas publicas.
+THROTTLE_CATALOGO = env('THROTTLE_CATALOGO', default='60/min')
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -128,7 +134,11 @@ REST_FRAMEWORK = {
         'anon': '60/min',
         'user': '600/min',
         'auth': '20/min',
+        'catalogo': THROTTLE_CATALOGO,
     },
+    # Sem NUM_PROXIES o DRF identifica o cliente por X-Forwarded-For, que o
+    # proprio cliente manda. Zero forca REMOTE_ADDR e fecha a burla do limite.
+    'NUM_PROXIES': 0,
 }
 
 SIMPLE_JWT = {
