@@ -13,7 +13,7 @@ from rest_framework.test import APITestCase
 from apps.contas.models import User
 from apps.gamificacao.models import UserCreature
 
-from .helpers import SENHA_PADRAO, criar_aluno
+from .helpers import SENHA_PADRAO, criar_aluno, payload_aceite
 
 
 class CadastroTest(APITestCase):
@@ -24,6 +24,7 @@ class CadastroTest(APITestCase):
             "nickname": "novato",
             "senha": SENHA_PADRAO,
             "senha_confirmacao": SENHA_PADRAO,
+            **payload_aceite(),
         }
 
     def test_cria_conta_e_devolve_tokens(self):
@@ -279,7 +280,18 @@ class FormatoDeErroTest(APITestCase):
         self.assertIn("error", r.data)
         self.assertEqual(r.data["error"]["code"], "validacao")
         campos = {d["field"] for d in r.data["error"]["details"]}
-        self.assertEqual(campos, {"email", "nickname", "senha", "senha_confirmacao"})
+        self.assertEqual(
+            campos,
+            {
+                "email",
+                "nickname",
+                "senha",
+                "senha_confirmacao",
+                "aceite_documentos",
+                "versao_termos",
+                "versao_privacidade",
+            },
+        )
 
     def test_nao_autenticado_tambem_usa_o_envelope(self):
         r = self.client.get(reverse("contas:eu"))

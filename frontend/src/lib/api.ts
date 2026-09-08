@@ -1,5 +1,6 @@
 import type {
   Criatura,
+  DocumentosLegais,
   ExercicioDetalhe,
   MinhaCriatura,
   Sessao,
@@ -193,13 +194,24 @@ export interface RespostaAuth {
   refresh: string;
 }
 
+export interface DadosRegistro {
+  email: string;
+  nickname: string;
+  senha: string;
+  senha_confirmacao: string;
+  /** Sem `true` aqui o servidor recusa o cadastro. */
+  aceite_documentos: boolean;
+  /** Versões que a tela exibiu, conferidas pelo servidor contra as vigentes. */
+  versao_termos: string;
+  versao_privacidade: string;
+}
+
 export const api = {
-  registrar(dados: {
-    email: string;
-    nickname: string;
-    senha: string;
-    senha_confirmacao: string;
-  }) {
+  documentosLegais() {
+    return requisicao<DocumentosLegais>("/auth/documentos/");
+  },
+
+  registrar(dados: DadosRegistro) {
     return requisicao<RespostaAuth>("/auth/registrar/", {
       metodo: "POST",
       corpo: dados,

@@ -6,6 +6,7 @@ from django.db.models.functions import Lower
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from .documentos import VERSAO_MAX_LENGTH, VIGENTES, Documento
 from .managers import UserManager
 from .rbac import permissions_for_role
 from .validators import (
@@ -168,3 +169,90 @@ class User(AbstractBaseUser, PermissionsMixin):
             self.deletion_requested_at = timezone.now()
         self.is_active = False
         self.save(update_fields=["deletion_requested_at", "is_active", "updated_at"])
+
+
+class AceiteDeTermos(models.Model):
+    """
+    Registro de um aceite: uma linha por documento e por versão.
+
+    A linha nunca é editada. Quando sai uma versão nova o titular aceita de
+    novo e ganha outra linha, porque o histórico é o que prova qual texto ele
+    leu em cada momento. Sobrescrever destruiria essa prova.
+
+    O `ip` é dado pessoal e sobrevive à exclusão da conta, já que a exclusão
+    aqui é lógica (`User.anonymized_at`). A tarefa que fizer a anonimização
+    precisa limpar este campo junto, senão o dado do titular continua no banco
+    depois de ele ter pedido a remoção.
+    """
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid7,
+        editable=False,
+        verbose_name=_("identificador"),
+    )
+
+    user = models.ForeignKey(
+        "contas.User",
+        on_delete=models.CASCADE,
+        related_name="aceites",
+        verbose_name=_("usuário"),
+    )
+
+    documento = models.CharField(
+        max_length=20,
+        choices=Documento.choices,
+        verbose_name=_("documento"),
+    )
+
+    versao = models.CharField(
+        max_length=VERSAO_MAX_LENGTH,
+        verbose_name=_("versão"),
+        help_text=_("Versão que estava vigente no momento do aceite."),
+    )
+
+    aceito_em = models.DateTimeField(
+        default=timezone.now,
+        editable=False,
+        verbose_name=_("aceito em"),
+    )
+
+    ip = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+        verbose_name=_("IP de origem"),
+        help_text=_("De onde partiu o aceite. Guardado como prova."),
+    )
+
+    class Meta:
+        verbose_name = _("aceite de termos")
+        verbose_name_plural = _("aceites de termos")
+        ordering = ["-aceito_em"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "documento", "versao"],
+                name="aceite_unico_por_versao",
+                violation_error_message=_(
+                    "Este documento já foi aceito nesta versão."
+                ),
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["user", "documento"],
+                name="aceite_user_doc_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.documento} v{self.versao}"
+
+    @classmethod
+    def registrar_vigentes(cls, user, ip=None) -> list[AceiteDeTermos]:
+        """Grava, de uma vez, o aceite da versão vigente de cada documento."""
+        return cls.objects.bulk_create(
+            [
+                cls(user=user, documento=documento, versao=vigente.versao, ip=ip)
+                for documento, vigente in VIGENTES.items()
+            ]
+        )

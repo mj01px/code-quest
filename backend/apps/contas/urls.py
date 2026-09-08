@@ -1,10 +1,11 @@
 from django.urls import path
 
-from .views import EuView, LoginView, RegistrarView, RenovarView
+from .views import DocumentosLegaisView, EuView, LoginView, RegistrarView, RenovarView
 
 app_name = "contas"
 
 urlpatterns = [
+    path("auth/documentos/", DocumentosLegaisView.as_view(), name="documentos"),
     path("auth/registrar/", RegistrarView.as_view(), name="registrar"),
     path("auth/login/", LoginView.as_view(), name="login"),
     path("auth/renovar/", RenovarView.as_view(), name="renovar"),
