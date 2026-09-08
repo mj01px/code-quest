@@ -5,11 +5,11 @@ interface Props {
   titulo: ReactNode;
   linhaTerminal: string;
   formulario: ReactNode;
-  sprite: string;
-  spriteAlt: string;
-  tituloLateral: string;
-  textoLateral: string;
-  acaoLateral: ReactNode;
+  sprite?: string;
+  spriteAlt?: string;
+  tituloLateral?: string;
+  textoLateral?: string;
+  acaoLateral?: ReactNode;
 }
 
 export function PainelAuth({
@@ -25,7 +25,13 @@ export function PainelAuth({
   return (
     <main className="flex flex-1 items-center justify-center px-6 py-10">
       <div className="flex w-full max-w-[820px] flex-wrap border-[3px] border-brand bg-panel shadow-frame">
-        <section className="flex min-w-[260px] flex-[1_1_340px] flex-col gap-5 border-r-[3px] border-edge bg-panel-deep px-5 py-8 sm:px-8 sm:py-10">
+        <section
+          className={`flex min-w-[260px] flex-col gap-5 bg-panel-deep px-5 py-8 sm:px-8 sm:py-10 ${
+            sprite
+              ? "flex-[1_1_340px] border-r-[3px] border-edge"
+              : "flex-[1_1_100%]"
+          }`}
+        >
           <div className="flex flex-col gap-4">
             <h1 className="m-0 font-display text-[15px] leading-[1.7] tracking-[1px] text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)] sm:text-[20px]">
               {titulo}
@@ -48,11 +54,12 @@ export function PainelAuth({
           {formulario}
         </section>
 
+        {sprite ? (
         <section className="flex min-w-[240px] flex-[1_1_280px] flex-col items-center justify-center gap-5 bg-panel-soft px-6 py-10 text-center">
           <div className="relative flex h-[148px] w-[148px] items-center justify-center border-2 border-brand-shadow bg-panel shadow-halo">
             <Image
               src={sprite}
-              alt={spriteAlt}
+              alt={spriteAlt ?? ""}
               width={120}
               height={120}
               priority
@@ -60,19 +67,24 @@ export function PainelAuth({
             />
           </div>
 
-          <div className="flex flex-col items-center gap-3">
-            <h2 className="m-0 font-display text-[14px] leading-[1.8] tracking-[1px] text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)]">
-              {tituloLateral}
-            </h2>
-            {textoLateral ? (
-              <p className="m-0 max-w-[330px] font-body text-lg leading-[1.8] tracking-[1px] text-ink-body text-pretty">
-                {textoLateral}
-              </p>
-            ) : null}
-          </div>
+          {tituloLateral || textoLateral ? (
+            <div className="flex flex-col items-center gap-3">
+              {tituloLateral ? (
+                <h2 className="m-0 font-display text-[14px] leading-[1.8] tracking-[1px] text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)]">
+                  {tituloLateral}
+                </h2>
+              ) : null}
+              {textoLateral ? (
+                <p className="m-0 max-w-[330px] font-body text-lg leading-[1.8] tracking-[1px] text-ink-body text-pretty">
+                  {textoLateral}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           {acaoLateral}
         </section>
+        ) : null}
       </div>
     </main>
   );

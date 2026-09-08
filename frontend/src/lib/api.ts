@@ -3,17 +3,23 @@ import type {
   DocumentosLegais,
   ExercicioDetalhe,
   MinhaCriatura,
-  Sessao,
   TrilhaDetalhe,
   TrilhaResumo,
   Usuario,
 } from "./types";
 
+// No navegador tudo passa pela mesma origem, via rewrite do Next: e o que
+// permite cookie httpOnly com SameSite=Lax. Nos Server Components nao existe
+// origem relativa, entao a leitura publica vai direto no Django.
 const BASE =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+  typeof window === "undefined"
+    ? `${process.env.API_ORIGIN ?? "http://localhost:8000"}/api/v1`
+    : "/api/v1";
 
-const CHAVE_ACCESS = "codequest:access";
-const CHAVE_REFRESH = "codequest:refresh";
+const COOKIE_SESSAO = "cq_sessao";
+const COOKIE_CSRF = "csrftoken";
+
+const METODOS_SEGUROS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 export interface DetalheErro {
   field: string | null;
@@ -43,6 +49,10 @@ export class ErroApi extends Error {
     return this.status === 404;
   }
 
+  temCodigo(code: string): boolean {
+    return this.details.some((detalhe) => detalhe.code === code);
+  }
+
   porCampo(): Record<string, string> {
     const mapa: Record<string, string> = {};
     for (const detalhe of this.details) {
@@ -60,37 +70,33 @@ const ERRO_REDE = new ErroApi(
   "Não foi possível falar com o servidor. Ele está no ar?",
 );
 
-function ler(chave: string): string | null {
-  if (typeof window === "undefined") return null;
+function lerCookie(nome: string): string | null {
+  if (typeof document === "undefined") return null;
+  const casado = document.cookie.match(
+    new RegExp(`(?:^|; )${nome}=([^;]*)`),
+  );
+  return casado ? decodeURIComponent(casado[1]) : null;
+}
+
+/**
+ * Diz se a interface deve assumir que ha sessao. Le o cookie sinalizador, que
+ * nao e credencial: o token de verdade e httpOnly e o JavaScript nao o ve. O
+ * servidor continua sendo a autoridade, e um 401 desmente isto a qualquer hora.
+ */
+export function temSessao(): boolean {
+  return lerCookie(COOKIE_SESSAO) === "1";
+}
+
+async function garantirCsrf(): Promise<string | null> {
+  const atual = lerCookie(COOKIE_CSRF);
+  if (atual) return atual;
+
   try {
-    return window.localStorage.getItem(chave);
+    await fetch(`${BASE}/auth/csrf/`, { credentials: "same-origin" });
   } catch {
     return null;
   }
-}
-
-function gravar(chave: string, valor: string | null) {
-  if (typeof window === "undefined") return;
-  try {
-    if (valor === null) window.localStorage.removeItem(chave);
-    else window.localStorage.setItem(chave, valor);
-  } catch {
-    /* modo privado ou storage bloqueado */
-  }
-}
-
-export function guardarSessao(sessao: Sessao) {
-  gravar(CHAVE_ACCESS, sessao.access);
-  gravar(CHAVE_REFRESH, sessao.refresh);
-}
-
-export function limparSessao() {
-  gravar(CHAVE_ACCESS, null);
-  gravar(CHAVE_REFRESH, null);
-}
-
-export function temSessao(): boolean {
-  return ler(CHAVE_ACCESS) !== null;
+  return lerCookie(COOKIE_CSRF);
 }
 
 async function interpretar(resposta: Response) {
@@ -109,23 +115,15 @@ async function interpretar(resposta: Response) {
 }
 
 async function renovar(): Promise<boolean> {
-  const refresh = ler(CHAVE_REFRESH);
-  if (!refresh) return false;
+  const csrf = await garantirCsrf();
 
   try {
     const resposta = await fetch(`${BASE}/auth/renovar/`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh }),
+      credentials: "same-origin",
+      headers: csrf ? { "X-CSRFToken": csrf } : {},
     });
-    if (!resposta.ok) {
-      limparSessao();
-      return false;
-    }
-    const dados = await resposta.json();
-    gravar(CHAVE_ACCESS, dados.access);
-    if (dados.refresh) gravar(CHAVE_REFRESH, dados.refresh);
-    return true;
+    return resposta.ok;
   } catch {
     return false;
   }
@@ -155,9 +153,9 @@ async function requisicao<T>(
   const headers: Record<string, string> = {};
   if (corpo !== undefined) headers["Content-Type"] = "application/json";
 
-  if (autenticado) {
-    const access = ler(CHAVE_ACCESS);
-    if (access) headers.Authorization = `Bearer ${access}`;
+  if (!METODOS_SEGUROS.has(metodo) && typeof window !== "undefined") {
+    const csrf = await garantirCsrf();
+    if (csrf) headers["X-CSRFToken"] = csrf;
   }
 
   let resposta: Response;
@@ -165,6 +163,7 @@ async function requisicao<T>(
     resposta = await fetch(`${BASE}${caminho}`, {
       method: metodo,
       headers,
+      credentials: "same-origin",
       body: corpo === undefined ? undefined : JSON.stringify(corpo),
       ...(revalidacao === undefined
         ? {}
@@ -182,7 +181,6 @@ async function requisicao<T>(
         true,
       );
     }
-    limparSessao();
   }
 
   return interpretar(resposta) as Promise<T>;
@@ -190,8 +188,6 @@ async function requisicao<T>(
 
 export interface RespostaAuth {
   usuario: Usuario;
-  access: string;
-  refresh: string;
 }
 
 export interface DadosRegistro {
@@ -199,11 +195,13 @@ export interface DadosRegistro {
   nickname: string;
   senha: string;
   senha_confirmacao: string;
-  /** Sem `true` aqui o servidor recusa o cadastro. */
   aceite_documentos: boolean;
-  /** Versões que a tela exibiu, conferidas pelo servidor contra as vigentes. */
   versao_termos: string;
   versao_privacidade: string;
+}
+
+export interface RespostaCadastro {
+  email_enviado: boolean;
 }
 
 export const api = {
@@ -212,7 +210,39 @@ export const api = {
   },
 
   registrar(dados: DadosRegistro) {
-    return requisicao<RespostaAuth>("/auth/registrar/", {
+    return requisicao<RespostaCadastro>("/auth/registrar/", {
+      metodo: "POST",
+      corpo: dados,
+    });
+  },
+
+  verificarEmail(token: string) {
+    return requisicao<Usuario>("/auth/verificar/", {
+      metodo: "POST",
+      corpo: { token },
+    });
+  },
+
+  reenviarVerificacao(email: string) {
+    return requisicao<void>("/auth/verificar/reenviar/", {
+      metodo: "POST",
+      corpo: { email },
+    });
+  },
+
+  senhaEsquecida(email: string) {
+    return requisicao<void>("/auth/senha/esquecida/", {
+      metodo: "POST",
+      corpo: { email },
+    });
+  },
+
+  redefinirSenha(dados: {
+    token: string;
+    senha: string;
+    senha_confirmacao: string;
+  }) {
+    return requisicao<void>("/auth/senha/redefinir/", {
       metodo: "POST",
       corpo: dados,
     });
@@ -223,6 +253,10 @@ export const api = {
       metodo: "POST",
       corpo: dados,
     });
+  },
+
+  sair() {
+    return requisicao<void>("/auth/sair/", { metodo: "POST" });
   },
 
   eu() {
@@ -251,6 +285,13 @@ export const api = {
 // durante o build estatico das rotas de trilha e exercicio.
 
 const CATALOGO: Opcoes = { revalidacao: 60, etiquetas: ["trilhas"] };
+
+export function buscarDocumentosLegais(): Promise<DocumentosLegais> {
+  return requisicao<DocumentosLegais>("/auth/documentos/", {
+    revalidacao: 300,
+    etiquetas: ["documentos"],
+  });
+}
 
 export function listarTrilhas(): Promise<TrilhaResumo[]> {
   return requisicao<TrilhaResumo[]>("/trilhas/", { ...CATALOGO });

@@ -6,6 +6,8 @@ projeto usam `TestCase` do Django, que roda tanto por `manage.py test` quanto
 por `pytest`. Fixture só funcionaria no segundo.
 """
 
+from django.utils import timezone
+
 from apps.contas.documentos import Documento, versao_vigente
 from apps.contas.models import User
 
@@ -13,7 +15,8 @@ SENHA_PADRAO = "trilha-de-python-8"
 
 
 def criar_usuario(nickname: str, role: str = User.Role.STUDENT, **extra) -> User:
-    """Cria um usuário com e-mail derivado do nickname."""
+    """Cria um usuário com e-mail derivado do nickname, já verificado."""
+    extra.setdefault("email_verified_at", timezone.now())
     return User.objects.create_user(
         email=f"{nickname}@example.com",
         nickname=nickname,
@@ -21,6 +24,10 @@ def criar_usuario(nickname: str, role: str = User.Role.STUDENT, **extra) -> User
         role=role,
         **extra,
     )
+
+
+def criar_nao_verificado(nickname: str = "pendente", **extra) -> User:
+    return criar_usuario(nickname, email_verified_at=None, **extra)
 
 
 def criar_aluno(nickname: str = "aluno", **extra) -> User:
@@ -36,12 +43,6 @@ def criar_admin(nickname: str = "administrador", **extra) -> User:
 
 
 def payload_aceite() -> dict:
-    """
-    Bloco de aceite que o cadastro exige, sempre na versão vigente.
-
-    É função e não constante de propósito: os testes mexem no payload, e um
-    dicionário compartilhado no módulo vazaria a mudança de um teste no outro.
-    """
     return {
         "aceite_documentos": True,
         "versao_termos": versao_vigente(Documento.TERMOS),

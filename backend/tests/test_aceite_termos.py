@@ -1,12 +1,3 @@
-"""
-O aceite dos documentos legais no cadastro.
-
-O que estes testes protegem é uma coisa só: não existe conta sem registro de
-aceite, e o registro guarda a versão que a pessoa viu. Se alguém tornar o
-campo opcional, carimbar a versão no servidor em vez de conferir a que veio do
-cliente, ou criar o usuário fora da transação, é aqui que quebra.
-"""
-
 from django.db import IntegrityError, transaction
 from django.urls import reverse
 from rest_framework import status
@@ -98,7 +89,6 @@ class AceiteNoCadastroTest(APITestCase):
         self.assertEqual(_primeiro_codigo(r), "versao_desatualizada")
 
     def test_conta_recusada_nao_deixa_aceite_orfao(self):
-        """Nickname duplicado derruba o cadastro depois da validação do aceite."""
         criar_aluno("novato")
         self.payload["email"] = "outro@exemplo.com"
 
@@ -130,6 +120,14 @@ class DocumentosLegaisTest(APITestCase):
             r.data["privacidade"]["versao"], versao_vigente(Documento.PRIVACIDADE)
         )
 
+    def test_devolve_o_nome_publico_de_cada_documento(self):
+        r = self.client.get(self.url)
+
+        self.assertEqual(r.data["termos"]["rotulo"], "Termos de Uso")
+        self.assertEqual(
+            r.data["privacidade"]["rotulo"], "Política de Privacidade"
+        )
+
     def test_devolve_o_caminho_da_pagina(self):
         r = self.client.get(self.url)
 
@@ -137,7 +135,6 @@ class DocumentosLegaisTest(APITestCase):
         self.assertEqual(r.data["privacidade"]["caminho"], "/privacidade")
 
     def test_o_que_a_api_devolve_e_aceito_no_cadastro(self):
-        """O contrato entre as duas rotas, que é o ponto de todo o desenho."""
         documentos = self.client.get(self.url).data
 
         r = self.client.post(

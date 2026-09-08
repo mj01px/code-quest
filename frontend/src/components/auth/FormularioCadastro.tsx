@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelCheckbox } from "@/components/ui/PixelCheckbox";
 import { PixelField } from "@/components/ui/PixelField";
-import { ErroApi, api, guardarSessao } from "@/lib/api";
+import { ErroApi, api } from "@/lib/api";
 import type { DocumentosLegais } from "@/lib/types";
 import {
   NICKNAME_MAX,
@@ -26,9 +25,6 @@ interface Erros {
   geral?: string | null;
 }
 
-// Os campos que esta tela sabe mostrar embaixo do input certo. Qualquer outro
-// que o servidor recuse (versão de documento, por exemplo) cai no aviso geral,
-// senão o erro chegaria e não apareceria em lugar nenhum.
 const CAMPOS_DA_TELA = [
   "email",
   "nickname",
@@ -39,8 +35,16 @@ const CAMPOS_DA_TELA = [
 
 const ESTILO_LINK = "underline underline-offset-2";
 
-export function FormularioCadastro() {
-  const router = useRouter();
+export interface Cadastrado {
+  email: string;
+  emailEnviado: boolean;
+}
+
+interface Props {
+  aoCadastrar: (dados: Cadastrado) => void;
+}
+
+export function FormularioCadastro({ aoCadastrar }: Props) {
   const [email, setEmail] = useState("");
   const [nickname, setNickname] = useState("");
   const [senha, setSenha] = useState("");
@@ -51,10 +55,6 @@ export function FormularioCadastro() {
   const [erros, setErros] = useState<Erros>({});
   const [enviando, setEnviando] = useState(false);
 
-  // A versão vem da API, não de constante no bundle: o cadastro devolve ao
-  // servidor a versão que esta tela realmente exibiu, e o servidor recusa se
-  // não for a vigente. Uma aba aberta há dias falha em vez de registrar um
-  // aceite do texto errado.
   useEffect(() => {
     let ativo = true;
 
@@ -88,8 +88,9 @@ export function FormularioCadastro() {
 
     setEnviando(true);
     try {
-      const sessao = await api.registrar({
-        email: email.trim(),
+      const endereco = email.trim();
+      const resposta = await api.registrar({
+        email: endereco,
         nickname: nickname.trim(),
         senha,
         senha_confirmacao: confirmacao,
@@ -97,8 +98,10 @@ export function FormularioCadastro() {
         versao_termos: documentos.termos.versao,
         versao_privacidade: documentos.privacidade.versao,
       });
-      guardarSessao(sessao);
-      router.push("/escolher-criatura");
+      aoCadastrar({
+        email: endereco,
+        emailEnviado: resposta.email_enviado,
+      });
     } catch (erro) {
       if (erro instanceof ErroApi) {
         const porCampo = erro.porCampo();
@@ -185,21 +188,16 @@ export function FormularioCadastro() {
         >
           Termos de Uso
         </Link>{" "}
-        e o{" "}
+        e a{" "}
         <Link
           href={documentos?.privacidade.caminho ?? "/privacidade"}
           target="_blank"
           rel="noopener noreferrer"
           className={ESTILO_LINK}
         >
-          Protocolo de Dados
+          Política de Privacidade
         </Link>
         .
-        {documentos ? (
-          <span className="ml-1 text-ink-dim">
-            (v{documentos.termos.versao} e v{documentos.privacidade.versao})
-          </span>
-        ) : null}
       </PixelCheckbox>
 
       {falhaDocumentos ? (

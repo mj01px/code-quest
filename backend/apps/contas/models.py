@@ -1,5 +1,7 @@
 import uuid
+from datetime import timedelta
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.db import models
 from django.db.models.functions import Lower
@@ -83,6 +85,32 @@ class User(AbstractBaseUser, PermissionsMixin):
         ),
     )
 
+    email_verified_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_("e-mail verificado em"),
+        help_text=_(
+            "Preenchido quando o titular clica no link enviado no cadastro. "
+            "Enquanto for nulo, o login fica bloqueado."
+        ),
+    )
+
+    failed_logins = models.PositiveSmallIntegerField(
+        default=0,
+        verbose_name=_("tentativas de login falhas"),
+        help_text=_("Zerado a cada login bem-sucedido."),
+    )
+
+    locked_until = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_("bloqueado até"),
+        help_text=_(
+            "Preenchido quando as tentativas falhas passam do limite. "
+            "Não confundir com is_active, que é suspensão manual."
+        ),
+    )
+
     deletion_requested_at = models.DateTimeField(
         null=True,
         blank=True,
@@ -161,6 +189,38 @@ class User(AbstractBaseUser, PermissionsMixin):
         return cache[1]
 
     @property
+    def email_verificado(self) -> bool:
+        return self.email_verified_at is not None
+
+    def marcar_email_verificado(self) -> None:
+        if self.email_verified_at is None:
+            self.email_verified_at = timezone.now()
+            self.save(update_fields=["email_verified_at", "updated_at"])
+
+    @property
+    def esta_bloqueado(self) -> bool:
+        return self.locked_until is not None and self.locked_until > timezone.now()
+
+    def registrar_falha_de_login(self) -> None:
+        self.failed_logins += 1
+        campos = ["failed_logins", "updated_at"]
+
+        if self.failed_logins >= settings.LOGIN_MAX_TENTATIVAS:
+            self.locked_until = timezone.now() + timedelta(
+                seconds=settings.LOGIN_BLOQUEIO_SEGUNDOS
+            )
+            self.failed_logins = 0
+            campos.append("locked_until")
+
+        self.save(update_fields=campos)
+
+    def registrar_login_valido(self) -> None:
+        if self.failed_logins or self.locked_until:
+            self.failed_logins = 0
+            self.locked_until = None
+            self.save(update_fields=["failed_logins", "locked_until", "updated_at"])
+
+    @property
     def is_anonymized(self) -> bool:
         return self.anonymized_at is not None
 
@@ -172,18 +232,6 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
 class AceiteDeTermos(models.Model):
-    """
-    Registro de um aceite: uma linha por documento e por versão.
-
-    A linha nunca é editada. Quando sai uma versão nova o titular aceita de
-    novo e ganha outra linha, porque o histórico é o que prova qual texto ele
-    leu em cada momento. Sobrescrever destruiria essa prova.
-
-    O `ip` é dado pessoal e sobrevive à exclusão da conta, já que a exclusão
-    aqui é lógica (`User.anonymized_at`). A tarefa que fizer a anonimização
-    precisa limpar este campo junto, senão o dado do titular continua no banco
-    depois de ele ter pedido a remoção.
-    """
 
     id = models.UUIDField(
         primary_key=True,
@@ -249,7 +297,6 @@ class AceiteDeTermos(models.Model):
 
     @classmethod
     def registrar_vigentes(cls, user, ip=None) -> list[AceiteDeTermos]:
-        """Grava, de uma vez, o aceite da versão vigente de cada documento."""
         return cls.objects.bulk_create(
             [
                 cls(user=user, documento=documento, versao=vigente.versao, ip=ip)

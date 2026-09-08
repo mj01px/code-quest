@@ -67,16 +67,10 @@ export interface DocumentoVigente {
   documento: DocumentoLegal;
   rotulo: string;
   versao: string;
-  /** ISO 8601, só a data. */
   vigente_desde: string;
   caminho: string;
 }
 
-/**
- * Versões vigentes que o cadastro exibe e devolve no aceite. O servidor recusa
- * o registro se a versão enviada não for a que está no ar, então este objeto
- * precisa vir da API e não de constante compilada no bundle.
- */
 export interface DocumentosLegais {
   termos: DocumentoVigente;
   privacidade: DocumentoVigente;

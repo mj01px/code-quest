@@ -3,7 +3,7 @@ import Link from "next/link";
 
 const LINKS = [
   { href: "/termos", rotulo: "TERMOS_DE_USO" },
-  { href: "/privacidade", rotulo: "PROTOCOLO_DE_DADOS" },
+  { href: "/privacidade", rotulo: "POLITICA_DE_PRIVACIDADE" },
   { href: "/suporte", rotulo: "SUPORTE" },
 ];
 

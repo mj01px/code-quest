@@ -3,22 +3,24 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from rest_framework import serializers
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .documentos import VERSAO_MAX_LENGTH, Documento, versao_vigente
 from .models import AceiteDeTermos
+from .senha import ler_token as ler_token_senha
+from .senha import token_confere
+from .verificacao import ler_token
 
 User = get_user_model()
 
+CREDENCIAL_INVALIDA = (
+    "E-mail ou senha incorretos. Se errou várias vezes, espere alguns minutos "
+    "ou redefina sua senha."
+)
+
 
 def _ip_do_cliente(request) -> str | None:
-    """
-    Lê REMOTE_ADDR direto, nunca X-Forwarded-For.
-
-    O projeto roda com NUM_PROXIES = 0 em `config/settings.py`, ou seja, já
-    decidiu ignorar cabeçalho que o próprio cliente controla. Se um dia entrar
-    um proxy reverso na frente, os dois lugares mudam juntos.
-    """
     if request is None:
         return None
     return request.META.get("REMOTE_ADDR") or None
@@ -68,9 +70,6 @@ class RegistroSerializer(serializers.ModelSerializer):
 
     aceite_documentos = serializers.BooleanField(write_only=True, required=True)
 
-    # O cliente ecoa a versão que exibiu em vez de o servidor carimbar a atual.
-    # É o que impede uma aba velha em cache aceitar o texto antigo e ficar
-    # registrada como se tivesse lido o novo.
     versao_termos = serializers.CharField(
         write_only=True, required=True, max_length=VERSAO_MAX_LENGTH
     )
@@ -91,12 +90,7 @@ class RegistroSerializer(serializers.ModelSerializer):
         )
 
     def validate_email(self, valor):
-        email = User.objects.normalize_email(valor).lower()
-        if User.objects.filter(email=email).exists():
-            raise serializers.ValidationError(
-                "Já existe uma conta com este e-mail.", code="email_em_uso"
-            )
-        return email
+        return User.objects.normalize_email(valor).lower()
 
     def validate_nickname(self, valor):
         if User.objects.filter(nickname__iexact=valor).exists():
@@ -108,7 +102,7 @@ class RegistroSerializer(serializers.ModelSerializer):
     def validate_aceite_documentos(self, valor):
         if valor is not True:
             raise serializers.ValidationError(
-                "É preciso aceitar os Termos de Uso e o Protocolo de Dados "
+                "É preciso aceitar os Termos de Uso e a Política de Privacidade "
                 "para criar a conta.",
                 code="aceite_obrigatorio",
             )
@@ -150,8 +144,6 @@ class RegistroSerializer(serializers.ModelSerializer):
     def create(self, dados):
         ip = _ip_do_cliente(self.context.get("request"))
 
-        # Conta e aceite nascem na mesma transação: uma conta sem o registro do
-        # aceite seria exatamente o que não se consegue provar depois.
         with transaction.atomic():
             usuario = User.objects.create_user(
                 email=dados["email"],
@@ -175,11 +167,67 @@ class LoginSerializer(TokenObtainPairSerializer):
         attrs = dict(attrs)
         attrs["password"] = attrs.pop("senha", "")
         identificador = attrs.get(self.username_field) or ""
-        attrs[self.username_field] = identificador.strip().lower()
+        email = identificador.strip().lower()
+        attrs[self.username_field] = email
 
-        dados = super().validate(attrs)
+        candidato = User.objects.filter(email=email).first()
+
+        if candidato is not None and candidato.esta_bloqueado:
+            raise AuthenticationFailed(CREDENCIAL_INVALIDA, "credencial_invalida")
+
+        try:
+            dados = super().validate(attrs)
+        except AuthenticationFailed:
+            if candidato is not None:
+                candidato.registrar_falha_de_login()
+            raise AuthenticationFailed(
+                CREDENCIAL_INVALIDA, "credencial_invalida"
+            ) from None
+
+        self.user.registrar_login_valido()
+
+        if not self.user.email_verificado:
+            raise serializers.ValidationError(
+                {
+                    "email": serializers.ErrorDetail(
+                        "Confirme seu e-mail antes de entrar. "
+                        "Enviamos um link quando você criou a conta.",
+                        code="email_nao_verificado",
+                    )
+                }
+            )
+
         dados["usuario"] = UsuarioSerializer(self.user).data
         return dados
+
+
+class VerificarEmailSerializer(serializers.Serializer):
+    token = serializers.CharField(write_only=True, max_length=500)
+
+    def validate_token(self, valor):
+        uid = ler_token(valor)
+        if uid is None:
+            raise serializers.ValidationError(
+                "Link inválido ou expirado. Peça um novo e-mail de confirmação.",
+                code="token_invalido",
+            )
+
+        usuario = User.objects.filter(pk=uid).first()
+        if usuario is None:
+            raise serializers.ValidationError(
+                "Link inválido ou expirado. Peça um novo e-mail de confirmação.",
+                code="token_invalido",
+            )
+
+        self.usuario = usuario
+        return valor
+
+
+class ReenviarVerificacaoSerializer(serializers.Serializer):
+    email = serializers.EmailField(write_only=True)
+
+    def validate_email(self, valor):
+        return User.objects.normalize_email(valor).lower()
 
 
 class DocumentoLegalSerializer(serializers.Serializer):
@@ -191,7 +239,58 @@ class DocumentoLegalSerializer(serializers.Serializer):
 
 
 class DocumentosLegaisSerializer(serializers.Serializer):
-    """Resposta de leitura pública: o que o cadastro precisa exibir e ecoar."""
-
     termos = DocumentoLegalSerializer()
     privacidade = DocumentoLegalSerializer()
+
+
+class SenhaEsquecidaSerializer(serializers.Serializer):
+    email = serializers.EmailField(write_only=True)
+
+    def validate_email(self, valor):
+        return User.objects.normalize_email(valor).lower()
+
+
+class RedefinirSenhaSerializer(serializers.Serializer):
+    token = serializers.CharField(write_only=True, max_length=500)
+    senha = serializers.CharField(
+        write_only=True, style={"input_type": "password"}, trim_whitespace=False
+    )
+    senha_confirmacao = serializers.CharField(
+        write_only=True, style={"input_type": "password"}, trim_whitespace=False
+    )
+
+    def _recusar(self):
+        raise serializers.ValidationError(
+            {
+                "token": serializers.ErrorDetail(
+                    "Link inválido, expirado ou já usado. Peça outro.",
+                    code="token_invalido",
+                )
+            }
+        )
+
+    def validate(self, dados):
+        if dados["senha"] != dados["senha_confirmacao"]:
+            raise serializers.ValidationError(
+                {
+                    "senha_confirmacao": serializers.ErrorDetail(
+                        "As senhas não conferem.", code="senha_diferente"
+                    )
+                }
+            )
+
+        lido = ler_token_senha(dados["token"])
+        if lido is None:
+            self._recusar()
+
+        usuario = User.objects.filter(pk=lido["uid"], is_active=True).first()
+        if usuario is None or not token_confere(lido, usuario):
+            self._recusar()
+
+        try:
+            validate_password(dados["senha"], usuario)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({"senha": list(exc.messages)}) from None
+
+        self.usuario = usuario
+        return dados

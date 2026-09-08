@@ -10,9 +10,6 @@ interface Props
   erro?: string | null;
 }
 
-// O input continua sendo um checkbox de verdade, só sem a pintura do sistema
-// (`appearance-none`). É o que mantém teclado, leitor de tela e o estado
-// :checked funcionando de graça, com o visual da caixa por conta do CSS.
 export function PixelCheckbox({
   children,
   erro,
