@@ -1,4 +1,12 @@
-import type { Criatura, MinhaCriatura, Sessao, Usuario } from "./types";
+import type {
+  Criatura,
+  ExercicioDetalhe,
+  MinhaCriatura,
+  Sessao,
+  TrilhaDetalhe,
+  TrilhaResumo,
+  Usuario,
+} from "./types";
 
 const BASE =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
@@ -28,6 +36,10 @@ export class ErroApi extends Error {
     this.status = status;
     this.code = code;
     this.details = details;
+  }
+
+  get naoEncontrado(): boolean {
+    return this.status === 404;
   }
 
   porCampo(): Record<string, string> {
@@ -122,11 +134,21 @@ interface Opcoes {
   metodo?: "GET" | "POST" | "PATCH" | "DELETE";
   corpo?: unknown;
   autenticado?: boolean;
+  /** Segundos de cache no servidor; sem ela a resposta nao e reaproveitada. */
+  revalidacao?: number;
+  /** Etiquetas de cache do Next, para invalidacao seletiva. */
+  etiquetas?: string[];
 }
 
 async function requisicao<T>(
   caminho: string,
-  { metodo = "GET", corpo, autenticado = false }: Opcoes = {},
+  {
+    metodo = "GET",
+    corpo,
+    autenticado = false,
+    revalidacao,
+    etiquetas,
+  }: Opcoes = {},
   jaRenovou = false,
 ): Promise<T> {
   const headers: Record<string, string> = {};
@@ -143,6 +165,9 @@ async function requisicao<T>(
       method: metodo,
       headers,
       body: corpo === undefined ? undefined : JSON.stringify(corpo),
+      ...(revalidacao === undefined
+        ? {}
+        : { next: { revalidate: revalidacao, tags: etiquetas } }),
     });
   } catch {
     throw ERRO_REDE;
@@ -150,7 +175,11 @@ async function requisicao<T>(
 
   if (resposta.status === 401 && autenticado && !jaRenovou) {
     if (await renovar()) {
-      return requisicao<T>(caminho, { metodo, corpo, autenticado }, true);
+      return requisicao<T>(
+        caminho,
+        { metodo, corpo, autenticado, revalidacao, etiquetas },
+        true,
+      );
     }
     limparSessao();
   }
@@ -204,3 +233,29 @@ export const api = {
     });
   },
 };
+
+// Catalogo de trilhas: leitura publica, servida a partir dos Server Components.
+// Sem token, entao `autenticado` fica de fora; o cache do Next segura a carga
+// durante o build estatico das rotas de trilha e exercicio.
+
+const CATALOGO: Opcoes = { revalidacao: 60, etiquetas: ["trilhas"] };
+
+export function listarTrilhas(): Promise<TrilhaResumo[]> {
+  return requisicao<TrilhaResumo[]>("/trilhas/", { ...CATALOGO });
+}
+
+export function buscarTrilha(slug: string): Promise<TrilhaDetalhe> {
+  return requisicao<TrilhaDetalhe>(`/trilhas/${encodeURIComponent(slug)}/`, {
+    ...CATALOGO,
+  });
+}
+
+export function buscarExercicio(
+  trilhaSlug: string,
+  exercicioSlug: string,
+): Promise<ExercicioDetalhe> {
+  const caminho = `/exercicios/${encodeURIComponent(
+    trilhaSlug,
+  )}/${encodeURIComponent(exercicioSlug)}/`;
+  return requisicao<ExercicioDetalhe>(caminho, { ...CATALOGO });
+}
