@@ -337,15 +337,3 @@ passa pelas regras de negócio.
 </div>
 
 ---
-
-<div align="center">
-  <br/>
-  <sub>
-    Feito por <a href="https://github.com/mj01px"><strong>Mauro Junior</strong></a>
-    &nbsp;·&nbsp;
-    <a href="https://www.linkedin.com/in/mauroapjunior/">LinkedIn</a>
-  </sub>
-  <br/><br/>
-</div>
-
----
