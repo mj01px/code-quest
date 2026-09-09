@@ -1,0 +1,18 @@
+{% extends "contas/email_base.html" %}
+
+{% block preheader %}Confirme seu e-mail para liberar o acesso à CodeQuest. O link vale por {{ horas }} horas.{% endblock %}
+
+{% block selo %}NOVA CONTA DETECTADA{% endblock %}
+
+{% block titulo %}Ative sua<br />conta{% endblock %}
+
+{% block corpo %}
+<p class="px-body" style="margin:0 0 16px 0; font-family:'VT323','Courier New',monospace; font-size:21px; line-height:1.6; color:#cfc8e0;">
+  Olá, <span style="color:#c084fc;">{{ nickname }}</span>!
+</p>
+<p class="px-body" style="margin:0; font-family:'VT323','Courier New',monospace; font-size:21px; line-height:1.6; color:#cfc8e0;">
+  Falta um passo para começar sua jornada. Clique no botão abaixo para confirmar seu e-mail e liberar o acesso à CodeQuest.
+</p>
+{% endblock %}
+
+{% block rodape %}Se você não criou esta conta, ignore esta mensagem com segurança.{% endblock %}

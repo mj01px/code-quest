@@ -2,13 +2,16 @@ import logging
 
 from django.conf import settings
 from django.core import signing
-from django.core.mail import send_mail
+
+from apps.contas.email_utils import enviar_email_html
 
 logger = logging.getLogger(__name__)
 
 SALT = "contas.verificacao-email"
 
 ASSUNTO = "Confirme seu e-mail na CodeQuest"
+
+TEMPLATE = "contas/verificacao_email.html"
 
 CORPO = """Olá, {nickname}!
 
@@ -41,19 +44,23 @@ def montar_link(token: str) -> str:
 
 def enviar_verificacao(user) -> bool:
     link = montar_link(gerar_token(user))
-    corpo = CORPO.format(
-        nickname=user.nickname,
-        link=link,
-        horas=settings.VERIFICACAO_EMAIL_MAX_AGE // 3600,
-    )
+    horas = settings.VERIFICACAO_EMAIL_MAX_AGE // 3600
+    contexto = {
+        "nickname": user.nickname,
+        "link": link,
+        "horas": horas,
+        "botao_texto": "ATIVAR MINHA CONTA",
+        "botao_url": link,
+        "nota": f"O link expira em {horas} horas",
+    }
 
     try:
-        send_mail(
-            subject=ASSUNTO,
-            message=corpo,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            fail_silently=False,
+        enviar_email_html(
+            assunto=ASSUNTO,
+            destinatario=user.email,
+            template=TEMPLATE,
+            contexto=contexto,
+            texto_alternativo=CORPO.format(nickname=user.nickname, link=link, horas=horas),
         )
     except Exception:
         logger.exception("Falha ao enviar verificacao de e-mail para o usuario %s", user.pk)

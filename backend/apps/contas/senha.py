@@ -3,13 +3,16 @@ import logging
 
 from django.conf import settings
 from django.core import signing
-from django.core.mail import send_mail
+
+from apps.contas.email_utils import enviar_email_html
 
 logger = logging.getLogger(__name__)
 
 SALT = "contas.redefinicao-senha"
 
 ASSUNTO = "Redefinição de senha na CodeQuest"
+
+TEMPLATE = "contas/redefinicao_email.html"
 
 CORPO = """Olá, {nickname}!
 
@@ -55,19 +58,26 @@ def montar_link(token: str) -> str:
 
 
 def enviar_redefinicao(user) -> bool:
-    corpo = CORPO.format(
-        nickname=user.nickname,
-        link=montar_link(gerar_token(user)),
-        minutos=settings.REDEFINICAO_SENHA_MAX_AGE // 60,
-    )
+    link = montar_link(gerar_token(user))
+    minutos = settings.REDEFINICAO_SENHA_MAX_AGE // 60
+    contexto = {
+        "nickname": user.nickname,
+        "link": link,
+        "minutos": minutos,
+        "botao_texto": "REDEFINIR SENHA",
+        "botao_url": link,
+        "nota": f"O link expira em {minutos} minutos",
+    }
 
     try:
-        send_mail(
-            subject=ASSUNTO,
-            message=corpo,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            fail_silently=False,
+        enviar_email_html(
+            assunto=ASSUNTO,
+            destinatario=user.email,
+            template=TEMPLATE,
+            contexto=contexto,
+            texto_alternativo=CORPO.format(
+                nickname=user.nickname, link=link, minutos=minutos
+            ),
         )
     except Exception:
         logger.exception("Falha ao enviar redefinicao de senha para %s", user.pk)

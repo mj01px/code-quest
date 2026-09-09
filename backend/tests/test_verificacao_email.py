@@ -59,7 +59,8 @@ class EnvioNoCadastroTest(APITestCase):
 
     def test_smtp_fora_do_ar_nao_derruba_o_cadastro(self):
         with patch(
-            "apps.contas.verificacao.send_mail", side_effect=OSError("smtp caiu")
+            "apps.contas.verificacao.enviar_email_html",
+            side_effect=OSError("smtp caiu"),
         ):
             r = self.client.post(self.url, self.payload, format="json")
 

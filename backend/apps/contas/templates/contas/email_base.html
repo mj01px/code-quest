@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="supported-color-schemes" content="dark" />
+  <title>{{ assunto }}</title>
+  <!--[if mso]>
+  <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
+  <![endif]-->
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    /* Clientes que suportam <style> ganham as fontes pixel; o resto cai em monospace. */
+    body { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+    table { border-collapse: collapse; }
+    img { border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; }
+    a { text-decoration: none; }
+    .px-display { font-family: 'Press Start 2P', 'Courier New', monospace; }
+    .px-label { font-family: 'Silkscreen', 'Courier New', monospace; }
+    .px-body { font-family: 'VT323', 'Courier New', monospace; }
+    @media only screen and (max-width: 620px) {
+      .card { width: 100% !important; }
+      .px-pad { padding-left: 24px !important; padding-right: 24px !important; }
+      .px-title { font-size: 18px !important; line-height: 1.6 !important; }
+      .btn-cell a { display: block !important; }
+    }
+  </style>
+</head>
+<body style="margin:0; padding:0; background-color:#0a0a0f;">
+  <!-- Preheader oculto (texto de preview na caixa de entrada) -->
+  <div style="display:none; max-height:0; overflow:hidden; opacity:0; mso-hide:all; font-size:1px; line-height:1px; color:#0a0a0f;">
+    {% block preheader %}{% endblock %}
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0a0a0f;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+
+        <!-- Card -->
+        <table role="presentation" class="card" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px; background-color:#101016; border:2px solid #24202e; border-top:4px solid #7c3aed;">
+
+          <!-- Logo -->
+          <tr>
+            <td align="center" class="px-pad" style="padding:40px 48px 8px 48px;">
+              <img src="cid:logo_codequest" width="240" alt="CodeQuest" style="display:block; width:240px; max-width:70%; height:auto;" />
+            </td>
+          </tr>
+
+          <!-- Selo pixel -->
+          <tr>
+            <td align="center" class="px-pad" style="padding:0 48px 8px 48px;">
+              <span class="px-label" style="font-family:'Silkscreen','Courier New',monospace; font-size:11px; letter-spacing:3px; color:#c084fc; text-transform:uppercase;">&gt; {% block selo %}{% endblock %}</span>
+            </td>
+          </tr>
+
+          <!-- Título -->
+          <tr>
+            <td align="center" class="px-pad" style="padding:16px 48px 0 48px;">
+              <h1 class="px-display px-title" style="margin:0; font-family:'Press Start 2P','Courier New',monospace; font-size:22px; line-height:1.8; color:#edeaf5; text-shadow:3px 3px 0 #5b21b6;">
+                {% block titulo %}{% endblock %}
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Corpo -->
+          <tr>
+            <td class="px-pad" style="padding:24px 48px 0 48px;">
+              {% block corpo %}{% endblock %}
+            </td>
+          </tr>
+
+          <!-- Botão (pixel) -->
+          <tr>
+            <td align="center" class="px-pad" style="padding:32px 48px 8px 48px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td class="btn-cell" align="center" bgcolor="#7c3aed" style="background-color:#7c3aed; border:2px solid #a855f7; border-bottom:5px solid #5b21b6; border-right:5px solid #5b21b6;">
+                    <a href="{{ botao_url }}" target="_blank" class="px-label" style="display:inline-block; padding:16px 40px; font-family:'Silkscreen','Courier New',monospace; font-size:14px; letter-spacing:2px; color:#ffffff; text-transform:uppercase;">
+                      {{ botao_texto }}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          {% block nota %}
+          {% if nota %}
+          <tr>
+            <td align="center" class="px-pad" style="padding:16px 48px 0 48px;">
+              <p class="px-label" style="margin:0; font-family:'Silkscreen','Courier New',monospace; font-size:11px; letter-spacing:2px; color:#a79fbc; text-transform:uppercase;">
+                &gt; {{ nota }}
+              </p>
+            </td>
+          </tr>
+          {% endif %}
+          {% endblock %}
+
+          <!-- Divisor -->
+          <tr>
+            <td class="px-pad" style="padding:32px 48px 0 48px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="height:2px; background-color:#24202e; line-height:2px; font-size:2px;">&nbsp;</td></tr></table>
+            </td>
+          </tr>
+
+          <!-- Rodapé -->
+          <tr>
+            <td align="center" class="px-pad" style="padding:20px 48px 40px 48px;">
+              <p class="px-body" style="margin:0 0 6px 0; font-family:'VT323','Courier New',monospace; font-size:17px; line-height:1.5; color:#6e6880;">
+                {% block rodape %}Se você não reconhece esta ação, ignore esta mensagem com segurança.{% endblock %}
+              </p>
+              <p class="px-label" style="margin:0; font-family:'Silkscreen','Courier New',monospace; font-size:10px; letter-spacing:3px; color:#6e6880; text-transform:uppercase;">
+                CODEQUEST
+              </p>
+            </td>
+          </tr>
+
+        </table>
+        <!-- /Card -->
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
