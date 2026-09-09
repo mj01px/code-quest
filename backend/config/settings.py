@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'apps.contas',
     'apps.gamificacao',
     'apps.trilhas',
+    'apps.progressao'
 ]
 
 MIDDLEWARE = [

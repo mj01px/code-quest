@@ -4,8 +4,9 @@ from django.utils.translation import gettext_lazy as _
 
 
 class Origem(models.TextChoices):
-    EXERCICIO = "EXERCICIO", _("Exercício Concluído")
-    AJUSTE = "AJUSTE", _("Ajuste de Progressão")
+    EXERCICIO = "EXERCICIO", _("Exercício concluído")
+    AJUSTE = "AJUSTE", _("Ajuste de progressão")
+
 
 class Nivel(models.Model):
     numero = models.PositiveSmallIntegerField(
@@ -17,7 +18,7 @@ class Nivel(models.Model):
     xp_necessario = models.PositiveIntegerField(
         unique=True,
         verbose_name=_("XP acumulado necessário"),
-        help_text=_("Total acumulado, não incremento. Nível 1 é sempre 0."),
+        help_text=_("Total acumulado, não incremento. O nível 1 é sempre 0."),
     )
 
     titulo = models.CharField(
@@ -36,43 +37,41 @@ class Nivel(models.Model):
     def __str__(self) -> str:
         return f"Nível {self.numero}"
 
-class PerfilProgresso(models.Model):
-    user = models.OneToOneField(
-        settings.AUTH_USER_MODEL,
+
+class ProgressoCriatura(models.Model):
+    user_creature = models.OneToOneField(
+        "gamificacao.UserCreature",
         on_delete=models.CASCADE,
-        related_name="perfil_progresso",
-        verbose_name=_("usuário")
+        related_name="progresso",
+        verbose_name=_("criatura do usuário"),
     )
 
     xp_total = models.PositiveIntegerField(
         default=0,
-        verbose_name=_("XP Total"),
-        help_text=_("Total de XP acumulado pelo usuário.")
+        verbose_name=_("XP total"),
+        help_text=_("Soma dos eventos desta criatura. Cache derivado de EventoXP."),
     )
 
     nivel = models.ForeignKey(
         Nivel,
         on_delete=models.PROTECT,
         default=1,
-        related_name="perfis",
+        related_name="progressos",
         verbose_name=_("nível"),
     )
 
-    atualizado_em = models.DateTimeField(
-        auto_now=True,
-        verbose_name=_("Atualizado em"),
-        help_text=_("Data e hora da última atualização do perfil de progresso.")
-    )
+    atualizado_em = models.DateTimeField(auto_now=True, verbose_name=_("atualizado em"))
+
     class Meta:
-        verbose_name = _("Perfil de Progresso")
-        verbose_name_plural = _("Perfis de Progresso")
+        verbose_name = _("progresso da criatura")
+        verbose_name_plural = _("progressos das criaturas")
         ordering = ["-xp_total"]
         indexes = [
-            models.Index(fields=["-xp_total"], name="perfilprogresso_xp_idx"),
+            models.Index(fields=["-xp_total"], name="progressocriatura_xp_idx"),
         ]
 
     def __str__(self) -> str:
-        return f"{self.user.nickname} - nível {self.nivel_id}"
+        return f"{self.user_creature} - nível {self.nivel_id}"
 
 
 class EventoXP(models.Model):
@@ -81,6 +80,16 @@ class EventoXP(models.Model):
         on_delete=models.CASCADE,
         related_name="eventos_xp",
         verbose_name=_("usuário"),
+    )
+
+    user_creature = models.ForeignKey(
+        "gamificacao.UserCreature",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="eventos_xp",
+        verbose_name=_("criatura do usuário"),
+        help_text=_("A criatura ativa no momento em que o XP foi concedido."),
     )
 
     exercicio = models.ForeignKey(
@@ -116,7 +125,9 @@ class EventoXP(models.Model):
                 fields=["user", "exercicio"],
                 condition=models.Q(origem=Origem.EXERCICIO),
                 name="eventoxp_um_por_exercicio_por_usuario",
-                violation_error_message=_("Este exercício já concedeu XP a este usuário."),
+                violation_error_message=_(
+                    "Este exercício já concedeu XP a este usuário."
+                ),
             ),
         ]
         indexes = [
