@@ -1,0 +1,18 @@
+{% extends "contas/email_base.html" %}
+
+{% block preheader %}Alguém tentou criar uma conta com este e-mail, mas ele já está em uso. Nada mudou na sua conta.{% endblock %}
+
+{% block selo %}ALERTA DE SEGURANÇA{% endblock %}
+
+{% block titulo %}Este e-mail<br />já tem conta{% endblock %}
+
+{% block corpo %}
+<p class="px-body" style="margin:0 0 16px 0; font-family:'VT323','Courier New',monospace; font-size:21px; line-height:1.6; color:#cfc8e0;">
+  Olá!
+</p>
+<p class="px-body" style="margin:0; font-family:'VT323','Courier New',monospace; font-size:21px; line-height:1.6; color:#cfc8e0;">
+  Alguém tentou criar uma conta na CodeQuest com este endereço, mas ele já está em uso. Nenhuma conta nova foi criada e nada mudou na sua. Se foi você e esqueceu a senha, use o botão abaixo.
+</p>
+{% endblock %}
+
+{% block rodape %}Se não foi você, pode ignorar esta mensagem com segurança.{% endblock %}

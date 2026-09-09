@@ -30,7 +30,7 @@ export function SeletorCriatura() {
         ]);
         if (!ativo) return;
         if (minhas.length > 0) {
-          router.replace("/inicio");
+          router.replace("/trilhas");
           return;
         }
         setCriaturas(catalogo.filter((c) => c.disponivel));
@@ -60,7 +60,7 @@ export function SeletorCriatura() {
     setEnviando(true);
     try {
       await api.escolherInicial(escolhida.slug);
-      router.push("/inicio");
+      router.push("/trilhas");
     } catch (e) {
       setErro(
         e instanceof ErroApi ? e.message : "Não foi possível salvar a escolha.",

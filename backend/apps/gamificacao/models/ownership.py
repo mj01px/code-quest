@@ -33,6 +33,15 @@ class UserCreature(models.Model):
         help_text=_("A escolhida no cadastro. Cada usuário tem no máximo uma."),
     )
 
+    is_active = models.BooleanField(
+        default=False,
+        verbose_name=_("criatura ativa"),
+        help_text=_(
+            "A que acompanha o aluno e recebe o XP. Cada usuário tem no "
+            "máximo uma, e a inicial já nasce ativa."
+        ),
+    )
+
     acquired_at = models.DateTimeField(auto_now_add=True, verbose_name=_("adquirida em"))
     evolved_at = models.DateTimeField(
         null=True,
@@ -44,7 +53,7 @@ class UserCreature(models.Model):
     class Meta:
         verbose_name = _("criatura do usuário")
         verbose_name_plural = _("criaturas dos usuários")
-        ordering = ["-is_starter", "acquired_at"]
+        ordering = ["-is_active", "-is_starter", "acquired_at"]
         constraints = [
             models.UniqueConstraint(
                 fields=["user", "creature"],
@@ -57,6 +66,14 @@ class UserCreature(models.Model):
                 name="usercreature_uma_inicial_por_usuario",
                 violation_error_message=_(
                     "Este usuário já escolheu a criatura inicial."
+                ),
+            ),
+            models.UniqueConstraint(
+                fields=["user"],
+                condition=models.Q(is_active=True),
+                name="usercreature_uma_ativa_por_usuario",
+                violation_error_message=_(
+                    "Este usuário já tem uma criatura ativa."
                 ),
             ),
         ]
