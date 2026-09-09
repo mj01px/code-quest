@@ -40,7 +40,7 @@ export function FormularioLogin({ aoDetectarPendente }: Props) {
       await api.login({ email: email.trim(), senha });
 
       const criaturas = await api.minhasCriaturas();
-      router.push(criaturas.length > 0 ? "/inicio" : "/escolher-criatura");
+      router.push(criaturas.length > 0 ? "/trilhas" : "/escolher-criatura");
     } catch (erro) {
       if (erro instanceof ErroApi) {
         if (erro.temCodigo("email_nao_verificado")) {
