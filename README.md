@@ -163,7 +163,11 @@ EMAIL_HOST=smtp-relay.brevo.com
 EMAIL_PORT=2525
 EMAIL_HOST_USER=
 EMAIL_HOST_PASSWORD=
+EMAIL_USE_TLS=True
+EMAIL_TIMEOUT=10
 DEFAULT_FROM_EMAIL=CodeQuest <nao-responda@seu-dominio.com>
+# Opcional. Comentado, escolhe sozinho: SMTP se houver EMAIL_HOST_USER, senão console.
+# EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
 
 # Validade dos links de uso único, em segundos
 VERIFICACAO_EMAIL_MAX_AGE=86400     # verificação de e-mail (24h)
