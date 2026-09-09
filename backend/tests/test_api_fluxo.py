@@ -10,10 +10,11 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from apps.contas.cookies import ACCESS, REFRESH
 from apps.contas.models import User
 from apps.gamificacao.models import UserCreature
 
-from .helpers import SENHA_PADRAO, criar_aluno
+from .helpers import SENHA_PADRAO, criar_aluno, payload_aceite
 
 
 class CadastroTest(APITestCase):
@@ -24,15 +25,18 @@ class CadastroTest(APITestCase):
             "nickname": "novato",
             "senha": SENHA_PADRAO,
             "senha_confirmacao": SENHA_PADRAO,
+            **payload_aceite(),
         }
 
-    def test_cria_conta_e_devolve_tokens(self):
+    def test_cria_conta_sem_liberar_sessao(self):
         r = self.client.post(self.url, self.payload, format="json")
         self.assertEqual(r.status_code, status.HTTP_201_CREATED)
-        self.assertIn("access", r.data)
-        self.assertIn("refresh", r.data)
-        self.assertEqual(r.data["usuario"]["nickname"], "novato")
-        self.assertEqual(r.data["usuario"]["papel"], "ALUNO")
+        self.assertNotIn("access", r.data)
+        self.assertNotIn("refresh", r.data)
+        self.assertEqual(set(r.data), {"email_enviado"})
+
+        criado = User.objects.get(nickname="novato")
+        self.assertEqual(criado.role, User.Role.STUDENT)
 
     def test_email_e_normalizado(self):
         self.client.post(self.url, self.payload, format="json")
@@ -42,19 +46,25 @@ class CadastroTest(APITestCase):
         r = self.client.post(self.url, self.payload, format="json")
         self.assertNotIn("senha", r.data.get("usuario", {}))
 
-    def test_email_duplicado(self):
+    def test_email_duplicado_responde_igual_e_nao_cria(self):
         criar_aluno("existente")
         self.payload["email"] = "existente@example.com"
+
         r = self.client.post(self.url, self.payload, format="json")
-        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(r.data["error"]["details"][0]["code"], "email_em_uso")
+
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(set(r.data), {"email_enviado"})
+        self.assertFalse(User.objects.filter(nickname="novato").exists())
+        self.assertEqual(User.objects.filter(email="existente@example.com").count(), 1)
 
     def test_email_duplicado_ignora_caixa(self):
         criar_aluno("existente")
         self.payload["email"] = "EXISTENTE@EXAMPLE.COM"
+
         r = self.client.post(self.url, self.payload, format="json")
-        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(r.data["error"]["details"][0]["code"], "email_em_uso")
+
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED)
+        self.assertFalse(User.objects.filter(nickname="novato").exists())
 
     def test_nickname_duplicado_ignora_caixa(self):
         criar_aluno("Kiuev")
@@ -101,7 +111,9 @@ class LoginTest(APITestCase):
             format="json",
         )
         self.assertEqual(r.status_code, status.HTTP_200_OK)
-        self.assertIn("access", r.data)
+        self.assertIn(ACCESS, r.cookies)
+        self.assertIn(REFRESH, r.cookies)
+        self.assertNotIn("access", r.data)
         self.assertEqual(r.data["usuario"]["nickname"], "logavel")
 
     def test_email_em_caixa_alta_tambem_entra(self):
@@ -130,19 +142,21 @@ class LoginTest(APITestCase):
         )
         self.assertEqual(r.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_renova_o_access_com_o_refresh(self):
-        login = self.client.post(
+    def test_renova_o_access_pelo_cookie(self):
+        self.client.post(
             self.url,
             {"email": "logavel@example.com", "senha": SENHA_PADRAO},
             format="json",
         )
-        r = self.client.post(
-            reverse("contas:renovar"),
-            {"refresh": login.data["refresh"]},
-            format="json",
-        )
-        self.assertEqual(r.status_code, status.HTTP_200_OK)
-        self.assertIn("access", r.data)
+
+        r = self.client.post(reverse("contas:renovar"), {}, format="json")
+
+        self.assertEqual(r.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertIn(ACCESS, r.cookies)
+
+    def test_renovar_sem_cookie_e_recusado(self):
+        r = self.client.post(reverse("contas:renovar"), {}, format="json")
+        self.assertEqual(r.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
 class PerfilTest(APITestCase):
@@ -279,7 +293,18 @@ class FormatoDeErroTest(APITestCase):
         self.assertIn("error", r.data)
         self.assertEqual(r.data["error"]["code"], "validacao")
         campos = {d["field"] for d in r.data["error"]["details"]}
-        self.assertEqual(campos, {"email", "nickname", "senha", "senha_confirmacao"})
+        self.assertEqual(
+            campos,
+            {
+                "email",
+                "nickname",
+                "senha",
+                "senha_confirmacao",
+                "aceite_documentos",
+                "versao_termos",
+                "versao_privacidade",
+            },
+        )
 
     def test_nao_autenticado_tambem_usa_o_envelope(self):
         r = self.client.get(reverse("contas:eu"))

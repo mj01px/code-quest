@@ -1,0 +1,18 @@
+{% extends "contas/email_base.html" %}
+
+{% block preheader %}Alguém pediu para redefinir a senha da sua conta na CodeQuest. O link vale por {{ minutos }} minutos.{% endblock %}
+
+{% block selo %}REDEFINIÇÃO DE SENHA{% endblock %}
+
+{% block titulo %}Redefina<br />sua senha{% endblock %}
+
+{% block corpo %}
+<p class="px-body" style="margin:0 0 16px 0; font-family:'VT323','Courier New',monospace; font-size:21px; line-height:1.6; color:#cfc8e0;">
+  Olá, <span style="color:#c084fc;">{{ nickname }}</span>!
+</p>
+<p class="px-body" style="margin:0; font-family:'VT323','Courier New',monospace; font-size:21px; line-height:1.6; color:#cfc8e0;">
+  Alguém pediu para redefinir a senha da sua conta na CodeQuest. Se foi você, clique no botão abaixo para escolher uma nova senha.
+</p>
+{% endblock %}
+
+{% block rodape %}Se não foi você, ignore esta mensagem: nada muda até alguém abrir o link.{% endblock %}

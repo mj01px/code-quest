@@ -120,6 +120,7 @@ THROTTLE_CATALOGO = env('THROTTLE_CATALOGO', default='60/min')
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'apps.contas.autenticacao.CookieJWTAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
@@ -135,6 +136,7 @@ REST_FRAMEWORK = {
         'anon': '60/min',
         'user': '600/min',
         'auth': '20/min',
+        'verificacao': '5/min',
         'catalogo': THROTTLE_CATALOGO,
     },
     # Sem NUM_PROXIES o DRF identifica o cliente por X-Forwarded-For, que o
@@ -161,13 +163,66 @@ SPECTACULAR_SETTINGS = {
     'COMPONENT_SPLIT_REQUEST': True,
 }
 
+AUTH_COOKIE_SECURE = env.bool('AUTH_COOKIE_SECURE', default=not DEBUG)
+
+# O frontend fala com a API pela mesma origem, via rewrite do Next. O Django
+# continua enxergando o Origin do navegador, entao ele precisa constar aqui
+# para o CSRF nao recusar todo POST.
+CSRF_TRUSTED_ORIGINS = env.list(
+    'CSRF_TRUSTED_ORIGINS',
+    default=['http://localhost:3000', 'http://127.0.0.1:3000'],
+)
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SECURE = AUTH_COOKIE_SECURE
+
 CORS_ALLOWED_ORIGINS = env.list(
     'CORS_ALLOWED_ORIGINS',
     default=['http://localhost:3000', 'http://127.0.0.1:3000'],
 )
-CORS_ALLOW_CREDENTIALS = False
+CORS_ALLOW_CREDENTIALS = True
 
 SPRITE_BASE_URL = env('SPRITE_BASE_URL', default='/criaturas/')
+
+FRONTEND_URL = env('FRONTEND_URL', default='http://localhost:3000').rstrip('/')
+
+EMAIL_HOST = env('EMAIL_HOST', default='smtp-relay.brevo.com')
+EMAIL_PORT = env.int('EMAIL_PORT', default=2525)
+EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
+EMAIL_TIMEOUT = env.int('EMAIL_TIMEOUT', default=10)
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='CodeQuest <nao-responda@localhost>')
+
+EMAIL_BACKEND = env(
+    'EMAIL_BACKEND',
+    default=(
+        'django.core.mail.backends.smtp.EmailBackend'
+        if EMAIL_HOST_USER
+        else 'django.core.mail.backends.console.EmailBackend'
+    ),
+)
+
+VERIFICACAO_EMAIL_MAX_AGE = env.int('VERIFICACAO_EMAIL_MAX_AGE', default=60 * 60 * 24)
+REDEFINICAO_SENHA_MAX_AGE = env.int('REDEFINICAO_SENHA_MAX_AGE', default=60 * 30)
+
+LOGIN_MAX_TENTATIVAS = env.int('LOGIN_MAX_TENTATIVAS', default=5)
+LOGIN_BLOQUEIO_SEGUNDOS = env.int('LOGIN_BLOQUEIO_SEGUNDOS', default=60 * 15)
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'padrao': {'format': '[{asctime}] {levelname} {name}: {message}', 'style': '{'},
+    },
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler', 'formatter': 'padrao'},
+    },
+    'root': {'handlers': ['console'], 'level': 'INFO'},
+    'loggers': {
+        'apps': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
+    },
+}
 
 AUTH_PASSWORD_VALIDATORS = [
     {

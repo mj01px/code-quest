@@ -41,6 +41,7 @@ export interface MinhaCriatura {
   criatura: Criatura;
   estagio_atual: Estagio;
   inicial: boolean;
+  ativa: boolean;
   adquirida_em: string;
   evoluiu_em: string | null;
   sprite: string | null;
@@ -59,6 +60,21 @@ export interface Usuario {
 export interface Sessao {
   access: string;
   refresh: string;
+}
+
+export type DocumentoLegal = "TERMOS" | "PRIVACIDADE";
+
+export interface DocumentoVigente {
+  documento: DocumentoLegal;
+  rotulo: string;
+  versao: string;
+  vigente_desde: string;
+  caminho: string;
+}
+
+export interface DocumentosLegais {
+  termos: DocumentoVigente;
+  privacidade: DocumentoVigente;
 }
 
 export const MATERIAS_DOMINIO: Record<Dominio, string> = {

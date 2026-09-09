@@ -98,3 +98,9 @@ export function validarConfirmacao(
   if (senha !== confirmacao) return "As senhas não conferem.";
   return null;
 }
+
+export function validarAceite(aceito: boolean): string | null {
+  if (!aceito)
+    return "É preciso aceitar os Termos de Uso e a Política de Privacidade.";
+  return null;
+}

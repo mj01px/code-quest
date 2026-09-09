@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PixelButton } from "@/components/ui/PixelButton";
-import { ErroApi, api, limparSessao, temSessao } from "@/lib/api";
+import { ErroApi, api, temSessao } from "@/lib/api";
 import type { MinhaCriatura, Usuario } from "@/lib/types";
 import { MATERIAS_DOMINIO } from "@/lib/types";
 
@@ -30,11 +30,10 @@ export function PainelInicio() {
         ]);
         if (!ativo) return;
         setUsuario(perfil);
-        setPosse(criaturas.find((c) => c.inicial) ?? criaturas[0] ?? null);
+        setPosse(criaturas.find((c) => c.ativa) ?? criaturas[0] ?? null);
       } catch (e) {
         if (!ativo) return;
         if (e instanceof ErroApi && e.status === 401) {
-          limparSessao();
           router.replace("/entrar");
           return;
         }
@@ -51,8 +50,12 @@ export function PainelInicio() {
     };
   }, [router]);
 
-  function sair() {
-    limparSessao();
+  async function sair() {
+    try {
+      await api.sair();
+    } catch {
+      /* a sessao cai do mesmo jeito ao sair da tela */
+    }
     router.replace("/entrar");
   }
 
