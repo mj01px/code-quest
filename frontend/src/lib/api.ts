@@ -130,7 +130,7 @@ async function renovar(): Promise<boolean> {
 }
 
 interface Opcoes {
-  metodo?: "GET" | "POST" | "PATCH" | "DELETE";
+  metodo?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   corpo?: unknown;
   autenticado?: boolean;
   /** Segundos de cache no servidor; sem ela a resposta nao e reaproveitada. */
@@ -269,6 +269,20 @@ export const api = {
 
   minhasCriaturas() {
     return requisicao<MinhaCriatura[]>("/eu/criaturas/", { autenticado: true });
+  },
+
+  criaturaAtiva() {
+    return requisicao<MinhaCriatura | null>("/eu/criaturas/ativa/", {
+      autenticado: true,
+    });
+  },
+
+  definirCriaturaAtiva(criatura: string) {
+    return requisicao<MinhaCriatura>("/eu/criaturas/ativa/", {
+      metodo: "PUT",
+      corpo: { criatura },
+      autenticado: true,
+    });
   },
 
   escolherInicial(criatura: string) {

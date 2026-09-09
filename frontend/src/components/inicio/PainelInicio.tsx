@@ -30,7 +30,7 @@ export function PainelInicio() {
         ]);
         if (!ativo) return;
         setUsuario(perfil);
-        setPosse(criaturas.find((c) => c.inicial) ?? criaturas[0] ?? null);
+        setPosse(criaturas.find((c) => c.ativa) ?? criaturas[0] ?? null);
       } catch (e) {
         if (!ativo) return;
         if (e instanceof ErroApi && e.status === 401) {

@@ -71,6 +71,7 @@ class MinhaCriaturaSerializer(serializers.ModelSerializer):
     criatura = CriaturaSerializer(source="creature", read_only=True)
     estagio_atual = serializers.IntegerField(source="current_stage", read_only=True)
     inicial = serializers.BooleanField(source="is_starter", read_only=True)
+    ativa = serializers.BooleanField(source="is_active", read_only=True)
     adquirida_em = serializers.DateTimeField(source="acquired_at", read_only=True)
     evoluiu_em = serializers.DateTimeField(source="evolved_at", read_only=True)
     sprite = serializers.SerializerMethodField()
@@ -82,6 +83,7 @@ class MinhaCriaturaSerializer(serializers.ModelSerializer):
             "criatura",
             "estagio_atual",
             "inicial",
+            "ativa",
             "adquirida_em",
             "evoluiu_em",
             "sprite",
@@ -95,4 +97,8 @@ class MinhaCriaturaSerializer(serializers.ModelSerializer):
 
 
 class EscolhaInicialSerializer(serializers.Serializer):
+    criatura = serializers.SlugField(max_length=32)
+
+
+class CriaturaAtivaSerializer(serializers.Serializer):
     criatura = serializers.SlugField(max_length=32)

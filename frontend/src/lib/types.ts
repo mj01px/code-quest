@@ -41,6 +41,7 @@ export interface MinhaCriatura {
   criatura: Criatura;
   estagio_atual: Estagio;
   inicial: boolean;
+  ativa: boolean;
   adquirida_em: string;
   evoluiu_em: string | null;
   sprite: string | null;
