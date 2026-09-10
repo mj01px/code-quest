@@ -4,7 +4,7 @@ import Link from "next/link";
 const LINKS = [
   { href: "/termos", rotulo: "TERMOS" },
   { href: "/privacidade", rotulo: "PRIVACIDADE" },
-  { href: "/suporte", rotulo: "TERMINAL_DOCS" },
+  { href: "/suporte", rotulo: "SUPORTE" },
 ];
 
 export function AppFooter() {
