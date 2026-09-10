@@ -106,7 +106,6 @@ export function FormularioRedefinirSenha() {
         name="senha"
         autoComplete="new-password"
         placeholder="••••••••"
-        className="tracking-[4px]"
         value={senha}
         erro={erros.senha}
         onChange={(e) => setSenha(e.target.value)}
@@ -119,7 +118,6 @@ export function FormularioRedefinirSenha() {
         name="confirmacao"
         autoComplete="new-password"
         placeholder="••••••••"
-        className="tracking-[4px]"
         value={confirmacao}
         erro={erros.confirmacao}
         onChange={(e) => setConfirmacao(e.target.value)}

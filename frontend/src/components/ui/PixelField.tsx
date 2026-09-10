@@ -27,10 +27,25 @@ export function PixelField({
   const id = useId();
   const dicaId = `${id}-dica`;
   const erroId = `${id}-erro`;
+  const capsId = `${id}-caps`;
   const [revelado, setRevelado] = useState(false);
+  const [capsLigado, setCapsLigado] = useState(false);
 
   const tipo = revelavel && revelado ? "text" : type;
   const borda = erro ? "border-danger" : "border-brand-strong";
+
+  // A Silkscreen desenha a caixa baixa como a maiuscula 1px menor, entao
+  // senha revelada sai ilegivel. A VT323 tem ascendente e descendente de
+  // verdade e mantem o mesmo ar de terminal.
+  const fonte = !revelavel
+    ? "font-label text-[13px] tracking-wide"
+    : revelado
+      ? "font-body text-[18px] tracking-[2px]"
+      : "font-label text-[13px] tracking-[4px]";
+
+  function olharCapsLock(evento: React.KeyboardEvent<HTMLInputElement>) {
+    if (revelavel) setCapsLigado(evento.getModifierState("CapsLock"));
+  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -56,9 +71,25 @@ export function PixelField({
           {...props}
           type={tipo}
           id={id}
+          onKeyDown={(evento) => {
+            olharCapsLock(evento);
+            props.onKeyDown?.(evento);
+          }}
+          onKeyUp={(evento) => {
+            olharCapsLock(evento);
+            props.onKeyUp?.(evento);
+          }}
+          onBlur={(evento) => {
+            setCapsLigado(false);
+            props.onBlur?.(evento);
+          }}
           aria-invalid={erro ? true : undefined}
-          aria-describedby={erro ? erroId : dica ? dicaId : undefined}
-          className={`min-w-0 flex-1 rounded-none border-0 bg-transparent py-[11px] font-label text-[13px] tracking-wide text-ink outline-none ${className}`.trim()}
+          aria-describedby={
+            [capsLigado ? capsId : null, erro ? erroId : dica ? dicaId : null]
+              .filter(Boolean)
+              .join(" ") || undefined
+          }
+          className={`min-w-0 flex-1 rounded-none border-0 bg-transparent py-[11px] ${fonte} text-ink outline-none ${className}`.trim()}
         />
         {revelavel ? (
           <button
@@ -72,6 +103,15 @@ export function PixelField({
           </button>
         ) : null}
       </div>
+
+      {capsLigado ? (
+        <p
+          id={capsId}
+          className="font-body text-base leading-[1.6] tracking-wide text-brand-pale"
+        >
+          Caps Lock ligado.
+        </p>
+      ) : null}
 
       {erro ? (
         <p

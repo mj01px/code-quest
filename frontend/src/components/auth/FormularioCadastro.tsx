@@ -146,7 +146,6 @@ export function FormularioCadastro({ aoCadastrar }: Props) {
         name="senha"
         autoComplete="new-password"
         placeholder="••••••••"
-        className="tracking-[4px]"
         value={senha}
         erro={erros.senha}
         onChange={(e) => setSenha(e.target.value)}
