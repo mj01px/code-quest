@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PainelLogin } from "@/components/auth/PainelLogin";
+import { LandingNavbar } from "@/components/landing/LandingNavbar";
 import { TelaBase } from "@/components/layout/TelaBase";
 
 export const metadata: Metadata = {
@@ -10,6 +11,7 @@ export const metadata: Metadata = {
 export default function PaginaEntrar() {
   return (
     <TelaBase>
+      <LandingNavbar soMarca />
       <PainelLogin />
     </TelaBase>
   );
