@@ -33,7 +33,7 @@ const codequest = {
   frontend:    ["Next.js 16", "React 19", "TypeScript", "Tailwind CSS v4", "Jest + RTL"],
   recursos:    ["Trilhas de aprendizado", "Fluxo editorial", "Criaturas companheiras", "RBAC dinâmico", "JWT em cookies", "Verificação por e-mail"],
   auth:        "JWT em cookie, Argon2, cadastro aberto com confirmação de e-mail",
-  autor:       "Mauro Junior, github.com/mj01px",
+  autores:       "Mauro Junior, github.com/mj01px", "Julio Franz,  github.com/JulioFranz", "Arthur Sabino, github.com/ArthurS357"
 } as const;
 ```
 
