@@ -10,7 +10,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from apps.gamificacao.services import select_starter_creature
-from tests.helpers import SENHA_PADRAO, criar_aluno
+from apps.contas.tests.helpers import SENHA_PADRAO, criar_aluno
 
 from .test_credito_xp import criar_exercicio
 

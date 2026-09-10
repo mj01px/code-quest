@@ -13,7 +13,7 @@ from apps.gamificacao.services import select_starter_creature
 from apps.progressao.models import EventoXP, ProgressoCriatura
 from apps.progressao.services import creditar_exercicio
 from apps.trilhas.models import Aula, Dificuldade, Exercicio, StatusEditorial, Trilha
-from tests.helpers import criar_aluno
+from apps.contas.tests.helpers import criar_aluno
 
 
 def criar_exercicio(dificuldade=Dificuldade.INICIANTE, slug="ex-1", publicado=True):

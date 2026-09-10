@@ -20,7 +20,7 @@ from rest_framework.test import APIRequestFactory
 from apps.core.permissions import HasAnyPerm, HasPerm, IsAdmin, IsOwnerOrHasPerm
 from apps.gamificacao.services import select_starter_creature
 
-from .helpers import criar_admin, criar_aluno, criar_autor
+from apps.contas.tests.helpers import criar_admin, criar_aluno, criar_autor
 
 
 class PermissionClassTestCase(TestCase):

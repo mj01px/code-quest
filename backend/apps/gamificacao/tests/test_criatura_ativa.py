@@ -7,7 +7,7 @@ from rest_framework.test import APITestCase
 from apps.gamificacao.models import Creature, UserCreature
 from apps.gamificacao.services import definir_criatura_ativa, select_starter_creature
 
-from .helpers import criar_aluno
+from apps.contas.tests.helpers import criar_aluno
 
 
 def _outra_disponivel(exceto: str) -> str:

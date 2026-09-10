@@ -16,7 +16,7 @@ from django.test import TestCase
 from apps.gamificacao.models import Stage, UserCreature
 from apps.gamificacao.services import apply_level_to_creatures, select_starter_creature
 
-from .helpers import criar_aluno
+from apps.contas.tests.helpers import criar_aluno
 
 
 class EvolucaoTest(TestCase):

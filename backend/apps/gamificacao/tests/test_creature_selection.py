@@ -21,7 +21,7 @@ from django.test import TestCase
 from apps.gamificacao.models import Creature, Stage, UserCreature
 from apps.gamificacao.services import select_starter_creature
 
-from .helpers import criar_aluno
+from apps.contas.tests.helpers import criar_aluno
 
 
 class EscolhaBemSucedidaTest(TestCase):
