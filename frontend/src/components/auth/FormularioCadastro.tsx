@@ -10,7 +10,6 @@ import type { DocumentosLegais } from "@/lib/types";
 import {
   NICKNAME_MAX,
   validarAceite,
-  validarConfirmacao,
   validarEmail,
   validarNickname,
   validarSenha,
@@ -20,7 +19,6 @@ interface Erros {
   email?: string | null;
   nickname?: string | null;
   senha?: string | null;
-  confirmacao?: string | null;
   aceite?: string | null;
   geral?: string | null;
 }
@@ -29,7 +27,6 @@ const CAMPOS_DA_TELA = [
   "email",
   "nickname",
   "senha",
-  "senha_confirmacao",
   "aceite_documentos",
 ] as const;
 
@@ -48,7 +45,6 @@ export function FormularioCadastro({ aoCadastrar }: Props) {
   const [email, setEmail] = useState("");
   const [nickname, setNickname] = useState("");
   const [senha, setSenha] = useState("");
-  const [confirmacao, setConfirmacao] = useState("");
   const [aceite, setAceite] = useState(false);
   const [documentos, setDocumentos] = useState<DocumentosLegais | null>(null);
   const [falhaDocumentos, setFalhaDocumentos] = useState(false);
@@ -80,7 +76,6 @@ export function FormularioCadastro({ aoCadastrar }: Props) {
       email: validarEmail(email),
       nickname: validarNickname(nickname),
       senha: validarSenha(senha, [email, nickname]),
-      confirmacao: validarConfirmacao(senha, confirmacao),
       aceite: validarAceite(aceite),
     };
     setErros(encontrados);
@@ -93,7 +88,6 @@ export function FormularioCadastro({ aoCadastrar }: Props) {
         email: endereco,
         nickname: nickname.trim(),
         senha,
-        senha_confirmacao: confirmacao,
         aceite_documentos: aceite,
         versao_termos: documentos.termos.versao,
         versao_privacidade: documentos.privacidade.versao,
@@ -110,7 +104,6 @@ export function FormularioCadastro({ aoCadastrar }: Props) {
           email: porCampo.email ?? null,
           nickname: porCampo.nickname ?? null,
           senha: porCampo.senha ?? null,
-          confirmacao: porCampo.senha_confirmacao ?? null,
           aceite: porCampo.aceite_documentos ?? null,
           geral: conhecido ? null : erro.message,
         });
@@ -157,19 +150,6 @@ export function FormularioCadastro({ aoCadastrar }: Props) {
         value={senha}
         erro={erros.senha}
         onChange={(e) => setSenha(e.target.value)}
-      />
-
-      <PixelField
-        rotulo="CONFIRMAR SENHA"
-        type="password"
-        revelavel
-        name="confirmacao"
-        autoComplete="new-password"
-        placeholder="••••••••"
-        className="tracking-[4px]"
-        value={confirmacao}
-        erro={erros.confirmacao}
-        onChange={(e) => setConfirmacao(e.target.value)}
       />
 
       <PixelCheckbox

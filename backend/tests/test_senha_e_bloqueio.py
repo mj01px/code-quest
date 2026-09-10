@@ -295,7 +295,6 @@ class CadastroNaoEnumeraTest(APITestCase):
             "email": email,
             "nickname": nickname,
             "senha": SENHA_PADRAO,
-            "senha_confirmacao": SENHA_PADRAO,
             **payload_aceite(),
         }
 

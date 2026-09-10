@@ -194,7 +194,6 @@ export interface DadosRegistro {
   email: string;
   nickname: string;
   senha: string;
-  senha_confirmacao: string;
   aceite_documentos: boolean;
   versao_termos: string;
   versao_privacidade: string;

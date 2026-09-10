@@ -20,7 +20,6 @@ class AceiteNoCadastroTest(APITestCase):
             "email": "novato@exemplo.com",
             "nickname": "novato",
             "senha": SENHA_PADRAO,
-            "senha_confirmacao": SENHA_PADRAO,
             **payload_aceite(),
         }
 
@@ -143,7 +142,6 @@ class DocumentosLegaisTest(APITestCase):
                 "email": "eco@exemplo.com",
                 "nickname": "eco",
                 "senha": SENHA_PADRAO,
-                "senha_confirmacao": SENHA_PADRAO,
                 "aceite_documentos": True,
                 "versao_termos": documentos["termos"]["versao"],
                 "versao_privacidade": documentos["privacidade"]["versao"],

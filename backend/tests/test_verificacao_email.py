@@ -28,7 +28,6 @@ class EnvioNoCadastroTest(APITestCase):
             "email": "novato@exemplo.com",
             "nickname": "novato",
             "senha": SENHA_PADRAO,
-            "senha_confirmacao": SENHA_PADRAO,
             **payload_aceite(),
         }
 

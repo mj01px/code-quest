@@ -24,7 +24,6 @@ class CadastroTest(APITestCase):
             "email": "Novo@Exemplo.COM",
             "nickname": "novato",
             "senha": SENHA_PADRAO,
-            "senha_confirmacao": SENHA_PADRAO,
             **payload_aceite(),
         }
 
@@ -79,14 +78,8 @@ class CadastroTest(APITestCase):
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(r.data["error"]["details"][0]["code"], "nickname_reservado")
 
-    def test_senhas_diferentes(self):
-        self.payload["senha_confirmacao"] = "outra-coisa-9"
-        r = self.client.post(self.url, self.payload, format="json")
-        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(r.data["error"]["details"][0]["code"], "senha_diferente")
-
     def test_senha_fraca(self):
-        self.payload["senha"] = self.payload["senha_confirmacao"] = "1234"
+        self.payload["senha"] = "1234"
         r = self.client.post(self.url, self.payload, format="json")
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(r.data["error"]["details"][0]["field"], "senha")
@@ -299,7 +292,6 @@ class FormatoDeErroTest(APITestCase):
                 "email",
                 "nickname",
                 "senha",
-                "senha_confirmacao",
                 "aceite_documentos",
                 "versao_termos",
                 "versao_privacidade",

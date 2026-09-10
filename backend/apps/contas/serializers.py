@@ -64,9 +64,6 @@ class RegistroSerializer(serializers.ModelSerializer):
     senha = serializers.CharField(
         write_only=True, style={"input_type": "password"}, trim_whitespace=False
     )
-    senha_confirmacao = serializers.CharField(
-        write_only=True, style={"input_type": "password"}, trim_whitespace=False
-    )
 
     aceite_documentos = serializers.BooleanField(write_only=True, required=True)
 
@@ -83,7 +80,6 @@ class RegistroSerializer(serializers.ModelSerializer):
             "email",
             "nickname",
             "senha",
-            "senha_confirmacao",
             "aceite_documentos",
             "versao_termos",
             "versao_privacidade",
@@ -124,15 +120,6 @@ class RegistroSerializer(serializers.ModelSerializer):
         return self._validar_versao(Documento.PRIVACIDADE, valor)
 
     def validate(self, dados):
-        if dados["senha"] != dados["senha_confirmacao"]:
-            raise serializers.ValidationError(
-                {
-                    "senha_confirmacao": serializers.ErrorDetail(
-                        "As senhas não conferem.", code="senha_diferente"
-                    )
-                }
-            )
-
         provisorio = User(email=dados["email"], nickname=dados["nickname"])
         try:
             validate_password(dados["senha"], provisorio)
