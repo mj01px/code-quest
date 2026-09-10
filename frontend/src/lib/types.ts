@@ -57,6 +57,22 @@ export interface Usuario {
   criado_em: string;
 }
 
+export interface Nivel {
+  numero: number;
+  titulo: string;
+  xp_necessario: number;
+}
+
+export interface ProgressoXP {
+  criatura: MinhaCriatura;
+  xp_total: number;
+  nivel: Nivel;
+  proximo_nivel: Nivel | null;
+  xp_no_nivel: number;
+  xp_para_o_proximo: number | null;
+  atualizado_em: string;
+}
+
 export interface Sessao {
   access: string;
   refresh: string;

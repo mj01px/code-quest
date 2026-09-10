@@ -3,6 +3,7 @@ import type {
   DocumentosLegais,
   ExercicioDetalhe,
   MinhaCriatura,
+  ProgressoXP,
   TrilhaDetalhe,
   TrilhaResumo,
   Usuario,
@@ -260,6 +261,50 @@ export const api = {
 
   eu() {
     return requisicao<Usuario>("/auth/eu/", { autenticado: true });
+  },
+
+  atualizarPerfil(dados: { nickname?: string }) {
+    return requisicao<Usuario>("/auth/eu/", {
+      metodo: "PATCH",
+      corpo: dados,
+      autenticado: true,
+    });
+  },
+
+  trocarEmail(email: string) {
+    return requisicao<{ email_enviado: boolean }>("/auth/eu/email/", {
+      metodo: "POST",
+      corpo: { email },
+      autenticado: true,
+    });
+  },
+
+  confirmarTrocaEmail(token: string) {
+    return requisicao<Usuario>("/auth/eu/email/confirmar/", {
+      metodo: "POST",
+      corpo: { token },
+    });
+  },
+
+  excluirConta() {
+    return requisicao<void>("/auth/eu/", {
+      metodo: "DELETE",
+      autenticado: true,
+    });
+  },
+
+  meuProgresso() {
+    return requisicao<ProgressoXP | null>("/eu/progresso/", {
+      autenticado: true,
+    });
+  },
+
+  adquirirCriatura(criatura: string) {
+    return requisicao<MinhaCriatura>("/eu/criaturas/adquirir/", {
+      metodo: "POST",
+      corpo: { criatura },
+      autenticado: true,
+    });
   },
 
   catalogo() {
