@@ -5,12 +5,17 @@ from rest_framework.response import Response
 
 from .models import Creature, UserCreature
 from .serializers import (
+    AquisicaoCriaturaSerializer,
     CriaturaAtivaSerializer,
     CriaturaSerializer,
     EscolhaInicialSerializer,
     MinhaCriaturaSerializer,
 )
-from .services import definir_criatura_ativa, select_starter_creature
+from .services import (
+    adquirir_criatura,
+    definir_criatura_ativa,
+    select_starter_creature,
+)
 
 
 @extend_schema(tags=["criaturas"])
@@ -47,6 +52,23 @@ class MinhasCriaturasView(generics.ListCreateAPIView):
         entrada.is_valid(raise_exception=True)
 
         posse = select_starter_creature(
+            user=request.user,
+            creature_slug=entrada.validated_data["criatura"],
+        )
+        saida = MinhaCriaturaSerializer(posse, context=self.get_serializer_context())
+        return Response(saida.data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(tags=["criaturas"], responses=MinhaCriaturaSerializer)
+class AdquirirCriaturaView(generics.GenericAPIView):
+    serializer_class = AquisicaoCriaturaSerializer
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        entrada = self.get_serializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+
+        posse = adquirir_criatura(
             user=request.user,
             creature_slug=entrada.validated_data["criatura"],
         )

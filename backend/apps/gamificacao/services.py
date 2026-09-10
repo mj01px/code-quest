@@ -85,6 +85,47 @@ def apply_level_to_creatures(*, user, level: int) -> list[UserCreature]:
 
 
 @transaction.atomic
+def adquirir_criatura(*, user, creature_slug: str) -> UserCreature:
+    try:
+        creature = Creature.objects.get(pk=creature_slug)
+    except Creature.DoesNotExist:
+        raise ValidationError(
+            {
+                "criatura": ValidationError(
+                    _("Criatura não encontrada."), code="criatura_inexistente"
+                )
+            }
+        ) from None
+
+    if not creature.is_available:
+        raise ValidationError(
+            {
+                "criatura": ValidationError(
+                    _("Esta criatura ainda não está disponível para escolha."),
+                    code="criatura_indisponivel",
+                )
+            }
+        )
+
+    try:
+        return UserCreature.objects.create(
+            user=user,
+            creature=creature,
+            is_starter=False,
+            is_active=False,
+            current_stage=creature.stage_for_level(level=1),
+        )
+    except IntegrityError:
+        raise ValidationError(
+            {
+                "criatura": ValidationError(
+                    _("Você já possui esta criatura."), code="criatura_ja_possuida"
+                )
+            }
+        ) from None
+
+
+@transaction.atomic
 def definir_criatura_ativa(*, user, creature_slug: str) -> UserCreature:
     escolhida = (
         UserCreature.objects.select_related("creature")

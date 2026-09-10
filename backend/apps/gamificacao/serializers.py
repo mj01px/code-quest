@@ -102,3 +102,7 @@ class EscolhaInicialSerializer(serializers.Serializer):
 
 class CriaturaAtivaSerializer(serializers.Serializer):
     criatura = serializers.SlugField(max_length=32)
+
+
+class AquisicaoCriaturaSerializer(serializers.Serializer):
+    criatura = serializers.SlugField(max_length=32)
