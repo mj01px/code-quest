@@ -52,6 +52,10 @@
 
   --animate-blink: blink 1s steps(1, end) infinite;
   --animate-bob: bob 1.6s steps(2, end) infinite;
+  /* Entrada dos blocos de conteudo: sobe e aparece, uma vez so. */
+  --animate-surgir: surgir 0.34s ease-out both;
+  /* Respiro do selo de bonus, em passos para nao destoar do pixel. */
+  --animate-pulso: pulso 2.4s steps(2, end) infinite;
 
   @keyframes blink {
     0%,
@@ -71,6 +75,27 @@
     }
     50% {
       transform: translateY(-6px);
+    }
+  }
+
+  @keyframes surgir {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes pulso {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
     }
   }
 }
@@ -173,6 +198,9 @@
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    /* Sem zerar o atraso, a entrada escalonada deixaria o cartao invisivel
+       pelo tempo do delay antes de saltar para o estado final. */
+    animation-delay: 0s !important;
     transition-duration: 0.01ms !important;
   }
 }

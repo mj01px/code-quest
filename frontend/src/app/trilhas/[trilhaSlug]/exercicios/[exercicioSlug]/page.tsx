@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { SeloBonusXp } from "@/components/gamificacao/SeloBonusXp";
 import { BotaoConclusao } from "@/components/trilhas/BotaoConclusao";
 import { Badge, BadgeDificuldade } from "@/components/ui/Badge";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
@@ -94,6 +95,7 @@ export default async function ExercicioPage({
           />
           <Badge>{exercicio.tipo_label}</Badge>
           <Badge>Módulo: {exercicio.aula_titulo}</Badge>
+          <SeloBonusXp trilhaSlug={exercicio.trilha_slug} />
         </div>
 
         <h1 className="titulo mt-5 text-2xl text-ink-soft">

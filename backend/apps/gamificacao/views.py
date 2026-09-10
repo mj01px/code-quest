@@ -5,12 +5,17 @@ from rest_framework.response import Response
 
 from .models import Creature, UserCreature
 from .serializers import (
+    BonusXpSerializer,
     CriaturaAtivaSerializer,
     CriaturaSerializer,
     EscolhaInicialSerializer,
     MinhaCriaturaSerializer,
 )
-from .services import definir_criatura_ativa, select_starter_creature
+from .services import (
+    definir_criatura_ativa,
+    select_starter_creature,
+    xp_bonuses_for_user,
+)
 
 
 @extend_schema(tags=["criaturas"])
@@ -82,3 +87,19 @@ class CriaturaAtivaView(generics.GenericAPIView):
         )
         saida = MinhaCriaturaSerializer(posse, context=self.get_serializer_context())
         return Response(saida.data, status=status.HTTP_200_OK)
+
+
+@extend_schema(tags=["criaturas"])
+class MeusBonusView(generics.ListAPIView):
+    """Bônus de XP que valem para as criaturas do usuário autenticado.
+
+    Lista vazia é resposta normal: quem não tem criatura, ou tem uma sem trilha
+    correspondente, joga com XP neutro.
+    """
+
+    serializer_class = BonusXpSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+
+    def get_queryset(self):
+        return xp_bonuses_for_user(user=self.request.user)

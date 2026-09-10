@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { SeloBonusXp } from "@/components/gamificacao/SeloBonusXp";
 import { AulaCard } from "@/components/trilhas/AulaCard";
 import { HeroTrilha } from "@/components/trilhas/HeroTrilha";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
@@ -84,6 +85,7 @@ export default async function TrilhaPage({
         descricao={trilha.descricao}
         totalDeModulos={trilha.aulas.length}
         totalDeFases={fases}
+        selo={<SeloBonusXp trilhaSlug={trilha.slug} />}
       />
 
       <dl className="mt-4 grid grid-cols-2 gap-px border border-edge bg-edge lg:grid-cols-4">

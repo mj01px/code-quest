@@ -23,6 +23,8 @@ jest.mock("@/lib/api", () => {
     listarTrilhas: jest.fn(),
     buscarTrilha: jest.fn(),
     buscarExercicio: jest.fn(),
+    temSessao: jest.fn(() => false),
+    api: { meusBonus: jest.fn() },
   };
 });
 

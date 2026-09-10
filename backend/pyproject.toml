@@ -46,14 +46,14 @@ files = ["apps/trilhas"]
 exclude = "apps/trilhas/migrations/"
 
 [[tool.mypy.overrides]]
-module = ["apps.contas.*", "apps.gamificacao.*", "apps.core.*", "config.*"]
+module = ["apps.contas.*", "apps.gamificacao.*", "apps.progressao.*", "apps.core.*", "config.*"]
 ignore_errors = true
 
 # Os testes ficam fora do mypy. O idioma `cls.x = ...` dentro de setUpTestData
 # e invisivel para o django-stubs, que reporta attr-defined em todo atributo
 # assim. O que o strict protege e o codigo de producao.
 [[tool.mypy.overrides]]
-module = ["apps.trilhas.tests.*"]
+module = ["apps.trilhas.tests.*", "tests.*"]
 ignore_errors = true
 
 [tool.django-stubs]

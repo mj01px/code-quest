@@ -7,6 +7,7 @@ api = [
     path("", include("apps.contas.urls")),
     path("", include("apps.gamificacao.urls")),
     path("", include("apps.trilhas.urls")),
+    path("", include("apps.progressao.urls")),
 ]
 
 urlpatterns = [

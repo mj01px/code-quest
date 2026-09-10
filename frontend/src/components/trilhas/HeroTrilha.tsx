@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { BarraSegmentada } from "@/components/ui/BarraSegmentada";
 import { plural } from "@/lib/derivados";
 
@@ -16,15 +18,18 @@ export function HeroTrilha({
   totalDeFases,
   // Nota e alcance vêm do módulo de avaliações; sem eles o bloco não aparece.
   avaliacao = null,
+  // Selo de bônus de XP, que só existe para quem está logado com criatura.
+  selo = null,
 }: {
   nome: string;
   descricao: string;
   totalDeModulos: number;
   totalDeFases: number;
   avaliacao?: { nota: number; total: number; emJornada: number } | null;
+  selo?: ReactNode;
 }) {
   return (
-    <section className="halo-brand mt-6 grid gap-6 border-2 border-brand bg-panel p-6 sm:p-8 lg:grid-cols-[1fr_18rem]">
+    <section className="halo-brand animate-surgir mt-6 grid gap-6 border-2 border-brand bg-panel p-6 sm:p-8 lg:grid-cols-[1fr_18rem]">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-3">
           <span className="rotulo bg-brand-strong px-2.5 py-1 text-ink-soft">
@@ -33,6 +38,7 @@ export function HeroTrilha({
           <span className="rotulo text-ink-muted">
             Trilha · {plural(totalDeFases, "fase", "fases")}
           </span>
+          {selo}
         </div>
 
         <h1 className="titulo mt-5 text-3xl text-ink-soft sm:text-4xl">{nome}</h1>
@@ -61,7 +67,7 @@ export function HeroTrilha({
         <p className="mt-6">
           <a
             href="#mapa-de-fases"
-            className="rotulo inline-block cursor-pointer bg-brand-strong px-8 py-3.5 text-ink-soft transition-colors hover:bg-brand"
+            className="rotulo inline-block cursor-pointer bg-brand-strong px-8 py-3.5 text-ink-soft transition duration-150 hover:translate-x-0.5 hover:bg-brand"
           >
             Iniciar trilha
           </a>

@@ -62,7 +62,7 @@ export function AulaCard({
   }
 
   return (
-    <li className="border border-edge bg-panel transition-colors hover:border-edge-soft">
+    <li className="border border-edge bg-panel transition duration-150 hover:border-brand-shadow">
       <details>
         <summary className="flex cursor-pointer list-none items-center gap-4 p-4 transition-colors hover:bg-panel-soft sm:p-5 [&::-webkit-details-marker]:hidden">
           {cabecalho}

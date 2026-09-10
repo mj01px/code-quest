@@ -42,11 +42,11 @@ export function TrilhaCard({
     <li>
       <Link
         href={`/trilhas/${trilha.slug}`}
-        className="group flex cursor-pointer items-center gap-4 border border-edge bg-panel p-4 transition-colors hover:border-brand hover:bg-panel-soft sm:gap-6 sm:p-5"
+        className="group flex cursor-pointer items-center gap-4 border border-edge bg-panel p-4 transition duration-150 hover:-translate-y-0.5 hover:border-brand hover:bg-panel-soft hover:shadow-pixel sm:gap-6 sm:p-5"
       >
         <span
           aria-hidden="true"
-          className="titulo flex h-11 w-11 shrink-0 items-center justify-center border border-brand-shadow text-sm text-brand transition-colors group-hover:border-brand"
+          className="titulo flex h-11 w-11 shrink-0 items-center justify-center border border-brand-shadow text-sm text-brand transition duration-150 group-hover:scale-105 group-hover:border-brand"
         >
           {sigla(trilha.nome)}
         </span>

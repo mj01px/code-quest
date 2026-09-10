@@ -2,14 +2,18 @@ import { render, screen } from "@testing-library/react";
 
 import { Sidebar } from "@/components/layout/Sidebar";
 
+// Sem sessão no jsdom, a identidade fica no estado neutro: é ele que os
+// testes de perfil abaixo observam.
+
 describe("Sidebar", () => {
-  it("liga apenas o que já tem rota", () => {
+  it("liga o que já tem rota", () => {
     render(<Sidebar />);
 
     const links = screen.getAllByRole("link");
     expect(links.map((l) => l.getAttribute("href"))).toEqual([
       "/trilhas",
       "/trilhas",
+      "/desafios",
     ]);
   });
 
@@ -17,7 +21,6 @@ describe("Sidebar", () => {
     render(<Sidebar />);
 
     for (const rotulo of [
-      "Desafio do dia",
       "Conquistas",
       "Configurações",
       "Adicionar conteúdo",

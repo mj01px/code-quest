@@ -115,6 +115,18 @@ export default async function PaginaPrivacidade() {
       }
       resumo="O que a CodeQuest coleta, por que coleta, com quem compartilha, por quanto tempo guarda e como você exerce seus direitos como titular."
       documento={documento}
+      indice={[
+        { numero: 1, titulo: "Quem trata seus dados" },
+        { numero: 2, titulo: "Quais dados guardamos" },
+        { numero: 3, titulo: "O que fica no navegador" },
+        { numero: 4, titulo: "Cookies" },
+        { numero: 5, titulo: "Com quem compartilhamos" },
+        { numero: 6, titulo: "Por quanto tempo guardamos" },
+        { numero: 7, titulo: "Seus direitos" },
+        { numero: 8, titulo: "Como protegemos seus dados" },
+        { numero: 9, titulo: "Crianças e adolescentes" },
+        { numero: 10, titulo: "Mudanças nesta Política" },
+      ]}
     >
       <Secao numero={1} titulo="Quem trata seus dados">
         <Paragrafo>

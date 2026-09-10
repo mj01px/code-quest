@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'apps.contas',
     'apps.gamificacao',
     'apps.trilhas',
+    'apps.progressao'
 ]
 
 MIDDLEWARE = [
@@ -136,6 +137,7 @@ REST_FRAMEWORK = {
         'user': '600/min',
         'auth': '20/min',
         'verificacao': '5/min',
+        'conclusao': '30/min',
         'catalogo': THROTTLE_CATALOGO,
     },
     # Sem NUM_PROXIES o DRF identifica o cliente por X-Forwarded-For, que o

@@ -143,3 +143,11 @@ export interface ExercicioDetalhe {
   trilha_nome: string;
   trilha_slug: string;
 }
+
+export interface BonusXp {
+  criatura: string;
+  criatura_nome: string;
+  trilha: string;
+  trilha_nome: string;
+  multiplicador: number;
+}

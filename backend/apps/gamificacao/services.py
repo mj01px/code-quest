@@ -3,7 +3,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from .models import Creature, UserCreature
+from .models import Creature, UserCreature, XpBonus
 
 
 def _nao_possui() -> ValidationError:
@@ -102,3 +102,16 @@ def definir_criatura_ativa(*, user, creature_slug: str) -> UserCreature:
     escolhida.is_active = True
     escolhida.save(update_fields=["is_active"])
     return escolhida
+
+
+def xp_bonuses_for_user(*, user):
+    """Bônus valendo para o usuário, um por par criatura/trilha que ele tem.
+
+    Só entram as criaturas que ele possui. Trilha sem linha aqui rende XP
+    neutro, então a ausência é resposta legítima e não erro.
+    """
+    return (
+        XpBonus.objects.select_related("creature", "trilha")
+        .filter(creature__owners__user=user)
+        .order_by("trilha__ordem", "creature__display_order")
+    )

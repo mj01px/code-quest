@@ -1,7 +1,7 @@
 from django.conf import settings
 from rest_framework import serializers
 
-from .models import Creature, CreatureStage, UserCreature
+from .models import Creature, CreatureStage, UserCreature, XpBonus
 
 
 def _url_sprite(nome):
@@ -102,3 +102,31 @@ class EscolhaInicialSerializer(serializers.Serializer):
 
 class CriaturaAtivaSerializer(serializers.Serializer):
     criatura = serializers.SlugField(max_length=32)
+
+
+class BonusXpSerializer(serializers.ModelSerializer):
+    """O bônus como a interface precisa dele: já resolvido em nome e slug."""
+
+    criatura = serializers.SlugRelatedField(
+        source="creature", slug_field="slug", read_only=True
+    )
+    criatura_nome = serializers.CharField(source="creature.name", read_only=True)
+    trilha = serializers.SlugRelatedField(slug_field="slug", read_only=True)
+    trilha_nome = serializers.CharField(source="trilha.nome", read_only=True)
+    multiplicador = serializers.DecimalField(
+        source="multiplier",
+        max_digits=3,
+        decimal_places=2,
+        coerce_to_string=False,
+        read_only=True,
+    )
+
+    class Meta:
+        model = XpBonus
+        fields = (
+            "criatura",
+            "criatura_nome",
+            "trilha",
+            "trilha_nome",
+            "multiplicador",
+        )

@@ -1,4 +1,5 @@
 import type {
+  BonusXp,
   Criatura,
   DocumentosLegais,
   ExercicioDetalhe,
@@ -283,6 +284,10 @@ export const api = {
       corpo: { criatura },
       autenticado: true,
     });
+  },
+
+  meusBonus() {
+    return requisicao<BonusXp[]>("/eu/bonus/", { autenticado: true });
   },
 
   escolherInicial(criatura: string) {
