@@ -13,7 +13,7 @@ import {
 import { versaoParaCabecalho } from "@/lib/documentosLegais";
 
 export const metadata: Metadata = {
-  title: "Política de Privacidade | CodeQuest",
+  title: "Política de Privacidade",
   description:
     "Quais dados a CodeQuest trata, com que finalidade, por quanto tempo e como exercer seus direitos.",
 };

@@ -6,7 +6,7 @@ import { Destaque, Item, Lista, Paragrafo, Secao } from "@/components/legal/Pros
 import { versaoParaCabecalho } from "@/lib/documentosLegais";
 
 export const metadata: Metadata = {
-  title: "Termos de Uso | CodeQuest",
+  title: "Termos de Uso",
   description: "As regras de uso da plataforma CodeQuest.",
 };
 
