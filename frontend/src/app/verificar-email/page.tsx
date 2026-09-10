@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { ConfirmacaoEmail } from "@/components/auth/ConfirmacaoEmail";
-import { PainelAuth } from "@/components/layout/PainelAuth";
+import {
+  PainelVerificarEmail,
+  PainelVerificarEmailCarregando,
+} from "@/components/auth/PainelVerificarEmail";
 import { TelaBase } from "@/components/layout/TelaBase";
 
 export const metadata: Metadata = {
@@ -12,19 +14,9 @@ export const metadata: Metadata = {
 export default function PaginaVerificarEmail() {
   return (
     <TelaBase>
-      <PainelAuth
-        titulo={
-          <>
-            VERIFY<span className="text-brand">.</span>EMAIL
-          </>
-        }
-        linhaTerminal="Validando credencial de acesso..."
-        formulario={
-          <Suspense fallback={null}>
-            <ConfirmacaoEmail />
-          </Suspense>
-        }
-      />
+      <Suspense fallback={<PainelVerificarEmailCarregando />}>
+        <PainelVerificarEmail />
+      </Suspense>
     </TelaBase>
   );
 }

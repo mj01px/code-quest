@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { FormularioSenhaEsquecida } from "@/components/auth/FormularioSenhaEsquecida";
-import { PainelAuth } from "@/components/layout/PainelAuth";
+import { PainelSenhaEsquecida } from "@/components/auth/PainelSenhaEsquecida";
 import { TelaBase } from "@/components/layout/TelaBase";
 
 export const metadata: Metadata = {
@@ -11,15 +10,7 @@ export const metadata: Metadata = {
 export default function PaginaRecuperarSenha() {
   return (
     <TelaBase>
-      <PainelAuth
-        titulo={
-          <>
-            RESET<span className="text-brand">.</span>PASSWORD
-          </>
-        }
-        linhaTerminal="Preparando chave de acesso..."
-        formulario={<FormularioSenhaEsquecida />}
-      />
+      <PainelSenhaEsquecida />
     </TelaBase>
   );
 }

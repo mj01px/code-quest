@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { FormularioRedefinirSenha } from "@/components/auth/FormularioRedefinirSenha";
-import { PainelAuth } from "@/components/layout/PainelAuth";
+import {
+  PainelNovaSenha,
+  PainelNovaSenhaCarregando,
+} from "@/components/auth/PainelNovaSenha";
 import { TelaBase } from "@/components/layout/TelaBase";
 
 export const metadata: Metadata = {
@@ -12,19 +14,9 @@ export const metadata: Metadata = {
 export default function PaginaRedefinirSenha() {
   return (
     <TelaBase>
-      <PainelAuth
-        titulo={
-          <>
-            NEW<span className="text-brand">.</span>PASSWORD
-          </>
-        }
-        linhaTerminal="Validando chave de redefinição..."
-        formulario={
-          <Suspense fallback={null}>
-            <FormularioRedefinirSenha />
-          </Suspense>
-        }
-      />
+      <Suspense fallback={<PainelNovaSenhaCarregando />}>
+        <PainelNovaSenha />
+      </Suspense>
     </TelaBase>
   );
 }

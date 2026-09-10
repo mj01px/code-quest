@@ -52,6 +52,7 @@
 
   --animate-blink: blink 1s steps(1, end) infinite;
   --animate-bob: bob 1.6s steps(2, end) infinite;
+  --animate-varredura: varredura 1.4s steps(6, end) infinite alternate;
 
   @keyframes blink {
     0%,
@@ -61,6 +62,16 @@
     50%,
     100% {
       opacity: 0;
+    }
+  }
+
+  /* Linha que passa sobre o envelope enquanto o link e conferido. */
+  @keyframes varredura {
+    from {
+      top: 6px;
+    }
+    to {
+      top: 138px;
     }
   }
 

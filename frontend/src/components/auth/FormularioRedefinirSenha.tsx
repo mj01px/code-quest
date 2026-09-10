@@ -1,6 +1,5 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelField } from "@/components/ui/PixelField";
@@ -16,17 +15,19 @@ interface Erros {
 
 const CAMPOS_DA_TELA = ["senha", "senha_confirmacao"] as const;
 
-export function FormularioRedefinirSenha() {
-  const token = useSearchParams().get("token");
+interface Props {
+  token: string;
+  aoTrocar: () => void;
+}
+
+export function FormularioRedefinirSenha({ token, aoTrocar }: Props) {
   const [senha, setSenha] = useState("");
   const [confirmacao, setConfirmacao] = useState("");
   const [erros, setErros] = useState<Erros>({});
   const [enviando, setEnviando] = useState(false);
-  const [pronto, setPronto] = useState(false);
 
   async function aoEnviar(evento: React.FormEvent<HTMLFormElement>) {
     evento.preventDefault();
-    if (!token) return;
 
     const encontrados: Erros = {
       senha: validarSenha(senha),
@@ -42,7 +43,7 @@ export function FormularioRedefinirSenha() {
         senha,
         senha_confirmacao: confirmacao,
       });
-      setPronto(true);
+      aoTrocar();
     } catch (erro) {
       if (erro instanceof ErroApi) {
         const porCampo = erro.porCampo();
@@ -57,39 +58,6 @@ export function FormularioRedefinirSenha() {
       }
       setEnviando(false);
     }
-  }
-
-  if (pronto) {
-    return (
-      <div className="flex flex-col gap-5">
-        <h2 className="m-0 font-display text-[13px] leading-[1.8] tracking-[1px] text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)]">
-          SENHA TROCADA
-        </h2>
-        <p className="m-0 font-body text-lg leading-[1.8] tracking-[1px] text-ink-body">
-          Pronto. Suas outras sessões foram encerradas por segurança, então
-          entre de novo com a senha nova.
-        </p>
-        <PixelLink href="/entrar" className="w-full">
-          INICIAR SESSÃO
-        </PixelLink>
-      </div>
-    );
-  }
-
-  if (!token) {
-    return (
-      <div className="flex flex-col gap-5">
-        <h2 className="m-0 font-display text-[13px] leading-[1.8] tracking-[1px] text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)]">
-          LINK INCOMPLETO
-        </h2>
-        <p className="m-0 font-body text-lg leading-[1.8] tracking-[1px] text-ink-body">
-          Este endereço não traz um token de redefinição. Peça um link novo.
-        </p>
-        <PixelLink href="/recuperar-senha" className="w-full">
-          PEDIR NOVO LINK
-        </PixelLink>
-      </div>
-    );
   }
 
   return (

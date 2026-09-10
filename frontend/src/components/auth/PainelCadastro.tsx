@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { PainelAuth } from "@/components/layout/PainelAuth";
 import { PixelLink } from "@/components/ui/PixelLink";
+import { ArteEnvelope } from "@/components/ui/ilustracoes";
 import { AvisoVerificacao } from "./AvisoVerificacao";
 import type { Cadastrado } from "./FormularioCadastro";
 import { FormularioCadastro } from "./FormularioCadastro";
@@ -22,6 +23,8 @@ export function PainelCadastro() {
           </>
         }
         linhaTerminal="Aguardando confirmação do e-mail..."
+        ilustracao={<ArteEnvelope />}
+        selo="VÁLIDO POR 24 HORAS"
         formulario={
           <AvisoVerificacao
             email={cadastrado.email}
