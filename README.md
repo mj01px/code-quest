@@ -33,7 +33,7 @@ const codequest = {
   frontend:    ["Next.js 16", "React 19", "TypeScript", "Tailwind CSS v4", "Jest + RTL"],
   recursos:    ["Trilhas de aprendizado", "Fluxo editorial", "Criaturas companheiras", "RBAC dinâmico", "JWT em cookies", "Verificação por e-mail"],
   auth:        "JWT em cookie, Argon2, cadastro aberto com confirmação de e-mail",
-  autor:       "Mauro Junior, github.com/mj01px",
+  autores:       "Mauro Junior, github.com/mj01px", "Julio Franz,  github.com/JulioFranz", "Arthur Sabino, github.com/ArthurS357"
 } as const;
 ```
 
@@ -334,18 +334,6 @@ passa pelas regras de negócio.
 | **Infra** | ![DigitalOcean](https://img.shields.io/badge/DigitalOcean-0080FF?style=flat-square&logo=digitalocean&logoColor=white) ![Nginx](https://img.shields.io/badge/Nginx-009639?style=flat-square&logo=nginx&logoColor=white) |
 | **Docs da API** | ![OpenAPI](https://img.shields.io/badge/drf--spectacular-6BA539?style=flat-square&logo=openapiinitiative&logoColor=white) ![Swagger](https://img.shields.io/badge/Swagger_UI-85EA2D?style=flat-square&logo=swagger&logoColor=black) |
 
-</div>
-
----
-
-<div align="center">
-  <br/>
-  <sub>
-    Feito por <a href="https://github.com/mj01px"><strong>Mauro Junior</strong></a>
-    &nbsp;·&nbsp;
-    <a href="https://www.linkedin.com/in/mauroapjunior/">LinkedIn</a>
-  </sub>
-  <br/><br/>
 </div>
 
 ---
