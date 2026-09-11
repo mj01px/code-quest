@@ -6,6 +6,8 @@ import type {
   TrilhaDetalhe,
   TrilhaResumo,
   Usuario,
+  Progresso,
+  ResultadoXP
 } from "./types";
 
 // No navegador tudo passa pela mesma origem, via rewrite do Next: e o que
@@ -292,6 +294,21 @@ export const api = {
       autenticado: true,
     });
   },
+  progresso() {
+    return requisicao<Progresso | null>("/eu/progresso/", {
+      autenticado: true,
+    });
+  },
+
+  concluirExercicio(trilhaSlug: string, exercicioSlug: string) {
+    const caminho = `/exercicios/${encodeURIComponent(
+      trilhaSlug,
+    )}/${encodeURIComponent(exercicioSlug)}/concluir/`;
+    return requisicao<ResultadoXP>(caminho, {
+      metodo: "POST",
+      autenticado: true,
+    });
+  },
 };
 
 // Catalogo de trilhas: leitura publica, servida a partir dos Server Components.
@@ -326,3 +343,4 @@ export function buscarExercicio(
   )}/${encodeURIComponent(exercicioSlug)}/`;
   return requisicao<ExercicioDetalhe>(caminho, { ...CATALOGO });
 }
+

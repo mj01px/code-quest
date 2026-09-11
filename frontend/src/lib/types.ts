@@ -143,3 +143,27 @@ export interface ExercicioDetalhe {
   trilha_nome: string;
   trilha_slug: string;
 }
+
+export interface Nivel {
+  numero: number;
+  titulo: string;
+  xp_necessario: number;
+}
+
+export interface Progresso {
+  criatura: MinhaCriatura;
+  xp_total: number;
+  nivel: Nivel;
+  proximo_nivel: Nivel | null;
+  xp_no_nivel: number;
+  xp_para_o_proximo: number | null;
+  atualizado_em: string;
+}
+
+export interface ResultadoXP {
+  xp_ganho: number;
+  ja_concluido: boolean;
+  subiu_de_nivel: boolean;
+  evoluiu: boolean;
+  progresso: Progresso;
+}

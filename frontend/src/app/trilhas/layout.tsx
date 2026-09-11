@@ -1,5 +1,5 @@
 import { BarraDeMenu } from "@/components/layout/BarraDeMenu";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { SidebarDoAluno } from "@/components/layout/SidebarDoAluno";
 import { CHAVE, FECHADA } from "@/lib/preferenciaSidebar";
 
 // Roda antes da primeira pintura, senão a sidebar recolhida piscaria aberta a
@@ -15,7 +15,7 @@ export default function TrilhasLayout({ children }: LayoutProps<"/trilhas">) {
     <>
       <script dangerouslySetInnerHTML={{ __html: RESTAURA_PREFERENCIA }} />
       <div className="flex min-h-dvh flex-col lg:flex-row">
-        <Sidebar />
+        <SidebarDoAluno />
         <div className="flex min-w-0 flex-1 flex-col">
           <BarraDeMenu />
           <main className="mx-auto w-full max-w-5xl min-w-0 flex-1 px-5 py-8 sm:px-8 sm:py-10">
