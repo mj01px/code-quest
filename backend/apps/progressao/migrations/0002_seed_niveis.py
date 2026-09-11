@@ -35,7 +35,7 @@ def seed(apps, schema_editor):
 
 def unseed(apps, schema_editor):
     Nivel = apps.get_model("progressao", "Nivel")
-    Nivel.objects.filter(numero__lte=NIVEL_MAXIMO, perfis__isnull=True).delete()
+    Nivel.objects.filter(numero__lte=NIVEL_MAXIMO, progressos__isnull=True).delete()
 
 
 class Migration(migrations.Migration):
