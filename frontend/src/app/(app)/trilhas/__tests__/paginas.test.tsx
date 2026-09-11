@@ -7,7 +7,7 @@ import {
   trilhaResumo,
 } from "@/components/__tests__/fixtures";
 import { ErroApi } from "@/lib/api";
-import { CHAVE, esquecerCache } from "@/lib/progresso";
+import type { ExercicioConcluido } from "@/lib/types";
 
 import Erro from "../error";
 import Carregando from "../loading";
@@ -23,8 +23,8 @@ jest.mock("@/lib/api", () => {
     listarTrilhas: jest.fn(),
     buscarTrilha: jest.fn(),
     buscarExercicio: jest.fn(),
-    temSessao: jest.fn(() => false),
-    api: { meusBonus: jest.fn() },
+    temSessao: jest.fn(() => true),
+    api: { meusBonus: jest.fn(), exerciciosConcluidos: jest.fn() },
   };
 });
 
@@ -40,7 +40,23 @@ const api = jest.requireMock<{
   listarTrilhas: jest.Mock;
   buscarTrilha: jest.Mock;
   buscarExercicio: jest.Mock;
+  temSessao: jest.Mock;
+  api: { meusBonus: jest.Mock; exerciciosConcluidos: jest.Mock };
 }>("@/lib/api");
+
+/** O progresso vem da API agora; antes estas telas liam `localStorage`. */
+function concluiu(trilhaSlug: string, ...fases: string[]): void {
+  api.api.exerciciosConcluidos.mockResolvedValue(
+    fases.map(
+      (slug): ExercicioConcluido => ({
+        trilha_slug: trilhaSlug,
+        exercicio_slug: slug,
+        xp: 50,
+        criado_em: "2026-09-10T12:00:00Z",
+      }),
+    ),
+  );
+}
 
 const PARAMS_TRILHA = {
   params: Promise.resolve({ trilhaSlug: "logica" }),
@@ -56,8 +72,9 @@ const PARAMS_EXERCICIO = {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  window.localStorage.clear();
-  esquecerCache();
+  api.temSessao.mockReturnValue(true);
+  api.api.meusBonus.mockResolvedValue([]);
+  concluiu("nenhuma");
 });
 
 describe("Listagem de trilhas", () => {
@@ -106,16 +123,14 @@ describe("Listagem de trilhas", () => {
         }),
       ],
     });
-    window.localStorage.setItem(
-      CHAVE,
-      JSON.stringify({ [trilha.slug]: ["media"] }),
-    );
-    esquecerCache();
+    concluiu(trilha.slug, "media");
 
     render(await TrilhasPage());
 
     expect(api.buscarTrilha).toHaveBeenCalledWith(trilha.slug);
-    expect(screen.getByText("Continuar de onde parou")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Continuar de onde parou"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Módulo 1 · Trocar")).toBeInTheDocument();
   });
 

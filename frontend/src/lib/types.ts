@@ -151,3 +151,43 @@ export interface BonusXp {
   trilha_nome: string;
   multiplicador: number;
 }
+
+export interface NivelResumo {
+  numero: number;
+  titulo: string;
+  xp_necessario: number;
+}
+
+export interface ProgressoAtual {
+  criatura: MinhaCriatura;
+  xp_total: number;
+  nivel: NivelResumo;
+  proximo_nivel: NivelResumo | null;
+  xp_no_nivel: number;
+  xp_para_o_proximo: number | null;
+  atualizado_em: string;
+}
+
+interface ConclusaoBase {
+  subiu_de_nivel: boolean;
+  evoluiu: boolean;
+  progresso: ProgressoAtual;
+}
+
+// Repetir a conclusão devolve 200, não 409: `ja_concluido` é o que separa
+// crédito novo de repetição. A união trava `xp_ganho: 0` no ramo da repetição,
+// que é a garantia do serviço. O ramo do crédito novo segue `number`: o que
+// impede um "+0 XP" ali é o multiplicador mínimo no banco, não o tipo.
+export type ResultadoConclusao =
+  | (ConclusaoBase & { ja_concluido: false; xp_ganho: number })
+  | (ConclusaoBase & { ja_concluido: true; xp_ganho: 0 });
+
+// Uma conclusão de exercício, como o backend a devolve em
+// /eu/exercicios-concluidos/. O slug do exercício só é único dentro da trilha,
+// por isso os dois vêm juntos.
+export interface ExercicioConcluido {
+  trilha_slug: string;
+  exercicio_slug: string;
+  xp: number;
+  criado_em: string;
+}

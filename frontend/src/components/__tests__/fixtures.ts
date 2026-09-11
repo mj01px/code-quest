@@ -5,6 +5,7 @@ import type {
   ExercicioDetalhe,
   ExercicioResumo,
   MinhaCriatura,
+  ProgressoAtual,
   TrilhaDetalhe,
   TrilhaResumo,
   Usuario,
@@ -129,6 +130,21 @@ export function criatura(extra: Partial<Criatura> = {}): Criatura {
         sprite_dialogo: null,
       },
     ],
+    ...extra,
+  };
+}
+
+export function progressoAtual(
+  extra: Partial<ProgressoAtual> = {},
+): ProgressoAtual {
+  return {
+    criatura: minhaCriatura(),
+    xp_total: 50,
+    nivel: { numero: 1, titulo: "Aprendiz", xp_necessario: 0 },
+    proximo_nivel: { numero: 2, titulo: "Iniciado", xp_necessario: 150 },
+    xp_no_nivel: 50,
+    xp_para_o_proximo: 150,
+    atualizado_em: "2026-09-10T12:00:00Z",
     ...extra,
   };
 }

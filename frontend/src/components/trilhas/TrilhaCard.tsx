@@ -42,7 +42,7 @@ export function TrilhaCard({
     <li>
       <Link
         href={`/trilhas/${trilha.slug}`}
-        className="group flex cursor-pointer items-center gap-4 border border-edge bg-panel p-4 transition duration-150 hover:-translate-y-0.5 hover:border-brand hover:bg-panel-soft hover:shadow-pixel sm:gap-6 sm:p-5"
+        className="group flex cursor-pointer items-center gap-4 border border-edge bg-panel p-4 transition duration-150 hover:-translate-y-0.5 hover:border-brand hover:bg-panel-soft hover:shadow-pixel sm:gap-5 sm:p-5"
       >
         <span
           aria-hidden="true"
@@ -52,10 +52,10 @@ export function TrilhaCard({
         </span>
 
         <span className="min-w-0 flex-1">
-          <span className="titulo block truncate text-sm text-ink-soft">
+          <span className="titulo block truncate text-base text-ink-soft">
             {trilha.nome}
           </span>
-          <span className="mt-1.5 block truncate text-[0.6875rem] text-ink-muted">
+          <span className="mt-1.5 block truncate text-sm text-ink-muted">
             {trilha.descricao}
             {trilha.total_exercicios > 0 ? ` · ${horas} h` : ""}
           </span>

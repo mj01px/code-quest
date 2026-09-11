@@ -43,7 +43,7 @@ export function CartaoDesafio({
         </div>
 
         <div>
-          <h3 className="titulo text-sm text-ink-soft">
+          <h3 className="titulo text-base text-ink-soft">
             <span className="sr-only">Desafio {posicao}: </span>
             {desafio.titulo}
           </h3>

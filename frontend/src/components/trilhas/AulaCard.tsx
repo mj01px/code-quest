@@ -1,8 +1,11 @@
 import Link from "next/link";
 
 import { BadgeDificuldade } from "@/components/ui/Badge";
+import { IconeCheck } from "@/components/ui/Icone";
 import { plural, resumoDoModulo, xpDoModulo } from "@/lib/derivados";
 import type { Aula } from "@/lib/types";
+
+const VAZIO: ReadonlySet<string> = Object.freeze(new Set<string>());
 
 export function AulaCard({
   aula,
@@ -10,15 +13,23 @@ export function AulaCard({
   posicao,
   // A API devolve o pré-requisito como slug; a lista traduz para o título.
   preRequisitoTitulo,
+  // Slugs das fases deste módulo que o aluno já concluiu. Vem vazio no render
+  // do servidor e no de quem não tem sessão: o card só ganha a marca depois.
+  fasesConcluidas = VAZIO,
 }: {
   aula: Aula;
   trilhaSlug: string;
   posicao: number;
   preRequisitoTitulo?: string;
+  fasesConcluidas?: ReadonlySet<string>;
 }) {
   const numero = String(posicao).padStart(2, "0");
   const resumo = resumoDoModulo(aula);
   const temFases = aula.exercicios.length > 0;
+  const feitas = aula.exercicios.filter((e) =>
+    fasesConcluidas.has(e.slug),
+  ).length;
+  const moduloCompleto = temFases && feitas === aula.exercicios.length;
 
   const cabecalho = (
     <>
@@ -45,6 +56,11 @@ export function AulaCard({
 
       {temFases ? (
         <span className="rotulo shrink-0 text-brand">
+          {feitas > 0 ? (
+            <span className={moduloCompleto ? "text-success" : "text-ink-muted"}>
+              {feitas}/{aula.exercicios.length} ·{" "}
+            </span>
+          ) : null}
           +{xpDoModulo(aula)} XP
         </span>
       ) : (
@@ -75,7 +91,15 @@ export function AulaCard({
                 href={`/trilhas/${trilhaSlug}/exercicios/${exercicio.slug}`}
                 className="flex cursor-pointer flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-panel-soft sm:px-5"
               >
-                <span className="text-xs text-ink-soft">{exercicio.titulo}</span>
+                <span className="flex min-w-0 items-center gap-2 text-xs text-ink-soft">
+                  {fasesConcluidas.has(exercicio.slug) ? (
+                    <>
+                      <IconeCheck className="h-3 w-3 shrink-0 text-success" />
+                      <span className="sr-only">Fase concluída: </span>
+                    </>
+                  ) : null}
+                  {exercicio.titulo}
+                </span>
                 <span className="flex shrink-0 items-center gap-2">
                   <BadgeDificuldade
                     dificuldade={exercicio.dificuldade}

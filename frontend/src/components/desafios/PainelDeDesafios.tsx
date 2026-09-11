@@ -1,22 +1,13 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-
 import { CartaoDesafio } from "@/components/desafios/CartaoDesafio";
 import { BarraSegmentada } from "@/components/ui/BarraSegmentada";
 import type { Desafio } from "@/lib/desafios";
 import { plural } from "@/lib/derivados";
-import {
-  assinar,
-  estaConcluida,
-  instantaneo,
-  instantaneoNoServidor,
-  percentual,
-} from "@/lib/progresso";
+import { estaConcluida, percentual, useConclusoes } from "@/lib/progresso";
 
-// A lista do dia vem pronta do servidor; o que é do navegador é só o que o
-// aluno já concluiu. É a mesma fronteira do painel de trilhas: nada daqui
-// viaja para a API.
+// A lista do dia vem pronta do servidor estático; o que o aluno já concluiu
+// vem da conta, pela API. É a mesma fronteira do painel de trilhas.
 
 export function PainelDeDesafios({
   desafios,
@@ -26,14 +17,10 @@ export function PainelDeDesafios({
   /** Data já formatada no servidor, para não divergir na hidratação. */
   dia: string;
 }) {
-  const progresso = useSyncExternalStore(
-    assinar,
-    instantaneo,
-    instantaneoNoServidor,
-  );
+  const { chaves } = useConclusoes();
 
   const feitos = desafios.filter((desafio) =>
-    estaConcluida(progresso, desafio.trilhaSlug, desafio.slug),
+    estaConcluida(chaves, desafio.trilhaSlug, desafio.slug),
   ).length;
 
   const xpDoDia = desafios.reduce((soma, desafio) => soma + desafio.xp, 0);
@@ -73,13 +60,13 @@ export function PainelDeDesafios({
         </p>
       </section>
 
-      <ul className="mt-8 flex flex-col gap-4">
+      <ul className="mt-8 flex flex-col gap-3">
         {desafios.map((desafio, indice) => (
           <CartaoDesafio
             key={`${desafio.trilhaSlug}/${desafio.slug}`}
             desafio={desafio}
             posicao={indice + 1}
-            concluido={estaConcluida(progresso, desafio.trilhaSlug, desafio.slug)}
+            concluido={estaConcluida(chaves, desafio.trilhaSlug, desafio.slug)}
           />
         ))}
       </ul>

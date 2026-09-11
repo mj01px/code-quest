@@ -100,12 +100,13 @@
   }
 }
 
-/* Rotulo em caixa alta com muito espacamento. */
+/* Rotulo em caixa alta. O espacamento entre letras e o que fazia a tela parecer
+   espalhada: 0.18em em 10px da 1.8px por glifo, em caixa alta. */
 @utility rotulo {
   font-family: var(--font-label);
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   line-height: 1.4;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 

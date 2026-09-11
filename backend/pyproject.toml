@@ -42,7 +42,7 @@ strict = true
 plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
 # Escopo limitado ao app novo: contas e gamificacao nunca passaram por
 # type check e anota-las e uma entrega propria, nao um efeito colateral desta.
-files = ["apps/trilhas"]
+files = ["apps/trilhas", "apps/autoria"]
 exclude = "apps/trilhas/migrations/"
 
 [[tool.mypy.overrides]]
@@ -53,7 +53,7 @@ ignore_errors = true
 # e invisivel para o django-stubs, que reporta attr-defined em todo atributo
 # assim. O que o strict protege e o codigo de producao.
 [[tool.mypy.overrides]]
-module = ["apps.trilhas.tests.*", "tests.*"]
+module = ["apps.trilhas.tests.*", "apps.autoria.tests.*", "tests.*"]
 ignore_errors = true
 
 [tool.django-stubs]

@@ -3,7 +3,6 @@ import Link from "next/link";
 import { AlternarSidebar, ID_DO_MENU } from "@/components/layout/AlternarSidebar";
 import { IdentidadeDoAluno } from "@/components/layout/IdentidadeDoAluno";
 import { MenuLateral } from "@/components/layout/MenuLateral";
-import { BarraSegmentada } from "@/components/ui/BarraSegmentada";
 
 export interface Perfil {
   nome: string;
@@ -21,11 +20,6 @@ const PERFIL_PADRAO: Perfil = {
 };
 
 export function Sidebar({ perfil = PERFIL_PADRAO }: { perfil?: Perfil }) {
-  const progressoXp =
-    perfil.xpDoProximoNivel > 0
-      ? (perfil.xp / perfil.xpDoProximoNivel) * 100
-      : 0;
-
   return (
     <aside
       id={ID_DO_MENU}
@@ -39,19 +33,15 @@ export function Sidebar({ perfil = PERFIL_PADRAO }: { perfil?: Perfil }) {
           CODEQUEST
         </Link>
 
-        <IdentidadeDoAluno nome={perfil.nome} nivel={perfil.nivel} />
-
-        <div className="mt-4">
-          <BarraSegmentada
-            valor={progressoXp}
-            segmentos={12}
-            expandida
-            rotulo={`Progresso para o nível ${perfil.nivel + 1}`}
-          />
-          <p className="rotulo mt-2 text-ink-muted">
-            {perfil.xp} / {perfil.xpDoProximoNivel} XP
-          </p>
-        </div>
+        {/* A barra de XP mora na ilha junto com a identidade: os dois números
+            vêm da mesma chamada autenticada, e esta Sidebar é Server Component.
+            Aqui ela só repassa o estado neutro de quem não tem sessão. */}
+        <IdentidadeDoAluno
+          nome={perfil.nome}
+          nivel={perfil.nivel}
+          xp={perfil.xp}
+          xpDoProximoNivel={perfil.xpDoProximoNivel}
+        />
 
         <MenuLateral />
 

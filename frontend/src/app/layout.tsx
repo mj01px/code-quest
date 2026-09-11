@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+
+import { CHAVE, FECHADA } from "@/lib/preferenciaSidebar";
+
 import "./globals.css";
 
 // Fontes auto-hospedadas em vez de next/font/google: o build passa a não
@@ -30,6 +33,16 @@ const vt323 = localFont({
   fallback: ["monospace"],
 });
 
+// Restaura a sidebar recolhida antes da primeira pintura. Mora na raiz, e não
+// na moldura do app: o React não executa script inline em navegação
+// client-side, e quem cai em /trilhas vindo do login por router.push perderia
+// a preferência. String fixa, sem dado de usuário: nada a injetar aqui.
+const RESTAURA_SIDEBAR = `try{if(localStorage.getItem(${JSON.stringify(
+  CHAVE,
+)})===${JSON.stringify(
+  FECHADA,
+)})document.documentElement.dataset.sidebar=${JSON.stringify(FECHADA)}}catch(e){}`;
+
 export const metadata: Metadata = {
   title: "CodeQuest",
   description:
@@ -43,7 +56,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="pt-BR"
       className={`${pressStart.variable} ${silkscreen.variable} ${vt323.variable} h-full antialiased`}
     >
-      <body className="bg-void text-ink-soft min-h-full">{children}</body>
+      <body className="bg-void text-ink-soft min-h-full">
+        <script dangerouslySetInnerHTML={{ __html: RESTAURA_SIDEBAR }} />
+        {children}
+      </body>
     </html>
   );
 }

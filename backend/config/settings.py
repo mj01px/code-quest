@@ -113,10 +113,29 @@ PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.ScryptPasswordHasher',
 ]
 
+# Os baldes de throttle vivem aqui. LocMemCache e POR PROCESSO: com N workers o
+# teto real de cada limite vira N vezes o declarado, e todo restart zera os
+# contadores. Vale para `auth` (anti-forca-bruta de login) e para `autoria`
+# (gabarito), que sao os dois em que isso importa de verdade.
+# MVP aceita a limitacao de proposito: o projeto nao tem Redis. Trocar o BACKEND
+# por django.core.cache.backends.redis.RedisCache resolve, sem mudar o resto.
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'codequest-mvp',
+    }
+}
+
 # Limite do catalogo publico de trilhas. As views de trilhas declaram
 # ScopedRateThrottle por conta propria, fora das classes padrao: assim o
 # trafego do catalogo nao consome o balde `anon` das demais rotas publicas.
 THROTTLE_CATALOGO = env('THROTTLE_CATALOGO', default='60/min')
+# Escopo proprio: a lista de concluidos e lida em toda navegacao do aluno,
+# entao nao pode dividir orcamento com o catalogo nem com a conclusao.
+THROTTLE_EU_PROGRESSO = env('THROTTLE_EU_PROGRESSO', default='120/min')
+# Rota de autoria: entrega a solucao de referencia. Limite curto de proposito,
+# e em balde proprio, para que raspar gabarito nao se esconda no trafego normal.
+THROTTLE_AUTORIA = env('THROTTLE_AUTORIA', default='30/min')
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -139,6 +158,8 @@ REST_FRAMEWORK = {
         'verificacao': '5/min',
         'conclusao': '30/min',
         'catalogo': THROTTLE_CATALOGO,
+        'eu_progresso': THROTTLE_EU_PROGRESSO,
+        'autoria': THROTTLE_AUTORIA,
     },
     # Sem NUM_PROXIES o DRF identifica o cliente por X-Forwarded-For, que o
     # proprio cliente manda. Zero forca REMOTE_ADDR e fecha a burla do limite.

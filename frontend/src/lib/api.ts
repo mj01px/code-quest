@@ -2,8 +2,11 @@ import type {
   BonusXp,
   Criatura,
   DocumentosLegais,
+  ExercicioConcluido,
   ExercicioDetalhe,
   MinhaCriatura,
+  ProgressoAtual,
+  ResultadoConclusao,
   TrilhaDetalhe,
   TrilhaResumo,
   Usuario,
@@ -71,6 +74,26 @@ const ERRO_REDE = new ErroApi(
   "Não foi possível falar com o servidor. Ele está no ar?",
 );
 
+// Distinto do erro de rede de propósito: a conexão respondeu tarde demais, não
+// caiu. Sem isso a tela pede "o servidor está no ar?" para quem está só lento.
+const ERRO_TEMPO = new ErroApi(
+  0,
+  "tempo_esgotado",
+  "A conexão está lenta. Tente de novo.",
+);
+
+// 15s: bem acima do p99 de um JSON pequeno mesmo em rede móvel ruim, e abaixo
+// dos ~30s em que o usuário já desistiu. Sem teto, a promessa nunca assenta e a
+// interface fica presa em "enviando" para sempre.
+const TEMPO_LIMITE_MS = 15_000;
+
+// AbortSignal.timeout() rejeita com DOMException de nome TimeoutError, não
+// AbortError. Cancelamento manual não existe no projeto; quando existir, merece
+// código próprio em vez de se passar por lentidão.
+function eTempoEsgotado(erro: unknown): boolean {
+  return erro instanceof DOMException && erro.name === "TimeoutError";
+}
+
 function lerCookie(nome: string): string | null {
   if (typeof document === "undefined") return null;
   const casado = document.cookie.match(
@@ -88,13 +111,19 @@ export function temSessao(): boolean {
   return lerCookie(COOKIE_SESSAO) === "1";
 }
 
-async function garantirCsrf(): Promise<string | null> {
+async function garantirCsrf(prazo: AbortSignal): Promise<string | null> {
   const atual = lerCookie(COOKIE_CSRF);
   if (atual) return atual;
 
   try {
-    await fetch(`${BASE}/auth/csrf/`, { credentials: "same-origin" });
-  } catch {
+    await fetch(`${BASE}/auth/csrf/`, {
+      credentials: "same-origin",
+      signal: prazo,
+    });
+  } catch (erro) {
+    // Estouro de prazo sobe: engolir aqui faria o pedido seguir sem token, o
+    // Django devolver 403, e a tela culpar permissão em vez de lentidão.
+    if (eTempoEsgotado(erro)) throw ERRO_TEMPO;
     return null;
   }
   return lerCookie(COOKIE_CSRF);
@@ -115,17 +144,19 @@ async function interpretar(resposta: Response) {
   );
 }
 
-async function renovar(): Promise<boolean> {
-  const csrf = await garantirCsrf();
+async function renovar(prazo: AbortSignal): Promise<boolean> {
+  const csrf = await garantirCsrf(prazo);
 
   try {
     const resposta = await fetch(`${BASE}/auth/renovar/`, {
       method: "POST",
       credentials: "same-origin",
       headers: csrf ? { "X-CSRFToken": csrf } : {},
+      signal: prazo,
     });
     return resposta.ok;
-  } catch {
+  } catch (erro) {
+    if (eTempoEsgotado(erro)) throw ERRO_TEMPO;
     return false;
   }
 }
@@ -150,12 +181,18 @@ async function requisicao<T>(
     etiquetas,
   }: Opcoes = {},
   jaRenovou = false,
+  // Um prazo por interação, não por fetch. Um prazo novo a cada hop somaria
+  // csrf + pedido + renovação + repetição, e o botão ficaria preso muito além
+  // do teto que este módulo promete.
+  prazo: AbortSignal = AbortSignal.timeout(TEMPO_LIMITE_MS),
 ): Promise<T> {
   const headers: Record<string, string> = {};
   if (corpo !== undefined) headers["Content-Type"] = "application/json";
 
-  if (!METODOS_SEGUROS.has(metodo) && typeof window !== "undefined") {
-    const csrf = await garantirCsrf();
+  const noNavegador = typeof window !== "undefined";
+
+  if (!METODOS_SEGUROS.has(metodo) && noNavegador) {
+    const csrf = await garantirCsrf(prazo);
     if (csrf) headers["X-CSRFToken"] = csrf;
   }
 
@@ -165,21 +202,26 @@ async function requisicao<T>(
       method: metodo,
       headers,
       credentials: "same-origin",
+      // Só no navegador: no servidor, `signal` desliga a memoização de fetch do
+      // Next, e a mesma URL passaria a ser buscada duas vezes por render — as
+      // páginas de trilha e exercício carregam em generateMetadata e no corpo.
+      ...(noNavegador ? { signal: prazo } : {}),
       body: corpo === undefined ? undefined : JSON.stringify(corpo),
       ...(revalidacao === undefined
         ? {}
         : { next: { revalidate: revalidacao, tags: etiquetas } }),
     });
-  } catch {
-    throw ERRO_REDE;
+  } catch (erro) {
+    throw eTempoEsgotado(erro) ? ERRO_TEMPO : ERRO_REDE;
   }
 
   if (resposta.status === 401 && autenticado && !jaRenovou) {
-    if (await renovar()) {
+    if (await renovar(prazo)) {
       return requisicao<T>(
         caminho,
         { metodo, corpo, autenticado, revalidacao, etiquetas },
         true,
+        prazo,
       );
     }
   }
@@ -297,10 +339,40 @@ export const api = {
       autenticado: true,
     });
   },
+
+  // 204 quando o aluno ainda nao escolheu criatura: o corpo vem vazio e vira
+  // null, que e o estado neutro que a sidebar ja sabe desenhar.
+  meuProgresso() {
+    return requisicao<ProgressoAtual | null>("/eu/progresso/", {
+      autenticado: true,
+    });
+  },
+
+  // A marca de "feito" vem daqui, nao do navegador. O filtro por trilha existe
+  // porque a tela da trilha so precisa das conclusoes dela.
+  exerciciosConcluidos(trilhaSlug?: string) {
+    const busca = trilhaSlug ? `?trilha=${encodeURIComponent(trilhaSlug)}` : "";
+    return requisicao<ExercicioConcluido[]>(
+      `/eu/exercicios-concluidos/${busca}`,
+      { autenticado: true },
+    );
+  },
+
+  // Sem corpo: o XP vem da dificuldade cadastrada e o backend ignora o que
+  // chegar por aqui. Mandar payload só daria a impressão de que dá para influir.
+  concluirExercicio(trilhaSlug: string, exercicioSlug: string) {
+    const caminho = `/exercicios/${encodeURIComponent(
+      trilhaSlug,
+    )}/${encodeURIComponent(exercicioSlug)}/concluir/`;
+    return requisicao<ResultadoConclusao>(caminho, {
+      metodo: "POST",
+      autenticado: true,
+    });
+  },
 };
 
 // Catalogo de trilhas: leitura publica, servida a partir dos Server Components.
-// Sem token, entao `autenticado` fica de fora; o cache do Next segura a carga
+// Sem token, entao "autenticado" fica de fora; o cache do Next segura a carga
 // durante o build estatico das rotas de trilha e exercicio.
 
 const CATALOGO: Opcoes = { revalidacao: 60, etiquetas: ["trilhas"] };

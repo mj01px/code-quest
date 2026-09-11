@@ -8,7 +8,7 @@ import {
   trilhaResumo,
 } from "@/components/__tests__/fixtures";
 import { ErroApi } from "@/lib/api";
-import { CHAVE, esquecerCache } from "@/lib/progresso";
+import type { ExercicioConcluido } from "@/lib/types";
 
 import Erro from "../error";
 import Carregando from "../loading";
@@ -20,15 +20,31 @@ jest.mock("@/lib/api", () => {
     ErroApi: real.ErroApi,
     listarTrilhas: jest.fn(),
     buscarTrilha: jest.fn(),
-    temSessao: jest.fn(() => false),
-    api: { meusBonus: jest.fn() },
+    temSessao: jest.fn(() => true),
+    api: { meusBonus: jest.fn(), exerciciosConcluidos: jest.fn() },
   };
 });
 
 const api = jest.requireMock<{
   listarTrilhas: jest.Mock;
   buscarTrilha: jest.Mock;
+  temSessao: jest.Mock;
+  api: { meusBonus: jest.Mock; exerciciosConcluidos: jest.Mock };
 }>("@/lib/api");
+
+/** O progresso vem da API agora; antes esta tela lia `localStorage`. */
+function concluiu(trilhaSlug: string, ...fases: string[]): void {
+  api.api.exerciciosConcluidos.mockResolvedValue(
+    fases.map(
+      (slug): ExercicioConcluido => ({
+        trilha_slug: trilhaSlug,
+        exercicio_slug: slug,
+        xp: 50,
+        criado_em: "2026-09-10T12:00:00Z",
+      }),
+    ),
+  );
+}
 
 const TRILHA = trilhaDetalhe({
   aulas: [
@@ -64,8 +80,8 @@ const TRILHA = trilhaDetalhe({
 
 beforeEach(() => {
   jest.clearAllMocks();
-  window.localStorage.clear();
-  esquecerCache();
+  api.temSessao.mockReturnValue(true);
+  concluiu("nenhuma");
   api.listarTrilhas.mockResolvedValue([trilhaResumo()]);
   api.buscarTrilha.mockResolvedValue(TRILHA);
 });
@@ -100,19 +116,16 @@ describe("Página de desafios", () => {
     expect(api.buscarTrilha).toHaveBeenCalledWith("logica-de-programacao");
   });
 
-  it("conta o que o aluno já concluiu no navegador", async () => {
-    render(await DesafiosPage());
+  it("conta o que o aluno já concluiu, lendo da conta", async () => {
+    const { unmount } = render(await DesafiosPage());
     const primeiro = screen.getAllByRole("link")[0]!;
     const slug = primeiro.getAttribute("href")!.split("/").at(-1)!;
+    unmount();
 
-    window.localStorage.setItem(
-      CHAVE,
-      JSON.stringify({ "logica-de-programacao": [slug] }),
-    );
-    esquecerCache();
+    concluiu("logica-de-programacao", slug);
 
     render(await DesafiosPage());
-    expect(screen.getAllByText("1 de 3 concluídos").length).toBeGreaterThan(0);
+    expect(await screen.findByText("1 de 3 concluídos")).toBeInTheDocument();
   });
 
   it("sem fase publicada, explica em vez de mostrar lista vazia", async () => {

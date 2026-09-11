@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models import F
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -22,6 +23,10 @@ XP_POR_DIFICULDADE = {
 }
 
 XP_PADRAO = 50
+
+# Relidos sempre juntos: `nivel` sem `xp_total` mistura dois momentos e faz
+# `montar_progresso` devolver xp_no_nivel negativo.
+CAMPOS_RELIDOS = ["xp_total", "nivel", "atualizado_em"]
 
 
 @dataclass(frozen=True)
@@ -91,6 +96,27 @@ def obter_progresso(user_creature):
     return progresso
 
 
+def exercicios_concluidos(*, user, trilha_slug=None):
+    """Conclusões do usuário, das mais recentes para as mais antigas.
+
+    `select_related` porque o payload atravessa exercicio -> trilha: sem ele a
+    lista faria duas consultas por linha.
+
+    Os dois filtros não são decoração. `exercicio` é SET_NULL, então evento de
+    exercício apagado não tem slug para devolver; e `AJUSTE` é ajuste de
+    progressão, não conclusão. Sobra exatamente o que a UniqueConstraint de
+    `EventoXP` garante único por usuário: no máximo uma linha por exercício.
+    """
+    eventos = EventoXP.objects.filter(
+        user=user, origem=Origem.EXERCICIO, exercicio__isnull=False
+    ).select_related("exercicio__trilha")
+
+    if trilha_slug:
+        eventos = eventos.filter(exercicio__trilha__slug=trilha_slug)
+
+    return eventos
+
+
 def montar_progresso(progresso):
     """Valores relativos, que é o que a barra de XP do front precisa."""
     proximo = proximo_nivel(progresso)
@@ -117,6 +143,8 @@ def creditar_exercicio(*, user, exercicio):
     obter_progresso(ativa)
     progresso = ProgressoCriatura.objects.select_for_update().get(user_creature=ativa)
 
+    # Fica entre a leitura do progresso e a escrita de propósito: os testes de
+    # concorrência injetam a gravação alheia neste ponto.
     multiplicador = multiplicador_de_bonus(creature=ativa.creature, trilha=exercicio.trilha)
     xp = int(xp_do_exercicio(exercicio) * multiplicador)
 
@@ -138,20 +166,59 @@ def creditar_exercicio(*, user, exercicio):
             ja_concluido=True,
         )
 
-    progresso.xp_total += xp
-    alcancado = nivel_para_xp(progresso.xp_total)
-    subiu = alcancado.numero > progresso.nivel_id
+    # A soma vai no banco, não em Python: o SQLite ignora o select_for_update
+    # acima, então ler, somar e gravar perderia o incremento de um pedido
+    # concorrente do mesmo usuário em outro exercício.
+    # `atualizado_em` é auto_now e não dispara em update(); por isso vai à mão.
+    agora = timezone.now()
+    ProgressoCriatura.objects.filter(pk=progresso.pk).update(
+        xp_total=F("xp_total") + xp,
+        atualizado_em=agora,
+    )
+    progresso.refresh_from_db(fields=CAMPOS_RELIDOS)
 
-    if subiu:
+    alcancado = nivel_para_xp(progresso.xp_total)
+    subiu = False
+
+    if alcancado.numero > progresso.nivel_id:
+        # Mesma razão do xp_total: gravar o nível calculado sobre a leitura de
+        # antes rebaixaria a conta se outro pedido já tivesse subido mais. O
+        # filtro deixa a comparação no banco, e o rowcount responde a pergunta
+        # que o front usa: foi ESTE pedido que subiu?
+        # `nivel_id` é o próprio `Nivel.numero` — PK semântica e monotônica —,
+        # então `__lt` compara ordem de nível, não chave surrogada.
+        subiu = (
+            ProgressoCriatura.objects.filter(
+                pk=progresso.pk, nivel_id__lt=alcancado.numero
+            ).update(nivel=alcancado, atualizado_em=agora)
+            == 1
+        )
+
+        if subiu:
+            progresso.nivel = alcancado
+        else:
+            # Perdeu a corrida: `nivel` e `xp_total` têm que vir da mesma leitura.
+            progresso.refresh_from_db(fields=CAMPOS_RELIDOS)
+    else:
+        # Mesmo nível: o objeto já está em mãos, e o refresh acima limpou o
+        # cache da FK. Sem isto, `montar_progresso` faz um SELECT a cada POST.
         progresso.nivel = alcancado
 
-    progresso.save(update_fields=["xp_total", "nivel", "atualizado_em"])
-
     evoluiu = False
-    if subiu and ativa.sync_stage(progresso.nivel_id):
-        ativa.evolved_at = timezone.now()
-        ativa.save(update_fields=["current_stage", "evolved_at"])
-        evoluiu = True
+    if subiu:
+        # `ativa` foi lido no começo do pedido, então `sync_stage` compararia
+        # contra memória velha e des-evoluiria a criatura. O filtro faz a
+        # comparação no banco; o rowcount diz quem evoluiu de fato.
+        estagio = ativa.creature.stage_for_level(progresso.nivel_id)
+        evoluiu = (
+            UserCreature.objects.filter(
+                pk=ativa.pk, current_stage__lt=estagio
+            ).update(current_stage=estagio, evolved_at=agora)
+            == 1
+        )
+
+        if evoluiu:
+            ativa.refresh_from_db(fields=["current_stage", "evolved_at"])
 
     return ResultadoXP(
         progresso=progresso,
