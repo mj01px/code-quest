@@ -10,9 +10,9 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from apps.contas.rbac import permissions_for_role
+from apps.contas.tests.helpers import criar_admin, criar_aluno, criar_autor
 from apps.trilhas.models import StatusEditorial
 from apps.trilhas.tests.helpers import criar_aula, criar_exercicio, criar_trilha
-from apps.contas.tests.helpers import criar_admin, criar_aluno, criar_autor
 
 SOLUCAO = "SEGREDO: resposta de referência do autor."
 

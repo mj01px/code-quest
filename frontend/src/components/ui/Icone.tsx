@@ -33,21 +33,6 @@ export function IconeMenu({ className = "" }: { className?: string }) {
   );
 }
 
-export function IconeSeta({ className = "" }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      aria-hidden="true"
-      className={`${BASE} ${className}`}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
-      <path d="M10 3L5 8l5 5" />
-    </svg>
-  );
-}
-
 export function IconeCheck({ className = "" }: { className?: string }) {
   return (
     <svg

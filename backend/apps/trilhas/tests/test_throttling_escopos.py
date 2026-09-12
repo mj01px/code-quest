@@ -19,9 +19,9 @@ from rest_framework.throttling import (
     SimpleRateThrottle,
 )
 
+from apps.contas.tests.helpers import criar_autor
 from apps.trilhas.tests.helpers import criar_aula, criar_exercicio, criar_trilha
 from apps.trilhas.views import ExercicioDetailView, TrilhaDetailView, TrilhaListView
-from apps.contas.tests.helpers import criar_autor
 
 # O DRF lê a taxa no momento em que instancia o throttle, uma vez por
 # requisição, então trocar o dicionário alcança as duas classes.
