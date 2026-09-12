@@ -75,6 +75,14 @@ class MinhaCriaturaSerializer(serializers.ModelSerializer):
     adquirida_em = serializers.DateTimeField(source="acquired_at", read_only=True)
     evoluiu_em = serializers.DateTimeField(source="evolved_at", read_only=True)
     sprite = serializers.SerializerMethodField()
+    # O botão de evoluir precisa de três respostas: existe próximo estágio,
+    # qual o nível que ele pede, e se já dá para apertar agora. O nível sai do
+    # progresso DESTA criatura: cada uma acumula o próprio XP, e uma reserva
+    # recém-comprada está no nível 1 por mais alto que a principal esteja.
+    proximo_estagio = serializers.SerializerMethodField()
+    nivel_para_evoluir = serializers.SerializerMethodField()
+    pode_evoluir = serializers.SerializerMethodField()
+    nivel = serializers.SerializerMethodField()
 
     class Meta:
         model = UserCreature
@@ -87,6 +95,10 @@ class MinhaCriaturaSerializer(serializers.ModelSerializer):
             "adquirida_em",
             "evoluiu_em",
             "sprite",
+            "proximo_estagio",
+            "nivel_para_evoluir",
+            "pode_evoluir",
+            "nivel",
         )
 
     def get_sprite(self, obj) -> str | None:
@@ -94,6 +106,51 @@ class MinhaCriaturaSerializer(serializers.ModelSerializer):
             if estagio.stage == obj.current_stage:
                 return _url_sprite(estagio.sprite)
         return None
+
+    def _seguinte(self, obj):
+        for estagio in obj.creature.stages.all():
+            if estagio.stage == obj.current_stage + 1:
+                return estagio
+        return None
+
+    def get_proximo_estagio(self, obj) -> int | None:
+        seguinte = self._seguinte(obj)
+        return seguinte.stage if seguinte else None
+
+    def get_nivel_para_evoluir(self, obj) -> int | None:
+        seguinte = self._seguinte(obj)
+        return seguinte.min_level if seguinte else None
+
+    def get_pode_evoluir(self, obj) -> bool:
+        seguinte = self._seguinte(obj)
+        if seguinte is None:
+            return False
+        return self._nivel(obj) >= seguinte.min_level
+
+    def get_nivel(self, obj) -> int:
+        return self._nivel(obj)
+
+    def _nivel(self, obj) -> int:
+        """O nível desta criatura. Sem linha de progresso, ela está no nível 1.
+
+        A linha só nasce no primeiro crédito de XP, então criatura recém-
+        adquirida não tem nenhuma — e isso não é erro, é o começo.
+        """
+        progresso = getattr(obj, "progresso", None)
+        return progresso.nivel_id if progresso is not None else 1
+
+
+class EvolucaoSerializer(serializers.Serializer):
+    """O que a animação de evolução precisa saber.
+
+    `estagio_anterior` e o estágio atual da criatura são os dois sprites da
+    transição. `evoluiu` vem falso quando outro pedido chegou primeiro: a
+    criatura já está na forma nova e não há transição a mostrar.
+    """
+
+    evoluiu = serializers.BooleanField(read_only=True)
+    estagio_anterior = serializers.IntegerField(read_only=True)
+    criatura = MinhaCriaturaSerializer(read_only=True)
 
 
 class EscolhaInicialSerializer(serializers.Serializer):

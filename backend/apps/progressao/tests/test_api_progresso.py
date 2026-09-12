@@ -162,5 +162,11 @@ class ApiProgressoTest(TestCase):
 
         self.assertEqual(
             set(resposta.data),
-            {"xp_ganho", "ja_concluido", "subiu_de_nivel", "evoluiu", "progresso"},
+            {
+                "xp_ganho",
+                "ja_concluido",
+                "subiu_de_nivel",
+                "pode_evoluir",
+                "progresso",
+            },
         )

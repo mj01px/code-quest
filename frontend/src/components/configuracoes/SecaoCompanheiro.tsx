@@ -2,60 +2,63 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import { TelaDeEvolucao } from "@/components/gamificacao/TelaDeEvolucao";
 import { ErroApi, api } from "@/lib/api";
-import type { Criatura, MinhaCriatura, ProgressoAtual } from "@/lib/types";
+import type { Criatura, Evolucao, MinhaCriatura } from "@/lib/types";
 
 interface Props {
   criaturas: MinhaCriatura[];
-  progresso: ProgressoAtual | null;
   recarregar: () => Promise<void>;
 }
 
 const MAX = 3;
 
-function dicaEvolucao(
-  posse: MinhaCriatura,
-  ativa: boolean,
-  nivelAtual: number | null,
-): { texto: string; pronto: boolean; maximo: boolean } {
-  const estagioMax = Math.max(...posse.criatura.estagios.map((e) => e.estagio));
-  if (posse.estagio_atual >= estagioMax) {
+/** O que dizer sobre a evolução desta criatura, e se o botão está liberado.
+ *
+ * O servidor já resolve `pode_evoluir` e `nivel_para_evoluir` olhando o nível
+ * DESTA criatura, então a tela não recalcula a regra: ela só a apresenta.
+ */
+function dicaEvolucao(posse: MinhaCriatura): {
+  texto: string;
+  pronto: boolean;
+  maximo: boolean;
+} {
+  if (posse.proximo_estagio === null) {
     return { texto: "> forma final alcançada", pronto: false, maximo: true };
   }
-  const proximo = posse.criatura.estagios.find(
-    (e) => e.estagio === posse.estagio_atual + 1,
-  );
-  const alvo = proximo?.nivel_minimo ?? null;
-  if (ativa && nivelAtual !== null && alvo !== null) {
-    if (nivelAtual >= alvo) {
-      return {
-        texto: "> pronto para evoluir — a escolha é sua",
-        pronto: true,
-        maximo: false,
-      };
-    }
+
+  if (posse.pode_evoluir) {
     return {
-      texto: `> evolui no nível ${alvo} (faltam ${alvo - nivelAtual})`,
-      pronto: false,
+      texto: "> pronto para evoluir",
+      pronto: true,
       maximo: false,
     };
   }
-  return {
-    texto: alvo !== null ? `> evolui no nível ${alvo}` : "> evolução em breve",
-    pronto: false,
-    maximo: false,
-  };
+
+  const alvo = posse.nivel_para_evoluir;
+  if (alvo === null) {
+    return { texto: "> evolução em breve", pronto: false, maximo: false };
+  }
+
+  return { texto: `> evolui no nível ${alvo}`, pronto: false, maximo: false };
 }
 
-export function SecaoCompanheiro({ criaturas, progresso, recarregar }: Props) {
+export function SecaoCompanheiro({ criaturas, recarregar }: Props) {
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [loja, setLoja] = useState(false);
   const [catalogo, setCatalogo] = useState<Criatura[] | null>(null);
   const [carregandoLoja, setCarregandoLoja] = useState(false);
+  // A transição a exibir. Só existe entre o POST e o "Continuar".
+  const [evolucao, setEvolucao] = useState<{
+    nome: string;
+    antes: string | null;
+    depois: string | null;
+    estagioAntes: number;
+    estagioDepois: number;
+  } | null>(null);
 
   const possuidos = new Set(criaturas.map((c) => c.criatura.slug));
-  const nivelAtivo = progresso ? progresso.nivel.numero : null;
 
   async function tornarPrincipal(slug: string) {
     setOcupado(slug);
@@ -70,6 +73,39 @@ export function SecaoCompanheiro({ criaturas, progresso, recarregar }: Props) {
     }
   }
 
+  async function evoluir(posse: MinhaCriatura) {
+    setOcupado(posse.criatura.slug);
+    setErro(null);
+
+    // O sprite de onde a criatura sai precisa ser guardado antes do pedido: a
+    // resposta só traz o da forma nova.
+    const antes = posse.sprite;
+
+    let resultado: Evolucao;
+    try {
+      resultado = await api.evoluirCriatura(posse.criatura.slug);
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : "Não deu para evoluir agora.");
+      setOcupado(null);
+      return;
+    }
+
+    if (resultado.evoluiu) {
+      setEvolucao({
+        nome: posse.criatura.nome,
+        antes,
+        depois: resultado.criatura.sprite,
+        estagioAntes: resultado.estagio_anterior,
+        estagioDepois: resultado.criatura.estagio_atual,
+      });
+    }
+
+    // A lista relê de qualquer jeito: se outro pedido evoluiu primeiro, não há
+    // animação a mostrar, mas a forma nova precisa aparecer na tela.
+    await recarregar();
+    setOcupado(null);
+  }
+
   async function abrirLoja() {
     setErro(null);
     setLoja(true);
@@ -79,7 +115,9 @@ export function SecaoCompanheiro({ criaturas, progresso, recarregar }: Props) {
         setCatalogo(await api.catalogo());
       } catch (e) {
         setErro(
-          e instanceof ErroApi ? e.message : "Não deu para carregar o catálogo.",
+          e instanceof ErroApi
+            ? e.message
+            : "Não deu para carregar o catálogo.",
         );
       } finally {
         setCarregandoLoja(false);
@@ -95,7 +133,9 @@ export function SecaoCompanheiro({ criaturas, progresso, recarregar }: Props) {
       await recarregar();
       setLoja(false);
     } catch (e) {
-      setErro(e instanceof ErroApi ? e.message : "Não deu para adicionar agora.");
+      setErro(
+        e instanceof ErroApi ? e.message : "Não deu para adicionar agora.",
+      );
     } finally {
       setOcupado(null);
     }
@@ -129,10 +169,10 @@ export function SecaoCompanheiro({ criaturas, progresso, recarregar }: Props) {
             const estagio = posse.criatura.estagios.find(
               (e) => e.estagio === posse.estagio_atual,
             );
-            const evo = dicaEvolucao(posse, principal, nivelAtivo);
+            const evo = dicaEvolucao(posse);
             const meta = [
               posse.criatura.dominio_rotulo,
-              principal && nivelAtivo !== null ? `Nível ${nivelAtivo}` : null,
+              `Nível ${posse.nivel}`,
               estagio ? estagio.rotulo : null,
             ]
               .filter(Boolean)
@@ -164,19 +204,8 @@ export function SecaoCompanheiro({ criaturas, progresso, recarregar }: Props) {
                 </span>
 
                 <span className="flex min-w-[180px] flex-[1_1_220px] flex-col gap-1.5">
-                  <span className="flex flex-wrap items-center gap-2">
-                    <span className="font-display text-[12px] leading-[1.6] text-ink">
-                      {posse.criatura.nome}
-                    </span>
-                    <span
-                      className={`px-2 py-0.5 font-label text-[10px] tracking-[2px] ${
-                        principal
-                          ? "border-2 border-brand bg-brand text-void"
-                          : "border-2 border-edge-soft text-ink-muted"
-                      }`}
-                    >
-                      {principal ? "PRINCIPAL" : "RESERVA"}
-                    </span>
+                  <span className="font-display text-[12px] leading-[1.6] text-ink">
+                    {posse.criatura.nome}
                   </span>
                   <span className="font-body text-base tracking-[1px] text-ink-muted">
                     {meta}
@@ -205,11 +234,22 @@ export function SecaoCompanheiro({ criaturas, progresso, recarregar }: Props) {
                   )}
                   <button
                     type="button"
-                    disabled
-                    title="Em breve"
-                    className="cursor-not-allowed border-2 border-edge-soft bg-field px-4 py-2.5 font-label text-[10px] tracking-[2px] text-ink-dim"
+                    onClick={() => evoluir(posse)}
+                    disabled={!evo.pronto || ocupado !== null}
+                    title={evo.maximo ? "Forma final" : undefined}
+                    className={
+                      evo.pronto
+                        ? "cursor-pointer border-2 border-brand-light bg-brand-deep px-4 py-2.5 font-label text-[10px] tracking-[2px] text-ink shadow-pixel hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-50"
+                        : "cursor-not-allowed border-2 border-edge-soft bg-field px-4 py-2.5 font-label text-[10px] tracking-[2px] text-ink-dim"
+                    }
                   >
-                    {evo.maximo ? "FORMA FINAL" : "EVOLUIR (BLOQUEADO)"}
+                    {ocupado === posse.criatura.slug
+                      ? "..."
+                      : evo.maximo
+                        ? "FORMA FINAL"
+                        : evo.pronto
+                          ? "EVOLUIR"
+                          : "EVOLUIR"}
                   </button>
                 </span>
               </div>
@@ -250,7 +290,9 @@ export function SecaoCompanheiro({ criaturas, progresso, recarregar }: Props) {
                     disabled={ocupado !== null}
                     className="cursor-pointer border-2 border-brand bg-transparent px-4 py-2.5 font-label text-[10px] tracking-[2px] text-brand-light shadow-pixel hover:border-brand-pale hover:text-ink-soft disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {ocupado === criatura.slug ? "..." : criatura.nome.toUpperCase()}
+                    {ocupado === criatura.slug
+                      ? "..."
+                      : criatura.nome.toUpperCase()}
                   </button>
                 </li>
               ))}
@@ -276,6 +318,17 @@ export function SecaoCompanheiro({ criaturas, progresso, recarregar }: Props) {
           </button>
         </div>
       )}
+
+      {evolucao ? (
+        <TelaDeEvolucao
+          nome={evolucao.nome}
+          spriteAntes={evolucao.antes}
+          spriteDepois={evolucao.depois}
+          estagioAntes={evolucao.estagioAntes}
+          estagioDepois={evolucao.estagioDepois}
+          aoFechar={() => setEvolucao(null)}
+        />
+      ) : null}
     </section>
   );
 }

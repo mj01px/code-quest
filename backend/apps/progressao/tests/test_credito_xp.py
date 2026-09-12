@@ -15,13 +15,13 @@ from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
+from apps.contas.tests.helpers import criar_aluno
 from apps.gamificacao.models import Stage, UserCreature
 from apps.gamificacao.services import select_starter_creature
 from apps.progressao import services
 from apps.progressao.models import EventoXP, ProgressoCriatura
 from apps.progressao.services import creditar_exercicio
 from apps.trilhas.models import Aula, Dificuldade, Exercicio, StatusEditorial, Trilha
-from apps.contas.tests.helpers import criar_aluno
 
 
 def criar_exercicio(dificuldade=Dificuldade.INICIANTE, slug="ex-1", publicado=True):
@@ -118,40 +118,28 @@ class EvolucaoPeloXPTest(TestCase):
         ativa = UserCreature.objects.get(user=self.user, is_active=True)
         self.assertEqual(ativa.current_stage, Stage.HATCHLING)
 
-    def test_evolui_ao_cruzar_o_nivel_dez(self):
+    def test_cruzar_o_limiar_nao_evolui_sozinho(self):
+        # Evoluir é escolha do aluno. Cruzar o nível 10 só abre a porta; a
+        # criatura continua filhote até alguém apertar o botão.
         self._creditar(23)
         ativa = UserCreature.objects.get(user=self.user, is_active=True)
-        self.assertEqual(ativa.current_stage, Stage.JUVENILE)
-        self.assertIsNotNone(ativa.evolved_at)
+        self.assertEqual(ativa.current_stage, Stage.HATCHLING)
+        self.assertIsNone(ativa.evolved_at)
 
-    def test_criatura_atrasada_salta_direto_para_o_estagio_do_nivel(self):
-        # `stage_for_level` devolve o MAIOR estágio já alcançado, não o
-        # próximo: quem chega ao nível 25 vira ADULTO numa escrita só, sem
-        # passar por JOVEM. Sem isso a criatura ficaria um estágio atrás para
-        # sempre, porque só há evolução quando o nível sobe.
-        #
-        # O estado de partida é forçado de propósito: hoje nenhum crédito leva
-        # de HATCHLING ao nível 24 (nível 25 exige 30000 XP, crédito máximo é
-        # 200). Ele existe no banco no dia em que uma criatura for adquirida
-        # por um aluno já adiantado.
-        progresso = services.obter_progresso(services.criatura_ativa(self.user))
-        ProgressoCriatura.objects.filter(pk=progresso.pk).update(
-            xp_total=29900, nivel_id=24
-        )
-        UserCreature.objects.filter(user=self.user, is_active=True).update(
-            current_stage=Stage.HATCHLING, evolved_at=None
-        )
-
-        resultado = creditar_exercicio(
+    def test_cruzar_o_limiar_anuncia_que_da_para_evoluir(self):
+        antes = creditar_exercicio(
             user=self.user,
-            exercicio=criar_exercicio(Dificuldade.AVANCADO, slug="ex-salto"),
+            exercicio=criar_exercicio(Dificuldade.INICIANTE, slug="ex-antes"),
         )
+        self.assertFalse(antes.pode_evoluir)
 
-        ativa = UserCreature.objects.get(user=self.user, is_active=True)
-        self.assertTrue(resultado.subiu_de_nivel)
-        self.assertTrue(resultado.evoluiu)
-        self.assertEqual(ativa.current_stage, Stage.ADULT)
-        self.assertIsNotNone(ativa.evolved_at)
+        self._creditar(23)
+
+        depois = creditar_exercicio(
+            user=self.user,
+            exercicio=criar_exercicio(Dificuldade.AVANCADO, slug="ex-depois"),
+        )
+        self.assertTrue(depois.pode_evoluir)
 
     def test_credito_de_um_aluno_nao_toca_o_progresso_de_outro(self):
         # Os dois alunos vivem no mesmo banco dentro deste teste: isolamento
@@ -283,9 +271,8 @@ class NivelEEstagioNaoRegridemTest(TestCase):
     injetam a gravação alheia em `nivel_para_xp`, que é chamado exatamente entre
     o refresh do XP e a gravação do nível.
 
-    `subiu_de_nivel` e `evoluiu` passam a significar "foi este pedido que
-    subiu", não "o nível subiu por perto". Quem dispara a requisição é quem vê
-    a animação.
+    `subiu_de_nivel` passa a significar "foi este pedido que subiu", não "o
+    nível subiu por perto". Quem dispara a requisição é quem vê o anúncio.
     """
 
     def setUp(self):
@@ -332,32 +319,9 @@ class NivelEEstagioNaoRegridemTest(TestCase):
         self.assertEqual(resultado.progresso.nivel_id, 3)
         self.assertFalse(resultado.subiu_de_nivel)
 
-    def test_estagio_nao_regride_para_o_valor_lido_antes(self):
-        self._partir_de(xp_total=4400, nivel_id=9)
-        carimbo = timezone.now() - timedelta(days=1)
-
-        def outro_pedido_evoluiu_mais():
-            UserCreature.objects.filter(user=self.user, is_active=True).update(
-                current_stage=Stage.ADULT, evolved_at=carimbo
-            )
-
-        with self._injetar_antes_da_gravacao(outro_pedido_evoluiu_mais):
-            resultado = creditar_exercicio(
-                user=self.user,
-                exercicio=criar_exercicio(Dificuldade.AVANCADO, slug="ex-1"),
-            )
-
-        # O nível 10 pede o estágio 2, mas a criatura já está no 3.
-        ativa = self._ativa()
-        self.assertTrue(resultado.subiu_de_nivel)
-        self.assertEqual(ativa.current_stage, Stage.ADULT)
-        self.assertEqual(ativa.evolved_at, carimbo)
-        self.assertFalse(resultado.evoluiu)
-
-    def test_estagio_ja_alcancado_nao_reescreve_o_carimbo(self):
-        # Caso mais comum que o anterior: dois exercícios seguidos cruzam o
-        # limiar, o primeiro evolui, e o segundo não pode reportar `evoluiu`
-        # nem carimbar `evolved_at` de novo — seria uma segunda animação.
+    def test_o_credito_nao_escreve_o_estagio(self):
+        # Creditar XP não evolui mais nada: quem grava estágio é a rota de
+        # evoluir, a pedido do aluno. Aqui o carimbo antigo tem que sobreviver.
         self._partir_de(xp_total=4400, nivel_id=9)
         carimbo = timezone.now() - timedelta(days=1)
         UserCreature.objects.filter(user=self.user, is_active=True).update(
@@ -373,11 +337,29 @@ class NivelEEstagioNaoRegridemTest(TestCase):
         self.assertTrue(resultado.subiu_de_nivel)
         self.assertEqual(ativa.current_stage, Stage.JUVENILE)
         self.assertEqual(ativa.evolved_at, carimbo)
-        self.assertFalse(resultado.evoluiu)
+
+    def test_pode_evoluir_le_o_estagio_atual_do_banco(self):
+        # `ativa` é lido no começo do pedido. Se outro pedido evoluiu no meio,
+        # anunciar com o valor antigo ofereceria de novo uma evolução já feita.
+        self._partir_de(xp_total=4400, nivel_id=9)
+
+        def outro_pedido_evoluiu(*_args, **_kwargs):
+            UserCreature.objects.filter(user=self.user, is_active=True).update(
+                current_stage=Stage.JUVENILE, evolved_at=timezone.now()
+            )
+
+        with self._injetar_antes_da_gravacao(outro_pedido_evoluiu):
+            resultado = creditar_exercicio(
+                user=self.user,
+                exercicio=criar_exercicio(Dificuldade.AVANCADO, slug="ex-1"),
+            )
+
+        # Nível 10 com a criatura já em JUVENILE: o próximo estágio pede 25.
+        self.assertFalse(resultado.pode_evoluir)
 
     def test_quem_sobe_de_fato_continua_reportando_a_subida(self):
-        # A contrapartida dos três acima: sem corrida, o pedido que grava o
-        # nível novo é o que devolve `subiu_de_nivel` e `evoluiu`.
+        # A contrapartida dos acima: sem corrida, o pedido que grava o nível
+        # novo é o que devolve `subiu_de_nivel`, e o nível 10 abre a evolução.
         self._partir_de(xp_total=4400, nivel_id=9)
 
         resultado = creditar_exercicio(
@@ -387,10 +369,10 @@ class NivelEEstagioNaoRegridemTest(TestCase):
 
         ativa = self._ativa()
         self.assertTrue(resultado.subiu_de_nivel)
-        self.assertTrue(resultado.evoluiu)
+        self.assertTrue(resultado.pode_evoluir)
         self.assertEqual(self._progresso().nivel_id, 10)
-        self.assertEqual(ativa.current_stage, Stage.JUVENILE)
-        self.assertIsNotNone(ativa.evolved_at)
+        self.assertEqual(ativa.current_stage, Stage.HATCHLING)
+        self.assertIsNone(ativa.evolved_at)
 
     def test_perder_a_corrida_do_nivel_nao_deixa_a_barra_negativa(self):
         # Ramo em que outro pedido subiu mais: `nivel` vem do banco, e o

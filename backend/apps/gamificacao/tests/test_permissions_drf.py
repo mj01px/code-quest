@@ -17,10 +17,9 @@ from django.contrib.auth.models import AnonymousUser
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory
 
+from apps.contas.tests.helpers import criar_admin, criar_aluno, criar_autor
 from apps.core.permissions import HasAnyPerm, HasPerm, IsAdmin, IsOwnerOrHasPerm
 from apps.gamificacao.services import select_starter_creature
-
-from apps.contas.tests.helpers import criar_admin, criar_aluno, criar_autor
 
 
 class PermissionClassTestCase(TestCase):

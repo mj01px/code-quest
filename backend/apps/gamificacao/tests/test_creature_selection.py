@@ -18,10 +18,9 @@ from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
 from django.test import TestCase
 
+from apps.contas.tests.helpers import criar_aluno
 from apps.gamificacao.models import Creature, Stage, UserCreature
 from apps.gamificacao.services import select_starter_creature
-
-from apps.contas.tests.helpers import criar_aluno
 
 
 class EscolhaBemSucedidaTest(TestCase):

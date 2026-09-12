@@ -20,12 +20,11 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from apps.contas.tests.helpers import criar_aluno
 from apps.gamificacao.models import Creature, UserCreature, XpBonus
 from apps.gamificacao.services import select_starter_creature, xp_bonuses_for_user
 from apps.progressao.services import creditar_exercicio
 from apps.trilhas.models import Aula, Dificuldade, Exercicio, StatusEditorial, Trilha
-
-from .helpers import criar_aluno
 
 DOBRO = Decimal("2.00")
 
@@ -40,11 +39,17 @@ def criar_trilha(slug: str, ordem: int = 1) -> Trilha:
     )
 
 
-def criar_exercicio(trilha: Trilha, dificuldade=Dificuldade.INICIANTE, slug="ex-1") -> Exercicio:
+def criar_exercicio(
+    trilha: Trilha, dificuldade=Dificuldade.INICIANTE, slug="ex-1"
+) -> Exercicio:
     aula = Aula.objects.get_or_create(
         trilha=trilha,
         slug="aula-1",
-        defaults={"titulo": "Aula 1", "conteudo": "x", "status": StatusEditorial.PUBLICADO},
+        defaults={
+            "titulo": "Aula 1",
+            "conteudo": "x",
+            "status": StatusEditorial.PUBLICADO,
+        },
     )[0]
     return Exercicio.objects.create(
         aula=aula,
@@ -250,7 +255,9 @@ class CreditoComBonusTest(TestCase):
         select_starter_creature(user=self.user, creature_slug="slyth")
 
     def test_multiplica_o_xp_creditado(self):
-        XpBonus.objects.create(creature_id="slyth", trilha=self.trilha, multiplier=DOBRO)
+        XpBonus.objects.create(
+            creature_id="slyth", trilha=self.trilha, multiplier=DOBRO
+        )
 
         resultado = creditar_exercicio(
             user=self.user,
@@ -268,7 +275,9 @@ class CreditoComBonusTest(TestCase):
         self.assertEqual(resultado.xp_ganho, 50)
 
     def test_bonus_de_outra_criatura_nao_se_aplica(self):
-        XpBonus.objects.create(creature_id="shellby", trilha=self.trilha, multiplier=DOBRO)
+        XpBonus.objects.create(
+            creature_id="shellby", trilha=self.trilha, multiplier=DOBRO
+        )
 
         resultado = creditar_exercicio(
             user=self.user,

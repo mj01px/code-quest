@@ -6,11 +6,10 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from apps.contas.tests.helpers import criar_aluno
 from apps.gamificacao.models import Creature, Stage, UserCreature
 from apps.gamificacao.services import definir_criatura_ativa, select_starter_creature
 from apps.progressao.models import ProgressoCriatura
-
-from apps.contas.tests.helpers import criar_aluno
 
 
 def _outra_disponivel(exceto: str) -> str:

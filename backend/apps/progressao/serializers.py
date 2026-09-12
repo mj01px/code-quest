@@ -35,8 +35,21 @@ class ResultadoXPSerializer(serializers.Serializer):
     xp_ganho = serializers.IntegerField(read_only=True)
     ja_concluido = serializers.BooleanField(read_only=True)
     subiu_de_nivel = serializers.BooleanField(read_only=True)
-    evoluiu = serializers.BooleanField(read_only=True)
+    # Não diz que evoluiu: diz que dá para evoluir. Quem evolui é o aluno, na
+    # tela de configurações, um estágio por vez.
+    pode_evoluir = serializers.BooleanField(read_only=True)
     progresso = ProgressoSerializer(read_only=True)
+
+
+class TrilhaIniciadaSerializer(serializers.Serializer):
+    """A trilha do ponto de vista de quem acabou de entrar nela.
+
+    Nasce da rota de iniciar e responde a única pergunta que a tela faz depois
+    do clique: em que trilha estou e desde quando.
+    """
+
+    trilha = serializers.SlugField(source="trilha.slug", read_only=True)
+    iniciada_em = serializers.DateTimeField(read_only=True)
 
 
 class ExercicioConcluidoSerializer(serializers.ModelSerializer):
