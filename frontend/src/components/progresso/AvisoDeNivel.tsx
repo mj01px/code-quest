@@ -67,11 +67,11 @@ export function AvisoDeNivel() {
     <div
       role="status"
       aria-live="polite"
-      className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center px-4"
+      className="pointer-events-none fixed right-0 bottom-0 z-50 flex justify-end px-4 sm:px-6"
     >
       <div
-        className={`pointer-events-auto mt-16 flex items-center gap-4 border-2 border-brand bg-panel-deep px-5 py-4 shadow-[0_8px_0_0_var(--color-void),0_0_24px_rgba(0,0,0,0.6)] transition-all duration-300 motion-reduce:transition-none ${
-          visivel ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0"
+        className={`pointer-events-auto mb-6 flex items-center gap-4 border-2 border-brand bg-panel-deep px-5 py-4 shadow-[0_8px_0_0_var(--color-void),0_0_24px_rgba(0,0,0,0.6)] transition-all duration-300 motion-reduce:transition-none ${
+          visivel ? "translate-x-0 opacity-100" : "translate-x-4 opacity-0"
         }`}
       >
         {sprite ? (
