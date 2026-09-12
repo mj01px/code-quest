@@ -196,8 +196,6 @@ describe("BotaoConclusao", () => {
   });
 
   it("não busca por conta própria: lê a lista única do provedor", async () => {
-    // Antes o botão pedia as conclusões da própria trilha, e cada tela visitada
-    // custava um pedido. Agora a lista vem do Context, sem filtro e uma vez só.
     // O que protegia a corretude não era o filtro e sim a chave composta, e
     // disso cuida o teste seguinte.
     await montarPronto();

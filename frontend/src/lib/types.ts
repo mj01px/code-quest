@@ -57,11 +57,6 @@ export interface Usuario {
   criado_em: string;
 }
 
-export interface Sessao {
-  access: string;
-  refresh: string;
-}
-
 export type DocumentoLegal = "TERMOS" | "PRIVACIDADE";
 
 export interface DocumentoVigente {

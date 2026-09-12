@@ -6,10 +6,6 @@ import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 import { AvatarPixel } from "@/components/ui/AvatarPixel";
 import { BarraSegmentada } from "@/components/ui/BarraSegmentada";
 
-// O bloco de identidade da sidebar: quem é o aluno, qual criatura o acompanha e
-// onde ele está na barra de XP. Sem sessão fica no estado neutro que a sidebar
-// já mostrava.
-//
 // Os dados vêm do Context, não de busca própria: este componente montava e
 // buscava de novo a cada troca de página, e era isso que fazia o bloco piscar.
 // O provedor vive no layout do route group e não desmonta na navegação.
