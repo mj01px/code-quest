@@ -16,8 +16,10 @@ function mensagemNeutra(erro: unknown): string {
   if (!(erro instanceof ErroApi)) {
     return "Não foi possível registrar agora. Tente de novo.";
   }
-  if (erro.status === 401) return "Entre na sua conta para registrar o progresso.";
-  if (erro.naoEncontrado) return "Este exercício não está disponível para conclusão.";
+  if (erro.status === 401)
+    return "Entre na sua conta para registrar o progresso.";
+  if (erro.naoEncontrado)
+    return "Este exercício não está disponível para conclusão.";
   return erro.message;
 }
 

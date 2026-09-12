@@ -2,6 +2,7 @@ import type {
   BonusXp,
   Criatura,
   DocumentosLegais,
+  Evolucao,
   ExercicioConcluido,
   ExercicioDetalhe,
   MinhaCriatura,
@@ -96,9 +97,7 @@ function eTempoEsgotado(erro: unknown): boolean {
 
 function lerCookie(nome: string): string | null {
   if (typeof document === "undefined") return null;
-  const casado = document.cookie.match(
-    new RegExp(`(?:^|; )${nome}=([^;]*)`),
-  );
+  const casado = document.cookie.match(new RegExp(`(?:^|; )${nome}=([^;]*)`));
   return casado ? decodeURIComponent(casado[1]) : null;
 }
 
@@ -365,6 +364,15 @@ export const api = {
     });
   },
 
+  // Sobe a criatura UM estagio. Quem esta no nivel do estagio final ainda em
+  // filhote precisa chamar duas vezes: nao pula etapa.
+  evoluirCriatura(criatura: string) {
+    return requisicao<Evolucao>(`/eu/criaturas/${criatura}/evoluir/`, {
+      metodo: "POST",
+      autenticado: true,
+    });
+  },
+
   meusBonus() {
     return requisicao<BonusXp[]>("/eu/bonus/", { autenticado: true });
   },
@@ -383,6 +391,21 @@ export const api = {
     return requisicao<ProgressoAtual | null>("/eu/progresso/", {
       autenticado: true,
     });
+  },
+
+  // Marca a trilha como iniciada. Idempotente no servidor: clicar duas vezes
+  // devolve 200 em vez de 201, e o corpo e o mesmo.
+  iniciarTrilha(trilhaSlug: string) {
+    return requisicao<{ trilha: string; iniciada_em: string }>(
+      `/trilhas/${trilhaSlug}/iniciar/`,
+      { metodo: "POST", autenticado: true },
+    );
+  },
+
+  // Slugs das trilhas em que o aluno ja entrou. E o que separa "nao iniciada"
+  // de "iniciada com 0%": as duas tem zero conclusao.
+  trilhasIniciadas() {
+    return requisicao<string[]>("/eu/trilhas/", { autenticado: true });
   },
 
   // A marca de "feito" vem daqui, nao do navegador. O filtro por trilha existe

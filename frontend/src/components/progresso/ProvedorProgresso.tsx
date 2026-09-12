@@ -25,6 +25,7 @@ import type {
 
 const VAZIO: readonly ExercicioConcluido[] = Object.freeze([]);
 const SEM_CHAVES: ReadonlySet<string> = Object.freeze(new Set<string>());
+const SEM_TRILHAS: ReadonlySet<string> = Object.freeze(new Set<string>());
 
 export interface ValorProgresso {
   usuario: Usuario | null;
@@ -33,6 +34,8 @@ export interface ValorProgresso {
   progresso: ProgressoAtual | null;
   concluidos: readonly ExercicioConcluido[];
   chaves: ReadonlySet<string>;
+  /** Slugs das trilhas que o aluno iniciou, mesmo sem fase concluída. */
+  trilhasIniciadas: ReadonlySet<string>;
   /** Verdadeiro até a primeira resposta chegar. Quem desenha número espera. */
   carregando: boolean;
   /** Relê tudo. Chamado após o POST de conclusão. */
@@ -46,6 +49,7 @@ interface Dados {
   criatura: MinhaCriatura | null;
   progresso: ProgressoAtual | null;
   concluidos: readonly ExercicioConcluido[];
+  trilhasIniciadas: ReadonlySet<string>;
 }
 
 const SEM_DADOS: Dados = Object.freeze({
@@ -53,6 +57,7 @@ const SEM_DADOS: Dados = Object.freeze({
   criatura: null,
   progresso: null,
   concluidos: VAZIO,
+  trilhasIniciadas: SEM_TRILHAS,
 });
 
 export function ProvedorProgresso({ children }: { children: ReactNode }) {
@@ -70,11 +75,12 @@ export function ProvedorProgresso({ children }: { children: ReactNode }) {
     // Sem sessão, resolve direto pra null.
     const pedido = temSessao()
       ? Promise.all([
-        api.eu(),
-        api.minhasCriaturas(),
-        api.meuProgresso(),
-        api.exerciciosConcluidos(),
-      ])
+          api.eu(),
+          api.minhasCriaturas(),
+          api.meuProgresso(),
+          api.exerciciosConcluidos(),
+          api.trilhasIniciadas(),
+        ])
       : Promise.resolve(null);
 
     pedido
@@ -84,12 +90,13 @@ export function ProvedorProgresso({ children }: { children: ReactNode }) {
           setDados(SEM_DADOS);
           return;
         }
-        const [usuario, criaturas, progresso, concluidos] = resposta;
+        const [usuario, criaturas, progresso, concluidos, iniciadas] = resposta;
         setDados({
           usuario,
           criatura: criaturas.find((c) => c.ativa) ?? criaturas[0] ?? null,
           progresso,
           concluidos: normalizar(concluidos),
+          trilhasIniciadas: new Set(iniciadas),
         });
       })
       .catch(() => {
@@ -116,6 +123,7 @@ export function ProvedorProgresso({ children }: { children: ReactNode }) {
         dados.concluidos.length > 0
           ? chavesConcluidas(dados.concluidos)
           : SEM_CHAVES,
+      trilhasIniciadas: dados.trilhasIniciadas,
       carregando,
       recarregar,
     }),

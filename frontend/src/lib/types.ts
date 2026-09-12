@@ -1,9 +1,5 @@
 export type Dominio =
-  | "FUNDAMENTOS"
-  | "SCRIPTING"
-  | "COMPILADAS"
-  | "WEB"
-  | "DADOS";
+  "FUNDAMENTOS" | "SCRIPTING" | "COMPILADAS" | "WEB" | "DADOS";
 
 export type Estagio = 1 | 2 | 3;
 
@@ -45,6 +41,21 @@ export interface MinhaCriatura {
   adquirida_em: string;
   evoluiu_em: string | null;
   sprite: string | null;
+  /** Estágio seguinte ao atual; null na forma final. */
+  proximo_estagio: Estagio | null;
+  /** Nível que o próximo estágio exige; null na forma final. */
+  nivel_para_evoluir: number | null;
+  /** O nível desta criatura já alcança o próximo estágio. */
+  pode_evoluir: boolean;
+  /** Nível desta criatura. O XP é por criatura: reserva nova começa em 1. */
+  nivel: number;
+}
+
+export interface Evolucao {
+  /** Falso quando outro pedido evoluiu primeiro: não há transição a mostrar. */
+  evoluiu: boolean;
+  estagio_anterior: Estagio;
+  criatura: MinhaCriatura;
 }
 
 export interface Usuario {
@@ -55,11 +66,6 @@ export interface Usuario {
   papel_rotulo: string;
   permissoes: string[];
   criado_em: string;
-}
-
-export interface Sessao {
-  access: string;
-  refresh: string;
 }
 
 export type DocumentoLegal = "TERMOS" | "PRIVACIDADE";
@@ -76,14 +82,6 @@ export interface DocumentosLegais {
   termos: DocumentoVigente;
   privacidade: DocumentoVigente;
 }
-
-export const MATERIAS_DOMINIO: Record<Dominio, string> = {
-  FUNDAMENTOS: "Lógica de programação",
-  SCRIPTING: "Python",
-  COMPILADAS: "Java",
-  WEB: "JavaScript, React",
-  DADOS: "Banco de dados",
-};
 
 export type Dificuldade = "INICIANTE" | "INTERMEDIARIO" | "AVANCADO";
 export type TipoExercicio = "CODIGO" | "TEORICO";
@@ -123,7 +121,12 @@ export interface TrilhaDetalhe {
   id: number;
   nome: string;
   slug: string;
+  /** Linha do card na listagem. Curta, truncada em tela pequena. */
   descricao: string;
+  /** Parágrafo do topo da página da trilha. Vazio cai na descrição. */
+  resumo: string;
+  /** Seção "Sobre a trilha", em parágrafos. Vazio cai no resumo. */
+  sobre: string;
   ordem: number;
   aulas: Aula[];
 }
@@ -170,7 +173,8 @@ export interface ProgressoAtual {
 
 interface ConclusaoBase {
   subiu_de_nivel: boolean;
-  evoluiu: boolean;
+  /** A criatura alcançou o nível do próximo estágio, mas ainda não evoluiu. */
+  pode_evoluir: boolean;
   progresso: ProgressoAtual;
 }
 

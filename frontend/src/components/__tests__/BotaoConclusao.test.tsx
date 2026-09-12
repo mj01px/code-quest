@@ -3,11 +3,7 @@ import userEvent from "@testing-library/user-event";
 
 import { ProvedorProgresso } from "@/components/progresso/ProvedorProgresso";
 import { BotaoConclusao } from "@/components/trilhas/BotaoConclusao";
-import {
-  ErroApi,
-  api as apiReal,
-  temSessao as temSessaoReal,
-} from "@/lib/api";
+import { ErroApi, api as apiReal, temSessao as temSessaoReal } from "@/lib/api";
 import type { ExercicioConcluido, ResultadoConclusao } from "@/lib/types";
 
 import { minhaCriatura, progressoAtual, usuario } from "./fixtures";
@@ -20,6 +16,7 @@ jest.mock("@/lib/api", () => {
     api: {
       concluirExercicio: jest.fn(),
       exerciciosConcluidos: jest.fn(),
+      trilhasIniciadas: jest.fn(),
       eu: jest.fn(),
       minhasCriaturas: jest.fn(),
       meuProgresso: jest.fn(),
@@ -32,9 +29,10 @@ jest.mock("@/lib/api", () => {
 const concluirExercicio = apiReal.concluirExercicio as jest.MockedFunction<
   typeof apiReal.concluirExercicio
 >;
-const exerciciosConcluidos = apiReal.exerciciosConcluidos as jest.MockedFunction<
-  typeof apiReal.exerciciosConcluidos
->;
+const exerciciosConcluidos =
+  apiReal.exerciciosConcluidos as jest.MockedFunction<
+    typeof apiReal.exerciciosConcluidos
+  >;
 const temSessao = temSessaoReal as jest.MockedFunction<typeof temSessaoReal>;
 const eu = apiReal.eu as jest.MockedFunction<typeof apiReal.eu>;
 const minhasCriaturas = apiReal.minhasCriaturas as jest.MockedFunction<
@@ -43,13 +41,16 @@ const minhasCriaturas = apiReal.minhasCriaturas as jest.MockedFunction<
 const meuProgresso = apiReal.meuProgresso as jest.MockedFunction<
   typeof apiReal.meuProgresso
 >;
+const trilhasIniciadas = apiReal.trilhasIniciadas as jest.MockedFunction<
+  typeof apiReal.trilhasIniciadas
+>;
 
 // Um construtor por ramo da união, sem `as`: o cast deixaria compilar um
 // `{ ja_concluido: true, xp_ganho: 50 }`, estado que o tipo declara impossível
 // e que faria o botão anunciar XP numa repetição.
 const BASE = {
   subiu_de_nivel: false,
-  evoluiu: false,
+  pode_evoluir: false,
   progresso: progressoAtual(),
 };
 
@@ -92,6 +93,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   temSessao.mockReturnValue(true);
   exerciciosConcluidos.mockResolvedValue([]);
+  trilhasIniciadas.mockResolvedValue([]);
   eu.mockResolvedValue(usuario());
   minhasCriaturas.mockResolvedValue([minhaCriatura({ ativa: true })]);
   meuProgresso.mockResolvedValue(progressoAtual());

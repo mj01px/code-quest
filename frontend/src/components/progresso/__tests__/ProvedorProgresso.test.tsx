@@ -25,6 +25,7 @@ jest.mock("@/lib/api", () => ({
     minhasCriaturas: jest.fn(),
     meuProgresso: jest.fn(),
     exerciciosConcluidos: jest.fn(),
+    trilhasIniciadas: jest.fn(),
     concluirExercicio: jest.fn(),
   },
 }));
@@ -66,7 +67,7 @@ beforeEach(() => {
     ja_concluido: false,
     xp_ganho: 50,
     subiu_de_nivel: false,
-    evoluiu: false,
+    pode_evoluir: false,
     progresso: progressoAtual(),
   });
 });
