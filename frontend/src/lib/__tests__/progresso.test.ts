@@ -1,6 +1,3 @@
-import { renderHook, waitFor } from "@testing-library/react";
-
-import { api as apiReal, temSessao as temSessaoReal } from "@/lib/api";
 import {
   chaveDaFase,
   chavesConcluidas,
@@ -9,19 +6,8 @@ import {
   estaConcluida,
   normalizar,
   percentual,
-  useConclusoes,
 } from "@/lib/progresso";
 import type { ExercicioConcluido } from "@/lib/types";
-
-jest.mock("@/lib/api", () => ({
-  temSessao: jest.fn(),
-  api: { exerciciosConcluidos: jest.fn() },
-}));
-
-const temSessao = temSessaoReal as jest.MockedFunction<typeof temSessaoReal>;
-const exerciciosConcluidos = apiReal.exerciciosConcluidos as jest.MockedFunction<
-  typeof apiReal.exerciciosConcluidos
->;
 
 function concluido(extra: Partial<ExercicioConcluido> = {}): ExercicioConcluido {
   return {
@@ -32,12 +18,6 @@ function concluido(extra: Partial<ExercicioConcluido> = {}): ExercicioConcluido 
     ...extra,
   };
 }
-
-beforeEach(() => {
-  jest.clearAllMocks();
-  temSessao.mockReturnValue(true);
-  exerciciosConcluidos.mockResolvedValue([]);
-});
 
 describe("normalizar", () => {
   it("aceita a lista que o backend promete", () => {
@@ -124,71 +104,5 @@ describe("percentual", () => {
 
   it("calcula a fração normal", () => {
     expect(percentual(1, 4)).toBe(25);
-  });
-});
-
-describe("useConclusoes", () => {
-  it("começa carregando e termina com a lista do servidor", async () => {
-    exerciciosConcluidos.mockResolvedValue([concluido()]);
-
-    const { result } = renderHook(() => useConclusoes());
-
-    expect(result.current.carregando).toBe(true);
-    await waitFor(() => expect(result.current.carregando).toBe(false));
-    expect(result.current.concluidos).toEqual([concluido()]);
-    expect(estaConcluida(result.current.chaves, "logica", "media")).toBe(true);
-  });
-
-  it("repassa o filtro de trilha para a API", async () => {
-    renderHook(() => useConclusoes("python"));
-
-    await waitFor(() =>
-      expect(exerciciosConcluidos).toHaveBeenCalledWith("python"),
-    );
-  });
-
-  it("sem sessão não vai à rede e para de carregar", async () => {
-    temSessao.mockReturnValue(false);
-
-    const { result } = renderHook(() => useConclusoes());
-
-    await waitFor(() => expect(result.current.carregando).toBe(false));
-    expect(exerciciosConcluidos).not.toHaveBeenCalled();
-    expect(result.current.concluidos).toEqual([]);
-  });
-
-  it("falha da API vira estado neutro, não tela quebrada", async () => {
-    exerciciosConcluidos.mockRejectedValue(new Error("sem conexão"));
-
-    const { result } = renderHook(() => useConclusoes());
-
-    await waitFor(() => expect(result.current.carregando).toBe(false));
-    expect(result.current.concluidos).toEqual([]);
-  });
-
-  it("descarta a resposta que chega depois de trocar de trilha", async () => {
-    // Sem a trava de `ativo`, a resposta da trilha antiga sobrescreveria a da
-    // nova e a tela marcaria fase de outra trilha.
-    let resolverPrimeira: (v: ExercicioConcluido[]) => void = () => {};
-    exerciciosConcluidos.mockImplementationOnce(
-      () => new Promise((r) => (resolverPrimeira = r)),
-    );
-    exerciciosConcluidos.mockResolvedValueOnce([
-      concluido({ trilha_slug: "python", exercicio_slug: "listas" }),
-    ]);
-
-    const { result, rerender } = renderHook(
-      ({ trilha }: { trilha: string }) => useConclusoes(trilha),
-      { initialProps: { trilha: "logica" } },
-    );
-
-    rerender({ trilha: "python" });
-    await waitFor(() => expect(result.current.carregando).toBe(false));
-
-    resolverPrimeira([concluido()]);
-    await Promise.resolve();
-
-    expect(estaConcluida(result.current.chaves, "python", "listas")).toBe(true);
-    expect(estaConcluida(result.current.chaves, "logica", "media")).toBe(false);
   });
 });

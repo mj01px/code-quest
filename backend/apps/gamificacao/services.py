@@ -1,6 +1,5 @@
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from .models import Creature, UserCreature, XpBonus
@@ -66,22 +65,6 @@ def select_starter_creature(*, user, creature_slug: str) -> UserCreature:
         )
     except IntegrityError:
         raise ValidationError({"creature": _ja_escolhida()}) from None
-
-
-def apply_level_to_creatures(*, user, level: int) -> list[UserCreature]:
-    possuidas = list(
-        UserCreature.objects.select_related("creature")
-        .prefetch_related("creature__stages")
-        .filter(user=user)
-    )
-
-    evoluidas = [uc for uc in possuidas if uc.sync_stage(level)]
-    if evoluidas:
-        agora = timezone.now()
-        for uc in evoluidas:
-            uc.evolved_at = agora
-        UserCreature.objects.bulk_update(evoluidas, ["current_stage", "evolved_at"])
-    return evoluidas
 
 
 @transaction.atomic

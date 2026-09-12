@@ -4,14 +4,11 @@ import { useRef, useState } from "react";
 
 import { IconeCheck } from "@/components/ui/Icone";
 import { ErroApi, api } from "@/lib/api";
-import { estaConcluida, useConclusoes } from "@/lib/progresso";
+import { useProgresso } from "@/components/progresso/ProvedorProgresso";
+import { estaConcluida } from "@/lib/progresso";
 
-// Client component porque tem estado de clique e chamada autenticada. A sessão
-// viaja no cookie httpOnly: nada de token no JavaScript.
-//
-// O estado inicial vem do servidor: o botão pede as conclusões desta trilha e
-// procura o próprio slug na lista. Antes isso não existia e o botão sempre
-// nascia "inicial", mesmo para quem já tinha feito a fase.
+// Botão de concluir fase. Sessão via cookie httpOnly.
+// Estado inicial vem do Context; após POST chama recarregar() pra atualizar XP e conclusões.
 
 type Estado = "inicial" | "enviando" | "concluido";
 
@@ -31,15 +28,12 @@ export function BotaoConclusao({
   trilhaSlug: string;
   faseSlug: string;
 }) {
-  const { chaves, carregando } = useConclusoes(trilhaSlug);
+  const { chaves, carregando, recarregar } = useProgresso();
   const [estado, setEstado] = useState<Estado>("inicial");
   const [xpGanho, setXpGanho] = useState<number | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
-  // O trinco é um ref, e não o estado: dois cliques no mesmo tick leem o mesmo
-  // `estado` antes do re-render e os dois disparariam o POST. O ref muda na
-  // hora.
-  const emVoo = useRef(false);
+  const emVoo = useRef(false); // ref pra evitar POST duplo no mesmo tick
 
   const concluido =
     estado === "concluido" || estaConcluida(chaves, trilhaSlug, faseSlug);
@@ -54,12 +48,13 @@ export function BotaoConclusao({
 
     try {
       const resultado = await api.concluirExercicio(trilhaSlug, faseSlug);
-      // Repetição volta como 200 com ja_concluido: true. É sucesso silencioso:
-      // marca como feito e não anuncia XP que não foi creditado de novo.
+      // Repetição volta ja_concluido: true — marca feito sem anunciar XP de novo.
       setXpGanho(resultado.ja_concluido ? null : resultado.xp_ganho);
       setEstado("concluido");
+      // Atualiza XP, nível e conclusões de uma vez.
+      recarregar();
     } catch (erro) {
-      // Sem retry automático: o aluno decide se tenta outra vez.
+      // Sem retry — aluno decide se tenta de novo.
       setEstado("inicial");
       setAviso(mensagemNeutra(erro));
     } finally {
@@ -72,13 +67,10 @@ export function BotaoConclusao({
       <button
         type="button"
         aria-pressed={concluido}
-        // `aria-disabled` e não `disabled`: um botão desabilitado perde o foco,
-        // e o leitor de tela cala justamente sobre o elemento que acabou de
-        // mudar. Assim ele continua focável e o clique é recusado no handler.
+        // aria-disabled mantém foco pro leitor de tela (disabled perde).
         aria-disabled={bloqueado}
         aria-busy={carregando || estado === "enviando"}
-        // Handler async envolvido: `onClick={concluir}` deixaria uma promessa
-        // solta, sem ninguém para observar uma rejeição inesperada.
+        // void pra não deixar promessa solta.
         onClick={() => {
           void concluir();
         }}
@@ -98,10 +90,7 @@ export function BotaoConclusao({
             : "Marcar como concluído"}
       </button>
 
-      {/* Região viva presente desde o primeiro render. Um `role="status"` que só
-          entra no DOM junto com o texto costuma não ser anunciado: o leitor
-          precisa já estar observando a região quando ela muda. XP e aviso são
-          mutuamente exclusivos, então uma região basta. */}
+      {/* Região viva sempre presente — leitor de tela precisa já estar observando. */}
       <p
         role="status"
         aria-live="polite"

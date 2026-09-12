@@ -4,7 +4,8 @@ import { CartaoDesafio } from "@/components/desafios/CartaoDesafio";
 import { BarraSegmentada } from "@/components/ui/BarraSegmentada";
 import type { Desafio } from "@/lib/desafios";
 import { plural } from "@/lib/derivados";
-import { estaConcluida, percentual, useConclusoes } from "@/lib/progresso";
+import { useProgresso } from "@/components/progresso/ProvedorProgresso";
+import { estaConcluida, percentual } from "@/lib/progresso";
 
 // A lista do dia vem pronta do servidor estático; o que o aluno já concluiu
 // vem da conta, pela API. É a mesma fronteira do painel de trilhas.
@@ -17,7 +18,7 @@ export function PainelDeDesafios({
   /** Data já formatada no servidor, para não divergir na hidratação. */
   dia: string;
 }) {
-  const { chaves } = useConclusoes();
+  const { chaves } = useProgresso();
 
   const feitos = desafios.filter((desafio) =>
     estaConcluida(chaves, desafio.trilhaSlug, desafio.slug),

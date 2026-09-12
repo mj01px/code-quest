@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { AlternarSidebar } from "@/components/layout/AlternarSidebar";
 import { BarraDeMenu } from "@/components/layout/BarraDeMenu";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { ProvedorProgresso } from "@/components/progresso/ProvedorProgresso";
 import { CHAVE, FECHADA } from "@/lib/preferenciaSidebar";
 
 function recolher() {
@@ -62,10 +63,10 @@ describe("AlternarSidebar", () => {
 
   it("mantém os dois botões em sincronia", async () => {
     render(
-      <>
+      <ProvedorProgresso>
         <Sidebar />
         <BarraDeMenu />
-      </>,
+      </ProvedorProgresso>,
     );
 
     await userEvent.click(screen.getByRole("button", { name: "Recolher menu" }));
@@ -80,10 +81,10 @@ describe("AlternarSidebar", () => {
 
   it("devolve o foco ao botão que assume o lugar", async () => {
     render(
-      <>
+      <ProvedorProgresso>
         <Sidebar />
         <BarraDeMenu />
-      </>,
+      </ProvedorProgresso>,
     );
 
     await userEvent.click(screen.getByRole("button", { name: "Recolher menu" }));
@@ -108,7 +109,11 @@ describe("AlternarSidebar", () => {
 
 describe("Sidebar recolhível", () => {
   it("expõe o alvo que os botões controlam", () => {
-    const { container } = render(<Sidebar />);
+    const { container } = render(
+      <ProvedorProgresso>
+        <Sidebar />
+      </ProvedorProgresso>,
+    );
 
     const aside = container.querySelector("aside");
     expect(aside).toHaveAttribute("id", "menu-lateral");

@@ -1,21 +1,17 @@
 "use client";
 
 import { AulaCard } from "@/components/trilhas/AulaCard";
-import { estaConcluida, useConclusoes } from "@/lib/progresso";
+import { useProgresso } from "@/components/progresso/ProvedorProgresso";
+import { estaConcluida } from "@/lib/progresso";
 import type { TrilhaDetalhe } from "@/lib/types";
 
-// Ilha de cliente da página da trilha. A página continua estática: ela renderiza
-// esta ilha com o conteúdo já vindo do build, e só o que é da conta do aluno —
-// quais fases estão feitas — é buscado aqui, depois de montar.
-//
-// Pede com filtro por trilha: esta tela não tem o que fazer com as conclusões
-// das outras.
+// Ilha client da trilha: conteúdo vem do build, conclusões do Context.
+// Chave já junta trilha+fase, então não precisa filtrar por trilha.
 
 export function MapaDeFases({ trilha }: { trilha: TrilhaDetalhe }) {
-  const { chaves } = useConclusoes(trilha.slug);
+  const { chaves } = useProgresso();
 
-  // O pré-requisito vem como slug; o título mora na própria lista de aulas.
-  // Resolver aqui evita mandar um Map do servidor, que não é serializável.
+  // Resolve slug → título pra exibir pré-requisito (Map não é serializável do servidor).
   const tituloPorSlug = new Map(
     trilha.aulas.map((aula) => [aula.slug, aula.titulo]),
   );

@@ -124,6 +124,55 @@ class EvolucaoPeloXPTest(TestCase):
         self.assertEqual(ativa.current_stage, Stage.JUVENILE)
         self.assertIsNotNone(ativa.evolved_at)
 
+    def test_criatura_atrasada_salta_direto_para_o_estagio_do_nivel(self):
+        # `stage_for_level` devolve o MAIOR estágio já alcançado, não o
+        # próximo: quem chega ao nível 25 vira ADULTO numa escrita só, sem
+        # passar por JOVEM. Sem isso a criatura ficaria um estágio atrás para
+        # sempre, porque só há evolução quando o nível sobe.
+        #
+        # O estado de partida é forçado de propósito: hoje nenhum crédito leva
+        # de HATCHLING ao nível 24 (nível 25 exige 30000 XP, crédito máximo é
+        # 200). Ele existe no banco no dia em que uma criatura for adquirida
+        # por um aluno já adiantado.
+        progresso = services.obter_progresso(services.criatura_ativa(self.user))
+        ProgressoCriatura.objects.filter(pk=progresso.pk).update(
+            xp_total=29900, nivel_id=24
+        )
+        UserCreature.objects.filter(user=self.user, is_active=True).update(
+            current_stage=Stage.HATCHLING, evolved_at=None
+        )
+
+        resultado = creditar_exercicio(
+            user=self.user,
+            exercicio=criar_exercicio(Dificuldade.AVANCADO, slug="ex-salto"),
+        )
+
+        ativa = UserCreature.objects.get(user=self.user, is_active=True)
+        self.assertTrue(resultado.subiu_de_nivel)
+        self.assertTrue(resultado.evoluiu)
+        self.assertEqual(ativa.current_stage, Stage.ADULT)
+        self.assertIsNotNone(ativa.evolved_at)
+
+    def test_credito_de_um_aluno_nao_toca_o_progresso_de_outro(self):
+        # Os dois alunos vivem no mesmo banco dentro deste teste: isolamento
+        # provado por coexistência, não por rodarem separados.
+        vizinho = criar_aluno("vizinho")
+        select_starter_creature(user=vizinho, creature_slug="shellby")
+        # A linha de progresso só nasce no primeiro crédito; cria antes para
+        # poder comparar o mesmo registro depois.
+        antes = services.obter_progresso(services.criatura_ativa(vizinho))
+        posse_alheia = UserCreature.objects.get(user=vizinho, is_active=True)
+
+        self._creditar(23)
+
+        depois = ProgressoCriatura.objects.get(user_creature__user=vizinho)
+        alheia = UserCreature.objects.get(user=vizinho, is_active=True)
+        self.assertEqual(depois.xp_total, antes.xp_total)
+        self.assertEqual(depois.nivel_id, antes.nivel_id)
+        self.assertEqual(alheia.current_stage, posse_alheia.current_stage)
+        self.assertIsNone(alheia.evolved_at)
+        self.assertEqual(EventoXP.objects.filter(user=vizinho).count(), 0)
+
 
 class IncrementoDeXPTest(TestCase):
     """O XP soma no banco, não em Python sobre um valor já lido.

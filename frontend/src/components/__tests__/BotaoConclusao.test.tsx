@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import { ProvedorProgresso } from "@/components/progresso/ProvedorProgresso";
 import { BotaoConclusao } from "@/components/trilhas/BotaoConclusao";
 import {
   ErroApi,
@@ -9,14 +10,20 @@ import {
 } from "@/lib/api";
 import type { ExercicioConcluido, ResultadoConclusao } from "@/lib/types";
 
-import { progressoAtual } from "./fixtures";
+import { minhaCriatura, progressoAtual, usuario } from "./fixtures";
 
 jest.mock("@/lib/api", () => {
   const real = jest.requireActual<typeof import("@/lib/api")>("@/lib/api");
   return {
     ErroApi: real.ErroApi,
     temSessao: jest.fn(),
-    api: { concluirExercicio: jest.fn(), exerciciosConcluidos: jest.fn() },
+    api: {
+      concluirExercicio: jest.fn(),
+      exerciciosConcluidos: jest.fn(),
+      eu: jest.fn(),
+      minhasCriaturas: jest.fn(),
+      meuProgresso: jest.fn(),
+    },
   };
 });
 
@@ -29,6 +36,13 @@ const exerciciosConcluidos = apiReal.exerciciosConcluidos as jest.MockedFunction
   typeof apiReal.exerciciosConcluidos
 >;
 const temSessao = temSessaoReal as jest.MockedFunction<typeof temSessaoReal>;
+const eu = apiReal.eu as jest.MockedFunction<typeof apiReal.eu>;
+const minhasCriaturas = apiReal.minhasCriaturas as jest.MockedFunction<
+  typeof apiReal.minhasCriaturas
+>;
+const meuProgresso = apiReal.meuProgresso as jest.MockedFunction<
+  typeof apiReal.meuProgresso
+>;
 
 // Um construtor por ramo da união, sem `as`: o cast deixaria compilar um
 // `{ ja_concluido: true, xp_ganho: 50 }`, estado que o tipo declara impossível
@@ -57,7 +71,11 @@ function jaConcluido(): ExercicioConcluido {
 }
 
 function montar() {
-  return render(<BotaoConclusao trilhaSlug="logica" faseSlug="media" />);
+  return render(
+    <ProvedorProgresso>
+      <BotaoConclusao trilhaSlug="logica" faseSlug="media" />
+    </ProvedorProgresso>,
+  );
 }
 
 /** Espera o pedido de conclusões assentar, para não sobrar act() pendente. */
@@ -74,6 +92,9 @@ beforeEach(() => {
   jest.clearAllMocks();
   temSessao.mockReturnValue(true);
   exerciciosConcluidos.mockResolvedValue([]);
+  eu.mockResolvedValue(usuario());
+  minhasCriaturas.mockResolvedValue([minhaCriatura({ ativa: true })]);
+  meuProgresso.mockResolvedValue(progressoAtual());
 });
 
 describe("BotaoConclusao", () => {
@@ -174,10 +195,15 @@ describe("BotaoConclusao", () => {
     expect(concluirExercicio).not.toHaveBeenCalled();
   });
 
-  it("pede as conclusões só desta trilha", async () => {
+  it("não busca por conta própria: lê a lista única do provedor", async () => {
+    // Antes o botão pedia as conclusões da própria trilha, e cada tela visitada
+    // custava um pedido. Agora a lista vem do Context, sem filtro e uma vez só.
+    // O que protegia a corretude não era o filtro e sim a chave composta, e
+    // disso cuida o teste seguinte.
     await montarPronto();
 
-    expect(exerciciosConcluidos).toHaveBeenCalledWith("logica");
+    expect(exerciciosConcluidos).toHaveBeenCalledWith();
+    expect(exerciciosConcluidos).toHaveBeenCalledTimes(1);
   });
 
   it("conclusão da mesma fase em outra trilha não marca esta", async () => {

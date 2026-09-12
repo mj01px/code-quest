@@ -1,26 +1,18 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
 
+import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 import { AvatarPixel } from "@/components/ui/AvatarPixel";
 import { BarraSegmentada } from "@/components/ui/BarraSegmentada";
-import { api, temSessao } from "@/lib/api";
-import type { MinhaCriatura, ProgressoAtual, Usuario } from "@/lib/types";
 
 // O bloco de identidade da sidebar: quem é o aluno, qual criatura o acompanha e
 // onde ele está na barra de XP. Sem sessão fica no estado neutro que a sidebar
-// já mostrava. Falhar aqui não pode derrubar a navegação, então qualquer erro
-// cai de volta no estado neutro em silêncio.
+// já mostrava.
 //
-// A barra de XP mora aqui, e não na `Sidebar`, porque o número é da conta e só
-// existe depois de uma chamada autenticada — e a `Sidebar` é Server Component.
-
-interface Identidade {
-  usuario: Usuario;
-  posse: MinhaCriatura | null;
-  progresso: ProgressoAtual | null;
-}
+// Os dados vêm do Context, não de busca própria: este componente montava e
+// buscava de novo a cada troca de página, e era isso que fazia o bloco piscar.
+// O provedor vive no layout do route group e não desmonta na navegação.
 
 export function IdentidadeDoAluno({
   nome,
@@ -34,45 +26,9 @@ export function IdentidadeDoAluno({
   xp: number;
   xpDoProximoNivel: number;
 }) {
-  const [identidade, setIdentidade] = useState<Identidade | null>(null);
-  const [carregando, setCarregando] = useState(true);
+  const { usuario, criatura, progresso, carregando } = useProgresso();
 
-  useEffect(() => {
-    let ativo = true;
-
-    // Sem sessão não há perfil a buscar, mas o desfecho ainda passa pela
-    // promessa: `setState` no corpo do efeito dispara render em cascata.
-    const pedido = temSessao()
-      ? Promise.all([api.eu(), api.minhasCriaturas(), api.meuProgresso()])
-      : Promise.resolve(null);
-
-    pedido
-      .then((dados) => {
-        if (!ativo || dados === null) return;
-        const [usuario, criaturas, progresso] = dados;
-        setIdentidade({
-          usuario,
-          posse: criaturas.find((c) => c.ativa) ?? criaturas[0] ?? null,
-          progresso,
-        });
-      })
-      .catch(() => {
-        /* segue com o estado neutro */
-      })
-      .finally(() => {
-        // Vale para os dois desfechos: falhar não pode deixar o bloco
-        // invisível para sempre.
-        if (ativo) setCarregando(false);
-      });
-
-    return () => {
-      ativo = false;
-    };
-  }, []);
-
-  const criatura = identidade?.posse ?? null;
   const sprite = criatura?.sprite ?? null;
-  const progresso = identidade?.progresso ?? null;
 
   const nivelAtual = progresso?.nivel.numero ?? nivel;
   const xpNoNivel = progresso?.xp_no_nivel ?? xp;
@@ -108,7 +64,7 @@ export function IdentidadeDoAluno({
         </span>
         <div className="min-w-0">
           <p className="titulo truncate text-sm text-ink-soft">
-            {identidade?.usuario.nickname ?? nome}
+            {usuario?.nickname ?? nome}
           </p>
           <p className="rotulo mt-1 text-brand">Nível {nivelAtual}</p>
         </div>

@@ -1,12 +1,16 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import {
   aula,
   exercicioResumo,
+  minhaCriatura,
+  progressoAtual,
   trilhaDetalhe,
   trilhaResumo,
+  usuario,
 } from "@/components/__tests__/fixtures";
+import { ProvedorProgresso } from "@/components/progresso/ProvedorProgresso";
 import { ErroApi } from "@/lib/api";
 import type { ExercicioConcluido } from "@/lib/types";
 
@@ -21,7 +25,13 @@ jest.mock("@/lib/api", () => {
     listarTrilhas: jest.fn(),
     buscarTrilha: jest.fn(),
     temSessao: jest.fn(() => true),
-    api: { meusBonus: jest.fn(), exerciciosConcluidos: jest.fn() },
+    api: {
+      meusBonus: jest.fn(),
+      exerciciosConcluidos: jest.fn(),
+      eu: jest.fn(),
+      minhasCriaturas: jest.fn(),
+      meuProgresso: jest.fn(),
+    },
   };
 });
 
@@ -29,8 +39,22 @@ const api = jest.requireMock<{
   listarTrilhas: jest.Mock;
   buscarTrilha: jest.Mock;
   temSessao: jest.Mock;
-  api: { meusBonus: jest.Mock; exerciciosConcluidos: jest.Mock };
+  api: {
+    meusBonus: jest.Mock;
+    exerciciosConcluidos: jest.Mock;
+    eu: jest.Mock;
+    minhasCriaturas: jest.Mock;
+    meuProgresso: jest.Mock;
+  };
 }>("@/lib/api");
+
+// A página é Server Component e o provedor mora no layout do route group; o
+// teste monta a mesma moldura para que as ilhas de dentro achem o Context.
+async function montar(no: React.ReactNode) {
+  const r = render(<ProvedorProgresso>{no}</ProvedorProgresso>);
+  await waitFor(() => expect(api.api.exerciciosConcluidos).toHaveBeenCalled());
+  return r;
+}
 
 /** O progresso vem da API agora; antes esta tela lia `localStorage`. */
 function concluiu(trilhaSlug: string, ...fases: string[]): void {
@@ -81,6 +105,9 @@ const TRILHA = trilhaDetalhe({
 beforeEach(() => {
   jest.clearAllMocks();
   api.temSessao.mockReturnValue(true);
+  api.api.eu.mockResolvedValue(usuario());
+  api.api.minhasCriaturas.mockResolvedValue([minhaCriatura({ ativa: true })]);
+  api.api.meuProgresso.mockResolvedValue(progressoAtual());
   concluiu("nenhuma");
   api.listarTrilhas.mockResolvedValue([trilhaResumo()]);
   api.buscarTrilha.mockResolvedValue(TRILHA);
@@ -88,14 +115,14 @@ beforeEach(() => {
 
 describe("Página de desafios", () => {
   it("mostra três desafios do dia", async () => {
-    render(await DesafiosPage());
+    await montar(await DesafiosPage());
 
     expect(screen.getAllByRole("listitem")).toHaveLength(3);
     expect(screen.getByText("0 de 3 concluídos")).toBeInTheDocument();
   });
 
   it("cada desafio leva para a fase correspondente", async () => {
-    render(await DesafiosPage());
+    await montar(await DesafiosPage());
 
     for (const link of screen.getAllByRole("link")) {
       expect(link.getAttribute("href")).toMatch(
@@ -110,28 +137,28 @@ describe("Página de desafios", () => {
       trilhaResumo({ id: 2, slug: "python", nome: "Python", total_exercicios: 0 }),
     ]);
 
-    render(await DesafiosPage());
+    await montar(await DesafiosPage());
 
     expect(api.buscarTrilha).toHaveBeenCalledTimes(1);
     expect(api.buscarTrilha).toHaveBeenCalledWith("logica-de-programacao");
   });
 
   it("conta o que o aluno já concluiu, lendo da conta", async () => {
-    const { unmount } = render(await DesafiosPage());
+    const { unmount } = await montar(await DesafiosPage());
     const primeiro = screen.getAllByRole("link")[0]!;
     const slug = primeiro.getAttribute("href")!.split("/").at(-1)!;
     unmount();
 
     concluiu("logica-de-programacao", slug);
 
-    render(await DesafiosPage());
+    await montar(await DesafiosPage());
     expect(await screen.findByText("1 de 3 concluídos")).toBeInTheDocument();
   });
 
   it("sem fase publicada, explica em vez de mostrar lista vazia", async () => {
     api.listarTrilhas.mockResolvedValue([]);
 
-    render(await DesafiosPage());
+    await montar(await DesafiosPage());
 
     expect(
       screen.getByText(/Ainda não há fases publicadas/),

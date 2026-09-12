@@ -14,7 +14,7 @@ from .models import EventoXP, Nivel, Origem, ProgressoCriatura
 
 # O valor do XP vem diretamente do back
 # Nenhum endpoint pode aceitar input de xp vinda do usuario.
-# todo: verificar se é possivel segurar requisição para fazer alteração do xp creditado, tipo com Charles Proxy
+# A fazer: verificar se é possivel segurar requisição para fazer alteração do xp creditado, tipo com Charles Proxy
 
 XP_POR_DIFICULDADE = {
     Dificuldade.INICIANTE: 50,
@@ -24,8 +24,8 @@ XP_POR_DIFICULDADE = {
 
 XP_PADRAO = 50
 
-# Relidos sempre juntos: `nivel` sem `xp_total` mistura dois momentos e faz
-# `montar_progresso` devolver xp_no_nivel negativo.
+# Relidos sempre juntos: "nivel" sem "xp_total" mistura dois momentos e faz
+# "montar_progresso" devolver xp_no_nivel negativo.
 CAMPOS_RELIDOS = ["xp_total", "nivel", "atualizado_em"]
 
 
@@ -143,8 +143,7 @@ def creditar_exercicio(*, user, exercicio):
     obter_progresso(ativa)
     progresso = ProgressoCriatura.objects.select_for_update().get(user_creature=ativa)
 
-    # Fica entre a leitura do progresso e a escrita de propósito: os testes de
-    # concorrência injetam a gravação alheia neste ponto.
+    # Fica entre a leitura do progresso e a escrita de propósito: os testes de concorrência injetam a gravação alheia neste ponto.
     multiplicador = multiplicador_de_bonus(creature=ativa.creature, trilha=exercicio.trilha)
     xp = int(xp_do_exercicio(exercicio) * multiplicador)
 
@@ -206,9 +205,9 @@ def creditar_exercicio(*, user, exercicio):
 
     evoluiu = False
     if subiu:
-        # `ativa` foi lido no começo do pedido, então `sync_stage` compararia
-        # contra memória velha e des-evoluiria a criatura. O filtro faz a
-        # comparação no banco; o rowcount diz quem evoluiu de fato.
+        # `ativa` foi lido no começo do pedido, então comparar em memória
+        # des-evoluiria a criatura. O filtro faz a comparação no banco; o
+        # rowcount diz quem evoluiu de fato.
         estagio = ativa.creature.stage_for_level(progresso.nivel_id)
         evoluiu = (
             UserCreature.objects.filter(

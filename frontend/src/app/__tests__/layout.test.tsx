@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import RootLayout from "@/app/layout";
 import { LayoutDoApp } from "@/components/layout/LayoutDoApp";
+import { ProvedorProgresso } from "@/components/progresso/ProvedorProgresso";
 import { CHAVE, FECHADA } from "@/lib/preferenciaSidebar";
 
 // O script de restauração da sidebar só roda a partir do HTML do servidor: o
@@ -73,10 +74,15 @@ describe("script de restauração da sidebar", () => {
   it("não voltou para a moldura do app", () => {
     // Guarda de regressão: dentro de um layout de segmento o script volta a
     // falhar em navegação client-side, e falha em silêncio.
+    // O provedor entra porque a moldura carrega o bloco de identidade, que lê
+    // do Context. Ele não emite script nenhum: o que se afirma aqui segue
+    // sendo que a moldura não traz o script de volta.
     const markup = renderToStaticMarkup(
-      <LayoutDoApp>
-        <p>conteúdo</p>
-      </LayoutDoApp>,
+      <ProvedorProgresso>
+        <LayoutDoApp>
+          <p>conteúdo</p>
+        </LayoutDoApp>
+      </ProvedorProgresso>,
     );
 
     expect(markup).not.toContain("<script");

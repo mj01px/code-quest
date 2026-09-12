@@ -4,10 +4,13 @@ import userEvent from "@testing-library/user-event";
 import {
   aula,
   exercicioResumo,
+  minhaCriatura,
   progressoAtual,
   trilhaDetalhe,
   trilhaResumo,
+  usuario,
 } from "@/components/__tests__/fixtures";
+import { ProvedorProgresso } from "@/components/progresso/ProvedorProgresso";
 import { PainelDeDesafios } from "@/components/desafios/PainelDeDesafios";
 import { BotaoConclusao } from "@/components/trilhas/BotaoConclusao";
 import { MapaDeFases } from "@/components/trilhas/MapaDeFases";
@@ -28,16 +31,30 @@ import type { ResultadoConclusao } from "@/lib/types";
 // A preferência de sidebar (`codequest:sidebar`) continua legitimamente em
 // `localStorage` — é do dispositivo, não da conta. Por isso este arquivo monta
 // só as superfícies de progresso, e não a moldura do app.
+//
+// O `ProvedorProgresso` entra junto porque é ele quem busca agora: sem ele os
+// consumidores nem renderizam. Ele também não toca o armazenamento, e é
+// justamente isso que os espiões abaixo continuam afirmando.
 
 jest.mock("@/lib/api", () => ({
   temSessao: jest.fn(),
   api: {
+    eu: jest.fn(),
+    minhasCriaturas: jest.fn(),
+    meuProgresso: jest.fn(),
     exerciciosConcluidos: jest.fn(),
     concluirExercicio: jest.fn(),
   },
 }));
 
 const temSessao = temSessaoReal as jest.MockedFunction<typeof temSessaoReal>;
+const eu = apiReal.eu as jest.MockedFunction<typeof apiReal.eu>;
+const minhasCriaturas = apiReal.minhasCriaturas as jest.MockedFunction<
+  typeof apiReal.minhasCriaturas
+>;
+const meuProgresso = apiReal.meuProgresso as jest.MockedFunction<
+  typeof apiReal.meuProgresso
+>;
 const exerciciosConcluidos = apiReal.exerciciosConcluidos as jest.MockedFunction<
   typeof apiReal.exerciciosConcluidos
 >;
@@ -71,6 +88,10 @@ const DESAFIO: Desafio = {
   href: `/trilhas/${TRILHA.slug}/exercicios/media`,
 };
 
+function montar(no: React.ReactNode) {
+  return render(<ProvedorProgresso>{no}</ProvedorProgresso>);
+}
+
 let espioes: jest.SpyInstance[];
 
 function chamadasDeStorage(): number {
@@ -80,6 +101,9 @@ function chamadasDeStorage(): number {
 beforeEach(() => {
   jest.clearAllMocks();
   temSessao.mockReturnValue(true);
+  eu.mockResolvedValue(usuario());
+  minhasCriaturas.mockResolvedValue([minhaCriatura({ ativa: true })]);
+  meuProgresso.mockResolvedValue(progressoAtual());
   exerciciosConcluidos.mockResolvedValue([
     {
       trilha_slug: TRILHA.slug,
@@ -113,30 +137,28 @@ afterEach(() => {
 
 describe("nenhum caminho de progresso toca o armazenamento do navegador", () => {
   it("o painel de trilhas lê o progresso da API, não do storage", async () => {
-    render(<PainelDeTrilhas trilhas={[TRILHA]} destaque={DETALHE} />);
+    montar(<PainelDeTrilhas trilhas={[TRILHA]} destaque={DETALHE} />);
 
     await waitFor(() => expect(exerciciosConcluidos).toHaveBeenCalled());
     expect(chamadasDeStorage()).toBe(0);
   });
 
   it("o mapa de fases lê o progresso da API, não do storage", async () => {
-    render(<MapaDeFases trilha={DETALHE} />);
+    montar(<MapaDeFases trilha={DETALHE} />);
 
-    await waitFor(() =>
-      expect(exerciciosConcluidos).toHaveBeenCalledWith(TRILHA.slug),
-    );
+    await waitFor(() => expect(exerciciosConcluidos).toHaveBeenCalled());
     expect(chamadasDeStorage()).toBe(0);
   });
 
   it("o painel de desafios lê o progresso da API, não do storage", async () => {
-    render(<PainelDeDesafios desafios={[DESAFIO]} dia="10 de setembro" />);
+    montar(<PainelDeDesafios desafios={[DESAFIO]} dia="10 de setembro" />);
 
     await waitFor(() => expect(exerciciosConcluidos).toHaveBeenCalled());
     expect(chamadasDeStorage()).toBe(0);
   });
 
   it("concluir uma fase não grava nada no navegador", async () => {
-    render(<BotaoConclusao trilhaSlug={TRILHA.slug} faseSlug="trocar" />);
+    montar(<BotaoConclusao trilhaSlug={TRILHA.slug} faseSlug="trocar" />);
 
     await waitFor(() => expect(exerciciosConcluidos).toHaveBeenCalled());
     await userEvent.click(document.querySelector("button")!);
@@ -146,7 +168,7 @@ describe("nenhum caminho de progresso toca o armazenamento do navegador", () => 
   });
 
   it("o storage segue vazio depois de tudo", async () => {
-    render(<PainelDeTrilhas trilhas={[TRILHA]} destaque={DETALHE} />);
+    montar(<PainelDeTrilhas trilhas={[TRILHA]} destaque={DETALHE} />);
     await waitFor(() => expect(exerciciosConcluidos).toHaveBeenCalled());
 
     // `length` não passa pelos espiões, então é uma segunda testemunha:

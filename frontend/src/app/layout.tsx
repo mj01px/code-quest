@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
+
 import localFont from "next/font/local";
 
 import { CHAVE, FECHADA } from "@/lib/preferenciaSidebar";
 
 import "./globals.css";
 
-// Fontes auto-hospedadas em vez de next/font/google: o build passa a não
-// depender de alcançar o fonts.googleapis.com, o que quebrava silenciosamente
-// em rede restrita e caía num fallback sem avisar em tempo de execução.
+// Fontes locais pra não depender do Google Fonts (quebrava em rede restrita).
 
 const pressStart = localFont({
   src: "../fontes/press-start-2p.woff2",
@@ -33,10 +32,7 @@ const vt323 = localFont({
   fallback: ["monospace"],
 });
 
-// Restaura a sidebar recolhida antes da primeira pintura. Mora na raiz, e não
-// na moldura do app: o React não executa script inline em navegação
-// client-side, e quem cai em /trilhas vindo do login por router.push perderia
-// a preferência. String fixa, sem dado de usuário: nada a injetar aqui.
+// Restaura sidebar antes da pintura. Fica na raiz porque script inline não roda em navegação client-side.
 const RESTAURA_SIDEBAR = `try{if(localStorage.getItem(${JSON.stringify(
   CHAVE,
 )})===${JSON.stringify(

@@ -1,20 +1,40 @@
 import { render, screen, waitFor } from "@testing-library/react";
 
+import { ProvedorProgresso } from "@/components/progresso/ProvedorProgresso";
 import { PainelDeTrilhas } from "@/components/trilhas/PainelDeTrilhas";
 import { api as apiReal, temSessao as temSessaoReal } from "@/lib/api";
 import type { ExercicioConcluido, TrilhaDetalhe } from "@/lib/types";
 
-import { aula, exercicioResumo, trilhaResumo } from "./fixtures";
+import {
+  aula,
+  exercicioResumo,
+  minhaCriatura,
+  progressoAtual,
+  trilhaResumo,
+  usuario,
+} from "./fixtures";
 
 // O progresso vem da API, não do `localStorage`. Semear storage aqui era o que
 // deixava esta suíte verde com a funcionalidade quebrada: o teste descrevia o
 // armazenamento local, e o produto passou a ler do servidor.
 jest.mock("@/lib/api", () => ({
   temSessao: jest.fn(),
-  api: { exerciciosConcluidos: jest.fn() },
+  api: {
+    exerciciosConcluidos: jest.fn(),
+    eu: jest.fn(),
+    minhasCriaturas: jest.fn(),
+    meuProgresso: jest.fn(),
+  },
 }));
 
 const temSessao = temSessaoReal as jest.MockedFunction<typeof temSessaoReal>;
+const eu = apiReal.eu as jest.MockedFunction<typeof apiReal.eu>;
+const minhasCriaturas = apiReal.minhasCriaturas as jest.MockedFunction<
+  typeof apiReal.minhasCriaturas
+>;
+const meuProgresso = apiReal.meuProgresso as jest.MockedFunction<
+  typeof apiReal.meuProgresso
+>;
 const exerciciosConcluidos = apiReal.exerciciosConcluidos as jest.MockedFunction<
   typeof apiReal.exerciciosConcluidos
 >;
@@ -59,10 +79,9 @@ function comProgresso(fases: string[]): void {
 
 async function montar(destaque: TrilhaDetalhe | null = DESTAQUE) {
   render(
-    <PainelDeTrilhas
-      trilhas={[TRILHA]}
-      destaque={destaque ?? undefined}
-    />,
+    <ProvedorProgresso>
+      <PainelDeTrilhas trilhas={[TRILHA]} destaque={destaque ?? undefined} />
+    </ProvedorProgresso>,
   );
   await waitFor(() => expect(exerciciosConcluidos).toHaveBeenCalled());
 }
@@ -71,14 +90,18 @@ beforeEach(() => {
   jest.clearAllMocks();
   temSessao.mockReturnValue(true);
   comProgresso([]);
+  eu.mockResolvedValue(usuario());
+  minhasCriaturas.mockResolvedValue([minhaCriatura({ ativa: true })]);
+  meuProgresso.mockResolvedValue(progressoAtual());
 });
 
 describe("PainelDeTrilhas", () => {
   it("pede a lista inteira, sem filtro de trilha", async () => {
     // A tela agrega por trilha: um pedido só custa menos que um por card.
+    // Quem busca é o provedor, e busca sem argumento nenhum.
     await montar();
 
-    expect(exerciciosConcluidos).toHaveBeenCalledWith(undefined);
+    expect(exerciciosConcluidos).toHaveBeenCalledWith();
     expect(exerciciosConcluidos).toHaveBeenCalledTimes(1);
   });
 
@@ -169,7 +192,12 @@ describe("PainelDeTrilhas", () => {
   it("sem sessão mostra o estado neutro e não vai à rede", async () => {
     temSessao.mockReturnValue(false);
 
-    render(<PainelDeTrilhas trilhas={[TRILHA]} destaque={DESTAQUE} />);
+    // Não usa `montar`: sem sessão não há pedido pelo qual esperar.
+    render(
+      <ProvedorProgresso>
+        <PainelDeTrilhas trilhas={[TRILHA]} destaque={DESTAQUE} />
+      </ProvedorProgresso>,
+    );
 
     await waitFor(() =>
       expect(screen.getByText("Comece por aqui")).toBeInTheDocument(),

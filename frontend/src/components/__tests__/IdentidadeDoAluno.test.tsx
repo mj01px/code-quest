@@ -6,16 +6,31 @@ import {
   usuario,
 } from "@/components/__tests__/fixtures";
 import { IdentidadeDoAluno } from "@/components/layout/IdentidadeDoAluno";
+import { ProvedorProgresso } from "@/components/progresso/ProvedorProgresso";
 
 jest.mock("@/lib/api", () => ({
   temSessao: jest.fn(),
-  api: { eu: jest.fn(), minhasCriaturas: jest.fn(), meuProgresso: jest.fn() },
+  api: {
+    eu: jest.fn(),
+    minhasCriaturas: jest.fn(),
+    meuProgresso: jest.fn(),
+    exerciciosConcluidos: jest.fn(),
+  },
 }));
 
 const mock = jest.requireMock<{
   temSessao: jest.Mock;
-  api: { eu: jest.Mock; minhasCriaturas: jest.Mock; meuProgresso: jest.Mock };
+  api: {
+    eu: jest.Mock;
+    minhasCriaturas: jest.Mock;
+    meuProgresso: jest.Mock;
+    exerciciosConcluidos: jest.Mock;
+  };
 }>("@/lib/api");
+
+function montar(no: React.ReactNode) {
+  return render(<ProvedorProgresso>{no}</ProvedorProgresso>);
+}
 
 const NEUTRO = { nome: "Visitante", nivel: 1, xp: 0, xpDoProximoNivel: 1000 };
 
@@ -29,17 +44,18 @@ beforeEach(() => {
   mock.api.eu.mockResolvedValue(usuario());
   mock.api.minhasCriaturas.mockResolvedValue([minhaCriatura()]);
   mock.api.meuProgresso.mockResolvedValue(progressoAtual());
+  mock.api.exerciciosConcluidos.mockResolvedValue([]);
 });
 
 describe("IdentidadeDoAluno", () => {
   it("troca o nome neutro pelo nickname", async () => {
-    render(<IdentidadeDoAluno {...NEUTRO} />);
+    montar(<IdentidadeDoAluno {...NEUTRO} />);
 
     expect(await screen.findByText("aluno_teste")).toBeInTheDocument();
   });
 
   it("troca o ovo pela criatura escolhida", async () => {
-    render(<IdentidadeDoAluno {...NEUTRO} />);
+    montar(<IdentidadeDoAluno {...NEUTRO} />);
 
     expect(
       await screen.findByAltText("Shellby, sua criatura"),
@@ -52,7 +68,7 @@ describe("IdentidadeDoAluno", () => {
       minhaCriatura({ id: 1, ativa: true }),
     ]);
 
-    render(<IdentidadeDoAluno {...NEUTRO} />);
+    montar(<IdentidadeDoAluno {...NEUTRO} />);
 
     const imagem = await screen.findByAltText("Shellby, sua criatura");
     expect(imagem.getAttribute("src")).toContain("shellby_stage_1");
@@ -61,7 +77,7 @@ describe("IdentidadeDoAluno", () => {
   it("mantém o estado neutro sem sessão", async () => {
     mock.temSessao.mockReturnValue(false);
 
-    render(<IdentidadeDoAluno {...NEUTRO} />);
+    montar(<IdentidadeDoAluno {...NEUTRO} />);
 
     expect(screen.getByText("Visitante")).toBeInTheDocument();
     expect(mock.api.eu).not.toHaveBeenCalled();
@@ -73,7 +89,7 @@ describe("IdentidadeDoAluno", () => {
     mock.api.minhasCriaturas.mockResolvedValue([]);
     mock.api.meuProgresso.mockResolvedValue(null);
 
-    render(<IdentidadeDoAluno {...NEUTRO} />);
+    montar(<IdentidadeDoAluno {...NEUTRO} />);
 
     expect(await screen.findByText("aluno_teste")).toBeInTheDocument();
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
@@ -82,7 +98,7 @@ describe("IdentidadeDoAluno", () => {
   it("erro na API não derruba a sidebar", async () => {
     mock.api.eu.mockRejectedValue(new Error("sem conexão"));
 
-    render(<IdentidadeDoAluno {...NEUTRO} nivel={7} />);
+    montar(<IdentidadeDoAluno {...NEUTRO} nivel={7} />);
 
     await waitFor(() => expect(mock.api.eu).toHaveBeenCalled());
     expect(screen.getByText("Visitante")).toBeInTheDocument();
@@ -102,7 +118,7 @@ describe("IdentidadeDoAluno", () => {
       }),
     );
 
-    render(<IdentidadeDoAluno {...NEUTRO} />);
+    montar(<IdentidadeDoAluno {...NEUTRO} />);
 
     expect(await screen.findByText("300 / 600 XP")).toBeInTheDocument();
     expect(screen.getByText("Nível 12")).toBeInTheDocument();
@@ -124,7 +140,7 @@ describe("IdentidadeDoAluno", () => {
       }),
     );
 
-    render(<IdentidadeDoAluno {...NEUTRO} />);
+    montar(<IdentidadeDoAluno {...NEUTRO} />);
 
     expect(await screen.findByText("1200 XP")).toBeInTheDocument();
     expect(screen.getByRole("progressbar")).toHaveAttribute(
@@ -139,7 +155,7 @@ describe("IdentidadeDoAluno", () => {
     let liberar: (v: unknown) => void = () => {};
     mock.api.eu.mockImplementation(() => new Promise((r) => (liberar = r)));
 
-    render(<IdentidadeDoAluno {...NEUTRO} />);
+    montar(<IdentidadeDoAluno {...NEUTRO} />);
 
     expect(bloco()).toHaveClass("opacity-0");
     expect(bloco()).toHaveAttribute("aria-busy", "true");

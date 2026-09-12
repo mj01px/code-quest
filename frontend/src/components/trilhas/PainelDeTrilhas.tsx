@@ -3,20 +3,16 @@
 import { CartaoDestaque, type Retomada } from "@/components/trilhas/CartaoDestaque";
 import { ListaDeTrilhas } from "@/components/trilhas/ListaDeTrilhas";
 import { fasesEmOrdem, plural, proximaFase } from "@/lib/derivados";
+import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 import {
   concluidasDaTrilha,
   contarPorTrilha,
   percentual,
-  useConclusoes,
 } from "@/lib/progresso";
 import type { ExercicioConcluido, TrilhaDetalhe, TrilhaResumo } from "@/lib/types";
 
-// A listagem é servida estática; as conclusões vêm da conta. Este componente é
-// a fronteira entre os dois: o servidor entrega o catálogo, o cliente busca o
-// que o aluno já fez e aplica em cima.
-//
-// Pede a lista inteira, sem filtro de trilha: a tela agrega por trilha, então
-// um pedido só sai mais barato que um por card.
+// Fronteira estático/cliente: catálogo vem do servidor, conclusões do Context.
+// Agregação por trilha é feita aqui.
 
 function montarRetomada(
   destaque: TrilhaDetalhe,
@@ -65,7 +61,7 @@ export function PainelDeTrilhas({
   trilhas: TrilhaResumo[];
   destaque?: TrilhaDetalhe | null;
 }) {
-  const { concluidos } = useConclusoes();
+  const { concluidos } = useProgresso();
 
   const progressoPorSlug = calcularProgresso(trilhas, concluidos);
   const [primeira] = trilhas;
