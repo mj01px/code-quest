@@ -141,20 +141,6 @@
     0 0 48px -14px color-mix(in srgb, var(--color-brand) 70%, transparent);
 }
 
-/* Fora de qualquer @layer de proposito: precisa vencer as utilidades do
-   Tailwind que definem display no mesmo elemento. */
-[data-sidebar="fechada"] .painel-lateral {
-  display: none;
-}
-
-.barra-de-menu {
-  display: none;
-}
-
-[data-sidebar="fechada"] .barra-de-menu {
-  display: flex;
-}
-
 @layer base {
   html,
   body {

@@ -14,14 +14,21 @@ export function Breadcrumb({ passos }: { passos: Passo[] }) {
         <li aria-hidden="true">&lsaquo;</li>
         {passos.map((passo, indice) => (
           <Fragment key={passo.rotulo}>
-            {indice > 0 ? <li aria-hidden="true">/</li> : null}
+            {indice > 0 ? (
+              <li aria-hidden="true" className="text-brand-shadow">
+                /
+              </li>
+            ) : null}
             <li>
               {passo.href ? (
                 <Link href={passo.href} className="hover:text-brand">
                   {passo.rotulo}
                 </Link>
               ) : (
-                <span aria-current="page">{passo.rotulo}</span>
+                // O passo atual em roxo claro: é ele que diz onde o aluno está.
+                <span aria-current="page" className="text-brand-light">
+                  {passo.rotulo}
+                </span>
               )}
             </li>
           </Fragment>
