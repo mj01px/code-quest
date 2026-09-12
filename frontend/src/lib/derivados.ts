@@ -14,6 +14,11 @@ const XP_POR_DIFICULDADE: Record<Dificuldade, number> = {
   AVANCADO: 150,
 };
 
+/** XP bruto de uma fase, antes de qualquer bônus de criatura. */
+export function xpDaFase(dificuldade: Dificuldade): number {
+  return XP_POR_DIFICULDADE[dificuldade];
+}
+
 export function xpDoModulo(aula: Aula): number {
   const bruto = aula.exercicios.reduce(
     (soma, exercicio) => soma + XP_POR_DIFICULDADE[exercicio.dificuldade],

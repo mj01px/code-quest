@@ -97,3 +97,30 @@ describe("buscarExercicio", () => {
     );
   });
 });
+
+describe("no servidor", () => {
+  it("não anexa signal, para não desligar a memoização do Next", async () => {
+    // O Next trata `signal` como opt-out de cache (dedupe-fetch.js). Com ele,
+    // trilha e exercício buscariam a mesma URL duas vezes por render, porque
+    // generateMetadata e o corpo da página chamam o mesmo carregador.
+    fetchFalso.mockResolvedValue(resposta({}));
+
+    await buscarTrilha("logica");
+
+    const [, init] = fetchFalso.mock.calls[0] as [string, RequestInit];
+    expect(init.signal).toBeUndefined();
+    expect(init.next).toEqual({ revalidate: 60, tags: ["trilhas"] });
+  });
+
+  it("tempo esgotado continua distinto de queda de conexão", async () => {
+    fetchFalso.mockRejectedValue(
+      new DOMException("The operation timed out.", "TimeoutError"),
+    );
+
+    const erro = await buscarTrilha("logica").catch((e: unknown) => e);
+
+    expect(erro).toBeInstanceOf(ErroApi);
+    expect((erro as ErroApi).code).toBe("tempo_esgotado");
+    expect((erro as ErroApi).message).toMatch(/lenta/);
+  });
+});

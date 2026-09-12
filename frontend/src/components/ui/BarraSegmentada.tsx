@@ -45,7 +45,7 @@ export function BarraSegmentada({
             expandida ? "h-2.5 flex-1" : compacta ? "h-2 w-2" : "h-2.5 w-3"
           } ${
             indice < preenchidos ? "bg-brand-strong" : "bg-edge/70"
-          }`}
+          } transition-colors duration-300`}
         />
       ))}
     </span>

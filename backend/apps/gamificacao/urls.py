@@ -4,6 +4,7 @@ from .views import (
     AdquirirCriaturaView,
     CatalogoCriaturasView,
     CriaturaAtivaView,
+    MeusBonusView,
     MinhasCriaturasView,
 )
 
@@ -18,4 +19,5 @@ urlpatterns = [
         name="adquirir-criatura",
     ),
     path("eu/criaturas/ativa/", CriaturaAtivaView.as_view(), name="criatura-ativa"),
+    path("eu/bonus/", MeusBonusView.as_view(), name="meus-bonus"),
 ]

@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Relatorio do istanbul: artefato de build, nao codigo-fonte.
+    "coverage/**",
   ]),
 ]);
 

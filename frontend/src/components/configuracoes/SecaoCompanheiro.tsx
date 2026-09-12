@@ -3,11 +3,11 @@
 import Image from "next/image";
 import { useState } from "react";
 import { ErroApi, api } from "@/lib/api";
-import type { Criatura, MinhaCriatura, ProgressoXP } from "@/lib/types";
+import type { Criatura, MinhaCriatura, ProgressoAtual } from "@/lib/types";
 
 interface Props {
   criaturas: MinhaCriatura[];
-  progresso: ProgressoXP | null;
+  progresso: ProgressoAtual | null;
   recarregar: () => Promise<void>;
 }
 

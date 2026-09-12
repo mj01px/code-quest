@@ -2,11 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { MinhaCriatura, ProgressoXP } from "@/lib/types";
+import type { MinhaCriatura, ProgressoAtual } from "@/lib/types";
 
 interface Props {
   ativa: MinhaCriatura | null;
-  progresso: ProgressoXP | null;
+  progresso: ProgressoAtual | null;
 }
 
 const NAV = [

@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -8,10 +8,15 @@ from rest_framework.views import APIView
 
 from apps.trilhas.models import Exercicio
 
-from .serializers import ProgressoSerializer, ResultadoXPSerializer
+from .serializers import (
+    ExercicioConcluidoSerializer,
+    ProgressoSerializer,
+    ResultadoXPSerializer,
+)
 from .services import (
     creditar_exercicio,
     criatura_ativa,
+    exercicios_concluidos,
     montar_progresso,
     obter_progresso,
 )
@@ -52,3 +57,32 @@ class ConcluirExercicioView(APIView):
 
         dados = ResultadoXPSerializer(resultado, context={"request": request})
         return Response(dados.data)
+
+
+@extend_schema(
+    tags=["progressao"],
+    parameters=[
+        OpenApiParameter(
+            name="trilha",
+            type=str,
+            description="Restringe a lista às conclusões de uma trilha.",
+        )
+    ],
+)
+class MeusExerciciosConcluidosView(generics.ListAPIView):
+    """A lista que o front usa para marcar exercício feito.
+
+    Escopo de throttle próprio: é lida em toda navegação, então não pode
+    dividir orçamento com `catalogo` nem com `conclusao`.
+    """
+
+    serializer_class = ExercicioConcluidoSerializer
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "eu_progresso"
+
+    def get_queryset(self):
+        return exercicios_concluidos(
+            user=self.request.user,
+            trilha_slug=self.request.query_params.get("trilha"),
+        )

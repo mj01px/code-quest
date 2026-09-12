@@ -1,14 +1,16 @@
-"""Contratos dos serializers públicos do catálogo."""
+"""Contratos dos serializers públicos do catálogo.
+
+A varredura de `solucao_autor` saiu daqui: virou
+`tests/test_serializers_transversal.py`, que cobre o projeto inteiro e
+também pega `SerializerMethodField` e `source=` disfarçados.
+"""
 
 from django.test import TestCase
-from rest_framework import serializers as drf
 
 from apps.trilhas import serializers as modulo
 from apps.trilhas.models import Dificuldade, Tipo
 
 from .helpers import criar_aula, criar_exercicio, criar_trilha
-
-CAMPOS_PROIBIDOS = {"solucao_autor", "status"}
 
 
 class ExercicioResumoSerializerTest(TestCase):
@@ -146,29 +148,3 @@ class ExercicioDetalheSerializerTest(TestCase):
         self.assertEqual(dados["trilha_slug"], "logica")
         self.assertEqual(dados["trilha_nome"], "Lógica")
         self.assertEqual(dados["aula_slug"], "variaveis")
-
-
-class NenhumSerializerVazaSolucaoTest(TestCase):
-    """Varredura de todos os ModelSerializer do módulo, inclusive os futuros."""
-
-    def _serializers(self):
-        for nome in dir(modulo):
-            obj = getattr(modulo, nome)
-            if isinstance(obj, type) and issubclass(obj, drf.ModelSerializer):
-                if obj is not drf.ModelSerializer:
-                    yield nome, obj
-
-    def test_nenhuma_allowlist_declara_campo_proibido(self):
-        encontrados = list(self._serializers())
-        self.assertGreaterEqual(len(encontrados), 5)
-        for nome, serializer in encontrados:
-            with self.subTest(serializer=nome):
-                declarados = set(serializer.Meta.fields)
-                self.assertEqual(declarados & CAMPOS_PROIBIDOS, set())
-
-    def test_nenhum_serializer_usa_all_ou_exclude(self):
-        # `__all__` faria um campo novo no model virar campo público sozinho.
-        for nome, serializer in self._serializers():
-            with self.subTest(serializer=nome):
-                self.assertNotEqual(serializer.Meta.fields, "__all__")
-                self.assertFalse(hasattr(serializer.Meta, "exclude"))

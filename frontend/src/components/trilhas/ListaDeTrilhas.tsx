@@ -105,7 +105,7 @@ export function ListaDeTrilhas({
           Nenhuma trilha corresponde a esse filtro.
         </p>
       ) : (
-        <ul className="mt-6 flex flex-col gap-3">
+        <ul className="mt-6 flex flex-col gap-2">
           {visiveis.map((trilha) => (
             <TrilhaCard
               key={trilha.id}

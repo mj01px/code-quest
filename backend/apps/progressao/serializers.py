@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from apps.gamificacao.serializers import MinhaCriaturaSerializer
 
-from .models import Nivel, ProgressoCriatura
+from .models import EventoXP, Nivel, ProgressoCriatura
 
 
 class NivelSerializer(serializers.ModelSerializer):
@@ -37,3 +37,18 @@ class ResultadoXPSerializer(serializers.Serializer):
     subiu_de_nivel = serializers.BooleanField(read_only=True)
     evoluiu = serializers.BooleanField(read_only=True)
     progresso = ProgressoSerializer(read_only=True)
+
+
+class ExercicioConcluidoSerializer(serializers.ModelSerializer):
+    """Só o que a tela precisa para marcar o exercício como feito.
+
+    Nasce de `EventoXP` e nomeia campo a campo, então nada de `Exercicio` vaza
+    por aqui — `solucao_autor` inclusive.
+    """
+
+    trilha_slug = serializers.SlugField(source="exercicio.trilha.slug", read_only=True)
+    exercicio_slug = serializers.SlugField(source="exercicio.slug", read_only=True)
+
+    class Meta:
+        model = EventoXP
+        fields = ["trilha_slug", "exercicio_slug", "xp", "criado_em"]

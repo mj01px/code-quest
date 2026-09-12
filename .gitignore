@@ -53,3 +53,11 @@ yarn-error.log*
 *.local
 dist/
 build/
+
+# Configuracao local de ferramentas de desenvolvimento
+.claude/
+CLAUDE.md
+AGENTS.md
+.code-review-graph/
+__pycache__/
+*.pyc

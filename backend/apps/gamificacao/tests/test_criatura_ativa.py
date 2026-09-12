@@ -1,11 +1,14 @@
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.gamificacao.models import Creature, UserCreature
+from apps.gamificacao.models import Creature, Stage, UserCreature
 from apps.gamificacao.services import definir_criatura_ativa, select_starter_creature
+from apps.progressao.models import ProgressoCriatura
 
 from apps.contas.tests.helpers import criar_aluno
 
@@ -184,3 +187,63 @@ class CriaturaAtivaApiTest(APITestCase):
         r = self.client.get(reverse("gamificacao:minhas-criaturas"))
 
         self.assertEqual(r.data[0]["criatura"]["slug"], outra)
+
+
+class AtivarNaoHerdaProgressoTest(TestCase):
+    """Ativar uma criatura não copia o progresso da anterior.
+
+    `ProgressoCriatura` é OneToOne com `UserCreature`: cada criatura tem o seu
+    `xp_total` e o seu `nivel`. Logo o estágio de cada uma segue o nível DELA.
+    Uma criatura recém-ativada em nível 1 é HATCHLING mesmo que a anterior já
+    fosse ADULTA — e `definir_criatura_ativa` não sincroniza estágio de
+    propósito. Sincronizar contra o nível da outra é que seria o defeito.
+
+    O teste trava a não-herança, não a decisão de produto de manter progressos
+    separados: se um dia o XP passar a ser compartilhado, a cópia terá que ser
+    explícita, e não efeito colateral da ativação.
+    """
+
+    def setUp(self):
+        self.usuario = criar_aluno("dono")
+        self.antiga = select_starter_creature(
+            user=self.usuario, creature_slug="shellby"
+        )
+        self.nova = UserCreature.objects.create(
+            user=self.usuario, creature_id=_outra_disponivel("shellby")
+        )
+
+        # Antiga adiantada; nova recém-adquirida, no começo da própria curva.
+        UserCreature.objects.filter(pk=self.antiga.pk).update(
+            current_stage=Stage.JUVENILE, evolved_at=timezone.now()
+        )
+        ProgressoCriatura.objects.create(
+            user_creature=self.antiga, xp_total=4500, nivel_id=10
+        )
+        ProgressoCriatura.objects.create(
+            user_creature=self.nova, xp_total=0, nivel_id=1
+        )
+
+    def test_ativar_criatura_nao_contamina_progresso_da_outra(self):
+        antes_antiga = UserCreature.objects.get(pk=self.antiga.pk)
+
+        definir_criatura_ativa(
+            user=self.usuario, creature_slug=self.nova.creature_id
+        )
+
+        nova = UserCreature.objects.get(pk=self.nova.pk)
+        antiga = UserCreature.objects.get(pk=self.antiga.pk)
+
+        self.assertTrue(nova.is_active)
+        self.assertFalse(antiga.is_active)
+
+        # A nova não herda estágio nem XP da anterior.
+        self.assertEqual(nova.current_stage, Stage.HATCHLING)
+        self.assertIsNone(nova.evolved_at)
+        self.assertEqual(nova.progresso.xp_total, 0)
+        self.assertEqual(nova.progresso.nivel_id, 1)
+
+        # E a anterior não regride nem perde o carimbo ao sair de cena.
+        self.assertEqual(antiga.current_stage, Stage.JUVENILE)
+        self.assertEqual(antiga.evolved_at, antes_antiga.evolved_at)
+        self.assertEqual(antiga.progresso.xp_total, 4500)
+        self.assertEqual(antiga.progresso.nivel_id, 10)

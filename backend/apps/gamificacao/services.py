@@ -1,9 +1,8 @@
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from .models import Creature, UserCreature
+from .models import Creature, UserCreature, XpBonus
 
 
 def _nao_possui() -> ValidationError:
@@ -68,22 +67,6 @@ def select_starter_creature(*, user, creature_slug: str) -> UserCreature:
         raise ValidationError({"creature": _ja_escolhida()}) from None
 
 
-def apply_level_to_creatures(*, user, level: int) -> list[UserCreature]:
-    possuidas = list(
-        UserCreature.objects.select_related("creature")
-        .prefetch_related("creature__stages")
-        .filter(user=user)
-    )
-
-    evoluidas = [uc for uc in possuidas if uc.sync_stage(level)]
-    if evoluidas:
-        agora = timezone.now()
-        for uc in evoluidas:
-            uc.evolved_at = agora
-        UserCreature.objects.bulk_update(evoluidas, ["current_stage", "evolved_at"])
-    return evoluidas
-
-
 @transaction.atomic
 def adquirir_criatura(*, user, creature_slug: str) -> UserCreature:
     try:
@@ -143,3 +126,16 @@ def definir_criatura_ativa(*, user, creature_slug: str) -> UserCreature:
     escolhida.is_active = True
     escolhida.save(update_fields=["is_active"])
     return escolhida
+
+
+def xp_bonuses_for_user(*, user):
+    """Bônus valendo para o usuário, um por par criatura/trilha que ele tem.
+
+    Só entram as criaturas que ele possui. Trilha sem linha aqui rende XP
+    neutro, então a ausência é resposta legítima e não erro.
+    """
+    return (
+        XpBonus.objects.select_related("creature", "trilha")
+        .filter(creature__owners__user=user)
+        .order_by("trilha__ordem", "creature__display_order")
+    )

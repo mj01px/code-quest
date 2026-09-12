@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+
 import localFont from "next/font/local";
+
+import { CHAVE, FECHADA } from "@/lib/preferenciaSidebar";
+
 import "./globals.css";
 
-// Fontes auto-hospedadas em vez de next/font/google: o build passa a não
-// depender de alcançar o fonts.googleapis.com, o que quebrava silenciosamente
-// em rede restrita e caía num fallback sem avisar em tempo de execução.
+// Fontes locais pra não depender do Google Fonts (quebrava em rede restrita).
 
 const pressStart = localFont({
   src: "../fontes/press-start-2p.woff2",
@@ -30,6 +32,13 @@ const vt323 = localFont({
   fallback: ["monospace"],
 });
 
+// Restaura sidebar antes da pintura. Fica na raiz porque script inline não roda em navegação client-side.
+const RESTAURA_SIDEBAR = `try{if(localStorage.getItem(${JSON.stringify(
+  CHAVE,
+)})===${JSON.stringify(
+  FECHADA,
+)})document.documentElement.dataset.sidebar=${JSON.stringify(FECHADA)}}catch(e){}`;
+
 export const metadata: Metadata = {
   title: "CodeQuest",
   description:
@@ -43,7 +52,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="pt-BR"
       className={`${pressStart.variable} ${silkscreen.variable} ${vt323.variable} h-full antialiased`}
     >
-      <body className="bg-void text-ink-soft min-h-full">{children}</body>
+      <body className="bg-void text-ink-soft min-h-full">
+        <script dangerouslySetInnerHTML={{ __html: RESTAURA_SIDEBAR }} />
+        {children}
+      </body>
     </html>
   );
 }

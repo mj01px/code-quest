@@ -165,10 +165,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         return super().save(*args, **kwargs)
 
     @property
-    def is_author(self) -> bool:
-        return self.role in {self.Role.AUTHOR, self.Role.ADMIN}
-
-    @property
     def is_platform_admin(self) -> bool:
         return self.role == self.Role.ADMIN
 

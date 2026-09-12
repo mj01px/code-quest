@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { AulaCard } from "@/components/trilhas/AulaCard";
+import { SeloBonusXp } from "@/components/gamificacao/SeloBonusXp";
 import { HeroTrilha } from "@/components/trilhas/HeroTrilha";
+import { MapaDeFases } from "@/components/trilhas/MapaDeFases";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { IconeCheck } from "@/components/ui/Icone";
 import { ErroApi, buscarTrilha, listarTrilhas } from "@/lib/api";
@@ -53,9 +54,6 @@ export default async function TrilhaPage({
 
   const fases = totalDeFases(trilha);
   const nivel = nivelDaTrilha(trilha);
-  const tituloPorSlug = new Map(
-    trilha.aulas.map((aula) => [aula.slug, aula.titulo]),
-  );
 
   // O backend não tem pré-requisito de trilha inteira, só entre módulos.
   const ficha = [
@@ -84,6 +82,7 @@ export default async function TrilhaPage({
         descricao={trilha.descricao}
         totalDeModulos={trilha.aulas.length}
         totalDeFases={fases}
+        selo={<SeloBonusXp trilhaSlug={trilha.slug} />}
       />
 
       <dl className="mt-4 grid grid-cols-2 gap-px border border-edge bg-edge lg:grid-cols-4">
@@ -145,21 +144,9 @@ export default async function TrilhaPage({
             As fases desta trilha ainda estão sendo escritas.
           </p>
         ) : (
-          <ul className="mt-4 flex flex-col gap-3">
-            {trilha.aulas.map((aula, indice) => (
-              <AulaCard
-                key={aula.id}
-                aula={aula}
-                trilhaSlug={trilha.slug}
-                posicao={indice + 1}
-                preRequisitoTitulo={
-                  aula.pre_requisito
-                    ? tituloPorSlug.get(aula.pre_requisito)
-                    : undefined
-                }
-              />
-            ))}
-          </ul>
+          // Ilha de cliente: a página segue estática, e só a marca de fase
+          // concluída, que é da conta do aluno, é buscada no navegador.
+          <MapaDeFases trilha={trilha} />
         )}
       </section>
     </>

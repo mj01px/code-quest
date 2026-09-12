@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ErroApi, api, temSessao } from "@/lib/api";
-import type { MinhaCriatura, ProgressoXP, Usuario } from "@/lib/types";
+import type { MinhaCriatura, ProgressoAtual, Usuario } from "@/lib/types";
 import { validarEmail, validarNickname } from "@/lib/validacao";
 import { BarraLateral } from "@/components/layout/BarraLateral";
 import { SecaoCompanheiro } from "./SecaoCompanheiro";
@@ -19,7 +19,7 @@ export function PainelConfiguracoes() {
   const router = useRouter();
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [criaturas, setCriaturas] = useState<MinhaCriatura[]>([]);
-  const [progresso, setProgresso] = useState<ProgressoXP | null>(null);
+  const [progresso, setProgresso] = useState<ProgressoAtual | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
 

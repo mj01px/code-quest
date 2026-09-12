@@ -1,13 +1,17 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 
 import {
   aula,
   exercicioDetalhe,
   exercicioResumo,
+  minhaCriatura,
+  progressoAtual,
   trilhaResumo,
+  usuario,
 } from "@/components/__tests__/fixtures";
+import { ProvedorProgresso } from "@/components/progresso/ProvedorProgresso";
 import { ErroApi } from "@/lib/api";
-import { CHAVE, esquecerCache } from "@/lib/progresso";
+import type { ExercicioConcluido } from "@/lib/types";
 
 import Erro from "../error";
 import Carregando from "../loading";
@@ -23,6 +27,14 @@ jest.mock("@/lib/api", () => {
     listarTrilhas: jest.fn(),
     buscarTrilha: jest.fn(),
     buscarExercicio: jest.fn(),
+    temSessao: jest.fn(() => true),
+    api: {
+      meusBonus: jest.fn(),
+      exerciciosConcluidos: jest.fn(),
+      eu: jest.fn(),
+      minhasCriaturas: jest.fn(),
+      meuProgresso: jest.fn(),
+    },
   };
 });
 
@@ -38,7 +50,29 @@ const api = jest.requireMock<{
   listarTrilhas: jest.Mock;
   buscarTrilha: jest.Mock;
   buscarExercicio: jest.Mock;
+  temSessao: jest.Mock;
+  api: {
+    meusBonus: jest.Mock;
+    exerciciosConcluidos: jest.Mock;
+    eu: jest.Mock;
+    minhasCriaturas: jest.Mock;
+    meuProgresso: jest.Mock;
+  };
 }>("@/lib/api");
+
+/** O progresso vem da API agora; antes estas telas liam `localStorage`. */
+function concluiu(trilhaSlug: string, ...fases: string[]): void {
+  api.api.exerciciosConcluidos.mockResolvedValue(
+    fases.map(
+      (slug): ExercicioConcluido => ({
+        trilha_slug: trilhaSlug,
+        exercicio_slug: slug,
+        xp: 50,
+        criado_em: "2026-09-10T12:00:00Z",
+      }),
+    ),
+  );
+}
 
 const PARAMS_TRILHA = {
   params: Promise.resolve({ trilhaSlug: "logica" }),
@@ -52,10 +86,22 @@ const PARAMS_EXERCICIO = {
   searchParams: Promise.resolve({}),
 };
 
+// As páginas são Server Components e o provedor mora no layout do route group;
+// o teste monta a mesma moldura para que as ilhas de dentro achem o Context.
+async function montar(no: React.ReactNode) {
+  const r = render(<ProvedorProgresso>{no}</ProvedorProgresso>);
+  await waitFor(() => expect(api.api.exerciciosConcluidos).toHaveBeenCalled());
+  return r;
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
-  window.localStorage.clear();
-  esquecerCache();
+  api.temSessao.mockReturnValue(true);
+  api.api.meusBonus.mockResolvedValue([]);
+  api.api.eu.mockResolvedValue(usuario());
+  api.api.minhasCriaturas.mockResolvedValue([minhaCriatura({ ativa: true })]);
+  api.api.meuProgresso.mockResolvedValue(progressoAtual());
+  concluiu("nenhuma");
 });
 
 describe("Listagem de trilhas", () => {
@@ -66,7 +112,7 @@ describe("Listagem de trilhas", () => {
     ]);
     api.buscarTrilha.mockResolvedValue({ ...trilhaResumo(), aulas: [aula()] });
 
-    render(await TrilhasPage());
+    await montar(await TrilhasPage());
 
     expect(
       screen.getByRole("heading", { level: 2, name: "Trilhas" }),
@@ -79,7 +125,7 @@ describe("Listagem de trilhas", () => {
   it("mostra estado vazio quando não há trilha publicada", async () => {
     api.listarTrilhas.mockResolvedValue([]);
 
-    render(await TrilhasPage());
+    await montar(await TrilhasPage());
 
     expect(screen.getByText(/Nenhuma trilha publicada/)).toBeInTheDocument();
   });
@@ -104,23 +150,21 @@ describe("Listagem de trilhas", () => {
         }),
       ],
     });
-    window.localStorage.setItem(
-      CHAVE,
-      JSON.stringify({ [trilha.slug]: ["media"] }),
-    );
-    esquecerCache();
+    concluiu(trilha.slug, "media");
 
-    render(await TrilhasPage());
+    await montar(await TrilhasPage());
 
     expect(api.buscarTrilha).toHaveBeenCalledWith(trilha.slug);
-    expect(screen.getByText("Continuar de onde parou")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Continuar de onde parou"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Módulo 1 · Trocar")).toBeInTheDocument();
   });
 
   it("não busca destaque nenhum quando não há trilha publicada", async () => {
     api.listarTrilhas.mockResolvedValue([]);
 
-    render(await TrilhasPage());
+    await montar(await TrilhasPage());
 
     expect(api.buscarTrilha).not.toHaveBeenCalled();
   });
@@ -145,7 +189,7 @@ describe("Detalhe da trilha", () => {
       ],
     });
 
-    render(await TrilhaPage(PARAMS_TRILHA));
+    await montar(await TrilhaPage(PARAMS_TRILHA));
 
     expect(
       screen.getByRole("heading", { name: "Lógica de Programação" }),
@@ -172,7 +216,7 @@ describe("Detalhe da trilha", () => {
       ],
     });
 
-    render(await TrilhaPage(PARAMS_TRILHA));
+    await montar(await TrilhaPage(PARAMS_TRILHA));
 
     expect(
       screen.getByText(/requer Variáveis e tipos/),
@@ -194,7 +238,7 @@ describe("Detalhe da trilha", () => {
   it("mostra aviso quando a trilha ainda não tem fases", async () => {
     api.buscarTrilha.mockResolvedValue({ ...trilhaResumo(), aulas: [] });
 
-    render(await TrilhaPage(PARAMS_TRILHA));
+    await montar(await TrilhaPage(PARAMS_TRILHA));
 
     expect(screen.getByText(/ainda estão sendo escritas/)).toBeInTheDocument();
   });
@@ -204,7 +248,7 @@ describe("Detalhe do exercício", () => {
   it("mostra enunciado, dificuldade e tipo", async () => {
     api.buscarExercicio.mockResolvedValue(exercicioDetalhe());
 
-    render(await ExercicioPage(PARAMS_EXERCICIO));
+    await montar(await ExercicioPage(PARAMS_EXERCICIO));
 
     expect(
       screen.getByRole("heading", { name: "Média de duas notas" }),
@@ -218,7 +262,7 @@ describe("Detalhe do exercício", () => {
     // O backend não serializa o campo; se um dia serializar, isto acusa.
     api.buscarExercicio.mockResolvedValue(exercicioDetalhe());
 
-    const { container } = render(await ExercicioPage(PARAMS_EXERCICIO));
+    const { container } = await montar(await ExercicioPage(PARAMS_EXERCICIO));
 
     expect(container.textContent).not.toMatch(/solucao_autor/i);
   });

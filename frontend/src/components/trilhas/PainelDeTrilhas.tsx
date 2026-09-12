@@ -1,23 +1,18 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-
 import { CartaoDestaque, type Retomada } from "@/components/trilhas/CartaoDestaque";
 import { ListaDeTrilhas } from "@/components/trilhas/ListaDeTrilhas";
 import { fasesEmOrdem, plural, proximaFase } from "@/lib/derivados";
+import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 import {
-  assinar,
-  concluidas,
-  instantaneo,
-  instantaneoNoServidor,
+  concluidasDaTrilha,
+  contarPorTrilha,
   percentual,
-  type Progresso,
 } from "@/lib/progresso";
-import type { TrilhaDetalhe, TrilhaResumo } from "@/lib/types";
+import type { ExercicioConcluido, TrilhaDetalhe, TrilhaResumo } from "@/lib/types";
 
-// A listagem é servida estática; o progresso é do navegador. Este componente é
-// a fronteira entre os dois: o servidor entrega o catálogo, o cliente aplica em
-// cima dele o que o aluno já fez.
+// Fronteira estático/cliente: catálogo vem do servidor, conclusões do Context.
+// Agregação por trilha é feita aqui.
 
 function montarRetomada(
   destaque: TrilhaDetalhe,
@@ -45,12 +40,13 @@ function montarRetomada(
 
 function calcularProgresso(
   trilhas: TrilhaResumo[],
-  progresso: Progresso,
+  concluidos: readonly ExercicioConcluido[],
 ): Record<string, number> {
+  const contagem = contarPorTrilha(concluidos);
   const porSlug: Record<string, number> = {};
   for (const trilha of trilhas) {
     porSlug[trilha.slug] = percentual(
-      concluidas(progresso, trilha.slug).length,
+      contagem.get(trilha.slug) ?? 0,
       trilha.total_exercicios,
     );
   }
@@ -65,13 +61,9 @@ export function PainelDeTrilhas({
   trilhas: TrilhaResumo[];
   destaque?: TrilhaDetalhe | null;
 }) {
-  const progresso = useSyncExternalStore(
-    assinar,
-    instantaneo,
-    instantaneoNoServidor,
-  );
+  const { concluidos } = useProgresso();
 
-  const progressoPorSlug = calcularProgresso(trilhas, progresso);
+  const progressoPorSlug = calcularProgresso(trilhas, concluidos);
   const [primeira] = trilhas;
 
   return (
@@ -83,7 +75,7 @@ export function PainelDeTrilhas({
             destaque
               ? montarRetomada(
                   destaque,
-                  concluidas(progresso, primeira.slug),
+                  concluidasDaTrilha(concluidos, primeira.slug),
                   progressoPorSlug[primeira.slug] ?? 0,
                 )
               : null

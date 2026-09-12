@@ -43,7 +43,7 @@ export function CartaoDestaque({
   return (
     <section
       aria-labelledby="destaque"
-      className="halo-brand border-2 border-brand bg-panel p-6 sm:p-8"
+      className="halo-brand animate-surgir border-2 border-brand bg-panel p-6 sm:p-8"
     >
       <p className="rotulo text-ink-muted">{rotulo}</p>
 
@@ -63,7 +63,7 @@ export function CartaoDestaque({
 
       <Link
         href={retomada?.href ?? `/trilhas/${trilha.slug}`}
-        className="rotulo mt-6 inline-block cursor-pointer bg-brand-strong px-8 py-3.5 text-ink-soft transition-colors hover:bg-brand"
+        className="rotulo mt-6 inline-block cursor-pointer bg-brand-strong px-8 py-3.5 text-ink-soft transition duration-150 hover:translate-x-0.5 hover:bg-brand"
       >
         {acao}
       </Link>

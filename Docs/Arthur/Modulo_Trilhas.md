@@ -185,7 +185,7 @@ Programação" sai publicada, com 6 módulos e 26 fases; as outras quatro ficam 
 rascunho.
 
 Os módulos são Variáveis e tipos, Condicionais, Repetição, Listas e coleções,
-Funções e Depuração e boas práticas, encadeados por pré-requisito nessa ordem.
+Funções, e Depuração e boas práticas, encadeados por pré-requisito nessa ordem.
 
 Frontend (com o backend no ar):
 

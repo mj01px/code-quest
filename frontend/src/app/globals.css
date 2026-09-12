@@ -53,6 +53,10 @@
   --animate-blink: blink 1s steps(1, end) infinite;
   --animate-bob: bob 1.6s steps(2, end) infinite;
   --animate-varredura: varredura 1.4s steps(6, end) infinite alternate;
+  /* Entrada dos blocos de conteudo: sobe e aparece, uma vez so. */
+  --animate-surgir: surgir 0.34s ease-out both;
+  /* Respiro do selo de bonus, em passos para nao destoar do pixel. */
+  --animate-pulso: pulso 2.4s steps(2, end) infinite;
 
   @keyframes blink {
     0%,
@@ -84,14 +88,36 @@
       transform: translateY(-6px);
     }
   }
+
+  @keyframes surgir {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes pulso {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
+    }
+  }
 }
 
-/* Rotulo em caixa alta com muito espacamento. */
+/* Rotulo em caixa alta. O espacamento entre letras e o que fazia a tela parecer
+   espalhada: 0.18em em 10px da 1.8px por glifo, em caixa alta. */
 @utility rotulo {
   font-family: var(--font-label);
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   line-height: 1.4;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -184,6 +210,9 @@
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    /* Sem zerar o atraso, a entrada escalonada deixaria o cartao invisivel
+       pelo tempo do delay antes de saltar para o estado final. */
+    animation-delay: 0s !important;
     transition-duration: 0.01ms !important;
   }
 }
