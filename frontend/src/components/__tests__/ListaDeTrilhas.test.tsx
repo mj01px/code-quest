@@ -7,8 +7,18 @@ import { trilhaResumo } from "./fixtures";
 
 const TRILHAS = [
   trilhaResumo(),
-  trilhaResumo({ id: 2, nome: "Python", slug: "python", descricao: "Scripts." }),
-  trilhaResumo({ id: 3, nome: "Terminal", slug: "terminal", descricao: "Git." }),
+  trilhaResumo({
+    id: 2,
+    nome: "Python",
+    slug: "python",
+    descricao: "Scripts.",
+  }),
+  trilhaResumo({
+    id: 3,
+    nome: "Terminal",
+    slug: "terminal",
+    descricao: "Git.",
+  }),
 ];
 
 function itens() {
@@ -47,7 +57,9 @@ describe("ListaDeTrilhas", () => {
     await userEvent.click(screen.getByRole("button", { name: "Concluídas" }));
     expect(screen.getByText("Terminal")).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Não iniciadas" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Não iniciadas" }),
+    );
     expect(screen.getByText("Lógica de Programação")).toBeInTheDocument();
   });
 
@@ -56,7 +68,7 @@ describe("ListaDeTrilhas", () => {
 
     await userEvent.type(screen.getByLabelText("Buscar trilha"), "rust");
 
-    expect(screen.getByText(/Nenhuma trilha corresponde/)).toBeInTheDocument();
+    expect(screen.getByText(/Nenhuma trilha encontrada/)).toBeInTheDocument();
   });
 
   it("marca o filtro ativo para leitores de tela", async () => {

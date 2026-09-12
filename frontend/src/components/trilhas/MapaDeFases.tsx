@@ -17,7 +17,7 @@ export function MapaDeFases({ trilha }: { trilha: TrilhaDetalhe }) {
   );
 
   return (
-    <ul className="mt-4 flex flex-col gap-3">
+    <ul className="m-0 mt-6 flex list-none flex-col gap-2 p-0">
       {trilha.aulas.map((aula, indice) => (
         <AulaCard
           key={aula.id}

@@ -7,6 +7,7 @@ export function BarraSegmentada({
   compacta = false,
   semMoldura = false,
   expandida = false,
+  alta = false,
 }: {
   /** 0 a 100. */
   valor: number;
@@ -17,6 +18,8 @@ export function BarraSegmentada({
   semMoldura?: boolean;
   /** Ocupa toda a largura disponível. */
   expandida?: boolean;
+  /** Blocos mais altos, sem mexer na largura. Só vale com `expandida`. */
+  alta?: boolean;
 }) {
   const limitado = Math.min(100, Math.max(0, valor));
   const preenchidos = Math.round((limitado / 100) * segmentos);
@@ -42,7 +45,11 @@ export function BarraSegmentada({
         <span
           key={indice}
           className={`${
-            expandida ? "h-2.5 flex-1" : compacta ? "h-2 w-2" : "h-2.5 w-3"
+            expandida
+              ? `${alta ? "h-3.5" : "h-2.5"} flex-1`
+              : compacta
+                ? "h-2 w-2"
+                : "h-2.5 w-3"
           } ${
             indice < preenchidos ? "bg-brand-strong" : "bg-edge/70"
           } transition-colors duration-300`}

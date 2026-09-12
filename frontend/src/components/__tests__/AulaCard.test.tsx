@@ -7,10 +7,46 @@ import { aula, exercicioResumo } from "./fixtures";
 const TRILHA = "logica-de-programacao";
 
 describe("AulaCard", () => {
-  it("numera a fase com dois dígitos", () => {
-    render(<AulaCard aula={aula()} trilhaSlug={TRILHA} posicao={1} />);
+  it("numera o módulo com dois dígitos", () => {
+    render(<AulaCard aula={aula()} trilhaSlug={TRILHA} posicao={3} />);
+
+    // O módulo e as fases dentro dele são numerados do mesmo jeito, então a
+    // busca precisa da posição do módulo, e não de um "01" qualquer.
+    expect(screen.getByText("03")).toBeInTheDocument();
+  });
+
+  it("numera cada fase dentro do módulo", () => {
+    render(
+      <AulaCard
+        aula={aula({
+          exercicios: [
+            exercicioResumo(),
+            exercicioResumo({ id: 2, slug: "outra", titulo: "Outra" }),
+          ],
+        })}
+        trilhaSlug={TRILHA}
+        posicao={3}
+      />,
+    );
 
     expect(screen.getByText("01")).toBeInTheDocument();
+    expect(screen.getByText("02")).toBeInTheDocument();
+  });
+
+  it("troca o número pela marca de concluída", () => {
+    render(
+      <AulaCard
+        aula={aula({ exercicios: [exercicioResumo()] })}
+        trilhaSlug={TRILHA}
+        posicao={3}
+        fasesConcluidas={new Set(["media-de-duas-notas"])}
+      />,
+    );
+
+    expect(screen.queryByText("01")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Fase 1, concluída/, { selector: ".sr-only" }),
+    ).toBeInTheDocument();
   });
 
   it("lista os exercícios com dificuldade e tipo", () => {
@@ -80,7 +116,11 @@ describe("AulaCard", () => {
 
   it("avisa quando a fase ainda não tem exercícios", () => {
     render(
-      <AulaCard aula={aula({ exercicios: [] })} trilhaSlug={TRILHA} posicao={1} />,
+      <AulaCard
+        aula={aula({ exercicios: [] })}
+        trilhaSlug={TRILHA}
+        posicao={1}
+      />,
     );
 
     expect(screen.getByText("Em breve")).toBeInTheDocument();
