@@ -2,6 +2,7 @@ from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from rest_framework import exceptions
 from rest_framework.authentication import CSRFCheck
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
 from .cookies import ACCESS
 
@@ -13,7 +14,11 @@ class CookieJWTAuthentication(JWTAuthentication):
         if not bruto:
             return None
 
-        token = self.get_validated_token(bruto)
+        try:
+            token = self.get_validated_token(bruto)
+        except (InvalidToken, TokenError):
+            return None
+
         self._exigir_csrf(request)
         return self.get_user(token), token
 

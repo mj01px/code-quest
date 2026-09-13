@@ -7,7 +7,16 @@ import { IconeMenu } from "@/components/ui/Icone";
 import { CtaLink } from "./CtaLink";
 import { LINKS_NAV } from "./dados";
 
-export function LandingNavbar() {
+interface Props {
+  // Em /entrar e /cadastro a barra fica so com a marca: as secoes nao existem
+  // fora da landing e os CTAs ja aparecem dentro do proprio painel. Os CTAs
+  // e o botao de menu continuam no DOM so como espaco, invisiveis: sao eles
+  // que ditam a altura da barra, entao a marca fica no mesmo ponto da landing
+  // em qualquer largura de tela.
+  soMarca?: boolean;
+}
+
+export function LandingNavbar({ soMarca = false }: Props) {
   const [aberto, setAberto] = useState(false);
   const [rolou, setRolou] = useState(false);
 
@@ -38,19 +47,24 @@ export function LandingNavbar() {
           />
         </Link>
 
-        <nav className="hidden items-center gap-7 lg:flex" aria-label="Seções">
-          {LINKS_NAV.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className="font-label text-[11px] tracking-[0.18em] text-ink-muted hover:text-brand-mist"
-            >
-              {link.rotulo}
-            </a>
-          ))}
-        </nav>
+        {soMarca ? null : (
+          <nav className="hidden items-center gap-7 lg:flex" aria-label="Seções">
+            {LINKS_NAV.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="font-label text-[11px] tracking-[0.18em] text-ink-muted hover:text-brand-mist"
+              >
+                {link.rotulo}
+              </a>
+            ))}
+          </nav>
+        )}
 
-        <div className="hidden items-center gap-3 sm:flex">
+        <div
+          aria-hidden={soMarca || undefined}
+          className={`hidden items-center gap-3 sm:flex ${soMarca ? "invisible" : ""}`.trim()}
+        >
           <CtaLink href="/entrar" variante="secundaria" tamanho="md">
             LOGIN
           </CtaLink>
@@ -63,8 +77,9 @@ export function LandingNavbar() {
           type="button"
           aria-label={aberto ? "Fechar menu" : "Abrir menu"}
           aria-expanded={aberto}
+          aria-hidden={soMarca || undefined}
           onClick={() => setAberto((v) => !v)}
-          className="flex h-9 w-9 items-center justify-center rounded-none border-2 border-edge-soft bg-panel text-brand-light shadow-pixel hover:border-brand hover:text-brand-mist sm:hidden"
+          className={`flex h-9 w-9 items-center justify-center rounded-none border-2 border-edge-soft bg-panel text-brand-light shadow-pixel hover:border-brand hover:text-brand-mist sm:hidden ${soMarca ? "invisible" : ""}`.trim()}
         >
           <IconeMenu className="h-4 w-4" />
         </button>

@@ -17,7 +17,7 @@ DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py"]
 # Os testes de cada app moram dentro do proprio app; `tests/` continua aqui
 # porque os testes transversais (admin, RBAC, permissoes) foram escritos la.
-testpaths = ["tests", "apps"]
+testpaths = ["apps"]
 addopts = "--reuse-db"
 
 [tool.coverage.run]

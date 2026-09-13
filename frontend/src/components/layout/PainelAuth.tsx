@@ -7,6 +7,10 @@ interface Props {
   formulario: ReactNode;
   sprite?: string;
   spriteAlt?: string;
+  // Alternativa ao sprite: arte vetorial desenhada na mesma moldura.
+  ilustracao?: ReactNode;
+  // Etiqueta curta sob a moldura, para o prazo de validade do link.
+  selo?: string;
   tituloLateral?: string;
   textoLateral?: string;
   acaoLateral?: ReactNode;
@@ -18,16 +22,20 @@ export function PainelAuth({
   formulario,
   sprite,
   spriteAlt,
+  ilustracao,
+  selo,
   tituloLateral,
   textoLateral,
   acaoLateral,
 }: Props) {
+  const lateral = Boolean(sprite || ilustracao);
+
   return (
     <main className="flex flex-1 items-center justify-center px-6 py-10">
       <div className="flex w-full max-w-[820px] flex-wrap border-[3px] border-brand bg-panel shadow-frame">
         <section
           className={`flex min-w-[260px] flex-col gap-5 bg-panel-deep px-5 py-8 sm:px-8 sm:py-10 ${
-            sprite
+            lateral
               ? "flex-[1_1_340px] border-r-[3px] border-edge"
               : "flex-[1_1_100%]"
           }`}
@@ -54,18 +62,28 @@ export function PainelAuth({
           {formulario}
         </section>
 
-        {sprite ? (
+        {lateral ? (
         <section className="flex min-w-[240px] flex-[1_1_280px] flex-col items-center justify-center gap-5 bg-panel-soft px-6 py-10 text-center">
-          <div className="relative flex h-[148px] w-[148px] items-center justify-center border-2 border-brand-shadow bg-panel shadow-halo">
-            <Image
-              src={sprite}
-              alt={spriteAlt ?? ""}
-              width={120}
-              height={120}
-              priority
-              className="block h-[120px] w-[120px]"
-            />
+          <div className="relative flex h-[148px] w-[148px] items-center justify-center overflow-hidden border-2 border-brand-shadow bg-panel shadow-halo">
+            {sprite ? (
+              <Image
+                src={sprite}
+                alt={spriteAlt ?? ""}
+                width={120}
+                height={120}
+                priority
+                className="block h-[120px] w-[120px]"
+              />
+            ) : (
+              ilustracao
+            )}
           </div>
+
+          {selo ? (
+            <p className="m-0 border-2 border-edge-soft bg-field px-2.5 py-1.5 font-label text-[10px] leading-[1.6] tracking-[2px] text-ink-muted">
+              {selo}
+            </p>
+          ) : null}
 
           {tituloLateral || textoLateral ? (
             <div className="flex flex-col items-center gap-3">

@@ -1,6 +1,9 @@
 "use client";
 
-import { CartaoDestaque, type Retomada } from "@/components/trilhas/CartaoDestaque";
+import {
+  CartaoDestaque,
+  type Retomada,
+} from "@/components/trilhas/CartaoDestaque";
 import { ListaDeTrilhas } from "@/components/trilhas/ListaDeTrilhas";
 import { fasesEmOrdem, plural, proximaFase } from "@/lib/derivados";
 import { useProgresso } from "@/components/progresso/ProvedorProgresso";
@@ -9,7 +12,11 @@ import {
   contarPorTrilha,
   percentual,
 } from "@/lib/progresso";
-import type { ExercicioConcluido, TrilhaDetalhe, TrilhaResumo } from "@/lib/types";
+import type {
+  ExercicioConcluido,
+  TrilhaDetalhe,
+  TrilhaResumo,
+} from "@/lib/types";
 
 // Fronteira estático/cliente: catálogo vem do servidor, conclusões do Context.
 // Agregação por trilha é feita aqui.
@@ -61,7 +68,7 @@ export function PainelDeTrilhas({
   trilhas: TrilhaResumo[];
   destaque?: TrilhaDetalhe | null;
 }) {
-  const { concluidos } = useProgresso();
+  const { concluidos, trilhasIniciadas } = useProgresso();
 
   const progressoPorSlug = calcularProgresso(trilhas, concluidos);
   const [primeira] = trilhas;
@@ -83,7 +90,11 @@ export function PainelDeTrilhas({
         />
       ) : null}
 
-      <ListaDeTrilhas trilhas={trilhas} progressoPorSlug={progressoPorSlug} />
+      <ListaDeTrilhas
+        trilhas={trilhas}
+        progressoPorSlug={progressoPorSlug}
+        iniciadas={trilhasIniciadas}
+      />
     </>
   );
 }

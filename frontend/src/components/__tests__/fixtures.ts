@@ -67,12 +67,16 @@ export function exercicioDetalhe(
   };
 }
 
-export function trilhaDetalhe(extra: Partial<TrilhaDetalhe> = {}): TrilhaDetalhe {
+export function trilhaDetalhe(
+  extra: Partial<TrilhaDetalhe> = {},
+): TrilhaDetalhe {
   return {
     id: 100,
     nome: "Lógica de Programação",
     slug: "logica-de-programacao",
-    descricao: "O ponto de partida: variáveis, condicionais e repetição.",
+    descricao: "Lógica, variáveis e repetição",
+    resumo: "O ponto de partida de quem nunca programou.",
+    sobre: "Programar é quebrar um problema em passos pequenos.",
     ordem: 1,
     aulas: [aula()],
     ...extra,
@@ -90,7 +94,9 @@ export function bonusXp(extra: Partial<BonusXp> = {}): BonusXp {
   };
 }
 
-export function minhaCriatura(extra: Partial<MinhaCriatura> = {}): MinhaCriatura {
+export function minhaCriatura(
+  extra: Partial<MinhaCriatura> = {},
+): MinhaCriatura {
   return {
     id: 1,
     criatura: criatura(),
@@ -100,6 +106,10 @@ export function minhaCriatura(extra: Partial<MinhaCriatura> = {}): MinhaCriatura
     adquirida_em: "2026-09-01T12:00:00Z",
     evoluiu_em: null,
     sprite: "/criaturas/shellby_stage_1.png",
+    proximo_estagio: 2,
+    nivel_para_evoluir: 10,
+    pode_evoluir: false,
+    nivel: 1,
     ...extra,
   };
 }

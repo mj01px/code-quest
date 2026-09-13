@@ -111,8 +111,25 @@ class TrilhaSerializerTest(TestCase):
     def test_detalhe_expoe_apenas_a_allowlist(self):
         dados = modulo.TrilhaDetalheSerializer(self.trilha).data
         self.assertEqual(
-            set(dados), {"id", "nome", "slug", "descricao", "ordem", "aulas"}
+            set(dados),
+            {
+                "id",
+                "nome",
+                "slug",
+                "descricao",
+                "resumo",
+                "sobre",
+                "ordem",
+                "aulas",
+            },
         )
+
+    def test_a_lista_nao_carrega_os_textos_longos(self):
+        # O card mostra uma linha só. Mandar `resumo` e `sobre` na listagem
+        # engordaria a resposta do catálogo inteiro por nada.
+        dados = modulo.TrilhaListaSerializer(self.trilha).data
+        self.assertNotIn("resumo", dados)
+        self.assertNotIn("sobre", dados)
 
 
 class ExercicioDetalheSerializerTest(TestCase):

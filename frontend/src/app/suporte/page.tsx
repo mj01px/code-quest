@@ -6,7 +6,7 @@ import { PaginaLegal } from "@/components/legal/PaginaLegal";
 import { Destaque, Paragrafo, Secao } from "@/components/legal/Prosa";
 
 export const metadata: Metadata = {
-  title: "Suporte | CodeQuest",
+  title: "Suporte",
   description:
     "Como falar com a equipe da CodeQuest e respostas para as dúvidas mais comuns.",
 };

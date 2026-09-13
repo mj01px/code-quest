@@ -10,6 +10,8 @@ from .documentos import VERSAO_MAX_LENGTH, Documento, versao_vigente
 from .models import AceiteDeTermos
 from .senha import ler_token as ler_token_senha
 from .senha import token_confere
+from .troca_email import ler_token as ler_token_troca
+from .troca_email import token_confere as token_confere_troca
 from .verificacao import ler_token
 
 User = get_user_model()
@@ -64,9 +66,6 @@ class RegistroSerializer(serializers.ModelSerializer):
     senha = serializers.CharField(
         write_only=True, style={"input_type": "password"}, trim_whitespace=False
     )
-    senha_confirmacao = serializers.CharField(
-        write_only=True, style={"input_type": "password"}, trim_whitespace=False
-    )
 
     aceite_documentos = serializers.BooleanField(write_only=True, required=True)
 
@@ -83,7 +82,6 @@ class RegistroSerializer(serializers.ModelSerializer):
             "email",
             "nickname",
             "senha",
-            "senha_confirmacao",
             "aceite_documentos",
             "versao_termos",
             "versao_privacidade",
@@ -124,15 +122,6 @@ class RegistroSerializer(serializers.ModelSerializer):
         return self._validar_versao(Documento.PRIVACIDADE, valor)
 
     def validate(self, dados):
-        if dados["senha"] != dados["senha_confirmacao"]:
-            raise serializers.ValidationError(
-                {
-                    "senha_confirmacao": serializers.ErrorDetail(
-                        "As senhas não conferem.", code="senha_diferente"
-                    )
-                }
-            )
-
         provisorio = User(email=dados["email"], nickname=dados["nickname"])
         try:
             validate_password(dados["senha"], provisorio)
@@ -228,6 +217,71 @@ class ReenviarVerificacaoSerializer(serializers.Serializer):
 
     def validate_email(self, valor):
         return User.objects.normalize_email(valor).lower()
+
+
+class TrocaEmailSerializer(serializers.Serializer):
+    email = serializers.EmailField(write_only=True)
+
+    def validate_email(self, valor):
+        return User.objects.normalize_email(valor).lower()
+
+    def validate(self, dados):
+        usuario = self.context["request"].user
+        novo = dados["email"]
+        if novo == usuario.email:
+            raise serializers.ValidationError(
+                {
+                    "email": serializers.ErrorDetail(
+                        "Este já é o seu e-mail atual.", code="email_igual"
+                    )
+                }
+            )
+        if User.objects.filter(email=novo).exclude(pk=usuario.pk).exists():
+            raise serializers.ValidationError(
+                {
+                    "email": serializers.ErrorDetail(
+                        "Já existe uma conta com este e-mail.", code="email_em_uso"
+                    )
+                }
+            )
+        return dados
+
+
+class ConfirmarTrocaEmailSerializer(serializers.Serializer):
+    token = serializers.CharField(write_only=True, max_length=500)
+
+    def _recusar(self):
+        raise serializers.ValidationError(
+            {
+                "token": serializers.ErrorDetail(
+                    "Link inválido, expirado ou já usado. Peça outro.",
+                    code="token_invalido",
+                )
+            }
+        )
+
+    def validate(self, dados):
+        lido = ler_token_troca(dados["token"])
+        if lido is None:
+            self._recusar()
+
+        usuario = User.objects.filter(pk=lido["uid"], is_active=True).first()
+        if usuario is None or not token_confere_troca(lido, usuario):
+            self._recusar()
+
+        novo = lido["email"]
+        if User.objects.filter(email=novo).exclude(pk=usuario.pk).exists():
+            raise serializers.ValidationError(
+                {
+                    "email": serializers.ErrorDetail(
+                        "Já existe uma conta com este e-mail.", code="email_em_uso"
+                    )
+                }
+            )
+
+        self.usuario = usuario
+        self.novo_email = novo
+        return dados
 
 
 class DocumentoLegalSerializer(serializers.Serializer):

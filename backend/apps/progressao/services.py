@@ -10,7 +10,7 @@ from django.utils.translation import gettext_lazy as _
 from apps.gamificacao.models import UserCreature, XpBonus
 from apps.trilhas.models import Dificuldade
 
-from .models import EventoXP, Nivel, Origem, ProgressoCriatura
+from .models import EventoXP, Nivel, Origem, ProgressoCriatura, TrilhaIniciada
 
 # O valor do XP vem diretamente do back
 # Nenhum endpoint pode aceitar input de xp vinda do usuario.
@@ -34,7 +34,12 @@ class ResultadoXP:
     progresso: ProgressoCriatura
     xp_ganho: int
     subiu_de_nivel: bool
-    evoluiu: bool
+    """A criatura ativa alcançou o nível do próximo estágio e ainda não subiu.
+
+    Não diz que ela evoluiu: quem evolui é o aluno, apertando o botão. Serve
+    para a tela avisar que há uma evolução esperando.
+    """
+    pode_evoluir: bool
     ja_concluido: bool
 
 
@@ -82,7 +87,9 @@ def nivel_para_xp(xp_total):
 
 def proximo_nivel(progresso):
     """None quando já está no topo da tabela."""
-    return Nivel.objects.filter(numero__gt=progresso.nivel_id).order_by("numero").first()
+    return (
+        Nivel.objects.filter(numero__gt=progresso.nivel_id).order_by("numero").first()
+    )
 
 
 def criatura_ativa(user):
@@ -117,6 +124,121 @@ def exercicios_concluidos(*, user, trilha_slug=None):
     return eventos
 
 
+def _proximo_estagio(posse):
+    """O estágio seguinte ao atual, ou None se a criatura já está na forma final.
+
+    Um por vez, sempre: mesmo quem chega ao nível 25 ainda em filhote passa por
+    jovem antes de adulto. Pular etapa tiraria do aluno uma evolução que ele
+    ganhou, e ele nunca veria aquela forma.
+    """
+    atual = posse.current_stage
+    seguintes = [e for e in posse.creature.stages.all() if e.stage == atual + 1]
+    return seguintes[0] if seguintes else None
+
+
+def pode_evoluir(*, posse, nivel):
+    """Existe um estágio seguinte e o nível já o alcança."""
+    seguinte = _proximo_estagio(posse)
+    return seguinte is not None and nivel >= seguinte.min_level
+
+
+def nivel_da_posse(posse):
+    """O nível desta criatura.
+
+    O XP é por criatura, não por conta: `ProgressoCriatura` é um-para-um com
+    `UserCreature` e só a ativa recebe crédito. Uma criatura recém-adquirida
+    começa no nível 1 mesmo numa conta adiantada, e é por isso que o nível não
+    pode vir da ativa quando a pergunta é sobre outra criatura.
+    """
+    return obter_progresso(posse).nivel_id
+
+
+def _ja_na_forma_final():
+    return ValidationError(
+        _("Esta criatura já está na forma final."), code="forma_final"
+    )
+
+
+def _nivel_insuficiente(minimo):
+    return ValidationError(
+        _("O próximo estágio exige o nível %(minimo)s.") % {"minimo": minimo},
+        code="nivel_insuficiente",
+    )
+
+
+def evoluir_criatura(*, user, posse):
+    """Sobe a criatura exatamente um estágio, por vontade do aluno.
+
+    O nível cobrado é o DESTA criatura, não o da ativa: cada uma acumula o
+    próprio XP, e uma reserva recém-comprada está no nível 1 por mais alto que
+    o companheiro principal esteja.
+
+    A gravação é condicionada ao estágio lido, e não ao objeto em memória: se
+    outro pedido evoluiu no meio do caminho, o rowcount vem zero e o segundo
+    pedido não sobrescreve com um estágio atrasado.
+    """
+    if not user.is_active or user.is_anonymized:
+        raise ValidationError({"usuario": _conta_inativa()})
+
+    seguinte = _proximo_estagio(posse)
+    if seguinte is None:
+        raise ValidationError({"criatura": _ja_na_forma_final()})
+
+    nivel = nivel_da_posse(posse)
+    if nivel < seguinte.min_level:
+        raise ValidationError({"criatura": _nivel_insuficiente(seguinte.min_level)})
+
+    partiu_de = posse.current_stage
+    gravou = UserCreature.objects.filter(pk=posse.pk, current_stage=partiu_de).update(
+        current_stage=seguinte.stage, evolved_at=timezone.now()
+    )
+
+    if gravou != 1:
+        # Outro pedido evoluiu primeiro. Não é erro do aluno: devolve o estado
+        # atual, e a tela mostra a forma que de fato está no banco.
+        posse.refresh_from_db(fields=["current_stage", "evolved_at"])
+        return posse, partiu_de, False
+
+    posse.refresh_from_db(fields=["current_stage", "evolved_at"])
+    return posse, partiu_de, True
+
+
+def iniciar_trilha(*, user, trilha):
+    """Marca a trilha como iniciada. Idempotente de propósito.
+
+    Clicar de novo em "iniciar" não é erro nem reinício: o aluno já está lá. O
+    retorno diz se a linha nasceu agora, para a rota escolher entre 201 e 200.
+    """
+    if not user.is_active or user.is_anonymized:
+        raise ValidationError({"usuario": _conta_inativa()})
+
+    if not trilha.publicada:
+        raise ValidationError({"trilha": _nao_publicado()})
+
+    _, criada = TrilhaIniciada.objects.get_or_create(user=user, trilha=trilha)
+    return criada
+
+
+def trilhas_iniciadas(*, user):
+    """Slugs das trilhas que o aluno iniciou.
+
+    Concluir uma fase também conta como iniciar, e as duas fontes entram aqui
+    em vez de na tela: assim quem já vinha resolvendo exercícios antes desta
+    funcionalidade existir não aparece como se nunca tivesse começado.
+    """
+    marcadas = TrilhaIniciada.objects.filter(user=user).values_list(
+        "trilha__slug", flat=True
+    )
+    resolvidas = (
+        EventoXP.objects.filter(
+            user=user, origem=Origem.EXERCICIO, exercicio__isnull=False
+        )
+        .values_list("exercicio__trilha__slug", flat=True)
+        .distinct()
+    )
+    return sorted(set(marcadas) | set(resolvidas))
+
+
 def montar_progresso(progresso):
     """Valores relativos, que é o que a barra de XP do front precisa."""
     proximo = proximo_nivel(progresso)
@@ -144,7 +266,9 @@ def creditar_exercicio(*, user, exercicio):
     progresso = ProgressoCriatura.objects.select_for_update().get(user_creature=ativa)
 
     # Fica entre a leitura do progresso e a escrita de propósito: os testes de concorrência injetam a gravação alheia neste ponto.
-    multiplicador = multiplicador_de_bonus(creature=ativa.creature, trilha=exercicio.trilha)
+    multiplicador = multiplicador_de_bonus(
+        creature=ativa.creature, trilha=exercicio.trilha
+    )
     xp = int(xp_do_exercicio(exercicio) * multiplicador)
 
     try:
@@ -156,12 +280,15 @@ def creditar_exercicio(*, user, exercicio):
                 origem=Origem.EXERCICIO,
                 xp=xp,
             )
+            # Resolver uma fase é entrar na trilha. Sem isto, quem pula o botão
+            # e vai direto ao exercício ficaria como "não iniciada" na lista.
+            TrilhaIniciada.objects.get_or_create(user=user, trilha=exercicio.trilha)
     except IntegrityError:
         return ResultadoXP(
             progresso=progresso,
             xp_ganho=0,
             subiu_de_nivel=False,
-            evoluiu=False,
+            pode_evoluir=pode_evoluir(posse=ativa, nivel=progresso.nivel_id),
             ja_concluido=True,
         )
 
@@ -203,26 +330,18 @@ def creditar_exercicio(*, user, exercicio):
         # cache da FK. Sem isto, `montar_progresso` faz um SELECT a cada POST.
         progresso.nivel = alcancado
 
-    evoluiu = False
-    if subiu:
-        # `ativa` foi lido no começo do pedido, então comparar em memória
-        # des-evoluiria a criatura. O filtro faz a comparação no banco; o
-        # rowcount diz quem evoluiu de fato.
-        estagio = ativa.creature.stage_for_level(progresso.nivel_id)
-        evoluiu = (
-            UserCreature.objects.filter(
-                pk=ativa.pk, current_stage__lt=estagio
-            ).update(current_stage=estagio, evolved_at=agora)
-            == 1
-        )
-
-        if evoluiu:
-            ativa.refresh_from_db(fields=["current_stage", "evolved_at"])
+    # A criatura NÃO evolui aqui. Evoluir é escolha do aluno, feita na tela de
+    # configurações, e um estágio por vez. O que este retorno diz é só que a
+    # porta abriu, para a tela poder avisar.
+    #
+    # `ativa` foi lido no começo do pedido e o estágio pode ter mudado desde
+    # então; a releitura evita anunciar uma evolução que outro pedido já fez.
+    ativa.refresh_from_db(fields=["current_stage"])
 
     return ResultadoXP(
         progresso=progresso,
         xp_ganho=xp,
         subiu_de_nivel=subiu,
-        evoluiu=evoluiu,
+        pode_evoluir=pode_evoluir(posse=ativa, nivel=progresso.nivel_id),
         ja_concluido=False,
     )

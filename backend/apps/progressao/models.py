@@ -136,3 +136,47 @@ class EventoXP(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user.nickname} +{self.xp} XP"
+
+
+class TrilhaIniciada(models.Model):
+    """O aluno entrou na trilha, mesmo sem ter concluído nenhuma fase.
+
+    Existe porque "não iniciada" e "iniciada com 0%" são estados diferentes na
+    tela e não dá para distinguir um do outro só pelas conclusões: as duas
+    situações têm zero `EventoXP`. Sem esta linha, quem clica em iniciar não vê
+    nada mudar até acertar o primeiro exercício.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="trilhas_iniciadas",
+        verbose_name=_("aluno"),
+    )
+
+    trilha = models.ForeignKey(
+        "trilhas.Trilha",
+        on_delete=models.CASCADE,
+        related_name="iniciadas",
+        verbose_name=_("trilha"),
+    )
+
+    iniciada_em = models.DateTimeField(auto_now_add=True, verbose_name=_("iniciada em"))
+
+    class Meta:
+        verbose_name = _("trilha iniciada")
+        verbose_name_plural = _("trilhas iniciadas")
+        ordering = ["-iniciada_em"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "trilha"],
+                name="trilhainiciada_uma_por_trilha_por_usuario",
+                violation_error_message=_("Esta trilha já foi iniciada."),
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["user"], name="trilhainiciada_user_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user.nickname} iniciou {self.trilha.slug}"

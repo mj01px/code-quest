@@ -61,3 +61,4 @@ AGENTS.md
 .code-review-graph/
 __pycache__/
 *.pyc
+db.sqlite3.bak-*

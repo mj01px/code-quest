@@ -28,6 +28,7 @@ jest.mock("@/lib/api", () => {
     api: {
       meusBonus: jest.fn(),
       exerciciosConcluidos: jest.fn(),
+      trilhasIniciadas: jest.fn(),
       eu: jest.fn(),
       minhasCriaturas: jest.fn(),
       meuProgresso: jest.fn(),
@@ -42,6 +43,7 @@ const api = jest.requireMock<{
   api: {
     meusBonus: jest.Mock;
     exerciciosConcluidos: jest.Mock;
+    trilhasIniciadas: jest.Mock;
     eu: jest.Mock;
     minhasCriaturas: jest.Mock;
     meuProgresso: jest.Mock;

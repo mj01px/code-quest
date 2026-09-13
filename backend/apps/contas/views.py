@@ -23,15 +23,18 @@ from .cookies import REFRESH, gravar_sessao, limpar_sessao
 from .documentos import Documento, descrever
 from .senha import enviar_redefinicao
 from .serializers import (
+    ConfirmarTrocaEmailSerializer,
     DocumentosLegaisSerializer,
     LoginSerializer,
     RedefinirSenhaSerializer,
     ReenviarVerificacaoSerializer,
     RegistroSerializer,
     SenhaEsquecidaSerializer,
+    TrocaEmailSerializer,
     UsuarioSerializer,
     VerificarEmailSerializer,
 )
+from .troca_email import enviar_troca_email
 from .verificacao import enviar_verificacao
 
 User = get_user_model()
@@ -197,6 +200,40 @@ class EuView(generics.RetrieveUpdateDestroyAPIView):
 
     def perform_destroy(self, instance):
         instance.request_deletion()
+
+
+@extend_schema(tags=["auth"], responses=None)
+class TrocarEmailView(generics.GenericAPIView):
+    serializer_class = TrocaEmailSerializer
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "verificacao"
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        enviado = enviar_troca_email(request.user, serializer.validated_data["email"])
+        return Response({"email_enviado": enviado}, status=status.HTTP_200_OK)
+
+
+@extend_schema(tags=["auth"], responses=UsuarioSerializer)
+class ConfirmarTrocaEmailView(generics.GenericAPIView):
+    serializer_class = ConfirmarTrocaEmailSerializer
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "verificacao"
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        usuario = serializer.usuario
+        usuario.email = serializer.novo_email
+        usuario.email_verified_at = timezone.now()
+        usuario.save(update_fields=["email", "email_verified_at", "updated_at"])
+
+        return Response(UsuarioSerializer(usuario).data, status=status.HTTP_200_OK)
 
 
 @extend_schema(tags=["auth"], responses=None)

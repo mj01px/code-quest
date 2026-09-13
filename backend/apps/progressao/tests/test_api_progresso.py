@@ -10,9 +10,9 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
+from apps.contas.tests.helpers import criar_aluno
 from apps.gamificacao.services import select_starter_creature
 from apps.progressao.models import EventoXP
-from tests.helpers import criar_aluno
 
 from .test_credito_xp import criar_exercicio
 
@@ -162,5 +162,11 @@ class ApiProgressoTest(TestCase):
 
         self.assertEqual(
             set(resposta.data),
-            {"xp_ganho", "ja_concluido", "subiu_de_nivel", "evoluiu", "progresso"},
+            {
+                "xp_ganho",
+                "ja_concluido",
+                "subiu_de_nivel",
+                "pode_evoluir",
+                "progresso",
+            },
         )

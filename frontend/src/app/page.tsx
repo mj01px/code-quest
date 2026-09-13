@@ -9,7 +9,7 @@ import { LandingNavbar } from "@/components/landing/LandingNavbar";
 import { Pets } from "@/components/landing/Pets";
 
 export const metadata: Metadata = {
-  title: "CodeQuest: Aprenda a programar como quem joga",
+  title: "CodeQuest",
   description:
     "Envie seus materiais, receba exercícios feitos sob medida e evolua seu pet a cada desafio vencido. Tudo dentro de um terminal de verdade.",
 };

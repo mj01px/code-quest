@@ -21,6 +21,7 @@ jest.mock("@/lib/api", () => ({
   temSessao: jest.fn(),
   api: {
     exerciciosConcluidos: jest.fn(),
+    trilhasIniciadas: jest.fn(),
     eu: jest.fn(),
     minhasCriaturas: jest.fn(),
     meuProgresso: jest.fn(),
@@ -35,14 +36,17 @@ const minhasCriaturas = apiReal.minhasCriaturas as jest.MockedFunction<
 const meuProgresso = apiReal.meuProgresso as jest.MockedFunction<
   typeof apiReal.meuProgresso
 >;
-const exerciciosConcluidos = apiReal.exerciciosConcluidos as jest.MockedFunction<
-  typeof apiReal.exerciciosConcluidos
->;
+const exerciciosConcluidos =
+  apiReal.exerciciosConcluidos as jest.MockedFunction<
+    typeof apiReal.exerciciosConcluidos
+  >;
 
 const TRILHA = trilhaResumo({ total_aulas: 2, total_exercicios: 4 });
 
 const DESTAQUE: TrilhaDetalhe = {
   ...TRILHA,
+  resumo: "",
+  sobre: "",
   aulas: [
     aula({
       exercicios: [
@@ -66,14 +70,12 @@ const DESTAQUE: TrilhaDetalhe = {
 /** Responde o que o backend responderia para essas fases concluídas. */
 function comProgresso(fases: string[]): void {
   exerciciosConcluidos.mockResolvedValue(
-    fases.map(
-      (slug, indice): ExercicioConcluido => ({
-        trilha_slug: TRILHA.slug,
-        exercicio_slug: slug,
-        xp: 50,
-        criado_em: `2026-09-0${indice + 1}T12:00:00Z`,
-      }),
-    ),
+    fases.map((slug, indice): ExercicioConcluido => ({
+      trilha_slug: TRILHA.slug,
+      exercicio_slug: slug,
+      xp: 50,
+      criado_em: `2026-09-0${indice + 1}T12:00:00Z`,
+    })),
   );
 }
 
