@@ -85,7 +85,6 @@ export function FormularioLogin({ aoDetectarPendente }: Props) {
         name="senha"
         autoComplete="current-password"
         placeholder="••••••••"
-        className="tracking-[4px]"
         value={senha}
         erro={erros.senha}
         onChange={(e) => setSenha(e.target.value)}

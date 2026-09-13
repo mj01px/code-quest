@@ -4,7 +4,7 @@ import { AppFooter } from "@/components/layout/AppFooter";
 import { AppHeader } from "@/components/layout/AppHeader";
 
 export const metadata: Metadata = {
-  title: "Minhas criaturas | CodeQuest",
+  title: "Minhas criaturas",
   description: "Escolha qual criatura acompanha você e recebe o XP.",
 };
 

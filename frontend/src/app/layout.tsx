@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
+
 import localFont from "next/font/local";
+
 import "./globals.css";
 
-// Fontes auto-hospedadas em vez de next/font/google: o build passa a não
-// depender de alcançar o fonts.googleapis.com, o que quebrava silenciosamente
-// em rede restrita e caía num fallback sem avisar em tempo de execução.
+// Fontes locais pra não depender do Google Fonts (quebrava em rede restrita).
 
 const pressStart = localFont({
   src: "../fontes/press-start-2p.woff2",

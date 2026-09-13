@@ -14,6 +14,11 @@ const XP_POR_DIFICULDADE: Record<Dificuldade, number> = {
   AVANCADO: 150,
 };
 
+/** XP bruto de uma fase, antes de qualquer bônus de criatura. */
+export function xpDaFase(dificuldade: Dificuldade): number {
+  return XP_POR_DIFICULDADE[dificuldade];
+}
+
 export function xpDoModulo(aula: Aula): number {
   const bruto = aula.exercicios.reduce(
     (soma, exercicio) => soma + XP_POR_DIFICULDADE[exercicio.dificuldade],
@@ -118,4 +123,14 @@ export function proximaFase(
   concluidas: readonly string[],
 ): FaseDaTrilha | null {
   return fases.find((fase) => !concluidas.includes(fase.slug)) ?? null;
+}
+
+/** A fase logo depois desta, na ordem da trilha. Null no fim ou se o slug não estiver na lista. */
+export function faseSeguinte(
+  fases: readonly FaseDaTrilha[],
+  slug: string,
+): FaseDaTrilha | null {
+  const indice = fases.findIndex((fase) => fase.slug === slug);
+  if (indice === -1) return null;
+  return fases[indice + 1] ?? null;
 }

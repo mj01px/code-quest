@@ -1,9 +1,5 @@
 export type Dominio =
-  | "FUNDAMENTOS"
-  | "SCRIPTING"
-  | "COMPILADAS"
-  | "WEB"
-  | "DADOS";
+  "FUNDAMENTOS" | "SCRIPTING" | "COMPILADAS" | "WEB" | "DADOS";
 
 export type Estagio = 1 | 2 | 3;
 
@@ -45,6 +41,21 @@ export interface MinhaCriatura {
   adquirida_em: string;
   evoluiu_em: string | null;
   sprite: string | null;
+  /** Estágio seguinte ao atual; null na forma final. */
+  proximo_estagio: Estagio | null;
+  /** Nível que o próximo estágio exige; null na forma final. */
+  nivel_para_evoluir: number | null;
+  /** O nível desta criatura já alcança o próximo estágio. */
+  pode_evoluir: boolean;
+  /** Nível desta criatura. O XP é por criatura: reserva nova começa em 1. */
+  nivel: number;
+}
+
+export interface Evolucao {
+  /** Falso quando outro pedido evoluiu primeiro: não há transição a mostrar. */
+  evoluiu: boolean;
+  estagio_anterior: Estagio;
+  criatura: MinhaCriatura;
 }
 
 export interface Usuario {
@@ -55,11 +66,6 @@ export interface Usuario {
   papel_rotulo: string;
   permissoes: string[];
   criado_em: string;
-}
-
-export interface Sessao {
-  access: string;
-  refresh: string;
 }
 
 export type DocumentoLegal = "TERMOS" | "PRIVACIDADE";
@@ -76,14 +82,6 @@ export interface DocumentosLegais {
   termos: DocumentoVigente;
   privacidade: DocumentoVigente;
 }
-
-export const MATERIAS_DOMINIO: Record<Dominio, string> = {
-  FUNDAMENTOS: "Lógica de programação",
-  SCRIPTING: "Python",
-  COMPILADAS: "Java",
-  WEB: "JavaScript, React",
-  DADOS: "Banco de dados",
-};
 
 export type Dificuldade = "INICIANTE" | "INTERMEDIARIO" | "AVANCADO";
 export type TipoExercicio = "CODIGO" | "TEORICO";
@@ -123,7 +121,12 @@ export interface TrilhaDetalhe {
   id: number;
   nome: string;
   slug: string;
+  /** Linha do card na listagem. Curta, truncada em tela pequena. */
   descricao: string;
+  /** Parágrafo do topo da página da trilha. Vazio cai na descrição. */
+  resumo: string;
+  /** Seção "Sobre a trilha", em parágrafos. Vazio cai no resumo. */
+  sobre: string;
   ordem: number;
   aulas: Aula[];
 }
@@ -142,4 +145,53 @@ export interface ExercicioDetalhe {
   aula_slug: string;
   trilha_nome: string;
   trilha_slug: string;
+}
+
+export interface BonusXp {
+  criatura: string;
+  criatura_nome: string;
+  trilha: string;
+  trilha_nome: string;
+  multiplicador: number;
+}
+
+export interface NivelResumo {
+  numero: number;
+  titulo: string;
+  xp_necessario: number;
+}
+
+export interface ProgressoAtual {
+  criatura: MinhaCriatura;
+  xp_total: number;
+  nivel: NivelResumo;
+  proximo_nivel: NivelResumo | null;
+  xp_no_nivel: number;
+  xp_para_o_proximo: number | null;
+  atualizado_em: string;
+}
+
+interface ConclusaoBase {
+  subiu_de_nivel: boolean;
+  /** A criatura alcançou o nível do próximo estágio, mas ainda não evoluiu. */
+  pode_evoluir: boolean;
+  progresso: ProgressoAtual;
+}
+
+// Repetir a conclusão devolve 200, não 409: `ja_concluido` é o que separa
+// crédito novo de repetição. A união trava `xp_ganho: 0` no ramo da repetição,
+// que é a garantia do serviço. O ramo do crédito novo segue `number`: o que
+// impede um "+0 XP" ali é o multiplicador mínimo no banco, não o tipo.
+export type ResultadoConclusao =
+  | (ConclusaoBase & { ja_concluido: false; xp_ganho: number })
+  | (ConclusaoBase & { ja_concluido: true; xp_ganho: 0 });
+
+// Uma conclusão de exercício, como o backend a devolve em
+// /eu/exercicios-concluidos/. O slug do exercício só é único dentro da trilha,
+// por isso os dois vêm juntos.
+export interface ExercicioConcluido {
+  trilha_slug: string;
+  exercicio_slug: string;
+  xp: number;
+  criado_em: string;
 }

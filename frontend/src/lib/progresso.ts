@@ -1,138 +1,80 @@
-// Progresso do aluno no MVP: anônimo, local e restrito a este navegador.
-//
-// Não existe autenticação ainda, então não há a quem associar o progresso no
-// servidor. Guardar em localStorage mantém o fluxo de pé sem inventar um
-// usuário: a API continua só de leitura e nada daqui viaja para o backend.
-//
-// Formato gravado: { "trilha-slug": ["fase-slug", ...] }.
+"use client";
 
-export const CHAVE = "codequest:progresso";
+// Funções puras de progresso. Dados vêm do servidor (não usa localStorage).
+// Quem busca é o ProvedorProgresso; aqui só agrega.
 
-/** Trilha slug para os slugs das fases já concluídas. */
-export type Progresso = Readonly<Record<string, readonly string[]>>;
+import type { ExercicioConcluido } from "@/lib/types";
 
-const VAZIO: Progresso = Object.freeze({});
+const VAZIO: readonly ExercicioConcluido[] = Object.freeze([]);
 
-// useSyncExternalStore compara o instantâneo por identidade: sem este cache,
-// cada render leria o storage de novo, devolveria outro objeto e entraria em
-// laço infinito.
-let cache: Progresso | null = null;
+/** O slug do exercício só é único dentro da trilha; a chave junta os dois. */
+export function chaveDaFase(trilhaSlug: string, faseSlug: string): string {
+  return `${trilhaSlug}/${faseSlug}`;
+}
 
-const ouvintes = new Set<() => void>();
+/** Descarta linhas sem slugs válidos — a API é fronteira, não fonte confiável de tipo. */
+export function normalizar(bruto: unknown): readonly ExercicioConcluido[] {
+  if (!Array.isArray(bruto)) return VAZIO;
 
-/** Aceita só o que tem o formato esperado: o storage é editável pelo usuário. */
-function normalizar(bruto: unknown): Progresso {
-  if (typeof bruto !== "object" || bruto === null || Array.isArray(bruto)) {
-    return VAZIO;
-  }
-
-  const limpo: Record<string, readonly string[]> = {};
-  for (const [trilha, fases] of Object.entries(bruto)) {
-    if (!Array.isArray(fases)) continue;
-    const slugs = [
-      ...new Set(fases.filter((fase): fase is string => typeof fase === "string")),
-    ];
-    if (slugs.length > 0) limpo[trilha] = Object.freeze(slugs);
+  const limpo: ExercicioConcluido[] = [];
+  for (const linha of bruto) {
+    if (typeof linha !== "object" || linha === null) continue;
+    const { trilha_slug, exercicio_slug, xp, criado_em } =
+      linha as Partial<ExercicioConcluido>;
+    if (typeof trilha_slug !== "string" || trilha_slug === "") continue;
+    if (typeof exercicio_slug !== "string" || exercicio_slug === "") continue;
+    limpo.push({
+      trilha_slug,
+      exercicio_slug,
+      xp: typeof xp === "number" ? xp : 0,
+      criado_em: typeof criado_em === "string" ? criado_em : "",
+    });
   }
 
   return Object.freeze(limpo);
 }
 
-function lerDoStorage(): Progresso {
-  try {
-    const cru = window.localStorage.getItem(CHAVE);
-    return cru === null ? VAZIO : normalizar(JSON.parse(cru));
-  } catch {
-    // Storage bloqueado, ou JSON corrompido por edição manual: começa vazio.
-    return VAZIO;
-  }
-}
-
-function avisar(): void {
-  for (const ouvinte of ouvintes) ouvinte();
-}
-
-function aoMudarEmOutraAba(evento: StorageEvent): void {
-  // key null é o clear() do storage inteiro, e também nos afeta.
-  if (evento.key !== null && evento.key !== CHAVE) return;
-  cache = null;
-  avisar();
-}
-
-export function assinar(ouvinte: () => void): () => void {
-  ouvintes.add(ouvinte);
-  window.addEventListener("storage", aoMudarEmOutraAba);
-
-  return () => {
-    ouvintes.delete(ouvinte);
-    if (ouvintes.size === 0) {
-      window.removeEventListener("storage", aoMudarEmOutraAba);
-    }
-  };
-}
-
-export function instantaneo(): Progresso {
-  cache ??= lerDoStorage();
-  return cache;
-}
-
-/** No servidor não há storage: todo mundo começa do zero e hidrata depois. */
-export function instantaneoNoServidor(): Progresso {
-  return VAZIO;
-}
-
-export function concluidas(
-  progresso: Progresso,
-  trilhaSlug: string,
-): readonly string[] {
-  return progresso[trilhaSlug] ?? [];
+export function chavesConcluidas(
+  concluidos: readonly ExercicioConcluido[],
+): ReadonlySet<string> {
+  return new Set(
+    concluidos.map((item) =>
+      chaveDaFase(item.trilha_slug, item.exercicio_slug),
+    ),
+  );
 }
 
 export function estaConcluida(
-  progresso: Progresso,
+  chaves: ReadonlySet<string>,
   trilhaSlug: string,
   faseSlug: string,
 ): boolean {
-  return concluidas(progresso, trilhaSlug).includes(faseSlug);
+  return chaves.has(chaveDaFase(trilhaSlug, faseSlug));
 }
 
-export function alternar(trilhaSlug: string, faseSlug: string): void {
-  const atual = instantaneo();
-  const fases = concluidas(atual, trilhaSlug);
-  const proximas = fases.includes(faseSlug)
-    ? fases.filter((slug) => slug !== faseSlug)
-    : [...fases, faseSlug];
-
-  const proximo: Record<string, readonly string[]> = { ...atual };
-  if (proximas.length > 0) {
-    proximo[trilhaSlug] = Object.freeze(proximas);
-  } else {
-    // Trilha zerada sai do objeto, senão o storage acumula chave vazia.
-    delete proximo[trilhaSlug];
+/** Quantas fases o aluno concluiu em cada trilha. */
+export function contarPorTrilha(
+  concluidos: readonly ExercicioConcluido[],
+): ReadonlyMap<string, number> {
+  const contagem = new Map<string, number>();
+  for (const item of concluidos) {
+    contagem.set(item.trilha_slug, (contagem.get(item.trilha_slug) ?? 0) + 1);
   }
-
-  cache = Object.freeze(proximo);
-
-  try {
-    window.localStorage.setItem(CHAVE, JSON.stringify(cache));
-  } catch {
-    // Navegação privada ou cota estourada: vale para a sessão atual.
-  }
-
-  avisar();
+  return contagem;
 }
 
-/**
- * Percentual de 0 a 100. Fica limitado a 100 de propósito: uma fase despublicada
- * continua marcada no navegador de quem já a fez, e sem o teto a barra passaria
- * do fim.
- */
+/** Slugs concluídos de uma trilha, na ordem em que a API devolveu. */
+export function concluidasDaTrilha(
+  concluidos: readonly ExercicioConcluido[],
+  trilhaSlug: string,
+): readonly string[] {
+  return concluidos
+    .filter((item) => item.trilha_slug === trilhaSlug)
+    .map((item) => item.exercicio_slug);
+}
+
+/** Percentual 0–100. Limitado a 100 pra fase despublicada não estourar a barra. */
 export function percentual(feitas: number, total: number): number {
   if (total <= 0) return 0;
   return Math.min(100, (feitas / total) * 100);
-}
-
-/** Só para os testes: descarta o instantâneo em cache. */
-export function esquecerCache(): void {
-  cache = null;
 }

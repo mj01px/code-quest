@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 
 import PaginaVerificarEmail from "@/app/verificar-email/page";
 import { AvisoVerificacao } from "@/components/auth/AvisoVerificacao";
-import { ConfirmacaoEmail } from "@/components/auth/ConfirmacaoEmail";
+import { PainelVerificarEmail } from "@/components/auth/PainelVerificarEmail";
 import { ErroApi } from "@/lib/api";
 
 const verificarEmail = jest.fn();
@@ -31,12 +31,12 @@ beforeEach(() => {
   reenviarVerificacao.mockResolvedValue(undefined);
 });
 
-describe("ConfirmacaoEmail", () => {
+describe("PainelVerificarEmail", () => {
   it("troca o token da URL pela confirmação", async () => {
     parametros = new URLSearchParams("token=abc123");
     verificarEmail.mockResolvedValue({});
 
-    render(<ConfirmacaoEmail />);
+    render(<PainelVerificarEmail />);
 
     expect(
       await screen.findByRole("heading", { name: "E-MAIL CONFIRMADO" }),
@@ -48,7 +48,7 @@ describe("ConfirmacaoEmail", () => {
     parametros = new URLSearchParams("token=abc123");
     verificarEmail.mockResolvedValue({});
 
-    render(<ConfirmacaoEmail />);
+    render(<PainelVerificarEmail />);
 
     const link = await screen.findByRole("link", { name: "INICIAR SESSÃO" });
     expect(link).toHaveAttribute("href", "/entrar");
@@ -62,7 +62,7 @@ describe("ConfirmacaoEmail", () => {
       ]),
     );
 
-    render(<ConfirmacaoEmail />);
+    render(<PainelVerificarEmail />);
 
     expect(
       await screen.findByRole("heading", { name: "LINK INVÁLIDO" }),
@@ -71,7 +71,7 @@ describe("ConfirmacaoEmail", () => {
   });
 
   it("sem token na URL, nem chama a API", () => {
-    render(<ConfirmacaoEmail />);
+    render(<PainelVerificarEmail />);
 
     expect(verificarEmail).not.toHaveBeenCalled();
     expect(
@@ -81,7 +81,7 @@ describe("ConfirmacaoEmail", () => {
 
   it("recusa e-mail malformado antes de pedir novo link", async () => {
     const usuario = userEvent.setup();
-    render(<ConfirmacaoEmail />);
+    render(<PainelVerificarEmail />);
 
     await usuario.type(screen.getByLabelText("E-MAIL"), "nao-e-email");
     await usuario.click(screen.getByRole("button", { name: "ENVIAR NOVO LINK" }));

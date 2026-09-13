@@ -1,25 +1,18 @@
 import type { Metadata } from "next";
-import { FormularioSenhaEsquecida } from "@/components/auth/FormularioSenhaEsquecida";
-import { PainelAuth } from "@/components/layout/PainelAuth";
+import { PainelSenhaEsquecida } from "@/components/auth/PainelSenhaEsquecida";
+import { AppHeader } from "@/components/layout/AppHeader";
 import { TelaBase } from "@/components/layout/TelaBase";
 
 export const metadata: Metadata = {
-  title: "Recuperar senha | CodeQuest",
+  title: "Recuperar senha",
   description: "Receba um link para criar uma senha nova.",
 };
 
 export default function PaginaRecuperarSenha() {
   return (
     <TelaBase>
-      <PainelAuth
-        titulo={
-          <>
-            RESET<span className="text-brand">.</span>PASSWORD
-          </>
-        }
-        linhaTerminal="Preparando chave de acesso..."
-        formulario={<FormularioSenhaEsquecida />}
-      />
+      <AppHeader />
+      <PainelSenhaEsquecida />
     </TelaBase>
   );
 }

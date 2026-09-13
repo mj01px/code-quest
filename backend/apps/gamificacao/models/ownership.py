@@ -83,10 +83,3 @@ class UserCreature(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user.nickname} - {self.creature.name}"
-
-    def sync_stage(self, level: int) -> bool:
-        novo = self.creature.stage_for_level(level)
-        if novo <= self.current_stage:
-            return False
-        self.current_stage = novo
-        return True

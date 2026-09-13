@@ -59,6 +59,10 @@ function posse(slug: string, nome: string, ativa: boolean): MinhaCriatura {
     adquirida_em: "2026-09-09T12:00:00Z",
     evoluiu_em: null,
     sprite: null,
+    proximo_estagio: 2,
+    nivel_para_evoluir: 10,
+    pode_evoluir: false,
+    nivel: 1,
   };
 }
 

@@ -1,8 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { FormularioRedefinirSenha } from "@/components/auth/FormularioRedefinirSenha";
-import { FormularioSenhaEsquecida } from "@/components/auth/FormularioSenhaEsquecida";
+import { PainelNovaSenha } from "@/components/auth/PainelNovaSenha";
+import { PainelSenhaEsquecida } from "@/components/auth/PainelSenhaEsquecida";
 import { ErroApi } from "@/lib/api";
 
 const senhaEsquecida = jest.fn();
@@ -33,10 +33,10 @@ beforeEach(() => {
   redefinirSenha.mockResolvedValue(undefined);
 });
 
-describe("FormularioSenhaEsquecida", () => {
+describe("PainelSenhaEsquecida", () => {
   it("pede o link e responde sem revelar se a conta existe", async () => {
     const usuario = userEvent.setup();
-    render(<FormularioSenhaEsquecida />);
+    render(<PainelSenhaEsquecida />);
 
     await usuario.type(screen.getByLabelText("E-MAIL"), "alguem@exemplo.com");
     await usuario.click(screen.getByRole("button", { name: "ENVIAR LINK" }));
@@ -51,7 +51,7 @@ describe("FormularioSenhaEsquecida", () => {
 
   it("não chama a API com e-mail malformado", async () => {
     const usuario = userEvent.setup();
-    render(<FormularioSenhaEsquecida />);
+    render(<PainelSenhaEsquecida />);
 
     await usuario.type(screen.getByLabelText("E-MAIL"), "nao-e-email");
     await usuario.click(screen.getByRole("button", { name: "ENVIAR LINK" }));
@@ -63,7 +63,7 @@ describe("FormularioSenhaEsquecida", () => {
   it("avisa quando a API não responde", async () => {
     const usuario = userEvent.setup();
     senhaEsquecida.mockRejectedValue(new Error("offline"));
-    render(<FormularioSenhaEsquecida />);
+    render(<PainelSenhaEsquecida />);
 
     await usuario.type(screen.getByLabelText("E-MAIL"), "alguem@exemplo.com");
     await usuario.click(screen.getByRole("button", { name: "ENVIAR LINK" }));
@@ -74,7 +74,7 @@ describe("FormularioSenhaEsquecida", () => {
   });
 });
 
-describe("FormularioRedefinirSenha", () => {
+describe("PainelNovaSenha", () => {
   async function preencher(usuario: ReturnType<typeof userEvent.setup>) {
     await usuario.type(screen.getByLabelText("NOVA SENHA"), SENHA);
     await usuario.type(screen.getByLabelText("CONFIRMAR SENHA"), SENHA);
@@ -84,7 +84,7 @@ describe("FormularioRedefinirSenha", () => {
   it("troca a senha mandando o token da URL", async () => {
     const usuario = userEvent.setup();
     parametros = new URLSearchParams("token=abc123");
-    render(<FormularioRedefinirSenha />);
+    render(<PainelNovaSenha />);
 
     await preencher(usuario);
 
@@ -103,7 +103,7 @@ describe("FormularioRedefinirSenha", () => {
   it("avisa que as outras sessões caíram", async () => {
     const usuario = userEvent.setup();
     parametros = new URLSearchParams("token=abc123");
-    render(<FormularioRedefinirSenha />);
+    render(<PainelNovaSenha />);
 
     await preencher(usuario);
 
@@ -113,7 +113,7 @@ describe("FormularioRedefinirSenha", () => {
   });
 
   it("sem token na URL, nem mostra o formulário", () => {
-    render(<FormularioRedefinirSenha />);
+    render(<PainelNovaSenha />);
 
     expect(
       screen.getByRole("heading", { name: "LINK INCOMPLETO" }),
@@ -124,7 +124,7 @@ describe("FormularioRedefinirSenha", () => {
   it("recusa confirmação diferente antes de chamar a API", async () => {
     const usuario = userEvent.setup();
     parametros = new URLSearchParams("token=abc123");
-    render(<FormularioRedefinirSenha />);
+    render(<PainelNovaSenha />);
 
     await usuario.type(screen.getByLabelText("NOVA SENHA"), SENHA);
     await usuario.type(screen.getByLabelText("CONFIRMAR SENHA"), "outra-coisa-9");
@@ -146,7 +146,7 @@ describe("FormularioRedefinirSenha", () => {
         },
       ]),
     );
-    render(<FormularioRedefinirSenha />);
+    render(<PainelNovaSenha />);
 
     await preencher(usuario);
 
@@ -170,7 +170,7 @@ describe("FormularioRedefinirSenha", () => {
         },
       ]),
     );
-    render(<FormularioRedefinirSenha />);
+    render(<PainelNovaSenha />);
 
     await preencher(usuario);
 

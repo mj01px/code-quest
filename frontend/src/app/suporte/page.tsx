@@ -6,7 +6,7 @@ import { PaginaLegal } from "@/components/legal/PaginaLegal";
 import { Destaque, Paragrafo, Secao } from "@/components/legal/Prosa";
 
 export const metadata: Metadata = {
-  title: "Suporte | CodeQuest",
+  title: "Suporte",
   description:
     "Como falar com a equipe da CodeQuest e respostas para as dúvidas mais comuns.",
 };
@@ -39,6 +39,12 @@ export default function PaginaSuporte() {
         </>
       }
       resumo="Um canal só, para tudo: dúvida sobre a plataforma, problema na sua conta, relato de erro e pedido relacionado aos seus dados pessoais."
+      indice={[
+        { numero: 1, titulo: "Como falar com a gente" },
+        { numero: 2, titulo: "Seus dados pessoais" },
+        { numero: 3, titulo: "Falha de segurança" },
+        { numero: 4, titulo: "Dúvidas frequentes" },
+      ]}
     >
       <Secao numero={1} titulo="Como falar com a gente">
         <Destaque>

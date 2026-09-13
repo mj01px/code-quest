@@ -19,7 +19,7 @@ export function Badge({
 }) {
   return (
     <span
-      className={`rotulo inline-flex items-center border px-2 py-1 ${TONS[tom]}`}
+      className={`inline-flex items-center border-2 px-2.5 py-1 font-label text-[10px] tracking-[2px] uppercase ${TONS[tom]}`}
     >
       {children}
     </span>

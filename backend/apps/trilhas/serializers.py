@@ -69,7 +69,16 @@ class TrilhaDetalheSerializer(serializers.ModelSerializer[Trilha]):
 
     class Meta:
         model = Trilha
-        fields = ["id", "nome", "slug", "descricao", "ordem", "aulas"]
+        fields = [
+            "id",
+            "nome",
+            "slug",
+            "descricao",
+            "resumo",
+            "sobre",
+            "ordem",
+            "aulas",
+        ]
         read_only_fields = fields
 
 

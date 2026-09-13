@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    ConfirmarTrocaEmailView,
     CsrfView,
     DocumentosLegaisView,
     EuView,
@@ -11,6 +12,7 @@ from .views import (
     RenovarView,
     SairView,
     SenhaEsquecidaView,
+    TrocarEmailView,
     VerificarEmailView,
 )
 
@@ -32,4 +34,10 @@ urlpatterns = [
     path("auth/renovar/", RenovarView.as_view(), name="renovar"),
     path("auth/sair/", SairView.as_view(), name="sair"),
     path("auth/eu/", EuView.as_view(), name="eu"),
+    path("auth/eu/email/", TrocarEmailView.as_view(), name="trocar-email"),
+    path(
+        "auth/eu/email/confirmar/",
+        ConfirmarTrocaEmailView.as_view(),
+        name="confirmar-troca-email",
+    ),
 ]

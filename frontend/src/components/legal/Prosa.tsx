@@ -2,6 +2,10 @@ import type { ReactNode } from "react";
 
 const CORPO = "font-body text-lg leading-[1.8] tracking-[1px] text-ink-body";
 
+export function idSecao(numero: number): string {
+  return `secao-${String(numero).padStart(2, "0")}`;
+}
+
 export function Secao({
   numero,
   titulo,
@@ -12,7 +16,10 @@ export function Secao({
   children: ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-4">
+    <section
+      id={idSecao(numero)}
+      className="flex scroll-mt-24 flex-col gap-4 border-2 border-edge bg-panel p-6 shadow-pixel sm:p-7"
+    >
       <h2 className="m-0 flex items-baseline gap-3 font-display text-[13px] leading-[1.8] tracking-[1px] text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)]">
         <span className="text-brand">{String(numero).padStart(2, "0")}</span>
         <span className="min-w-0">{titulo}</span>

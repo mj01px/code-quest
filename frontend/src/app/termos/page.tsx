@@ -6,7 +6,7 @@ import { Destaque, Item, Lista, Paragrafo, Secao } from "@/components/legal/Pros
 import { versaoParaCabecalho } from "@/lib/documentosLegais";
 
 export const metadata: Metadata = {
-  title: "Termos de Uso | CodeQuest",
+  title: "Termos de Uso",
   description: "As regras de uso da plataforma CodeQuest.",
 };
 
@@ -22,6 +22,19 @@ export default async function PaginaTermos() {
       }
       resumo="As regras do acordo entre você e a CodeQuest. Ao criar uma conta, você concorda com o que está escrito aqui."
       documento={documento}
+      indice={[
+        { numero: 1, titulo: "Sobre a CodeQuest" },
+        { numero: 2, titulo: "Quem pode criar conta" },
+        { numero: 3, titulo: "Sua conta" },
+        { numero: 4, titulo: "Como usar a plataforma" },
+        { numero: 5, titulo: "Conteúdo e seu código" },
+        { numero: 6, titulo: "XP, criaturas e ranking" },
+        { numero: 7, titulo: "Disponibilidade" },
+        { numero: 8, titulo: "Suspensão e encerramento" },
+        { numero: 9, titulo: "Mudanças nestes Termos" },
+        { numero: 10, titulo: "Lei aplicável e foro" },
+        { numero: 11, titulo: "Contato" },
+      ]}
     >
       <Secao numero={1} titulo="Sobre a CodeQuest">
         <Paragrafo>

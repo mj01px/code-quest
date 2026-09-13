@@ -46,7 +46,32 @@ class Trilha(models.Model):
 
     descricao = models.TextField(
         verbose_name=_("descrição"),
-        help_text=_("Resumo de uma ou duas frases, exibido no card da listagem."),
+        help_text=_(
+            "Linha de catálogo, exibida truncada no card da listagem ao lado da "
+            "carga horária. Frase única e curta, sem ponto final."
+        ),
+    )
+
+    # Três textos porque são três lugares com espaço e propósito diferentes:
+    # o card da listagem tem uma linha, o topo da página da trilha tem um
+    # parágrafo, e a seção "Sobre" tem o texto inteiro. Com um campo só, ou o
+    # card estoura ou a página fica vazia.
+    resumo = models.TextField(
+        blank=True,
+        verbose_name=_("resumo"),
+        help_text=_(
+            "Parágrafo do topo da página da trilha. Duas ou três frases. "
+            "Vazio cai na descrição."
+        ),
+    )
+
+    sobre = models.TextField(
+        blank=True,
+        verbose_name=_("sobre"),
+        help_text=_(
+            "Texto da seção “Sobre a trilha”. Aceita vários parágrafos "
+            "separados por linha em branco. Vazio cai no resumo."
+        ),
     )
 
     ordem = models.PositiveSmallIntegerField(

@@ -1,4 +1,4 @@
-from typing import Any, TypedDict
+from typing import Any
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -12,45 +12,46 @@ from apps.trilhas.models import (
     Trilha,
 )
 
+from ._conteudo_banco import AULAS_BANCO
+from ._conteudo_python import AULAS_PYTHON
+from ._tipos_seed import AulaSeed, TrilhaSeed
+
 PUBLICADO = StatusEditorial.PUBLICADO
 RASCUNHO = StatusEditorial.RASCUNHO
 
 
-class ExercicioSeed(TypedDict):
-    slug: str
-    titulo: str
-    ordem: int
-    tipo: str
-    dificuldade: str
-    enunciado: str
-    solucao_autor: str
-
-
-class AulaSeed(TypedDict):
-    slug: str
-    titulo: str
-    ordem: int
-    pre_requisito: str | None
-    conteudo: str
-    exercicios: list[ExercicioSeed]
-
-
-class TrilhaSeed(TypedDict):
-    slug: str
-    nome: str
-    descricao: str
-    ordem: int
-    status: str
-
-
 # Catálogo previsto. Só a primeira tem conteúdo; as outras ficam em rascunho.
+#
+# Cada trilha tem três textos, porque são três lugares com espaço diferente:
+#
+#   descricao  linha do card na listagem, ao lado da carga horária. Truncada.
+#   resumo     parágrafo do topo da página da trilha.
+#   sobre      seção "Sobre a trilha". Parágrafos separados por linha em branco.
+#
+# Trilha ainda sem conteúdo leva só a descrição: `resumo` e `sobre` caem nela
+# na interface, e escrever ementa para trilha que não existe é dívida.
 TRILHAS: list[TrilhaSeed] = [
     {
         "slug": "logica-de-programacao",
         "nome": "Lógica de Programação",
-        "descricao": (
-            "O ponto de partida: variáveis, condicionais e repetição. "
-            "Aprenda a decompor um problema antes de escrever a primeira linha."
+        "descricao": "Lógica, variáveis e repetição",
+        "resumo": (
+            "O ponto de partida de quem nunca programou. Aqui você aprende a "
+            "decompor um problema em passos antes de escrever a primeira linha, "
+            "e a traduzir esses passos em código que o computador executa."
+        ),
+        "sobre": (
+            "Programar é, antes de tudo, quebrar um problema grande em passos "
+            "pequenos o bastante para não restar ambiguidade. Esta trilha "
+            "começa por aí: você vai guardar valores em variáveis, decidir "
+            "caminhos com condicionais e repetir trabalho com laços, que são as "
+            "três peças com que todo programa é montado.\n\n"
+            "Os exemplos são em Python, porque a sintaxe sai da frente do "
+            "raciocínio, mas o que se aprende aqui vale em qualquer linguagem: "
+            "quem entende laço e condicional troca de linguagem lendo a "
+            "documentação. O fecho da trilha é sobre depuração, que é a "
+            "habilidade de descobrir por que o programa não faz o que você "
+            "acha que mandou ele fazer."
         ),
         "ordem": 1,
         "status": PUBLICADO,
@@ -58,35 +59,77 @@ TRILHAS: list[TrilhaSeed] = [
     {
         "slug": "python",
         "nome": "Python",
-        "descricao": (
-            "Scripts, dados e automação com a linguagem mais direta para começar."
+        "descricao": "Scripts, dados e automação",
+        "resumo": (
+            "Depois da lógica, o que a linguagem tem de próprio: texto, "
+            "estruturas de dados, exceções e o mundo fora do programa. É a "
+            "trilha que transforma exercício em script que resolve problema."
+        ),
+        "sobre": (
+            "Esta trilha assume que você já sabe variável, condicional e laço, "
+            "e não repete nada disso. O que ela acrescenta é o que faz Python "
+            "ser Python: manipulação de texto, listas, dicionários e conjuntos, "
+            "compreensões, funções com argumentos nomeados e tratamento de "
+            "erros.\n\n"
+            "O fio condutor é o programa que conversa com o mundo: arquivos, "
+            "módulos e ambiente virtual fecham a trilha, porque é nesse ponto "
+            "que o exercício vira ferramenta que você roda de verdade. Vários "
+            "exercícios nascem de armadilhas reais da linguagem, como a lista "
+            "mutável usada como valor padrão, que funciona nos testes e falha "
+            "na segunda chamada."
         ),
         "ordem": 2,
-        "status": RASCUNHO,
+        "status": PUBLICADO,
     },
     {
         "slug": "banco-de-dados",
         "nome": "Banco de Dados",
-        "descricao": (
-            "Modelagem relacional e SQL, do primeiro SELECT ao JOIN que resolve."
+        "descricao": "Modelagem relacional e SQL",
+        "resumo": (
+            "Onde o dado mora depois que o programa fecha. Modelagem, consultas "
+            "e junções, até chegar em por que uma consulta demora e o que fazer "
+            "a respeito."
+        ),
+        "sobre": (
+            "Um banco relacional guarda fatos em tabelas e deixa você fazer "
+            "perguntas sobre eles. Esta trilha segue essa ordem: primeiro "
+            "guardar direito, com tipos, chaves e restrições que impedem o dado "
+            "inválido de entrar; depois perguntar, com filtros, agrupamentos e "
+            "junções; e por último perguntar rápido, com índices.\n\n"
+            "O SQL aqui é o padrão, sem recurso exclusivo de nenhum fornecedor, "
+            "então serve igual em PostgreSQL, MySQL ou SQLite. Boa parte dos "
+            "exercícios é sobre erro que devolve resultado errado com cara de "
+            "certo, como o filtro que converte um LEFT JOIN em INNER JOIN sem "
+            "avisar, ou a média que ignora os nulos em silêncio."
         ),
         "ordem": 3,
-        "status": RASCUNHO,
+        "status": PUBLICADO,
     },
     {
         "slug": "javascript-typescript",
         "nome": "JavaScript e TypeScript",
-        "descricao": ("A linguagem da web: DOM, eventos, código assíncrono e tipos."),
+        "descricao": "DOM, eventos e código assíncrono",
+        "resumo": "",
+        "sobre": "",
         "ordem": 4,
         "status": RASCUNHO,
     },
     {
         "slug": "algoritmos",
         "nome": "Algoritmos",
-        "descricao": (
-            "Listas, árvores, busca e ordenação, com custo de tempo e espaço."
-        ),
+        "descricao": "Listas, árvores e custo",
+        "resumo": "",
+        "sobre": "",
         "ordem": 5,
+        "status": RASCUNHO,
+    },
+    {
+        "slug": "terminal-e-git",
+        "nome": "Terminal e Git",
+        "descricao": "Versionamento na prática",
+        "resumo": "",
+        "sobre": "",
+        "ordem": 6,
         "status": RASCUNHO,
     },
 ]
@@ -844,13 +887,28 @@ AULAS: list[AulaSeed] = [
 ]
 
 
+# Que conteúdo pertence a que trilha. Uma trilha fora deste mapa fica publicada
+# no catálogo sem aulas, então só entra aqui quando o conteúdo existe.
+CONTEUDO_POR_TRILHA: dict[str, list[AulaSeed]] = {
+    "logica-de-programacao": AULAS,
+    "python": AULAS_PYTHON,
+    "banco-de-dados": AULAS_BANCO,
+}
+
+
 class Command(BaseCommand):
     help = "Cria ou atualiza as trilhas e o conteúdo inicial de Lógica de Programação."
 
     @transaction.atomic
     def handle(self, *args: Any, **options: Any) -> None:
         trilhas = self._semear_trilhas()
-        aulas, exercicios = self._semear_conteudo(trilhas["logica-de-programacao"])
+
+        aulas = exercicios = 0
+        for slug, conteudo in CONTEUDO_POR_TRILHA.items():
+            a, e = self._semear_conteudo(trilhas[slug], conteudo)
+            aulas += a
+            exercicios += e
+
         self.stdout.write(
             self.style.SUCCESS(
                 f"{len(trilhas)} trilhas, {aulas} aulas e {exercicios} "
@@ -866,6 +924,8 @@ class Command(BaseCommand):
                 defaults={
                     "nome": dados["nome"],
                     "descricao": dados["descricao"],
+                    "resumo": dados["resumo"],
+                    "sobre": dados["sobre"],
                     "ordem": dados["ordem"],
                     "status": dados["status"],
                 },
@@ -873,11 +933,13 @@ class Command(BaseCommand):
             registros[dados["slug"]] = trilha
         return registros
 
-    def _semear_conteudo(self, trilha: Trilha) -> tuple[int, int]:
+    def _semear_conteudo(
+        self, trilha: Trilha, conteudo: list[AulaSeed]
+    ) -> tuple[int, int]:
         aulas: dict[str, Aula] = {}
         total_exercicios = 0
 
-        for dados in AULAS:
+        for dados in conteudo:
             pre_requisito_slug = dados["pre_requisito"]
             aula, _ = Aula.objects.update_or_create(
                 trilha=trilha,

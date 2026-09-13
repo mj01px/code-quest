@@ -51,7 +51,6 @@ async function cadastrar(usuario: ReturnType<typeof userEvent.setup>) {
   await usuario.type(screen.getByLabelText("E-MAIL"), "novato@exemplo.com");
   await usuario.type(screen.getByLabelText("NICKNAME"), "novato");
   await usuario.type(screen.getByLabelText("SENHA"), SENHA);
-  await usuario.type(screen.getByLabelText("CONFIRMAR SENHA"), SENHA);
   await usuario.click(screen.getByRole("checkbox"));
   await usuario.click(screen.getByRole("button", { name: "CRIAR CONTA" }));
 }
