@@ -6,6 +6,7 @@ import {
 import {
   competencias,
   duracaoEmHoras,
+  faseSeguinte,
   fasesEmOrdem,
   nivelDaTrilha,
   proximaFase,
@@ -148,5 +149,41 @@ describe("derivados", () => {
     );
 
     expect(proximaFase(fases, ["media"])).toBeNull();
+  });
+
+  describe("faseSeguinte", () => {
+    const fases = fasesEmOrdem(
+      trilhaDetalhe([
+        aula({
+          exercicios: [
+            exercicioResumo({ id: 1, slug: "media" }),
+            exercicioResumo({ id: 2, slug: "trocar" }),
+          ],
+        }),
+        aula({
+          id: 11,
+          slug: "condicionais",
+          exercicios: [exercicioResumo({ id: 3, slug: "par" })],
+        }),
+      ]),
+    );
+
+    it("devolve a fase logo depois, na ordem da trilha", () => {
+      expect(faseSeguinte(fases, "media")?.slug).toBe("trocar");
+    });
+
+    it("atravessa para o módulo seguinte", () => {
+      expect(faseSeguinte(fases, "trocar")?.slug).toBe("par");
+    });
+
+    it("não devolve nada na última fase", () => {
+      expect(faseSeguinte(fases, "par")).toBeNull();
+    });
+
+    // Cache velho pode trazer lista sem o exercício atual: melhor voltar à
+    // trilha do que apontar para a primeira fase por engano.
+    it("não devolve nada quando a fase não está na lista", () => {
+      expect(faseSeguinte(fases, "sumiu")).toBeNull();
+    });
   });
 });

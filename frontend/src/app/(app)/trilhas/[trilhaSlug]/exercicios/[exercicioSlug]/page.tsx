@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { SeloBonusXp } from "@/components/gamificacao/SeloBonusXp";
 import { BotaoConclusao } from "@/components/trilhas/BotaoConclusao";
+import { BotaoProximoExercicio } from "@/components/trilhas/BotaoProximoExercicio";
 import { Badge, BadgeDificuldade } from "@/components/ui/Badge";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import {
@@ -12,6 +13,7 @@ import {
   buscarTrilha,
   listarTrilhas,
 } from "@/lib/api";
+import { faseSeguinte, fasesEmOrdem } from "@/lib/derivados";
 import type { ExercicioDetalhe } from "@/lib/types";
 
 // Pares (trilha, exercício) fixados no build, como na página da trilha.
@@ -73,6 +75,9 @@ export default async function ExercicioPage({
 }: PageProps<"/trilhas/[trilhaSlug]/exercicios/[exercicioSlug]">) {
   const { trilhaSlug, exercicioSlug } = await params;
   const exercicio = await carregar(trilhaSlug, exercicioSlug);
+  // Mesma URL do generateStaticParams: o fetch é memoizado, não gera GET novo.
+  const trilha = await buscarTrilha(exercicio.trilha_slug);
+  const proximo = faseSeguinte(fasesEmOrdem(trilha), exercicio.slug);
 
   return (
     <>
@@ -114,6 +119,14 @@ export default async function ExercicioPage({
         trilhaSlug={exercicio.trilha_slug}
         faseSlug={exercicio.slug}
       />
+
+      <div className="mt-4 flex justify-end">
+        <BotaoProximoExercicio
+          trilhaSlug={exercicio.trilha_slug}
+          exercicioSlug={exercicio.slug}
+          proximoSlug={proximo?.slug ?? null}
+        />
+      </div>
 
       <p className="mt-6 border border-edge bg-panel p-4 text-xs leading-relaxed text-ink-muted">
         O terminal integrado para resolver e submeter este exercício chega em uma
