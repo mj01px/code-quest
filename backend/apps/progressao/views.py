@@ -6,6 +6,11 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from apps.correcao.excecoes import CorretorIndisponivel
+from apps.correcao.judge0 import Judge0Error
+from apps.correcao.serializers import CorrecaoSerializer, EnvioDeCodigoSerializer
+from apps.correcao.services import corrigir_envio, tem_correcao_automatica
+from apps.correcao.views import codigo_enviado
 from apps.trilhas.models import Exercicio, Trilha
 
 from .models import TrilhaIniciada
@@ -14,6 +19,7 @@ from .serializers import (
     ProgressoSerializer,
     ResultadoXPSerializer,
     TrilhaIniciadaSerializer,
+    ConclusaoSerializer
 )
 from .services import (
     creditar_exercicio,
@@ -86,7 +92,8 @@ class MinhasTrilhasIniciadasView(APIView):
         return Response(trilhas_iniciadas(user=request.user))
 
 
-@extend_schema(tags=["progressao"], responses=ResultadoXPSerializer)
+@extend_schema(
+    tags=["progressao"], request=EnvioDeCodigoSerializer, responses=ConclusaoSerializer)
 class ConcluirExercicioView(APIView):
     permission_classes = [IsAuthenticated]
     throttle_classes = [ScopedRateThrottle]
@@ -99,12 +106,34 @@ class ConcluirExercicioView(APIView):
             slug=exercicio_slug,
         )
 
+
+        correcao = None
+        if tem_correcao_automatica(exercicio):
+            try:
+                correcao = corrigir_envio(
+                    user=request.user,
+                    exercicio=exercicio,
+                    codigo=codigo_enviado(request),
+                )
+            except Judge0Error:
+                raise CorretorIndisponivel() from None
+
+            if not correcao.aprovado:
+                return Response(
+                    {"aprovado": False, "correcao": CorrecaoSerializer(correcao).data}
+                )
+
         resultado = creditar_exercicio(user=request.user, exercicio=exercicio)
-        # recarrega o estado atualizado da barra
         montar_progresso(resultado.progresso)
 
-        dados = ResultadoXPSerializer(resultado, context={"request": request})
-        return Response(dados.data)
+        dados = ResultadoXPSerializer(resultado, context={"request": request}).data
+        return Response(
+            {
+                **dados,
+                "aprovado": True,
+                "correcao": CorrecaoSerializer(correcao).data if correcao else None,
+            }
+        )
 
 
 @extend_schema(
@@ -117,6 +146,7 @@ class ConcluirExercicioView(APIView):
         )
     ],
 )
+
 class MeusExerciciosConcluidosView(generics.ListAPIView):
     """A lista que o front usa para marcar exercício feito.
 

@@ -168,5 +168,7 @@ class ApiProgressoTest(TestCase):
                 "subiu_de_nivel",
                 "pode_evoluir",
                 "progresso",
+                "aprovado",
+                "correcao",
             },
         )

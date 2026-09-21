@@ -1,5 +1,5 @@
 from rest_framework import serializers
-
+from apps.correcao.serializers import CorrecaoSerializer
 from apps.gamificacao.serializers import MinhaCriaturaSerializer
 
 from .models import EventoXP, Nivel, ProgressoCriatura
@@ -39,6 +39,10 @@ class ResultadoXPSerializer(serializers.Serializer):
     # tela de configurações, um estágio por vez.
     pode_evoluir = serializers.BooleanField(read_only=True)
     progresso = ProgressoSerializer(read_only=True)
+
+class ConclusaoSerializer(ResultadoXPSerializer):
+    aprovado = serializers.BooleanField(read_only=True)
+    correcao = CorrecaoSerializer(read_only=True, allow_null=True)
 
 
 class TrilhaIniciadaSerializer(serializers.Serializer):
