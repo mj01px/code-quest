@@ -53,7 +53,9 @@ INSTALLED_APPS = [
     'apps.contas',
     'apps.gamificacao',
     'apps.trilhas',
-    'apps.progressao'
+    'apps.progressao',
+    'apps.correcao',
+
 ]
 
 MIDDLEWARE = [
@@ -137,6 +139,14 @@ THROTTLE_EU_PROGRESSO = env('THROTTLE_EU_PROGRESSO', default='120/min')
 # e em balde proprio, para que raspar gabarito nao se esconda no trafego normal.
 THROTTLE_AUTORIA = env('THROTTLE_AUTORIA', default='30/min')
 
+THROTTLE_EXECUCAO = env('THROTTLE_EXECUCAO', default='10/min')
+
+JUDGE0_URL = env('JUDGE0_URL', default='').rstrip('/')
+JUDGE0_TOKEN = env('JUDGE0_TOKEN', default='')
+JUDGE0_TIMEOUT = env.float('JUDGE0_TIMEOUT', default=15.0)
+JUDGE0_LIMITE_DIARIO = env.int('JUDGE0_LIMITE_DIARIO', default=300)
+
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'apps.contas.autenticacao.CookieJWTAuthentication',
@@ -160,6 +170,8 @@ REST_FRAMEWORK = {
         'catalogo': THROTTLE_CATALOGO,
         'eu_progresso': THROTTLE_EU_PROGRESSO,
         'autoria': THROTTLE_AUTORIA,
+        'execucao': THROTTLE_EXECUCAO,
+
     },
     # Sem NUM_PROXIES o DRF identifica o cliente por X-Forwarded-For, que o
     # proprio cliente manda. Zero forca REMOTE_ADDR e fecha a burla do limite.
