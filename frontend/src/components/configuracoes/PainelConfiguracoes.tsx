@@ -1,12 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ErroApi, api, temSessao } from "@/lib/api";
-import type { MinhaCriatura, Usuario } from "@/lib/types";
+import type { Usuario } from "@/lib/types";
 import { validarEmail, validarNickname } from "@/lib/validacao";
-import { useProgresso } from "@/components/progresso/ProvedorProgresso";
-import { SecaoCompanheiro } from "./SecaoCompanheiro";
+import { SecaoAtividade } from "./SecaoAtividade";
+import { SecaoMeusDados } from "./SecaoMeusDados";
 import { SecaoPerfil } from "./SecaoPerfil";
 import { SecaoZonaRisco } from "./SecaoZonaRisco";
 
@@ -17,11 +17,7 @@ interface ErrosPerfil {
 
 export function PainelConfiguracoes() {
   const router = useRouter();
-  // Só o gatilho de releitura: cada criatura já traz o próprio nível na
-  // resposta, e trocar de principal precisa atualizar a barra lateral também.
-  const { recarregar } = useProgresso();
   const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [criaturas, setCriaturas] = useState<MinhaCriatura[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
 
@@ -31,13 +27,6 @@ export function PainelConfiguracoes() {
   const [salvando, setSalvando] = useState(false);
   const [enviandoToken, setEnviandoToken] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-
-  const carregarCriaturas = useCallback(async () => {
-    setCriaturas(await api.minhasCriaturas());
-    // Reler o Context também: a criatura principal e o XP da barra lateral
-    // mudam junto com a lista.
-    recarregar();
-  }, [recarregar]);
 
   useEffect(() => {
     if (!temSessao()) {
@@ -53,7 +42,6 @@ export function PainelConfiguracoes() {
         setUsuario(perfil);
         setNickname(perfil.nickname);
         setEmail(perfil.email);
-        await carregarCriaturas();
       } catch (e) {
         if (!ativo) return;
         if (e instanceof ErroApi && e.status === 401) {
@@ -73,7 +61,7 @@ export function PainelConfiguracoes() {
     return () => {
       ativo = false;
     };
-  }, [router, carregarCriaturas]);
+  }, [router]);
 
   function mudarNickname(valor: string) {
     setNickname(valor);
@@ -197,7 +185,9 @@ export function PainelConfiguracoes() {
         aoAlterarToken={alterarToken}
       />
 
-      <SecaoCompanheiro criaturas={criaturas} recarregar={carregarCriaturas} />
+      <SecaoAtividade />
+
+      <SecaoMeusDados />
 
       <SecaoZonaRisco />
 

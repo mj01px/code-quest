@@ -18,9 +18,14 @@ const CAMPOS_DA_TELA = ["senha", "senha_confirmacao"] as const;
 interface Props {
   token: string;
   aoTrocar: () => void;
+  aoJaUsado: () => void;
 }
 
-export function FormularioRedefinirSenha({ token, aoTrocar }: Props) {
+export function FormularioRedefinirSenha({
+  token,
+  aoTrocar,
+  aoJaUsado,
+}: Props) {
   const [senha, setSenha] = useState("");
   const [confirmacao, setConfirmacao] = useState("");
   const [erros, setErros] = useState<Erros>({});
@@ -45,6 +50,10 @@ export function FormularioRedefinirSenha({ token, aoTrocar }: Props) {
       });
       aoTrocar();
     } catch (erro) {
+      if (erro instanceof ErroApi && erro.temCodigo("link_ja_usado")) {
+        aoJaUsado();
+        return;
+      }
       if (erro instanceof ErroApi) {
         const porCampo = erro.porCampo();
         const conhecido = CAMPOS_DA_TELA.some((campo) => campo in porCampo);

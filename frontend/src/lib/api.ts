@@ -1,11 +1,14 @@
 import type {
+  AtividadeItem,
   BonusXp,
+  Consentimento,
   Criatura,
   DocumentosLegais,
   Evolucao,
   ExercicioConcluido,
   ExercicioDetalhe,
   MinhaCriatura,
+  Pagina,
   ProgressoAtual,
   ResultadoConclusao,
   TrilhaDetalhe,
@@ -258,7 +261,7 @@ export const api = {
   },
 
   verificarEmail(token: string) {
-    return requisicao<Usuario>("/auth/verificar/", {
+    return requisicao<Usuario & { ja_confirmado: boolean }>("/auth/verificar/", {
       metodo: "POST",
       corpo: { token },
     });
@@ -312,6 +315,32 @@ export const api = {
     });
   },
 
+  minhaAtividade(pagina = 1) {
+    return requisicao<Pagina<AtividadeItem>>(
+      `/auth/eu/atividade/?page=${pagina}`,
+      { autenticado: true },
+    );
+  },
+
+  exportarDados() {
+    return requisicao<Record<string, unknown>>("/auth/eu/exportar/", {
+      autenticado: true,
+    });
+  },
+
+  consentimentos() {
+    return requisicao<Consentimento[]>("/auth/eu/consentimentos/", {
+      autenticado: true,
+    });
+  },
+
+  aceitarConsentimentos() {
+    return requisicao<Consentimento[]>("/auth/eu/consentimentos/aceitar/", {
+      metodo: "POST",
+      autenticado: true,
+    });
+  },
+
   trocarEmail(email: string) {
     return requisicao<{ email_enviado: boolean }>("/auth/eu/email/", {
       metodo: "POST",
@@ -327,10 +356,17 @@ export const api = {
     });
   },
 
-  excluirConta() {
-    return requisicao<void>("/auth/eu/", {
-      metodo: "DELETE",
+  solicitarExclusao() {
+    return requisicao<{ email_enviado: boolean }>("/auth/eu/excluir/", {
+      metodo: "POST",
       autenticado: true,
+    });
+  },
+
+  confirmarExclusao(dados: { token: string; senha: string }) {
+    return requisicao<void>("/auth/eu/excluir/confirmar/", {
+      metodo: "POST",
+      corpo: dados,
     });
   },
 

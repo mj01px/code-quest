@@ -9,23 +9,22 @@ import {
   ArteConfirmado,
   ArteLinkInvalido,
 } from "@/components/ui/ilustracoes";
-import { FormularioRedefinirSenha } from "./FormularioRedefinirSenha";
+import { FormularioConfirmarExclusao } from "./FormularioConfirmarExclusao";
 
 const TITULO = (
   <>
-    NEW<span className="text-brand">.</span>PASSWORD
+    DELETE<span className="text-brand">.</span>ACCOUNT
   </>
 );
 
-const LINHA = "Validando chave de redefinição...";
+const LINHA = "Validando link de exclusão...";
 
 const ESTILO_H2 =
   "m-0 font-display text-[13px] leading-[1.8] tracking-[1px] text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)]";
 const ESTILO_P =
   "m-0 font-body text-lg leading-[1.8] tracking-[1px] text-ink-body";
 
-// Enquanto o token da URL não chega, a moldura já aparece no lugar certo.
-export function PainelNovaSenhaCarregando() {
+export function PainelConfirmarExclusaoCarregando() {
   return (
     <PainelAuth
       titulo={TITULO}
@@ -36,12 +35,12 @@ export function PainelNovaSenhaCarregando() {
   );
 }
 
-export function PainelNovaSenha() {
+export function PainelConfirmarExclusao() {
   const token = useSearchParams().get("token");
-  const [pronto, setPronto] = useState(false);
-  const [jaUsado, setJaUsado] = useState(false);
+  const [concluido, setConcluido] = useState(false);
+  const [jaExcluida, setJaExcluida] = useState(false);
 
-  if (jaUsado) {
+  if (jaExcluida) {
     return (
       <PainelAuth
         titulo={TITULO}
@@ -49,13 +48,13 @@ export function PainelNovaSenha() {
         ilustracao={<ArteConfirmado />}
         formulario={
           <div className="flex flex-col gap-5">
-            <h2 className={ESTILO_H2}>SENHA JÁ REDEFINIDA</h2>
+            <h2 className={ESTILO_H2}>CONTA JÁ EXCLUÍDA</h2>
             <p className={ESTILO_P}>
-              Você já usou este link para trocar a senha. É só entrar com a
-              senha nova.
+              Esta conta já tinha sido excluída por este link. Não há mais nada
+              a fazer aqui.
             </p>
             <PixelLink href="/entrar" className="w-full">
-              INICIAR SESSÃO
+              VOLTAR AO INÍCIO
             </PixelLink>
           </div>
         }
@@ -63,7 +62,7 @@ export function PainelNovaSenha() {
     );
   }
 
-  if (pronto) {
+  if (concluido) {
     return (
       <PainelAuth
         titulo={TITULO}
@@ -71,13 +70,13 @@ export function PainelNovaSenha() {
         ilustracao={<ArteConfirmado />}
         formulario={
           <div className="flex flex-col gap-5">
-            <h2 className={ESTILO_H2}>SENHA TROCADA</h2>
+            <h2 className={ESTILO_H2}>CONTA EXCLUÍDA</h2>
             <p className={ESTILO_P}>
-              Pronto. Suas outras sessões foram encerradas por segurança, então
-              entre de novo com a senha nova.
+              Pronto. Sua conta foi anonimizada e a sessão encerrada. Vai fazer
+              falta por aqui.
             </p>
             <PixelLink href="/entrar" className="w-full">
-              INICIAR SESSÃO
+              VOLTAR AO INÍCIO
             </PixelLink>
           </div>
         }
@@ -95,10 +94,11 @@ export function PainelNovaSenha() {
           <div className="flex flex-col gap-5">
             <h2 className={ESTILO_H2}>LINK INCOMPLETO</h2>
             <p className={ESTILO_P}>
-              Este endereço não traz um token de redefinição. Peça um link novo.
+              Abra o link direto do e-mail que enviamos. Se ele já foi usado ou
+              expirou, peça um novo em Configurações.
             </p>
-            <PixelLink href="/recuperar-senha" className="w-full">
-              PEDIR NOVO LINK
+            <PixelLink href="/configuracoes" className="w-full">
+              IR PARA CONFIGURAÇÕES
             </PixelLink>
           </div>
         }
@@ -112,10 +112,10 @@ export function PainelNovaSenha() {
       linhaTerminal={LINHA}
       ilustracao={<ArteCadeado />}
       formulario={
-        <FormularioRedefinirSenha
+        <FormularioConfirmarExclusao
           token={token}
-          aoTrocar={() => setPronto(true)}
-          aoJaUsado={() => setJaUsado(true)}
+          aoConcluir={() => setConcluido(true)}
+          aoJaUsado={() => setJaExcluida(true)}
         />
       }
     />
