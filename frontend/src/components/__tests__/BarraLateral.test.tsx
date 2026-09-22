@@ -74,6 +74,7 @@ describe("BarraLateral: navegação", () => {
       "/trilhas", // a marca: leva ao app, nunca à landing pública
       "/trilhas",
       "/desafios",
+      "/criatura",
       "/configuracoes",
     ]);
   });
