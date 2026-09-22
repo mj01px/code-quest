@@ -72,6 +72,7 @@
           </tr>
 
           <!-- Botão (pixel) -->
+          {% if botao_url %}
           <tr>
             <td align="center" class="px-pad" style="padding:32px 48px 8px 48px;">
               <table role="presentation" cellpadding="0" cellspacing="0" border="0">
@@ -85,6 +86,7 @@
               </table>
             </td>
           </tr>
+          {% endif %}
 
           {% block nota %}
           {% if nota %}

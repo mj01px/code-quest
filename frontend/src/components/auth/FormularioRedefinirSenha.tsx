@@ -5,7 +5,7 @@ import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelField } from "@/components/ui/PixelField";
 import { PixelLink } from "@/components/ui/PixelLink";
 import { ErroApi, api } from "@/lib/api";
-import { validarConfirmacao, validarSenha } from "@/lib/validacao";
+import { SENHA_MAX, validarConfirmacao, validarSenha } from "@/lib/validacao";
 
 interface Erros {
   senha?: string | null;
@@ -82,6 +82,7 @@ export function FormularioRedefinirSenha({
         revelavel
         name="senha"
         autoComplete="new-password"
+        maxLength={SENHA_MAX}
         placeholder="••••••••"
         value={senha}
         erro={erros.senha}
@@ -94,6 +95,7 @@ export function FormularioRedefinirSenha({
         revelavel
         name="confirmacao"
         autoComplete="new-password"
+        maxLength={SENHA_MAX}
         placeholder="••••••••"
         value={confirmacao}
         erro={erros.confirmacao}

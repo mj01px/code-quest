@@ -8,6 +8,7 @@ import { validarEmail, validarNickname } from "@/lib/validacao";
 import { SecaoAtividade } from "./SecaoAtividade";
 import { SecaoMeusDados } from "./SecaoMeusDados";
 import { SecaoPerfil } from "./SecaoPerfil";
+import { SecaoSeguranca } from "./SecaoSeguranca";
 import { SecaoZonaRisco } from "./SecaoZonaRisco";
 
 interface ErrosPerfil {
@@ -186,6 +187,8 @@ export function PainelConfiguracoes() {
       />
 
       <SecaoAtividade />
+
+      <SecaoSeguranca />
 
       <SecaoMeusDados />
 

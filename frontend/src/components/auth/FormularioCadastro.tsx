@@ -8,7 +8,9 @@ import { PixelField } from "@/components/ui/PixelField";
 import { ErroApi, api } from "@/lib/api";
 import type { DocumentosLegais } from "@/lib/types";
 import {
+  EMAIL_MAX,
   NICKNAME_MAX,
+  SENHA_MAX,
   validarAceite,
   validarEmail,
   validarNickname,
@@ -121,6 +123,7 @@ export function FormularioCadastro({ aoCadastrar }: Props) {
         type="email"
         name="email"
         autoComplete="email"
+        maxLength={EMAIL_MAX}
         placeholder="voce@exemplo.com"
         value={email}
         erro={erros.email}
@@ -145,6 +148,7 @@ export function FormularioCadastro({ aoCadastrar }: Props) {
         revelavel
         name="senha"
         autoComplete="new-password"
+        maxLength={SENHA_MAX}
         placeholder="••••••••"
         value={senha}
         erro={erros.senha}

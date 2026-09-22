@@ -11,11 +11,13 @@ from apps.auditoria.services import AcaoAuditoria, registrar
 from .documentos import VERSAO_MAX_LENGTH, Documento, versao_vigente
 from .exclusao import ler_token as ler_token_exclusao
 from .exclusao import token_confere as token_confere_exclusao
-from .models import AceiteDeTermos
+from .mfa import ler_token_login, mfa_ativo, verificar_codigo
+from .models import AceiteDeTermos, ConfiguracaoMFA
 from .senha import ler_token as ler_token_senha
 from .senha import token_confere
 from .troca_email import ler_token as ler_token_troca
 from .troca_email import token_confere as token_confere_troca
+from .validators import SENHA_MAX_LENGTH
 from .verificacao import ler_token, ler_token_qualquer_idade
 
 User = get_user_model()
@@ -77,7 +79,10 @@ class UsuarioSerializer(serializers.ModelSerializer):
 class RegistroSerializer(serializers.ModelSerializer):
     email = serializers.EmailField()
     senha = serializers.CharField(
-        write_only=True, style={"input_type": "password"}, trim_whitespace=False
+        write_only=True,
+        max_length=SENHA_MAX_LENGTH,
+        style={"input_type": "password"},
+        trim_whitespace=False,
     )
 
     aceite_documentos = serializers.BooleanField(write_only=True, required=True)
@@ -220,7 +225,10 @@ class LoginSerializer(TokenObtainPairSerializer):
                 }
             )
 
-        registrar(AcaoAuditoria.LOGIN_OK, request=request, actor=self.user)
+        # Com 2FA ativo o login só se completa no 2º passo (LoginMfaView), que
+        # é quem registra o LOGIN_OK. Aqui a senha apenas passou.
+        if mfa_ativo(self.user) is None:
+            registrar(AcaoAuditoria.LOGIN_OK, request=request, actor=self.user)
 
         dados["usuario"] = UsuarioSerializer(self.user).data
         return dados
@@ -358,10 +366,16 @@ class SenhaEsquecidaSerializer(serializers.Serializer):
 class RedefinirSenhaSerializer(serializers.Serializer):
     token = serializers.CharField(write_only=True, max_length=500)
     senha = serializers.CharField(
-        write_only=True, style={"input_type": "password"}, trim_whitespace=False
+        write_only=True,
+        max_length=SENHA_MAX_LENGTH,
+        style={"input_type": "password"},
+        trim_whitespace=False,
     )
     senha_confirmacao = serializers.CharField(
-        write_only=True, style={"input_type": "password"}, trim_whitespace=False
+        write_only=True,
+        max_length=SENHA_MAX_LENGTH,
+        style={"input_type": "password"},
+        trim_whitespace=False,
     )
 
     def _recusar(self):
@@ -441,5 +455,46 @@ class ExclusaoConfirmarSerializer(serializers.Serializer):
                 }
             )
 
+        self.usuario = usuario
+        return dados
+
+
+class MfaIniciarSerializer(serializers.Serializer):
+    metodo = serializers.ChoiceField(choices=ConfiguracaoMFA.Metodo.choices)
+
+
+class MfaCodigoSerializer(serializers.Serializer):
+    # Cobre o código de 6 dígitos (TOTP/e-mail) e o de recuperação "xxxx-xxxx".
+    codigo = serializers.CharField(max_length=12)
+
+
+class LoginMfaSerializer(serializers.Serializer):
+    mfa_token = serializers.CharField(max_length=500, write_only=True)
+    codigo = serializers.CharField(max_length=12, write_only=True)
+
+    def validate(self, dados):
+        uid = ler_token_login(dados["mfa_token"])
+        usuario = (
+            User.objects.filter(pk=uid, is_active=True).first()
+            if uid is not None
+            else None
+        )
+        if usuario is None:
+            raise serializers.ValidationError(
+                {
+                    "mfa_token": serializers.ErrorDetail(
+                        "Sua verificação expirou. Entre de novo.",
+                        code="mfa_token_invalido",
+                    )
+                }
+            )
+        if not verificar_codigo(usuario, dados["codigo"]):
+            raise serializers.ValidationError(
+                {
+                    "codigo": serializers.ErrorDetail(
+                        "Código incorreto ou expirado.", code="codigo_invalido"
+                    )
+                }
+            )
         self.usuario = usuario
         return dados

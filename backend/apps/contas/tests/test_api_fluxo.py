@@ -84,6 +84,38 @@ class CadastroTest(APITestCase):
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(r.data["error"]["details"][0]["field"], "senha")
 
+    def test_senha_sem_maiuscula_e_recusada(self):
+        # Tem minúscula, número e especial, mas nenhuma maiúscula.
+        self.payload["senha"] = "trilha-de-python-8"
+        r = self.client.post(self.url, self.payload, format="json")
+        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
+        mensagens = " ".join(
+            d["message"]
+            for d in r.data["error"]["details"]
+            if d["field"] == "senha"
+        )
+        self.assertIn("maiúscula", mensagens)
+        self.assertFalse(User.objects.filter(nickname="novato").exists())
+
+    def test_senha_sem_especial_e_recusada(self):
+        self.payload["senha"] = "Trilhadepython8"
+        r = self.client.post(self.url, self.payload, format="json")
+        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
+        mensagens = " ".join(
+            d["message"]
+            for d in r.data["error"]["details"]
+            if d["field"] == "senha"
+        )
+        self.assertIn("especial", mensagens)
+
+    def test_senha_acima_do_teto_e_recusada(self):
+        # Passa na complexidade, mas estoura o limite de 128 caracteres.
+        self.payload["senha"] = "Aa1!" + "x" * 200
+        r = self.client.post(self.url, self.payload, format="json")
+        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(r.data["error"]["details"][0]["field"], "senha")
+        self.assertFalse(User.objects.filter(nickname="novato").exists())
+
     def test_papel_nao_pode_vir_do_cliente(self):
         self.payload["role"] = "ADMIN"
         self.payload["papel"] = "ADMIN"

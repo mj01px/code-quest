@@ -5,7 +5,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
-from rest_framework.exceptions import NotAuthenticated
+from rest_framework.exceptions import ErrorDetail, NotAuthenticated, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -20,6 +20,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from apps.auditoria.services import AcaoAuditoria, registrar
 
+from . import mfa
 from .cadastro_alerta import avisar_tentativa_de_cadastro
 from .cookies import REFRESH, gravar_sessao, limpar_sessao
 from .documentos import Documento, descrever, status_consentimentos
@@ -31,7 +32,10 @@ from .serializers import (
     ConfirmarTrocaEmailSerializer,
     DocumentosLegaisSerializer,
     ExclusaoConfirmarSerializer,
+    LoginMfaSerializer,
     LoginSerializer,
+    MfaCodigoSerializer,
+    MfaIniciarSerializer,
     RedefinirSenhaSerializer,
     ReenviarVerificacaoSerializer,
     RegistroSerializer,
@@ -104,8 +108,9 @@ class VerificarEmailView(generics.GenericAPIView):
 
         usuario = serializer.usuario
         ja_confirmado = serializer.ja_verificado
-        if not ja_confirmado:
-            usuario.marcar_email_verificado()
+        # Marca de forma atômica: sob a corrida (StrictMode dispara em dobro),
+        # só a chamada que realmente marcou audita — evita o log duplicado.
+        if not ja_confirmado and usuario.marcar_email_verificado():
             registrar(AcaoAuditoria.EMAIL_VERIFICADO, request=request, actor=usuario)
 
         dados = {**UsuarioSerializer(usuario).data, "ja_confirmado": ja_confirmado}
@@ -154,6 +159,20 @@ class LoginView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        usuario = serializer.user
+        config = mfa.mfa_ativo(usuario)
+        if config is not None:
+            # Senha OK, mas com 2FA ativo a sessão só sai no passo 2.
+            mfa.iniciar_desafio_login(usuario)
+            return Response(
+                {
+                    "mfa_required": True,
+                    "metodo": config.metodo,
+                    "mfa_token": mfa.token_login(usuario),
+                },
+                status=status.HTTP_200_OK,
+            )
 
         dados = serializer.validated_data
         resposta = Response(
@@ -396,3 +415,114 @@ class ConfirmarExclusaoView(generics.GenericAPIView):
         anonimizar_conta(usuario)
 
         return limpar_sessao(Response(status=status.HTTP_204_NO_CONTENT))
+
+
+@extend_schema(tags=["auth"])
+class LoginMfaView(generics.GenericAPIView):
+    """Passo 2 do login: valida o 2º fator e emite a sessão."""
+
+    serializer_class = LoginMfaSerializer
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        usuario = serializer.usuario
+        usuario.registrar_login_valido()
+        registrar(AcaoAuditoria.LOGIN_OK, request=request, actor=usuario)
+
+        refresh = RefreshToken.for_user(usuario)
+        resposta = Response(
+            {"usuario": UsuarioSerializer(usuario).data}, status=status.HTTP_200_OK
+        )
+        return gravar_sessao(resposta, str(refresh.access_token), str(refresh))
+
+
+@extend_schema(tags=["auth"], responses=None)
+class MfaStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        config = getattr(request.user, "mfa", None)
+        ativo = bool(config and config.ativo)
+        return Response(
+            {"ativo": ativo, "metodo": config.metodo if ativo else ""},
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(tags=["auth"], responses=None)
+class MfaIniciarView(generics.GenericAPIView):
+    """Prepara o método escolhido (ainda não ativa). APP devolve QR/segredo;
+    e-mail dispara o primeiro código."""
+
+    serializer_class = MfaIniciarSerializer
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "verificacao"
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        dados = mfa.iniciar_setup(request.user, serializer.validated_data["metodo"])
+        return Response(dados, status=status.HTTP_200_OK)
+
+
+@extend_schema(tags=["auth"], responses=None)
+class MfaConfirmarView(generics.GenericAPIView):
+    """Confirma o código e ativa o 2FA, devolvendo os códigos de recuperação."""
+
+    serializer_class = MfaCodigoSerializer
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "verificacao"
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        codigos = mfa.confirmar_setup(
+            request.user, serializer.validated_data["codigo"]
+        )
+        if codigos is None:
+            raise ValidationError(
+                {
+                    "codigo": ErrorDetail(
+                        "Código incorreto ou expirado.", code="codigo_invalido"
+                    )
+                }
+            )
+
+        registrar(AcaoAuditoria.MFA_ATIVADO, request=request, actor=request.user)
+        return Response(
+            {"codigos_recuperacao": codigos}, status=status.HTTP_200_OK
+        )
+
+
+@extend_schema(tags=["auth"], responses=None)
+class MfaDesativarView(generics.GenericAPIView):
+    """Desativa o 2FA (exige um código válido, ou de recuperação)."""
+
+    serializer_class = MfaCodigoSerializer
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "verificacao"
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        if not mfa.desativar(request.user, serializer.validated_data["codigo"]):
+            raise ValidationError(
+                {
+                    "codigo": ErrorDetail(
+                        "Código incorreto ou expirado.", code="codigo_invalido"
+                    )
+                }
+            )
+
+        registrar(AcaoAuditoria.MFA_DESATIVADO, request=request, actor=request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)

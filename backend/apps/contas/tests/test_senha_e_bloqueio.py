@@ -14,7 +14,7 @@ from apps.contas.senha import gerar_token
 
 from .helpers import SENHA_PADRAO, criar_aluno, criar_nao_verificado, payload_aceite
 
-SENHA_NOVA = "outra-trilha-de-java-7"
+SENHA_NOVA = "Outra-trilha-de-java-7"
 LOCMEM = "django.core.mail.backends.locmem.EmailBackend"
 
 

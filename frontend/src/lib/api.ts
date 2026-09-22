@@ -235,6 +235,44 @@ export interface RespostaAuth {
   usuario: Usuario;
 }
 
+export type MfaMetodo = "APP" | "EMAIL";
+
+// Passo 1 do login quando o 2FA está ativo: a senha passou, mas a sessão só sai
+// depois do 2º fator (api.loginMfa). `metodo` diz o que pedir ao usuário.
+export interface MfaRequerido {
+  mfa_required: true;
+  metodo: MfaMetodo;
+  mfa_token: string;
+}
+
+export type RespostaLogin = RespostaAuth | MfaRequerido;
+
+export function pedeMfa(r: RespostaLogin): r is MfaRequerido {
+  return "mfa_required" in r && r.mfa_required;
+}
+
+export interface MfaStatus {
+  ativo: boolean;
+  metodo: MfaMetodo | "";
+}
+
+// Retorno de api.mfaIniciar: APP traz o QR/segredo; e-mail só confirma o envio.
+export interface MfaSetupApp {
+  secret: string;
+  otpauth: string;
+  qr: string;
+}
+
+export interface MfaSetupEmail {
+  email_enviado: boolean;
+}
+
+export type MfaSetup = MfaSetupApp | MfaSetupEmail;
+
+export interface MfaConfirmado {
+  codigos_recuperacao: string[];
+}
+
 export interface DadosRegistro {
   email: string;
   nickname: string;
@@ -293,9 +331,45 @@ export const api = {
   },
 
   login(dados: { email: string; senha: string }) {
-    return requisicao<RespostaAuth>("/auth/login/", {
+    return requisicao<RespostaLogin>("/auth/login/", {
       metodo: "POST",
       corpo: dados,
+    });
+  },
+
+  // Passo 2 do login: valida o 2º fator com o token do passo 1 e emite a sessão.
+  loginMfa(dados: { mfa_token: string; codigo: string }) {
+    return requisicao<RespostaAuth>("/auth/login/mfa/", {
+      metodo: "POST",
+      corpo: dados,
+    });
+  },
+
+  mfaStatus() {
+    return requisicao<MfaStatus>("/auth/eu/mfa/", { autenticado: true });
+  },
+
+  mfaIniciar(metodo: MfaMetodo) {
+    return requisicao<MfaSetup>("/auth/eu/mfa/iniciar/", {
+      metodo: "POST",
+      corpo: { metodo },
+      autenticado: true,
+    });
+  },
+
+  mfaConfirmar(codigo: string) {
+    return requisicao<MfaConfirmado>("/auth/eu/mfa/confirmar/", {
+      metodo: "POST",
+      corpo: { codigo },
+      autenticado: true,
+    });
+  },
+
+  mfaDesativar(codigo: string) {
+    return requisicao<void>("/auth/eu/mfa/desativar/", {
+      metodo: "POST",
+      corpo: { codigo },
+      autenticado: true,
     });
   },
 

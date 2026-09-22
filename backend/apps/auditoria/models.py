@@ -26,6 +26,8 @@ class AcaoAuditoria(models.TextChoices):
     CRIATURA_EVOLUIDA = "CRIATURA_EVOLUIDA", _("Criatura evoluída")
     EXPORTACAO_DADOS = "EXPORTACAO_DADOS", _("Exportação de dados do titular")
     CONSENTIMENTO_ACEITO = "CONSENTIMENTO_ACEITO", _("Consentimento (re)aceito")
+    MFA_ATIVADO = "MFA_ATIVADO", _("Verificação em duas etapas ativada")
+    MFA_DESATIVADO = "MFA_DESATIVADO", _("Verificação em duas etapas desativada")
     ACESSO_AUDITORIA = "ACESSO_AUDITORIA", _("Consulta à trilha de auditoria")
     CONTA_ANONIMIZADA = "CONTA_ANONIMIZADA", _("Conta anonimizada")
     # Definidos para uso futuro (administração):
@@ -53,6 +55,8 @@ ACOES_DO_TITULAR = frozenset(
         AcaoAuditoria.CRIATURA_EVOLUIDA,
         AcaoAuditoria.EXPORTACAO_DADOS,
         AcaoAuditoria.CONSENTIMENTO_ACEITO,
+        AcaoAuditoria.MFA_ATIVADO,
+        AcaoAuditoria.MFA_DESATIVADO,
     }
 )
 

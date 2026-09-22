@@ -8,6 +8,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from apps.auditoria.models import AcaoAuditoria, RegistroDeAuditoria
 from apps.contas.cookies import ACCESS
 from apps.contas.models import User
 from apps.contas.verificacao import SALT, gerar_token
@@ -271,3 +272,26 @@ class LinkAntigoDeContaVerificadaTest(APITestCase):
 
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(User.objects.get(pk=user.pk).email_verificado)
+
+
+class VerificacaoNaoDuplicaTest(APITestCase):
+    def test_marcar_email_verificado_so_marca_uma_vez(self):
+        user = criar_nao_verificado("idem")
+
+        self.assertTrue(user.marcar_email_verificado())
+        self.assertFalse(user.marcar_email_verificado())
+
+    def test_verificar_de_novo_nao_duplica_o_log(self):
+        user = criar_nao_verificado("um-log")
+        token = gerar_token(user)
+        url = reverse("contas:verificar")
+
+        self.client.post(url, {"token": token})
+        self.client.post(url, {"token": token})
+
+        self.assertEqual(
+            RegistroDeAuditoria.objects.filter(
+                acao=AcaoAuditoria.EMAIL_VERIFICADO, actor=user
+            ).count(),
+            1,
+        )

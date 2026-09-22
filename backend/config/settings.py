@@ -237,6 +237,11 @@ LOGIN_BLOQUEIO_SEGUNDOS = env.int('LOGIN_BLOQUEIO_SEGUNDOS', default=60 * 15)
 # unico). Confirmar com a senha anonimiza a conta na hora, sem prazo.
 EXCLUSAO_TOKEN_MAX_AGE = env.int('EXCLUSAO_TOKEN_MAX_AGE', default=60 * 30)
 
+# MFA / 2FA. Codigo enviado por e-mail (metodo e-mail) e o token curto que prova
+# que a senha passou, entre o passo 1 e o passo 2 do login.
+MFA_EMAIL_CODIGO_MAX_AGE = env.int('MFA_EMAIL_CODIGO_MAX_AGE', default=60 * 10)
+MFA_LOGIN_TOKEN_MAX_AGE = env.int('MFA_LOGIN_TOKEN_MAX_AGE', default=60 * 5)
+
 # Retencao da trilha de auditoria: dias que um registro vive antes de ser
 # purgado pelo comando purgar_logs_antigos. Fecha o ciclo de descarte exigido
 # pelo plano de retencao (o guia pede que o descarte prometido seja implementado).
@@ -270,6 +275,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+    {
+        'NAME': 'apps.contas.validators.PasswordComplexityValidator',
     },
 ]
 

@@ -5,8 +5,13 @@
 export const NICKNAME_MIN = 3;
 export const NICKNAME_MAX = 20;
 export const SENHA_MIN = 8;
+export const SENHA_MAX = 128;
+export const EMAIL_MAX = 254;
+// Código de 2FA: 6 dígitos (TOTP/e-mail) ou recuperação "xxxx-xxxx" (9 chars).
+export const CODIGO_MFA_MAX = 12;
 
 const FORMATO_NICKNAME = /^[A-Za-z0-9_]+$/;
+const SENHA_ESPECIAL = /[!@#$%^&*()\-_=+[\]{};:'",.<>?/\\|`~]/;
 
 const NICKNAMES_RESERVADOS = new Set([
   "admin",
@@ -58,6 +63,7 @@ const NICKNAMES_RESERVADOS = new Set([
 export function validarEmail(valor: string): string | null {
   const email = valor.trim();
   if (!email) return "Informe seu e-mail.";
+  if (email.length > EMAIL_MAX) return `Use no máximo ${EMAIL_MAX} caracteres.`;
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "E-mail inválido.";
   return null;
 }
@@ -80,7 +86,13 @@ export function validarSenha(valor: string, contexto: string[] = []): string | n
   if (!valor) return "Informe uma senha.";
   if (valor.length < SENHA_MIN)
     return `Use pelo menos ${SENHA_MIN} caracteres.`;
-  if (/^\d+$/.test(valor)) return "A senha não pode ser só números.";
+  if (valor.length > SENHA_MAX)
+    return `Use no máximo ${SENHA_MAX} caracteres.`;
+  if (!/[A-Z]/.test(valor)) return "Inclua ao menos uma letra maiúscula.";
+  if (!/[a-z]/.test(valor)) return "Inclua ao menos uma letra minúscula.";
+  if (!/[0-9]/.test(valor)) return "Inclua ao menos um número.";
+  if (!SENHA_ESPECIAL.test(valor))
+    return "Inclua ao menos um caractere especial.";
   const alvo = valor.toLowerCase();
   for (const parte of contexto) {
     const limpo = parte.trim().toLowerCase().split("@")[0];

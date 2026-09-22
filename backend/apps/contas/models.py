@@ -151,6 +151,11 @@ class User(AbstractBaseUser, PermissionsMixin):
                 name="user_nickname_unico_sem_caixa",
                 violation_error_message=_("Este nickname já está em uso."),
             ),
+            models.UniqueConstraint(
+                Lower("email"),
+                name="user_email_unico_sem_caixa",
+                violation_error_message=_("Já existe uma conta com este e-mail."),
+            ),
         ]
         indexes = [
             models.Index(fields=["-created_at"], name="user_criado_em_idx"),
@@ -188,10 +193,21 @@ class User(AbstractBaseUser, PermissionsMixin):
     def email_verificado(self) -> bool:
         return self.email_verified_at is not None
 
-    def marcar_email_verificado(self) -> None:
-        if self.email_verified_at is None:
-            self.email_verified_at = timezone.now()
-            self.save(update_fields=["email_verified_at", "updated_at"])
+    def marcar_email_verificado(self) -> bool:
+        """Marca o e-mail como verificado de forma atômica e devolve se ESTA
+        chamada foi a que marcou. Sob duas requisições simultâneas (ex.: o
+        StrictMode dispara a verificação em dobro), só uma ganha o UPDATE — o
+        que evita auditar a verificação duas vezes."""
+        agora = timezone.now()
+        marcou = (
+            type(self)
+            .objects.filter(pk=self.pk, email_verified_at__isnull=True)
+            .update(email_verified_at=agora, updated_at=agora)
+        )
+        if marcou:
+            self.email_verified_at = agora
+            return True
+        return False
 
     @property
     def esta_bloqueado(self) -> bool:
@@ -342,3 +358,72 @@ class AceiteDeTermos(models.Model):
             if (documento, vigente.versao) not in aceitos
         ]
         return cls.objects.bulk_create(novos)
+
+
+class ConfiguracaoMFA(models.Model):
+    """Configuração do segundo fator do usuário. Um método por vez."""
+
+    class Metodo(models.TextChoices):
+        APP = "APP", _("Aplicativo autenticador")
+        EMAIL = "EMAIL", _("E-mail")
+
+    user = models.OneToOneField(
+        "contas.User",
+        on_delete=models.CASCADE,
+        related_name="mfa",
+        verbose_name=_("usuário"),
+    )
+    ativo = models.BooleanField(default=False, verbose_name=_("ativo"))
+    metodo = models.CharField(
+        max_length=10,
+        choices=Metodo.choices,
+        blank=True,
+        default="",
+        verbose_name=_("método"),
+    )
+    # Segredo base32 do TOTP. Em branco quando o método é e-mail.
+    totp_secret = models.CharField(max_length=64, blank=True, default="")
+    confirmado_em = models.DateTimeField(null=True, blank=True)
+
+    # Desafio de e-mail transitório: hash do código atual e sua expiração.
+    email_codigo_hash = models.CharField(max_length=128, blank=True, default="")
+    email_codigo_expira = models.DateTimeField(null=True, blank=True)
+
+    criado_em = models.DateTimeField(default=timezone.now, editable=False)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("configuração de MFA")
+        verbose_name_plural = _("configurações de MFA")
+
+    def __str__(self) -> str:
+        estado = "ativo" if self.ativo else "inativo"
+        return f"MFA {self.metodo or '—'} ({estado}) de {self.user_id}"
+
+    def limpar_desafio_email(self) -> None:
+        self.email_codigo_hash = ""
+        self.email_codigo_expira = None
+        self.save(update_fields=["email_codigo_hash", "email_codigo_expira"])
+
+
+class CodigoRecuperacaoMFA(models.Model):
+    """Código de recuperação de uso único, guardado em hash."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
+    user = models.ForeignKey(
+        "contas.User",
+        on_delete=models.CASCADE,
+        related_name="codigos_recuperacao_mfa",
+        verbose_name=_("usuário"),
+    )
+    codigo_hash = models.CharField(max_length=128)
+    usado_em = models.DateTimeField(null=True, blank=True)
+    criado_em = models.DateTimeField(default=timezone.now, editable=False)
+
+    class Meta:
+        verbose_name = _("código de recuperação de MFA")
+        verbose_name_plural = _("códigos de recuperação de MFA")
+        indexes = [models.Index(fields=["user", "usado_em"])]
+
+    def __str__(self) -> str:
+        return f"recuperação MFA de {self.user_id}"
