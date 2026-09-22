@@ -1,10 +1,14 @@
 from django.urls import path
 
 from .views import (
+    AceitarConsentimentosView,
+    ConfirmarExclusaoView,
     ConfirmarTrocaEmailView,
+    ConsentimentosView,
     CsrfView,
     DocumentosLegaisView,
     EuView,
+    ExportarDadosView,
     LoginView,
     RedefinirSenhaView,
     ReenviarVerificacaoView,
@@ -12,6 +16,7 @@ from .views import (
     RenovarView,
     SairView,
     SenhaEsquecidaView,
+    SolicitarExclusaoView,
     TrocarEmailView,
     VerificarEmailView,
 )
@@ -34,6 +39,23 @@ urlpatterns = [
     path("auth/renovar/", RenovarView.as_view(), name="renovar"),
     path("auth/sair/", SairView.as_view(), name="sair"),
     path("auth/eu/", EuView.as_view(), name="eu"),
+    path("auth/eu/excluir/", SolicitarExclusaoView.as_view(), name="excluir"),
+    path(
+        "auth/eu/excluir/confirmar/",
+        ConfirmarExclusaoView.as_view(),
+        name="excluir-confirmar",
+    ),
+    path("auth/eu/exportar/", ExportarDadosView.as_view(), name="exportar"),
+    path(
+        "auth/eu/consentimentos/",
+        ConsentimentosView.as_view(),
+        name="consentimentos",
+    ),
+    path(
+        "auth/eu/consentimentos/aceitar/",
+        AceitarConsentimentosView.as_view(),
+        name="consentimentos-aceitar",
+    ),
     path("auth/eu/email/", TrocarEmailView.as_view(), name="trocar-email"),
     path(
         "auth/eu/email/confirmar/",

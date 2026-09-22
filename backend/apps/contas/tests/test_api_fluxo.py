@@ -183,13 +183,12 @@ class PerfilTest(APITestCase):
         self.usuario.refresh_from_db()
         self.assertEqual(self.usuario.email, "perfilado@example.com")
 
-    def test_delete_registra_pedido_de_exclusao_sem_apagar(self):
+    def test_delete_no_eu_nao_e_permitido(self):
+        # A exclusão agora passa por confirmação de e-mail + senha
+        # (POST em auth/eu/excluir/), não por DELETE direto e imediato.
         self.client.force_authenticate(self.usuario)
         r = self.client.delete(self.url)
-        self.assertEqual(r.status_code, status.HTTP_204_NO_CONTENT)
-        self.usuario.refresh_from_db()
-        self.assertIsNotNone(self.usuario.deletion_requested_at)
-        self.assertFalse(self.usuario.is_active)
+        self.assertEqual(r.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 class CatalogoTest(APITestCase):

@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'apps.core',
     'apps.contas',
+    'apps.auditoria',
     'apps.gamificacao',
     'apps.trilhas',
     'apps.progressao'
@@ -231,6 +232,15 @@ TROCA_EMAIL_MAX_AGE = env.int('TROCA_EMAIL_MAX_AGE', default=60 * 60 * 24)
 
 LOGIN_MAX_TENTATIVAS = env.int('LOGIN_MAX_TENTATIVAS', default=5)
 LOGIN_BLOQUEIO_SEGUNDOS = env.int('LOGIN_BLOQUEIO_SEGUNDOS', default=60 * 15)
+
+# Exclusao de conta: o link de confirmacao enviado por e-mail vive pouco (uso
+# unico). Confirmar com a senha anonimiza a conta na hora, sem prazo.
+EXCLUSAO_TOKEN_MAX_AGE = env.int('EXCLUSAO_TOKEN_MAX_AGE', default=60 * 30)
+
+# Retencao da trilha de auditoria: dias que um registro vive antes de ser
+# purgado pelo comando purgar_logs_antigos. Fecha o ciclo de descarte exigido
+# pelo plano de retencao (o guia pede que o descarte prometido seja implementado).
+AUDITORIA_RETENCAO_DIAS = env.int('AUDITORIA_RETENCAO_DIAS', default=180)
 
 LOGGING = {
     'version': 1,

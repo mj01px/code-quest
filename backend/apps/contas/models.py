@@ -220,11 +220,40 @@ class User(AbstractBaseUser, PermissionsMixin):
     def is_anonymized(self) -> bool:
         return self.anonymized_at is not None
 
-    def request_deletion(self) -> None:
+    def anonimizar(self) -> bool:
+        """Embaralha a PII da conta, mantendo a linha para os agregados.
+
+        Só mexe nos campos do próprio usuário; a PII espalhada (snapshot de
+        auditoria, IP dos aceites) é tratada pelo serviço que orquestra a
+        exclusão. Idempotente: já anonimizado, não faz nada.
+        """
+        if self.is_anonymized:
+            return False
+
+        marca = uuid.uuid4().hex[:12]
+        self.email = f"anon-{marca}@anonimizado.invalid"
+        self.nickname = f"anon_{marca}"
+        self.set_unusable_password()
+        self.failed_logins = 0
+        self.locked_until = None
+        self.is_active = False
+        self.anonymized_at = timezone.now()
         if self.deletion_requested_at is None:
             self.deletion_requested_at = timezone.now()
-        self.is_active = False
-        self.save(update_fields=["deletion_requested_at", "is_active", "updated_at"])
+        self.save(
+            update_fields=[
+                "email",
+                "nickname",
+                "password",
+                "failed_logins",
+                "locked_until",
+                "is_active",
+                "anonymized_at",
+                "deletion_requested_at",
+                "updated_at",
+            ]
+        )
+        return True
 
 
 class AceiteDeTermos(models.Model):
@@ -299,3 +328,17 @@ class AceiteDeTermos(models.Model):
                 for documento, vigente in VIGENTES.items()
             ]
         )
+
+    @classmethod
+    def registrar_pendentes(cls, user, ip=None) -> list[AceiteDeTermos]:
+        """Registra o aceite apenas dos documentos cuja versão vigente ainda não
+        foi aceita pelo usuário. Usado no re-consentimento após um bump."""
+        aceitos = set(
+            cls.objects.filter(user=user).values_list("documento", "versao")
+        )
+        novos = [
+            cls(user=user, documento=documento, versao=vigente.versao, ip=ip)
+            for documento, vigente in VIGENTES.items()
+            if (documento, vigente.versao) not in aceitos
+        ]
+        return cls.objects.bulk_create(novos)

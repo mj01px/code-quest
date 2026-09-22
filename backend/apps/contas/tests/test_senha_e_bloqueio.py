@@ -108,8 +108,10 @@ class RedefinirSenhaTest(APITestCase):
 
         r = self._redefinir(token=token, senha="mais-uma-senha-boa-3")
 
+        # Reusar o mesmo link agora diz "já usado" (a senha já foi trocada),
+        # em vez de um "inválido" seco — mas segue recusado.
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(_primeiro_codigo(r), "token_invalido")
+        self.assertEqual(_primeiro_codigo(r), "link_ja_usado")
 
     def test_token_adulterado_e_recusado(self):
         r = self._redefinir(token=gerar_token(self.usuario)[:-3] + "xyz")
