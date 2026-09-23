@@ -1,6 +1,7 @@
 from rest_framework import serializers
+
 from .models import CasoDeTeste, EspecificacaoDeCodigo
-from .services import LIMITE_DE_CARACTERES
+from .services import LIMITE_DE_CARACTERES, codigo_aprovado
 
 
 class EnvioDeCodigoSerializer(serializers.Serializer):
@@ -15,6 +16,7 @@ class ExemploSerializer(serializers.ModelSerializer):
 class EspecificacaoSerializer(serializers.ModelSerializer):
     exemplos = serializers.SerializerMethodField()
     limite_de_caracteres = serializers.SerializerMethodField()
+    codigo_aprovado = serializers.SerializerMethodField()
 
     class Meta:
         model = EspecificacaoDeCodigo
@@ -24,6 +26,7 @@ class EspecificacaoSerializer(serializers.ModelSerializer):
             "codigo_inicial",
             "requisitos",
             "limite_de_caracteres",
+            "codigo_aprovado",
             "exemplos",
         )
         read_only_fields = fields
@@ -34,6 +37,14 @@ class EspecificacaoSerializer(serializers.ModelSerializer):
 
     def get_limite_de_caracteres(self, obj) -> int:
         return LIMITE_DE_CARACTERES
+
+    def get_codigo_aprovado(self, obj) -> str:
+        request = self.context.get("request")
+        if request is None or not request.user.is_authenticated:
+            return ""
+        return codigo_aprovado(user=request.user, exercicio=obj.exercicio_id)
+
+
 
 
 

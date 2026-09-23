@@ -5,7 +5,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
+
 from apps.trilhas.models import Exercicio
+
 from .excecoes import CorretorIndisponivel
 from .judge0 import Judge0Error
 from .serializers import (
@@ -39,7 +41,9 @@ class EspecificacaoView(APIView):
         especificacao = especificacao_de(_exercicio(trilha_slug, exercicio_slug))
         if especificacao is None:
             raise Http404
-        return Response(EspecificacaoSerializer(especificacao).data)
+        return Response(
+            EspecificacaoSerializer(especificacao, context={"request": request}).data
+        )
 
 
 @extend_schema(

@@ -60,6 +60,20 @@ def especificacao_de(exercicio):
 def tem_correcao_automatica(exercicio):
     return EspecificacaoDeCodigo.objects.filter(exercicio=exercicio).exists()
 
+def codigo_aprovado(*, user, exercicio):
+    submissao = (
+        Submissao.objects.filter(
+            user=user,
+            exercicio=exercicio,
+            modo=Modo.ENVIAR,
+            veredito=Veredito.APROVADO,
+        )
+        .order_by("-criado_em")
+        .values_list("codigo", flat=True)
+        .first()
+    )
+    return submissao or ""
+
 
 def _validar(*, user, exercicio, codigo):
     if not user.is_active or user.is_anonymized:
