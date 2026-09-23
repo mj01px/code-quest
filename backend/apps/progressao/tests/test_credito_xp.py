@@ -165,11 +165,10 @@ class EvolucaoPeloXPTest(TestCase):
 class IncrementoDeXPTest(TestCase):
     """O XP soma no banco, não em Python sobre um valor já lido.
 
-    Sem thread e sem transação real de propósito: o SQLite ignora o
-    `select_for_update`, então concorrência de verdade não é reproduzível aqui.
-    O que dá para provar de forma determinística é o invariante que interessa —
-    a soma acontece no banco, então uma gravação alheia entre a leitura e a
-    escrita não é sobrescrita.
+    Sem thread e sem transação concorrente de propósito: concorrência real
+    seria flaky e não reproduzível de forma determinística. O que dá para provar
+    aqui é o invariante que interessa — a soma acontece no banco, então uma
+    gravação alheia entre a leitura e a escrita não é sobrescrita.
     """
 
     def setUp(self):

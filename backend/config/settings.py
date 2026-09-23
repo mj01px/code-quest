@@ -91,12 +91,14 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+# PostgreSQL, configurado por DATABASE_URL (postgres://user:senha@host:porta/nome).
+# CONN_MAX_AGE mantem a conexao viva entre requisicoes (evita reabrir a cada hit)
+# e CONN_HEALTH_CHECKS descarta conexao morta antes de usar, no lugar de estourar.
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': env.db('DATABASE_URL'),
 }
+DATABASES['default']['CONN_MAX_AGE'] = env.int('DB_CONN_MAX_AGE', default=60)
+DATABASES['default']['CONN_HEALTH_CHECKS'] = True
 
 
 # Password validation

@@ -29,7 +29,7 @@
 ```ts
 const codequest = {
   tipo:        "Plataforma gamificada de ensino de programação",
-  backend:     ["Python 3.14", "Django 6.0", "Django REST Framework", "SimpleJWT", "SQLite", "pytest"],
+  backend:     ["Python 3.14", "Django 6.0", "Django REST Framework", "SimpleJWT", "PostgreSQL", "pytest"],
   frontend:    ["Next.js 16", "React 19", "TypeScript", "Tailwind CSS v4", "Jest + RTL"],
   recursos:    ["Trilhas de aprendizado", "Fluxo editorial", "Criaturas companheiras", "RBAC dinâmico", "JWT em cookies", "Verificação por e-mail"],
   auth:        "JWT em cookie, Argon2, cadastro aberto com confirmação de e-mail",
@@ -113,10 +113,11 @@ python -m venv venv
 source venv/bin/activate            # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-cp .env.example .env                # depois preencha os valores
+cp .env.example .env                # depois preencha os valores (inclui DATABASE_URL)
 
 python manage.py migrate
 python manage.py seed_trilhas       # carrega as trilhas e publica "Lógica de Programação"
+python manage.py seed_bonus_xp      # cadastra os bônus de XP por trilha
 python manage.py createsuperuser    # o e-mail que ele pede é o login
 python manage.py runserver 8000     # → http://localhost:8000
 ```
@@ -128,9 +129,17 @@ cd frontend
 npm install && npm run dev          # → http://localhost:3000
 ```
 
-O banco usa SQLite por padrão, sem nada para configurar. A documentação interativa
-da API (Swagger UI) fica em `http://localhost:8000/api/docs/`, gerada a partir do
-mesmo schema em `/api/schema/`.
+O banco é **PostgreSQL**. Com o Postgres rodando, crie a role e o banco uma vez
+antes do `migrate` e aponte o `DATABASE_URL` do `.env` para eles:
+
+```bash
+psql postgres -c "CREATE ROLE codequest WITH LOGIN PASSWORD 'sua-senha' CREATEDB;"
+psql postgres -c "CREATE DATABASE codequest OWNER codequest;"
+```
+
+A `CREATEDB` na role deixa o `pytest` criar o banco de testes. A documentação
+interativa da API (Swagger UI) fica em `http://localhost:8000/api/docs/`, gerada a
+partir do mesmo schema em `/api/schema/`.
 
 ---
 
@@ -145,6 +154,9 @@ SECRET_KEY=troque-por-uma-chave-longa-e-aleatoria
 DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
 ADMIN_URL=admin/
+
+# Banco PostgreSQL: postgres://USUARIO:SENHA@HOST:PORTA/NOME
+DATABASE_URL=postgres://codequest:sua-senha@localhost:5432/codequest
 
 # Base de todo link enviado por e-mail. É o endereço do FRONTEND, não o da API:
 # quem clica num link de verificação ou recuperação cai numa tela.
@@ -301,7 +313,7 @@ DigitalOcean Droplet
 ├── Nginx        # proxy reverso + TLS
 ├── Django       # gunicorn, API em /api/
 ├── Next.js      # next start, telas
-└── SQLite       # arquivo no disco do droplet
+└── PostgreSQL   # banco relacional no droplet
 ```
 
 ---
@@ -330,7 +342,7 @@ passa pelas regras de negócio.
 |-------|-------------|
 | **Backend** | ![Python](https://img.shields.io/badge/Python_3.14-3776AB?style=flat-square&logo=python&logoColor=white) ![Django](https://img.shields.io/badge/Django_6.0-092E20?style=flat-square&logo=django&logoColor=white) ![DRF](https://img.shields.io/badge/DRF-A30000?style=flat-square&logo=django&logoColor=white) ![JWT](https://img.shields.io/badge/SimpleJWT-000000?style=flat-square&logo=jsonwebtokens&logoColor=white) ![pytest](https://img.shields.io/badge/pytest-0A9EDC?style=flat-square&logo=pytest&logoColor=white) |
 | **Frontend** | ![Next.js](https://img.shields.io/badge/Next.js_16-000000?style=flat-square&logo=nextdotjs&logoColor=white) ![React](https://img.shields.io/badge/React_19-20232A?style=flat-square&logo=react&logoColor=61DAFB) ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat-square&logo=typescript&logoColor=white) ![Tailwind](https://img.shields.io/badge/Tailwind_v4-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white) ![Jest](https://img.shields.io/badge/Jest-C21325?style=flat-square&logo=jest&logoColor=white) |
-| **Banco** | ![SQLite](https://img.shields.io/badge/SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white) |
+| **Banco** | ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white) |
 | **Infra** | ![DigitalOcean](https://img.shields.io/badge/DigitalOcean-0080FF?style=flat-square&logo=digitalocean&logoColor=white) ![Nginx](https://img.shields.io/badge/Nginx-009639?style=flat-square&logo=nginx&logoColor=white) |
 | **Docs da API** | ![OpenAPI](https://img.shields.io/badge/drf--spectacular-6BA539?style=flat-square&logo=openapiinitiative&logoColor=white) ![Swagger](https://img.shields.io/badge/Swagger_UI-85EA2D?style=flat-square&logo=swagger&logoColor=black) |
 

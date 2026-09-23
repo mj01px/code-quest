@@ -257,7 +257,7 @@ class LinkAntigoDeContaVerificadaTest(APITestCase):
 
     @override_settings(VERIFICACAO_EMAIL_MAX_AGE=-1)
     def test_link_expirado_de_conta_verificada_ainda_diz_ja_confirmado(self):
-        user = criar_aluno("verificado-link-velho")
+        user = criar_aluno("verif-link-velho")
 
         r = self.client.post(self.url, {"token": gerar_token(user)})
 
