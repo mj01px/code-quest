@@ -6,6 +6,7 @@ import { ErroApi } from "@/lib/api";
 
 const empurrar = jest.fn();
 const login = jest.fn();
+const loginMfa = jest.fn();
 const minhasCriaturas = jest.fn();
 const reenviarVerificacao = jest.fn();
 const aoDetectarPendente = jest.fn();
@@ -18,8 +19,10 @@ jest.mock("@/lib/api", () => {
   const real = jest.requireActual<typeof import("@/lib/api")>("@/lib/api");
   return {
     ErroApi: real.ErroApi,
+    pedeMfa: real.pedeMfa,
     api: {
       login: (dados: unknown) => login(dados),
+      loginMfa: (dados: unknown) => loginMfa(dados),
       minhasCriaturas: () => minhasCriaturas(),
       reenviarVerificacao: (email: string) => reenviarVerificacao(email),
     },
@@ -87,6 +90,36 @@ describe("FormularioLogin", () => {
 
     expect(await screen.findByText("E-mail ou senha incorretos. Se errou várias vezes, espere alguns minutos ou redefina sua senha.")).toBeInTheDocument();
     expect(aoDetectarPendente).not.toHaveBeenCalled();
+  });
+
+  it("com 2FA ativo, pede o código e só então entra", async () => {
+    const usuario = userEvent.setup();
+    login.mockResolvedValue({
+      mfa_required: true,
+      metodo: "APP",
+      mfa_token: "token-curto",
+    });
+    loginMfa.mockResolvedValue({ usuario: {} });
+    minhasCriaturas.mockResolvedValue([{ criatura: "x" }]);
+    render(<FormularioLogin aoDetectarPendente={aoDetectarPendente} />);
+
+    await entrar(usuario);
+
+    const campo = await screen.findByLabelText("CÓDIGO");
+    expect(empurrar).not.toHaveBeenCalled();
+
+    await usuario.type(campo, "123456");
+    await usuario.click(
+      screen.getByRole("button", { name: "CONFIRMAR CÓDIGO" }),
+    );
+
+    await waitFor(() =>
+      expect(loginMfa).toHaveBeenCalledWith({
+        mfa_token: "token-curto",
+        codigo: "123456",
+      }),
+    );
+    await waitFor(() => expect(empurrar).toHaveBeenCalledWith("/trilhas"));
   });
 
   it("oferece redefinir a senha quando a credencial falha", async () => {

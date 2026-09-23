@@ -52,6 +52,7 @@ export function PainelVerificarEmail() {
   const [email, setEmail] = useState("");
   const [erroEmail, setErroEmail] = useState<string | null>(null);
   const [pedirNovo, setPedirNovo] = useState<string | null>(null);
+  const [jaConfirmado, setJaConfirmado] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -59,8 +60,10 @@ export function PainelVerificarEmail() {
     let ativo = true;
     api
       .verificarEmail(token)
-      .then(() => {
-        if (ativo) setEstado("confirmado");
+      .then((resposta) => {
+        if (!ativo) return;
+        setJaConfirmado(resposta.ja_confirmado);
+        setEstado("confirmado");
       })
       .catch(() => {
         if (ativo) setEstado("recusado");
@@ -109,9 +112,13 @@ export function PainelVerificarEmail() {
         ilustracao={<ArteConfirmado />}
         formulario={
           <div className="flex flex-col gap-5">
-            <h2 className={ESTILO_H2}>E-MAIL CONFIRMADO</h2>
+            <h2 className={ESTILO_H2}>
+              {jaConfirmado ? "E-MAIL JÁ CONFIRMADO" : "E-MAIL CONFIRMADO"}
+            </h2>
             <p className={ESTILO_P}>
-              Tudo certo. Sua conta está liberada e você já pode entrar.
+              {jaConfirmado
+                ? "Este e-mail já tinha sido confirmado. É só entrar."
+                : "Tudo certo. Sua conta está liberada e você já pode entrar."}
             </p>
             <PixelLink href="/entrar" className="w-full">
               INICIAR SESSÃO

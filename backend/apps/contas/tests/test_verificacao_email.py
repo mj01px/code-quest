@@ -8,6 +8,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from apps.auditoria.models import AcaoAuditoria, RegistroDeAuditoria
 from apps.contas.cookies import ACCESS
 from apps.contas.models import User
 from apps.contas.verificacao import SALT, gerar_token
@@ -231,3 +232,66 @@ class ReenviarVerificacaoTest(APITestCase):
 
         self.assertEqual(r.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(len(mail.outbox), 1)
+
+
+class LinkAntigoDeContaVerificadaTest(APITestCase):
+    def setUp(self):
+        self.url = reverse("contas:verificar")
+
+    def test_primeira_verificacao_nao_diz_ja_confirmado(self):
+        user = criar_nao_verificado("primeira-vez")
+
+        r = self.client.post(self.url, {"token": gerar_token(user)})
+
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+        self.assertFalse(r.data["ja_confirmado"])
+        self.assertTrue(User.objects.get(pk=user.pk).email_verificado)
+
+    def test_conta_ja_verificada_diz_ja_confirmado(self):
+        user = criar_aluno("ja-verificado")  # criar_aluno já nasce verificado
+
+        r = self.client.post(self.url, {"token": gerar_token(user)})
+
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+        self.assertTrue(r.data["ja_confirmado"])
+
+    @override_settings(VERIFICACAO_EMAIL_MAX_AGE=-1)
+    def test_link_expirado_de_conta_verificada_ainda_diz_ja_confirmado(self):
+        user = criar_aluno("verif-link-velho")
+
+        r = self.client.post(self.url, {"token": gerar_token(user)})
+
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+        self.assertTrue(r.data["ja_confirmado"])
+
+    @override_settings(VERIFICACAO_EMAIL_MAX_AGE=-1)
+    def test_link_expirado_de_conta_pendente_recusa(self):
+        user = criar_nao_verificado("pendente-link-velho")
+
+        r = self.client.post(self.url, {"token": gerar_token(user)})
+
+        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(User.objects.get(pk=user.pk).email_verificado)
+
+
+class VerificacaoNaoDuplicaTest(APITestCase):
+    def test_marcar_email_verificado_so_marca_uma_vez(self):
+        user = criar_nao_verificado("idem")
+
+        self.assertTrue(user.marcar_email_verificado())
+        self.assertFalse(user.marcar_email_verificado())
+
+    def test_verificar_de_novo_nao_duplica_o_log(self):
+        user = criar_nao_verificado("um-log")
+        token = gerar_token(user)
+        url = reverse("contas:verificar")
+
+        self.client.post(url, {"token": token})
+        self.client.post(url, {"token": token})
+
+        self.assertEqual(
+            RegistroDeAuditoria.objects.filter(
+                acao=AcaoAuditoria.EMAIL_VERIFICADO, actor=user
+            ).count(),
+            1,
+        )

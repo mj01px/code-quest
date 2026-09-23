@@ -6,13 +6,19 @@ from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
+from apps.auditoria.services import AcaoAuditoria, registrar
+
 from .documentos import VERSAO_MAX_LENGTH, Documento, versao_vigente
-from .models import AceiteDeTermos
+from .exclusao import ler_token as ler_token_exclusao
+from .exclusao import token_confere as token_confere_exclusao
+from .mfa import ler_token_login, mfa_ativo, verificar_codigo
+from .models import AceiteDeTermos, ConfiguracaoMFA
 from .senha import ler_token as ler_token_senha
 from .senha import token_confere
 from .troca_email import ler_token as ler_token_troca
 from .troca_email import token_confere as token_confere_troca
-from .verificacao import ler_token
+from .validators import SENHA_MAX_LENGTH
+from .verificacao import ler_token, ler_token_qualquer_idade
 
 User = get_user_model()
 
@@ -26,6 +32,15 @@ def _ip_do_cliente(request) -> str | None:
     if request is None:
         return None
     return request.META.get("REMOTE_ADDR") or None
+
+
+def _erro_link_ja_usado(mensagem: str) -> serializers.ValidationError:
+    """Erro para o link cuja ação já foi feita (assinatura ok, mas a 'marca' já
+    mudou). O código deixa a interface mostrar uma mensagem afirmativa em vez de
+    'link inválido'."""
+    return serializers.ValidationError(
+        {"token": serializers.ErrorDetail(mensagem, code="link_ja_usado")}
+    )
 
 
 class UsuarioSerializer(serializers.ModelSerializer):
@@ -64,7 +79,10 @@ class UsuarioSerializer(serializers.ModelSerializer):
 class RegistroSerializer(serializers.ModelSerializer):
     email = serializers.EmailField()
     senha = serializers.CharField(
-        write_only=True, style={"input_type": "password"}, trim_whitespace=False
+        write_only=True,
+        max_length=SENHA_MAX_LENGTH,
+        style={"input_type": "password"},
+        trim_whitespace=False,
     )
 
     aceite_documentos = serializers.BooleanField(write_only=True, required=True)
@@ -153,6 +171,7 @@ class LoginSerializer(TokenObtainPairSerializer):
         )
 
     def validate(self, attrs):
+        request = self.context.get("request")
         attrs = dict(attrs)
         attrs["password"] = attrs.pop("senha", "")
         identificador = attrs.get(self.username_field) or ""
@@ -162,6 +181,12 @@ class LoginSerializer(TokenObtainPairSerializer):
         candidato = User.objects.filter(email=email).first()
 
         if candidato is not None and candidato.esta_bloqueado:
+            registrar(
+                AcaoAuditoria.LOGIN_FALHA,
+                request=request,
+                actor=candidato,
+                motivo="bloqueado",
+            )
             raise AuthenticationFailed(CREDENCIAL_INVALIDA, "credencial_invalida")
 
         try:
@@ -169,6 +194,14 @@ class LoginSerializer(TokenObtainPairSerializer):
         except AuthenticationFailed:
             if candidato is not None:
                 candidato.registrar_falha_de_login()
+            # Não guardamos a senha tentada nem o e-mail de contas inexistentes.
+            registrar(
+                AcaoAuditoria.LOGIN_FALHA,
+                request=request,
+                actor=candidato,
+                motivo="credenciais_invalidas",
+                **({} if candidato is not None else {"email_desconhecido": True}),
+            )
             raise AuthenticationFailed(
                 CREDENCIAL_INVALIDA, "credencial_invalida"
             ) from None
@@ -176,6 +209,12 @@ class LoginSerializer(TokenObtainPairSerializer):
         self.user.registrar_login_valido()
 
         if not self.user.email_verificado:
+            registrar(
+                AcaoAuditoria.LOGIN_FALHA,
+                request=request,
+                actor=self.user,
+                motivo="email_nao_verificado",
+            )
             raise serializers.ValidationError(
                 {
                     "email": serializers.ErrorDetail(
@@ -186,6 +225,11 @@ class LoginSerializer(TokenObtainPairSerializer):
                 }
             )
 
+        # Com 2FA ativo o login só se completa no 2º passo (LoginMfaView), que
+        # é quem registra o LOGIN_OK. Aqui a senha apenas passou.
+        if mfa_ativo(self.user) is None:
+            registrar(AcaoAuditoria.LOGIN_OK, request=request, actor=self.user)
+
         dados["usuario"] = UsuarioSerializer(self.user).data
         return dados
 
@@ -195,21 +239,31 @@ class VerificarEmailSerializer(serializers.Serializer):
 
     def validate_token(self, valor):
         uid = ler_token(valor)
-        if uid is None:
-            raise serializers.ValidationError(
-                "Link inválido ou expirado. Peça um novo e-mail de confirmação.",
-                code="token_invalido",
-            )
+        if uid is not None:
+            usuario = User.objects.filter(pk=uid).first()
+            if usuario is not None:
+                self.usuario = usuario
+                # Guarda se já estava verificado ANTES desta chamada.
+                self.ja_verificado = usuario.email_verificado
+                return valor
 
-        usuario = User.objects.filter(pk=uid).first()
-        if usuario is None:
-            raise serializers.ValidationError(
-                "Link inválido ou expirado. Peça um novo e-mail de confirmação.",
-                code="token_invalido",
-            )
+        # Token vencido/inválido: se ainda dá para identificar o dono e a conta
+        # já está verificada, é um link antigo de algo já feito — sucesso, não
+        # recusa. (Nunca verifica uma conta pendente por aqui.)
+        uid_antigo = ler_token_qualquer_idade(valor)
+        if uid_antigo is not None:
+            usuario = User.objects.filter(
+                pk=uid_antigo, email_verified_at__isnull=False
+            ).first()
+            if usuario is not None:
+                self.usuario = usuario
+                self.ja_verificado = True
+                return valor
 
-        self.usuario = usuario
-        return valor
+        raise serializers.ValidationError(
+            "Link inválido ou expirado. Peça um novo e-mail de confirmação.",
+            code="token_invalido",
+        )
 
 
 class ReenviarVerificacaoSerializer(serializers.Serializer):
@@ -254,7 +308,7 @@ class ConfirmarTrocaEmailSerializer(serializers.Serializer):
         raise serializers.ValidationError(
             {
                 "token": serializers.ErrorDetail(
-                    "Link inválido, expirado ou já usado. Peça outro.",
+                    "Esse link já foi usado ou expirou. Se precisar, peça um novo.",
                     code="token_invalido",
                 )
             }
@@ -266,8 +320,13 @@ class ConfirmarTrocaEmailSerializer(serializers.Serializer):
             self._recusar()
 
         usuario = User.objects.filter(pk=lido["uid"], is_active=True).first()
-        if usuario is None or not token_confere_troca(lido, usuario):
+        if usuario is None:
             self._recusar()
+        if not token_confere_troca(lido, usuario):
+            raise _erro_link_ja_usado(
+                "Este e-mail já foi trocado. Se precisar, troque de novo nas "
+                "Configurações."
+            )
 
         novo = lido["email"]
         if User.objects.filter(email=novo).exclude(pk=usuario.pk).exists():
@@ -307,17 +366,23 @@ class SenhaEsquecidaSerializer(serializers.Serializer):
 class RedefinirSenhaSerializer(serializers.Serializer):
     token = serializers.CharField(write_only=True, max_length=500)
     senha = serializers.CharField(
-        write_only=True, style={"input_type": "password"}, trim_whitespace=False
+        write_only=True,
+        max_length=SENHA_MAX_LENGTH,
+        style={"input_type": "password"},
+        trim_whitespace=False,
     )
     senha_confirmacao = serializers.CharField(
-        write_only=True, style={"input_type": "password"}, trim_whitespace=False
+        write_only=True,
+        max_length=SENHA_MAX_LENGTH,
+        style={"input_type": "password"},
+        trim_whitespace=False,
     )
 
     def _recusar(self):
         raise serializers.ValidationError(
             {
                 "token": serializers.ErrorDetail(
-                    "Link inválido, expirado ou já usado. Peça outro.",
+                    "Esse link já foi usado ou expirou. Se precisar, peça um novo.",
                     code="token_invalido",
                 )
             }
@@ -338,13 +403,98 @@ class RedefinirSenhaSerializer(serializers.Serializer):
             self._recusar()
 
         usuario = User.objects.filter(pk=lido["uid"], is_active=True).first()
-        if usuario is None or not token_confere(lido, usuario):
+        if usuario is None:
             self._recusar()
+        if not token_confere(lido, usuario):
+            raise _erro_link_ja_usado(
+                "Você já redefiniu a senha com este link. É só entrar com a senha nova."
+            )
 
         try:
             validate_password(dados["senha"], usuario)
         except DjangoValidationError as exc:
             raise serializers.ValidationError({"senha": list(exc.messages)}) from None
 
+        self.usuario = usuario
+        return dados
+
+
+class ExclusaoConfirmarSerializer(serializers.Serializer):
+    token = serializers.CharField(write_only=True, max_length=500)
+    senha = serializers.CharField(
+        write_only=True, style={"input_type": "password"}, trim_whitespace=False
+    )
+
+    def validate(self, dados):
+        lido = ler_token_exclusao(dados["token"])
+        usuario = (
+            User.objects.filter(pk=lido["uid"]).first() if lido is not None else None
+        )
+
+        if usuario is not None and usuario.is_anonymized:
+            raise _erro_link_ja_usado("Esta conta já foi excluída.")
+
+        if usuario is None or not token_confere_exclusao(lido, usuario):
+            raise serializers.ValidationError(
+                {
+                    "token": serializers.ErrorDetail(
+                        "Esse link já foi usado ou expirou. Se precisar, peça um novo.",
+                        code="token_invalido",
+                    )
+                }
+            )
+
+        # A confirmação exige a senha, além do link do e-mail: garante que quem
+        # confirma é o dono, não só quem tem o link.
+        if not usuario.check_password(dados["senha"]):
+            raise serializers.ValidationError(
+                {
+                    "senha": serializers.ErrorDetail(
+                        "Senha incorreta.", code="senha_incorreta"
+                    )
+                }
+            )
+
+        self.usuario = usuario
+        return dados
+
+
+class MfaIniciarSerializer(serializers.Serializer):
+    metodo = serializers.ChoiceField(choices=ConfiguracaoMFA.Metodo.choices)
+
+
+class MfaCodigoSerializer(serializers.Serializer):
+    # Cobre o código de 6 dígitos (TOTP/e-mail) e o de recuperação "xxxx-xxxx".
+    codigo = serializers.CharField(max_length=12)
+
+
+class LoginMfaSerializer(serializers.Serializer):
+    mfa_token = serializers.CharField(max_length=500, write_only=True)
+    codigo = serializers.CharField(max_length=12, write_only=True)
+
+    def validate(self, dados):
+        uid = ler_token_login(dados["mfa_token"])
+        usuario = (
+            User.objects.filter(pk=uid, is_active=True).first()
+            if uid is not None
+            else None
+        )
+        if usuario is None:
+            raise serializers.ValidationError(
+                {
+                    "mfa_token": serializers.ErrorDetail(
+                        "Sua verificação expirou. Entre de novo.",
+                        code="mfa_token_invalido",
+                    )
+                }
+            )
+        if not verificar_codigo(usuario, dados["codigo"]):
+            raise serializers.ValidationError(
+                {
+                    "codigo": serializers.ErrorDetail(
+                        "Código incorreto ou expirado.", code="codigo_invalido"
+                    )
+                }
+            )
         self.usuario = usuario
         return dados

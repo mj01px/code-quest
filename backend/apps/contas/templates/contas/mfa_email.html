@@ -1,0 +1,18 @@
+{% extends "contas/email_base.html" %}
+
+{% block preheader %}Seu código de verificação em duas etapas na CodeQuest. Vale por {{ minutos }} minutos.{% endblock %}
+
+{% block selo %}VERIFICAÇÃO EM DUAS ETAPAS{% endblock %}
+
+{% block titulo %}Seu código<br />de acesso{% endblock %}
+
+{% block corpo %}
+<p class="px-body" style="margin:0 0 16px 0; font-family:'VT323','Courier New',monospace; font-size:21px; line-height:1.6; color:#cfc8e0;">
+  Olá, <span style="color:#c084fc;">{{ nickname }}</span>! Use o código abaixo para concluir a entrada:
+</p>
+<p style="margin:8px 0 0 0; text-align:center; font-family:'Press Start 2P','Courier New',monospace; font-size:32px; letter-spacing:8px; color:#ffffff;">
+  {{ codigo }}
+</p>
+{% endblock %}
+
+{% block rodape %}Se não foi você tentando entrar, ignore esta mensagem e troque sua senha por segurança.{% endblock %}

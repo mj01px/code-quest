@@ -11,7 +11,8 @@ from django.utils import timezone
 from apps.contas.documentos import Documento, versao_vigente
 from apps.contas.models import User
 
-SENHA_PADRAO = "trilha-de-python-8"
+# Atende à política: maiúscula (T), minúscula, número (8) e especial (-).
+SENHA_PADRAO = "Trilha-de-python-8"
 
 
 def criar_usuario(nickname: str, role: str = User.Role.STUDENT, **extra) -> User:

@@ -24,7 +24,7 @@ jest.mock("@/lib/api", () => {
   };
 });
 
-const SENHA = "outra-trilha-de-java-7";
+const SENHA = "Outra-trilha-de-java-7";
 
 beforeEach(() => {
   jest.clearAllMocks();

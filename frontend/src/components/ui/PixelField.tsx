@@ -34,14 +34,10 @@ export function PixelField({
   const tipo = revelavel && revelado ? "text" : type;
   const borda = erro ? "border-danger" : "border-brand-strong";
 
-  // A Silkscreen desenha a caixa baixa como a maiuscula 1px menor, entao
-  // senha revelada sai ilegivel. A VT323 tem ascendente e descendente de
-  // verdade e mantem o mesmo ar de terminal.
-  const fonte = !revelavel
-    ? "font-label text-[13px] tracking-wide"
-    : revelado
-      ? "font-body text-[18px] tracking-[2px]"
-      : "font-label text-[13px] tracking-[4px]";
+  // Todos os campos (e-mail, senha oculta e senha revelada) usam a fonte
+  // padrao no mesmo tamanho dos demais inputs. A senha oculta mostra os pontos
+  // da propria Inter, sem o corpo pixelado que destoava.
+  const fonte = "font-body text-[15px]";
 
   function olharCapsLock(evento: React.KeyboardEvent<HTMLInputElement>) {
     if (revelavel) setCapsLigado(evento.getModifierState("CapsLock"));

@@ -5,7 +5,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
-from rest_framework.exceptions import NotAuthenticated
+from rest_framework.exceptions import ErrorDetail, NotAuthenticated, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -18,14 +18,24 @@ from rest_framework_simplejwt.token_blacklist.models import (
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
+from apps.auditoria.services import AcaoAuditoria, registrar
+
+from . import mfa
 from .cadastro_alerta import avisar_tentativa_de_cadastro
 from .cookies import REFRESH, gravar_sessao, limpar_sessao
-from .documentos import Documento, descrever
+from .documentos import Documento, descrever, status_consentimentos
+from .exclusao import enviar_confirmacao_exclusao
+from .lgpd import anonimizar_conta, exportar_dados
+from .models import AceiteDeTermos
 from .senha import enviar_redefinicao
 from .serializers import (
     ConfirmarTrocaEmailSerializer,
     DocumentosLegaisSerializer,
+    ExclusaoConfirmarSerializer,
+    LoginMfaSerializer,
     LoginSerializer,
+    MfaCodigoSerializer,
+    MfaIniciarSerializer,
     RedefinirSenhaSerializer,
     ReenviarVerificacaoSerializer,
     RegistroSerializer,
@@ -78,6 +88,7 @@ class RegistrarView(generics.CreateAPIView):
                 enviado = avisar_tentativa_de_cadastro(email)
             else:
                 enviado = enviar_verificacao(usuario)
+                registrar(AcaoAuditoria.CADASTRO, request=request, actor=usuario)
 
         return Response(
             {"email_enviado": enviado}, status=status.HTTP_201_CREATED
@@ -96,9 +107,14 @@ class VerificarEmailView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
 
         usuario = serializer.usuario
-        usuario.marcar_email_verificado()
+        ja_confirmado = serializer.ja_verificado
+        # Marca de forma atômica: sob a corrida (StrictMode dispara em dobro),
+        # só a chamada que realmente marcou audita — evita o log duplicado.
+        if not ja_confirmado and usuario.marcar_email_verificado():
+            registrar(AcaoAuditoria.EMAIL_VERIFICADO, request=request, actor=usuario)
 
-        return Response(UsuarioSerializer(usuario).data, status=status.HTTP_200_OK)
+        dados = {**UsuarioSerializer(usuario).data, "ja_confirmado": ja_confirmado}
+        return Response(dados, status=status.HTTP_200_OK)
 
 
 @extend_schema(tags=["auth"], responses=None)
@@ -144,6 +160,20 @@ class LoginView(TokenObtainPairView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        usuario = serializer.user
+        config = mfa.mfa_ativo(usuario)
+        if config is not None:
+            # Senha OK, mas com 2FA ativo a sessão só sai no passo 2.
+            mfa.iniciar_desafio_login(usuario)
+            return Response(
+                {
+                    "mfa_required": True,
+                    "metodo": config.metodo,
+                    "mfa_token": mfa.token_login(usuario),
+                },
+                status=status.HTTP_200_OK,
+            )
+
         dados = serializer.validated_data
         resposta = Response(
             {"usuario": dados["usuario"]}, status=status.HTTP_200_OK
@@ -180,26 +210,35 @@ class SairView(APIView):
 
     def post(self, request, *args, **kwargs):
         bruto = request.COOKIES.get(REFRESH)
+        ator = None
         if bruto:
             try:
-                RefreshToken(bruto).blacklist()
+                token = RefreshToken(bruto)
+                ator = User.objects.filter(pk=token.get("user_id")).first()
+                token.blacklist()
             except TokenError:
                 pass
 
+        registrar(AcaoAuditoria.LOGOUT, request=request, actor=ator)
         return limpar_sessao(Response(status=status.HTTP_204_NO_CONTENT))
 
 
 @extend_schema(tags=["auth"])
-class EuView(generics.RetrieveUpdateDestroyAPIView):
+class EuView(generics.RetrieveUpdateAPIView):
     serializer_class = UsuarioSerializer
     permission_classes = [IsAuthenticated]
-    http_method_names = ["get", "patch", "delete", "head", "options"]
+    http_method_names = ["get", "patch", "head", "options"]
 
     def get_object(self):
         return self.request.user
 
-    def perform_destroy(self, instance):
-        instance.request_deletion()
+    def perform_update(self, serializer):
+        antes = serializer.instance.nickname
+        usuario = serializer.save()
+        if usuario.nickname != antes:
+            registrar(
+                AcaoAuditoria.NICKNAME_ALTERADO, request=self.request, actor=usuario
+            )
 
 
 @extend_schema(tags=["auth"], responses=None)
@@ -214,6 +253,9 @@ class TrocarEmailView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
 
         enviado = enviar_troca_email(request.user, serializer.validated_data["email"])
+        registrar(
+            AcaoAuditoria.TROCA_EMAIL_SOLICITADA, request=request, actor=request.user
+        )
         return Response({"email_enviado": enviado}, status=status.HTTP_200_OK)
 
 
@@ -232,6 +274,9 @@ class ConfirmarTrocaEmailView(generics.GenericAPIView):
         usuario.email = serializer.novo_email
         usuario.email_verified_at = timezone.now()
         usuario.save(update_fields=["email", "email_verified_at", "updated_at"])
+        registrar(
+            AcaoAuditoria.TROCA_EMAIL_CONFIRMADA, request=request, actor=usuario
+        )
 
         return Response(UsuarioSerializer(usuario).data, status=status.HTTP_200_OK)
 
@@ -282,5 +327,202 @@ class RedefinirSenhaView(generics.GenericAPIView):
             ]
         )
         _encerrar_sessoes(usuario)
+        registrar(AcaoAuditoria.SENHA_REDEFINIDA, request=request, actor=usuario)
 
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@extend_schema(tags=["auth"], responses=None)
+class ExportarDadosView(APIView):
+    """Portabilidade: devolve todos os dados pessoais do titular em JSON."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        dados = exportar_dados(request.user)
+        registrar(
+            AcaoAuditoria.EXPORTACAO_DADOS, request=request, actor=request.user
+        )
+        return Response(dados, status=status.HTTP_200_OK)
+
+
+@extend_schema(tags=["auth"], responses=None)
+class ConsentimentosView(APIView):
+    """Situação dos documentos legais do titular (versão vigente x aceita)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(
+            status_consentimentos(request.user), status=status.HTTP_200_OK
+        )
+
+
+@extend_schema(tags=["auth"], request=None, responses=None)
+class AceitarConsentimentosView(APIView):
+    """Re-consentimento: registra o aceite das versões vigentes pendentes."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        ip = request.META.get("REMOTE_ADDR") or None
+        novos = AceiteDeTermos.registrar_pendentes(request.user, ip=ip)
+        if novos:
+            registrar(
+                AcaoAuditoria.CONSENTIMENTO_ACEITO,
+                request=request,
+                actor=request.user,
+                documentos=[aceite.documento for aceite in novos],
+            )
+        return Response(
+            status_consentimentos(request.user), status=status.HTTP_200_OK
+        )
+
+
+@extend_schema(tags=["auth"], request=None, responses=None)
+class SolicitarExclusaoView(APIView):
+    """Passo 1 da exclusão: manda o e-mail de confirmação. Não muda nada na
+    conta ainda — a exclusão só acontece quando o link for confirmado."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "verificacao"
+
+    def post(self, request):
+        enviado = enviar_confirmacao_exclusao(request.user)
+        registrar(
+            AcaoAuditoria.EXCLUSAO_SOLICITADA, request=request, actor=request.user
+        )
+        return Response({"email_enviado": enviado}, status=status.HTTP_200_OK)
+
+
+@extend_schema(tags=["auth"], responses=None)
+class ConfirmarExclusaoView(generics.GenericAPIView):
+    """Passo 2 da exclusão: com o token do e-mail e a senha, anonimiza a conta
+    na hora (definitivo) e encerra a sessão."""
+
+    serializer_class = ExclusaoConfirmarSerializer
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "verificacao"
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        usuario = serializer.usuario
+        _encerrar_sessoes(usuario)
+        anonimizar_conta(usuario)
+
+        return limpar_sessao(Response(status=status.HTTP_204_NO_CONTENT))
+
+
+@extend_schema(tags=["auth"])
+class LoginMfaView(generics.GenericAPIView):
+    """Passo 2 do login: valida o 2º fator e emite a sessão."""
+
+    serializer_class = LoginMfaSerializer
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        usuario = serializer.usuario
+        usuario.registrar_login_valido()
+        registrar(AcaoAuditoria.LOGIN_OK, request=request, actor=usuario)
+
+        refresh = RefreshToken.for_user(usuario)
+        resposta = Response(
+            {"usuario": UsuarioSerializer(usuario).data}, status=status.HTTP_200_OK
+        )
+        return gravar_sessao(resposta, str(refresh.access_token), str(refresh))
+
+
+@extend_schema(tags=["auth"], responses=None)
+class MfaStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        config = getattr(request.user, "mfa", None)
+        ativo = bool(config and config.ativo)
+        return Response(
+            {"ativo": ativo, "metodo": config.metodo if ativo else ""},
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(tags=["auth"], responses=None)
+class MfaIniciarView(generics.GenericAPIView):
+    """Prepara o método escolhido (ainda não ativa). APP devolve QR/segredo;
+    e-mail dispara o primeiro código."""
+
+    serializer_class = MfaIniciarSerializer
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "verificacao"
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        dados = mfa.iniciar_setup(request.user, serializer.validated_data["metodo"])
+        return Response(dados, status=status.HTTP_200_OK)
+
+
+@extend_schema(tags=["auth"], responses=None)
+class MfaConfirmarView(generics.GenericAPIView):
+    """Confirma o código e ativa o 2FA, devolvendo os códigos de recuperação."""
+
+    serializer_class = MfaCodigoSerializer
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "verificacao"
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        codigos = mfa.confirmar_setup(
+            request.user, serializer.validated_data["codigo"]
+        )
+        if codigos is None:
+            raise ValidationError(
+                {
+                    "codigo": ErrorDetail(
+                        "Código incorreto ou expirado.", code="codigo_invalido"
+                    )
+                }
+            )
+
+        registrar(AcaoAuditoria.MFA_ATIVADO, request=request, actor=request.user)
+        return Response(
+            {"codigos_recuperacao": codigos}, status=status.HTTP_200_OK
+        )
+
+
+@extend_schema(tags=["auth"], responses=None)
+class MfaDesativarView(generics.GenericAPIView):
+    """Desativa o 2FA (exige um código válido, ou de recuperação)."""
+
+    serializer_class = MfaCodigoSerializer
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "verificacao"
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        if not mfa.desativar(request.user, serializer.validated_data["codigo"]):
+            raise ValidationError(
+                {
+                    "codigo": ErrorDetail(
+                        "Código incorreto ou expirado.", code="codigo_invalido"
+                    )
+                }
+            )
+
+        registrar(AcaoAuditoria.MFA_DESATIVADO, request=request, actor=request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)

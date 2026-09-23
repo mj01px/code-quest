@@ -39,6 +39,29 @@ export function PainelNovaSenhaCarregando() {
 export function PainelNovaSenha() {
   const token = useSearchParams().get("token");
   const [pronto, setPronto] = useState(false);
+  const [jaUsado, setJaUsado] = useState(false);
+
+  if (jaUsado) {
+    return (
+      <PainelAuth
+        titulo={TITULO}
+        linhaTerminal={LINHA}
+        ilustracao={<ArteConfirmado />}
+        formulario={
+          <div className="flex flex-col gap-5">
+            <h2 className={ESTILO_H2}>SENHA JÁ REDEFINIDA</h2>
+            <p className={ESTILO_P}>
+              Você já usou este link para trocar a senha. É só entrar com a
+              senha nova.
+            </p>
+            <PixelLink href="/entrar" className="w-full">
+              INICIAR SESSÃO
+            </PixelLink>
+          </div>
+        }
+      />
+    );
+  }
 
   if (pronto) {
     return (
@@ -92,6 +115,7 @@ export function PainelNovaSenha() {
         <FormularioRedefinirSenha
           token={token}
           aoTrocar={() => setPronto(true)}
+          aoJaUsado={() => setJaUsado(true)}
         />
       }
     />

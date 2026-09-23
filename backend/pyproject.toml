@@ -46,7 +46,7 @@ files = ["apps/trilhas", "apps/autoria"]
 exclude = "apps/trilhas/migrations/"
 
 [[tool.mypy.overrides]]
-module = ["apps.contas.*", "apps.gamificacao.*", "apps.progressao.*", "apps.core.*", "config.*"]
+module = ["apps.contas.*", "apps.auditoria.*", "apps.gamificacao.*", "apps.progressao.*", "apps.core.*", "config.*"]
 ignore_errors = true
 
 # Os testes ficam fora do mypy. O idioma `cls.x = ...` dentro de setUpTestData
