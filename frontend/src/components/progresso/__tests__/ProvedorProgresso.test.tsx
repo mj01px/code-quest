@@ -64,6 +64,8 @@ beforeEach(() => {
   meuProgresso.mockResolvedValue(progressoAtual());
   exerciciosConcluidos.mockResolvedValue([CONCLUIDO]);
   concluirExercicio.mockResolvedValue({
+    aprovado: true,
+    correcao: null,
     ja_concluido: false,
     xp_ganho: 50,
     subiu_de_nivel: false,

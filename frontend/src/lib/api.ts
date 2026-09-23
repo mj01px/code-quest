@@ -1,12 +1,15 @@
 import type {
   BonusXp,
+  Correcao,
   Criatura,
   DocumentosLegais,
+  EspecificacaoDeCodigo,
   Evolucao,
   ExercicioConcluido,
   ExercicioDetalhe,
   MinhaCriatura,
   ProgressoAtual,
+  RespostaConclusao,
   ResultadoConclusao,
   TrilhaDetalhe,
   TrilhaResumo,
@@ -418,14 +421,38 @@ export const api = {
     );
   },
 
-  // Sem corpo: o XP vem da dificuldade cadastrada e o backend ignora o que
-  // chegar por aqui. Mandar payload só daria a impressão de que dá para influir.
-  concluirExercicio(trilhaSlug: string, exercicioSlug: string) {
+  // exercicio busca as especificacoes no banco
+  especificacaoDeCodigo(trilhaSlug: string, exercicioSlug: string) {
+    const caminho = `/exercicios/${encodeURIComponent(
+      trilhaSlug,
+    )}/${encodeURIComponent(exercicioSlug)}/codigo/`;
+    return requisicao<EspecificacaoDeCodigo>(caminho, { autenticado: true });
+  },
+
+  // o botao so funciona quando temos casos visiveis e nao devolve xp imediatamente
+  executarCodigo(trilhaSlug: string, exercicioSlug: string, codigo: string) {
+    const caminho = `/exercicios/${encodeURIComponent(
+      trilhaSlug,
+    )}/${encodeURIComponent(exercicioSlug)}/executar/`;
+    return requisicao<Correcao>(caminho, {
+      metodo: "POST",
+      corpo: { codigo },
+      autenticado: true,
+    });
+  },
+
+  // xp puxado da dificuldade, de acordo com o que solicita no exercicio
+  concluirExercicio(
+    trilhaSlug: string,
+    exercicioSlug: string,
+    codigo?: string,
+  ) {
     const caminho = `/exercicios/${encodeURIComponent(
       trilhaSlug,
     )}/${encodeURIComponent(exercicioSlug)}/concluir/`;
-    return requisicao<ResultadoConclusao>(caminho, {
+    return requisicao<RespostaConclusao>(caminho, {
       metodo: "POST",
+      corpo: codigo === undefined ? undefined : { codigo },
       autenticado: true,
     });
   },

@@ -131,7 +131,9 @@ describe("BotaoProximoExercicio", () => {
   });
 
   it("habilita depois que o aluno conclui na mesma tela", async () => {
-    concluirExercicio.mockResolvedValue({
+     concluirExercicio.mockResolvedValue({
+      aprovado: true,
+      correcao: null,
       ja_concluido: false,
       xp_ganho: 50,
       subiu_de_nivel: false,

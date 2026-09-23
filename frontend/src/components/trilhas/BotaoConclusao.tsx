@@ -50,6 +50,11 @@ export function BotaoConclusao({
 
     try {
       const resultado = await api.concluirExercicio(trilhaSlug, faseSlug);
+      if (!resultado.aprovado) {
+        setEstado("inicial");
+        setAviso("Este exercício é de código: envie pelo editor.");
+        return;
+      }
       // Repetição volta ja_concluido: true — marca feito sem anunciar XP de novo.
       setXpGanho(resultado.ja_concluido ? null : resultado.xp_ganho);
       setEstado("concluido");
