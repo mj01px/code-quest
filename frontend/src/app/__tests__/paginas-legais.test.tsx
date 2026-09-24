@@ -85,12 +85,18 @@ describe("Política de Privacidade", () => {
     expect(screen.getByRole("columnheader", { name: "Base legal" })).toBeInTheDocument();
   });
 
-  it("declara que o progresso das trilhas não sai do navegador", async () => {
+  it("declara que o progresso fica na conta e nada vai para o armazenamento local", async () => {
     render(await PaginaPrivacidade());
 
     expect(
-      screen.getByText(/progresso nas trilhas não é enviado para o servidor/),
+      screen.getByText(/não grava nada no armazenamento local/),
     ).toBeInTheDocument();
+  });
+
+  it("declara que a exclusão é imediata, sem prazo de arrependimento", async () => {
+    render(await PaginaPrivacidade());
+
+    expect(screen.getByText(/não existe prazo para desistir/)).toBeInTheDocument();
   });
 
   it("lista os cookies que a plataforma realmente usa", async () => {
@@ -126,10 +132,10 @@ describe("Suporte", () => {
     render(await PaginaSuporte());
 
     expect(
-      screen.getByText(/recuperação automática de senha ainda não existe/i),
-    ).toBeInTheDocument();
+      screen.getByRole("link", { name: "recuperar senha" }),
+    ).toHaveAttribute("href", "/recuperar-senha");
     expect(
-      screen.getByText(/progresso fica guardado no seu próprio navegador/),
+      screen.getByText(/progresso fica guardado na sua conta/),
     ).toBeInTheDocument();
   });
 

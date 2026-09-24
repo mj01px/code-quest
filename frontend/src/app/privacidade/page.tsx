@@ -10,6 +10,7 @@ import {
   Secao,
   Tabela,
 } from "@/components/legal/Prosa";
+import { DADOS_LEGAIS } from "@/lib/dadosLegais";
 import { versaoParaCabecalho } from "@/lib/documentosLegais";
 
 export const metadata: Metadata = {
@@ -92,6 +93,30 @@ const DADOS = [
     ],
   },
   {
+    chave: "mfa",
+    celulas: [
+      "Verificação em duas etapas, se você ativar: método escolhido, chave do aplicativo autenticador e códigos de recuperação (guardados só como hash)",
+      "Pedir o segundo fator no login e permitir recuperar o acesso.",
+      "Execução de contrato (art. 7º, V)",
+    ],
+  },
+  {
+    chave: "xp",
+    celulas: [
+      "XP recebido por exercício, com data, trilhas iniciadas e nível",
+      "Mostrar seu progresso, evoluir a criatura e montar o ranking.",
+      "Execução de contrato (art. 7º, V)",
+    ],
+  },
+  {
+    chave: "auditoria",
+    celulas: [
+      "Registro de ações sensíveis (login, troca de senha ou de e-mail, 2FA, exportação e exclusão de dados), com data, IP e navegador de origem",
+      "Detectar acesso indevido à sua conta e mostrar sua atividade recente.",
+      "Legítimo interesse (art. 7º, IX)",
+    ],
+  },
+  {
     chave: "tokens",
     celulas: [
       "Identificador dos tokens de sessão emitidos, com data de criação e de expiração",
@@ -131,12 +156,15 @@ export default async function PaginaPrivacidade() {
       <Secao numero={1} titulo="Quem trata seus dados">
         <Paragrafo>
           O controlador dos dados tratados na CodeQuest é{" "}
-          <ADefinir>razão social, CNPJ ou nome do responsável</ADefinir>.
+          {DADOS_LEGAIS.controlador}.
         </Paragrafo>
         <Paragrafo>
           O encarregado pelo tratamento de dados pessoais, previsto no art. 41
-          da LGPD, é <ADefinir>nome do encarregado</ADefinir>, e o canal para
-          falar com ele é <ADefinir>e-mail do encarregado</ADefinir>. É esse o
+          da LGPD, é {DADOS_LEGAIS.encarregado}, e o canal para falar com ele é{" "}
+          <a href={`mailto:${DADOS_LEGAIS.emailEncarregado}`}>
+            {DADOS_LEGAIS.emailEncarregado}
+          </a>
+          . É esse o
           endereço para qualquer pedido relacionado aos seus dados.
         </Paragrafo>
       </Secao>
@@ -155,28 +183,11 @@ export default async function PaginaPrivacidade() {
 
       <Secao numero={3} titulo="O que fica só no seu navegador">
         <Paragrafo>
-          Parte das informações nunca chega ao nosso servidor. Elas ficam
-          gravadas no armazenamento local do seu navegador, só naquele
-          aparelho:
+          A CodeQuest não grava nada no armazenamento local do seu navegador.
+          Seu progresso nas trilhas fica na sua conta, no servidor, e acompanha
+          você em qualquer aparelho. O único dado guardado no navegador são os
+          cookies descritos na seção 4.
         </Paragrafo>
-        <Lista>
-          <Item>
-            <strong className="text-ink-soft">
-              Seu progresso nas trilhas
-            </strong>
-            : quais aulas você concluiu.
-          </Item>
-          <Item>
-            <strong className="text-ink-soft">Sua preferência de menu</strong>:
-            se a barra lateral fica aberta ou recolhida.
-          </Item>
-        </Lista>
-        <Destaque>
-          Hoje o progresso nas trilhas não é enviado para o servidor. Isso
-          significa que ele se perde se você limpar os dados do navegador, usar
-          janela anônima ou trocar de aparelho. Quando passarmos a guardá-lo na
-          sua conta, atualizamos esta Política e avisamos antes.
-        </Destaque>
       </Secao>
 
       <Secao numero={4} titulo="Cookies">
@@ -224,10 +235,11 @@ export default async function PaginaPrivacidade() {
           </Item>
           <Item>
             <strong className="text-ink-soft">Envio de e-mail</strong>: Brevo,
-            que entrega a mensagem de confirmação de conta. O processamento
-            ocorre em <ADefinir>região dos servidores do Brevo</ADefinir>, e
-            fora do Brasil isso caracteriza transferência internacional nos
-            termos do art. 33 da LGPD.
+            que entrega os e-mails da plataforma (confirmação de conta e de
+            troca de e-mail, redefinição de senha, código de verificação em
+            duas etapas e confirmação de exclusão). O processamento ocorre em servidores na
+            União Europeia, e fora do Brasil isso caracteriza transferência
+            internacional nos termos do art. 33 da LGPD.
           </Item>
         </Lista>
         <Paragrafo>
@@ -239,21 +251,23 @@ export default async function PaginaPrivacidade() {
 
       <Secao numero={6} titulo="Por quanto tempo guardamos">
         <Paragrafo>
-          Enquanto sua conta existir, mantemos os dados da seção 2. Quando você
-          pede a exclusão, a conta é desativada imediatamente e fica marcada
-          para anonimização.
+          Enquanto sua conta existir, mantemos os dados da seção 2. O registro
+          de ações sensíveis é a exceção: cada linha é apagada depois de 180
+          dias.
         </Paragrafo>
         <Paragrafo>
-          Depois de <ADefinir>prazo de arrependimento</ADefinir>, os dados que
-          identificam você são apagados ou anonimizados de forma irreversível. O
-          que sobra, como estatísticas agregadas de uso das trilhas, não permite
-          mais chegar até você.
+          Quando você pede a exclusão, enviamos um link de confirmação para o
+          seu e-mail. Ao confirmar, a exclusão é imediata e não tem volta: não
+          existe prazo para desistir. Os dados que identificam você (e-mail,
+          nickname e senha) são anonimizados na hora, e a conta não pode mais
+          ser acessada. O que sobra, como o XP ligado a uma conta anônima e
+          estatísticas agregadas de uso das trilhas, não permite mais chegar
+          até você.
         </Paragrafo>
         <Paragrafo>
-          O registro de aceite dos documentos é mantido pelo prazo de{" "}
-          <ADefinir>prazo de guarda do aceite</ADefinir>, mesmo após a exclusão
-          da conta, porque é a prova de que a relação existiu e foi consentida.
-          O IP associado a ele é apagado junto com o restante dos seus dados.
+          O registro de aceite dos documentos é mantido por 5 anos, mesmo após
+          a exclusão da conta, porque é a prova de que a relação existiu e foi
+          consentida. O IP associado a ele é apagado no momento da exclusão.
         </Paragrafo>
       </Secao>
 
@@ -286,10 +300,12 @@ export default async function PaginaPrivacidade() {
         </Lista>
         <Destaque>
           Para exercer qualquer um desses direitos, escreva para{" "}
-          <ADefinir>e-mail do encarregado</ADefinir>. Respondemos em até{" "}
-          <ADefinir>prazo de resposta</ADefinir>. A tela onde você baixa e exclui
-          seus dados sozinho está em construção; até ela existir, o pedido é
-          feito por e-mail e nós executamos.
+          <a href={`mailto:${DADOS_LEGAIS.emailEncarregado}`}>
+            {DADOS_LEGAIS.emailEncarregado}
+          </a>
+          . Respondemos em até 15 dias. Você também pode baixar uma cópia dos
+          seus dados e excluir sua conta sozinho, na tela de{" "}
+          <Link href="/configuracoes">Configurações</Link>.
         </Destaque>
       </Secao>
 
@@ -299,6 +315,8 @@ export default async function PaginaPrivacidade() {
           essa finalidade, e nunca em texto legível. O acesso à plataforma é
           feito por conexão cifrada. Dentro do sistema, cada papel enxerga só o
           que precisa, e o acesso à sua conta exige token com validade curta.
+          Você pode ainda ativar a verificação em duas etapas, por aplicativo
+          autenticador ou por e-mail.
         </Paragrafo>
         <Paragrafo>
           Nenhum sistema é imune. Se acontecer um incidente de segurança capaz

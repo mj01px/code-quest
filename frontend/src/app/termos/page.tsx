@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ADefinir } from "@/components/legal/ADefinir";
 import { PaginaLegal } from "@/components/legal/PaginaLegal";
 import { Destaque, Item, Lista, Paragrafo, Secao } from "@/components/legal/Prosa";
+import { DADOS_LEGAIS } from "@/lib/dadosLegais";
 import { versaoParaCabecalho } from "@/lib/documentosLegais";
 
 export const metadata: Metadata = {
@@ -43,8 +44,8 @@ export default async function PaginaTermos() {
           avanço pela evolução de uma criatura.
         </Paragrafo>
         <Paragrafo>
-          A plataforma é mantida por <ADefinir>razão social ou nome do responsável</ADefinir>,
-          como projeto acadêmico. Ela é uma ferramenta de estudo: não substitui
+          A plataforma é mantida por {DADOS_LEGAIS.mantenedores}, como projeto
+          acadêmico. Ela é uma ferramenta de estudo: não substitui
           curso formal, não emite certificado com validade oficial e não garante
           nenhum resultado profissional.
         </Paragrafo>
@@ -183,7 +184,7 @@ export default async function PaginaTermos() {
       <Secao numero={10} titulo="Lei aplicável e foro">
         <Paragrafo>
           Estes Termos são regidos pela lei brasileira. Fica eleito o foro da
-          comarca de <ADefinir>comarca</ADefinir> para resolver qualquer questão
+          comarca de {DADOS_LEGAIS.comarca} para resolver qualquer questão
           que não se resolva de forma amigável, sem prejuízo do direito do
           consumidor de acionar o foro do seu domicílio.
         </Paragrafo>
@@ -192,7 +193,11 @@ export default async function PaginaTermos() {
       <Secao numero={11} titulo="Contato">
         <Paragrafo>
           Dúvida sobre estes Termos, denúncia de conduta ou pedido relacionado à
-          sua conta: escreva para <ADefinir>e-mail de contato</ADefinir>. Também
+          sua conta: escreva para{" "}
+          <a href={`mailto:${DADOS_LEGAIS.emailContato}`}>
+            {DADOS_LEGAIS.emailContato}
+          </a>
+          . Também
           respondemos pela página de <Link href="/suporte">suporte</Link>.
         </Paragrafo>
       </Secao>
