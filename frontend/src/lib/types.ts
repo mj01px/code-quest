@@ -256,3 +256,30 @@ export interface Correcao {
 export type RespostaConclusao =
   | ({ aprovado: true; correcao: Correcao | null } & ResultadoConclusao)
   | { aprovado: false; correcao: Correcao };
+// Uma linha do histórico de atividade do próprio titular, como o backend
+// devolve em /auth/eu/atividade/. O rótulo já vem legível, em pt-BR.
+export interface AtividadeItem {
+  id: string;
+  acao: string;
+  acao_rotulo: string;
+  created_at: string;
+  ip: string | null;
+}
+
+// Resposta paginada padrão do DRF.
+export interface Pagina<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
+// Situação de um documento legal para o titular, de /auth/eu/consentimentos/.
+export interface Consentimento {
+  documento: string;
+  rotulo: string;
+  versao_vigente: string;
+  versao_aceita: string | null;
+  caminho: string;
+  pendente: boolean;
+}

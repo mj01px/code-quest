@@ -292,9 +292,10 @@ def creditar_exercicio(*, user, exercicio):
             ja_concluido=True,
         )
 
-    # A soma vai no banco, não em Python: o SQLite ignora o select_for_update
-    # acima, então ler, somar e gravar perderia o incremento de um pedido
-    # concorrente do mesmo usuário em outro exercício.
+    # A soma vai no banco, não em Python: o UPDATE com F() é atômico e, com o
+    # select_for_update acima segurando a linha no Postgres, dois pedidos
+    # concorrentes do mesmo usuário não perdem incremento (ler, somar e gravar
+    # em Python perderia).
     # `atualizado_em` é auto_now e não dispara em update(); por isso vai à mão.
     agora = timezone.now()
     ProgressoCriatura.objects.filter(pk=progresso.pk).update(

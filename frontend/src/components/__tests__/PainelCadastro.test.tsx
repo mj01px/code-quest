@@ -39,7 +39,7 @@ const DOCUMENTOS = {
   },
 };
 
-const SENHA = "trilha-de-python-8";
+const SENHA = "Trilha-de-python-8";
 
 beforeEach(() => {
   jest.clearAllMocks();

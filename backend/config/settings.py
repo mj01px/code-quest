@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'apps.core',
     'apps.contas',
+    'apps.auditoria',
     'apps.gamificacao',
     'apps.trilhas',
     'apps.progressao',
@@ -92,12 +93,14 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+# PostgreSQL, configurado por DATABASE_URL (postgres://user:senha@host:porta/nome).
+# CONN_MAX_AGE mantem a conexao viva entre requisicoes (evita reabrir a cada hit)
+# e CONN_HEALTH_CHECKS descarta conexao morta antes de usar, no lugar de estourar.
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': env.db('DATABASE_URL'),
 }
+DATABASES['default']['CONN_MAX_AGE'] = env.int('DB_CONN_MAX_AGE', default=60)
+DATABASES['default']['CONN_HEALTH_CHECKS'] = True
 
 
 # Password validation
@@ -244,6 +247,20 @@ TROCA_EMAIL_MAX_AGE = env.int('TROCA_EMAIL_MAX_AGE', default=60 * 60 * 24)
 LOGIN_MAX_TENTATIVAS = env.int('LOGIN_MAX_TENTATIVAS', default=5)
 LOGIN_BLOQUEIO_SEGUNDOS = env.int('LOGIN_BLOQUEIO_SEGUNDOS', default=60 * 15)
 
+# Exclusao de conta: o link de confirmacao enviado por e-mail vive pouco (uso
+# unico). Confirmar com a senha anonimiza a conta na hora, sem prazo.
+EXCLUSAO_TOKEN_MAX_AGE = env.int('EXCLUSAO_TOKEN_MAX_AGE', default=60 * 30)
+
+# MFA / 2FA. Codigo enviado por e-mail (metodo e-mail) e o token curto que prova
+# que a senha passou, entre o passo 1 e o passo 2 do login.
+MFA_EMAIL_CODIGO_MAX_AGE = env.int('MFA_EMAIL_CODIGO_MAX_AGE', default=60 * 10)
+MFA_LOGIN_TOKEN_MAX_AGE = env.int('MFA_LOGIN_TOKEN_MAX_AGE', default=60 * 5)
+
+# Retencao da trilha de auditoria: dias que um registro vive antes de ser
+# purgado pelo comando purgar_logs_antigos. Fecha o ciclo de descarte exigido
+# pelo plano de retencao (o guia pede que o descarte prometido seja implementado).
+AUDITORIA_RETENCAO_DIAS = env.int('AUDITORIA_RETENCAO_DIAS', default=180)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -272,6 +289,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+    {
+        'NAME': 'apps.contas.validators.PasswordComplexityValidator',
     },
 ]
 

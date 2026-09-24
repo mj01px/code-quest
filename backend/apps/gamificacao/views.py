@@ -5,6 +5,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 
+from apps.auditoria.services import AcaoAuditoria, registrar
+
 # Evoluir depende do nível, que mora em progressão. O import é só de serviço,
 # e progressão não importa views daqui: não há ciclo.
 from apps.progressao.services import evoluir_criatura
@@ -83,6 +85,12 @@ class AdquirirCriaturaView(generics.GenericAPIView):
             user=request.user,
             creature_slug=entrada.validated_data["criatura"],
         )
+        registrar(
+            AcaoAuditoria.CRIATURA_ADQUIRIDA,
+            request=request,
+            actor=request.user,
+            criatura=entrada.validated_data["criatura"],
+        )
         saida = MinhaCriaturaSerializer(posse, context=self.get_serializer_context())
         return Response(saida.data, status=status.HTTP_201_CREATED)
 
@@ -141,6 +149,16 @@ class EvoluirCriaturaView(generics.GenericAPIView):
         )
 
         posse, partiu_de, evoluiu = evoluir_criatura(user=request.user, posse=posse)
+
+        if evoluiu:
+            registrar(
+                AcaoAuditoria.CRIATURA_EVOLUIDA,
+                request=request,
+                actor=request.user,
+                criatura=creature_slug,
+                de=partiu_de,
+                para=posse.current_stage,
+            )
 
         contexto = self.get_serializer_context()
         return Response(

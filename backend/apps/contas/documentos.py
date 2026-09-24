@@ -47,3 +47,33 @@ def descrever(documento: str) -> dict:
         "vigente_desde": vigente.vigente_desde,
         "caminho": vigente.caminho,
     }
+
+
+def status_consentimentos(user) -> list[dict]:
+    """Situação de cada documento legal para o usuário: versão vigente, versão
+    que ele aceitou e se há pendência (a versão vigente mudou desde o aceite).
+    """
+    from .models import AceiteDeTermos  # lazy: models.py importa este módulo
+
+    ultima_aceita: dict[str, str] = {}
+    for documento, versao in (
+        AceiteDeTermos.objects.filter(user=user)
+        .order_by("aceito_em")
+        .values_list("documento", "versao")
+    ):
+        ultima_aceita[documento] = versao  # o mais recente sobrescreve
+
+    situacao = []
+    for documento, vigente in VIGENTES.items():
+        aceita = ultima_aceita.get(documento)
+        situacao.append(
+            {
+                "documento": str(documento),
+                "rotulo": str(Documento(documento).label),
+                "versao_vigente": vigente.versao,
+                "versao_aceita": aceita,
+                "caminho": vigente.caminho,
+                "pendente": aceita != vigente.versao,
+            }
+        )
+    return situacao

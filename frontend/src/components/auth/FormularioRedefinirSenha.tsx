@@ -5,7 +5,7 @@ import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelField } from "@/components/ui/PixelField";
 import { PixelLink } from "@/components/ui/PixelLink";
 import { ErroApi, api } from "@/lib/api";
-import { validarConfirmacao, validarSenha } from "@/lib/validacao";
+import { SENHA_MAX, validarConfirmacao, validarSenha } from "@/lib/validacao";
 
 interface Erros {
   senha?: string | null;
@@ -18,9 +18,14 @@ const CAMPOS_DA_TELA = ["senha", "senha_confirmacao"] as const;
 interface Props {
   token: string;
   aoTrocar: () => void;
+  aoJaUsado: () => void;
 }
 
-export function FormularioRedefinirSenha({ token, aoTrocar }: Props) {
+export function FormularioRedefinirSenha({
+  token,
+  aoTrocar,
+  aoJaUsado,
+}: Props) {
   const [senha, setSenha] = useState("");
   const [confirmacao, setConfirmacao] = useState("");
   const [erros, setErros] = useState<Erros>({});
@@ -45,6 +50,10 @@ export function FormularioRedefinirSenha({ token, aoTrocar }: Props) {
       });
       aoTrocar();
     } catch (erro) {
+      if (erro instanceof ErroApi && erro.temCodigo("link_ja_usado")) {
+        aoJaUsado();
+        return;
+      }
       if (erro instanceof ErroApi) {
         const porCampo = erro.porCampo();
         const conhecido = CAMPOS_DA_TELA.some((campo) => campo in porCampo);
@@ -73,6 +82,7 @@ export function FormularioRedefinirSenha({ token, aoTrocar }: Props) {
         revelavel
         name="senha"
         autoComplete="new-password"
+        maxLength={SENHA_MAX}
         placeholder="••••••••"
         value={senha}
         erro={erros.senha}
@@ -85,6 +95,7 @@ export function FormularioRedefinirSenha({ token, aoTrocar }: Props) {
         revelavel
         name="confirmacao"
         autoComplete="new-password"
+        maxLength={SENHA_MAX}
         placeholder="••••••••"
         value={confirmacao}
         erro={erros.confirmacao}

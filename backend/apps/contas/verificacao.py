@@ -38,6 +38,16 @@ def ler_token(token: str) -> str | None:
         return None
 
 
+def ler_token_qualquer_idade(token: str) -> str | None:
+    """Lê o uid mesmo com o token vencido — só para identificar o dono e poder
+    dizer 'já confirmado'. Nunca serve para verificar uma conta ainda pendente.
+    """
+    try:
+        return signing.loads(token, salt=SALT, max_age=None)
+    except signing.BadSignature:
+        return None
+
+
 def montar_link(token: str) -> str:
     return f"{settings.FRONTEND_URL}/verificar-email?token={token}"
 

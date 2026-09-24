@@ -11,6 +11,7 @@ import { api } from "@/lib/api";
 export const ITENS = [
   { rotulo: "TRILHAS", href: "/trilhas" },
   { rotulo: "DESAFIO DO DIA", href: "/desafios" },
+  { rotulo: "CRIATURA", href: "/criatura" },
   { rotulo: "CONFIGURAÇÕES", href: "/configuracoes" },
 ] as const;
 

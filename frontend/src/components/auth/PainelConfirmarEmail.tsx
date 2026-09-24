@@ -10,9 +10,14 @@ import {
   ArteEnvelopeLendo,
   ArteLinkInvalido,
 } from "@/components/ui/ilustracoes";
-import { api } from "@/lib/api";
+import { ErroApi, api } from "@/lib/api";
 
-type Estado = "conferindo" | "confirmado" | "recusado" | "sem_token";
+type Estado =
+  | "conferindo"
+  | "confirmado"
+  | "recusado"
+  | "sem_token"
+  | "ja_usado";
 
 const TITULO = (
   <>
@@ -53,8 +58,13 @@ export function PainelConfirmarEmail() {
       .then(() => {
         if (ativo) setEstado("confirmado");
       })
-      .catch(() => {
-        if (ativo) setEstado("recusado");
+      .catch((erro) => {
+        if (!ativo) return;
+        setEstado(
+          erro instanceof ErroApi && erro.temCodigo("link_ja_usado")
+            ? "ja_usado"
+            : "recusado",
+        );
       });
 
     return () => {
@@ -101,6 +111,28 @@ export function PainelConfirmarEmail() {
     );
   }
 
+  if (estado === "ja_usado") {
+    return (
+      <PainelAuth
+        titulo={TITULO}
+        linhaTerminal={LINHA}
+        ilustracao={<ArteConfirmado />}
+        formulario={
+          <div className="flex flex-col gap-5">
+            <h2 className={ESTILO_H2}>E-MAIL JÁ TROCADO</h2>
+            <p className={ESTILO_P}>
+              Este link já foi usado — a troca de e-mail já está feita. É só
+              entrar com o novo endereço.
+            </p>
+            <PixelLink href="/entrar" className="w-full">
+              INICIAR SESSÃO
+            </PixelLink>
+          </div>
+        }
+      />
+    );
+  }
+
   const semToken = estado === "sem_token";
 
   return (
@@ -111,12 +143,12 @@ export function PainelConfirmarEmail() {
       formulario={
         <div className="flex flex-col gap-5">
           <h2 className={ESTILO_H2}>
-            {semToken ? "LINK INCOMPLETO" : "LINK INVÁLIDO"}
+            {semToken ? "LINK INCOMPLETO" : "LINK JÁ USADO"}
           </h2>
           <p className={ESTILO_P}>
             {semToken
               ? "Abra o link direto do e-mail que enviamos para o novo endereço."
-              : "Este link expirou ou já foi usado. Peça a troca de novo nas configurações."}
+              : "Esse link já foi usado ou expirou. Se precisar, peça a troca de novo nas Configurações."}
           </p>
           <PixelLink href="/configuracoes" className="w-full">
             VOLTAR ÀS CONFIGURAÇÕES
