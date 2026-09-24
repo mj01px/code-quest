@@ -111,6 +111,27 @@ export function SecaoSeguranca() {
     }
   }
 
+  async function iniciarDesativacao() {
+    limpar();
+    setFase("desativando");
+    // No método e-mail o código precisa ser disparado agora — sem isso o
+    // usuário não tem o que digitar. App/recuperação não dependem de envio.
+    if (metodo === "EMAIL") {
+      setOcupado(true);
+      try {
+        await api.mfaDesativarIniciar();
+      } catch (e) {
+        setErro(
+          e instanceof ErroApi
+            ? e.message
+            : "Não foi possível enviar o código.",
+        );
+      } finally {
+        setOcupado(false);
+      }
+    }
+  }
+
   async function desativar() {
     if (!codigo.trim()) {
       setErro("Digite um código para confirmar.");
@@ -335,10 +356,7 @@ export function SecaoSeguranca() {
             </span>
             <button
               type="button"
-              onClick={() => {
-                limpar();
-                setFase("desativando");
-              }}
+              onClick={iniciarDesativacao}
               className="cursor-pointer border-2 border-danger bg-transparent px-5 py-2.5 font-label text-[10px] tracking-[2px] text-danger shadow-pixel hover:bg-danger hover:text-void"
             >
               DESATIVAR
@@ -349,8 +367,9 @@ export function SecaoSeguranca() {
         {fase === "desativando" ? (
           <div className="flex flex-col gap-4">
             <span className="font-body text-base leading-[1.5] tracking-[1px] text-ink-muted">
-              Para desativar, confirme com um código do seu segundo fator (ou um
-              código de recuperação).
+              {metodo === "EMAIL"
+                ? "Enviamos um código para o seu e-mail. Digite-o abaixo para desativar (ou use um código de recuperação)."
+                : "Para desativar, confirme com um código do seu app autenticador (ou um código de recuperação)."}
             </span>
             <PixelField
               rotulo="CÓDIGO"

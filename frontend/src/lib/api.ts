@@ -365,6 +365,15 @@ export const api = {
     });
   },
 
+  // Dispara o código por e-mail para confirmar a desativação (método e-mail).
+  // Para o método app o retorno vem com email_enviado=false: nada a enviar.
+  mfaDesativarIniciar() {
+    return requisicao<{ email_enviado: boolean }>(
+      "/auth/eu/mfa/desativar/iniciar/",
+      { metodo: "POST", autenticado: true },
+    );
+  },
+
   mfaDesativar(codigo: string) {
     return requisicao<void>("/auth/eu/mfa/desativar/", {
       metodo: "POST",

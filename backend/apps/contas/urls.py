@@ -12,6 +12,7 @@ from .views import (
     LoginMfaView,
     LoginView,
     MfaConfirmarView,
+    MfaDesativarIniciarView,
     MfaDesativarView,
     MfaIniciarView,
     MfaStatusView,
@@ -65,6 +66,11 @@ urlpatterns = [
     path("auth/eu/mfa/", MfaStatusView.as_view(), name="mfa"),
     path("auth/eu/mfa/iniciar/", MfaIniciarView.as_view(), name="mfa-iniciar"),
     path("auth/eu/mfa/confirmar/", MfaConfirmarView.as_view(), name="mfa-confirmar"),
+    path(
+        "auth/eu/mfa/desativar/iniciar/",
+        MfaDesativarIniciarView.as_view(),
+        name="mfa-desativar-iniciar",
+    ),
     path("auth/eu/mfa/desativar/", MfaDesativarView.as_view(), name="mfa-desativar"),
     path("auth/eu/email/", TrocarEmailView.as_view(), name="trocar-email"),
     path(

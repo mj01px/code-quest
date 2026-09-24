@@ -190,6 +190,16 @@ def iniciar_desafio_login(user) -> None:
         enviar_codigo_email(user, preparar_desafio_email(config))
 
 
+def iniciar_desafio_desativacao(user) -> bool:
+    """Para desativar, se o método ativo for e-mail, dispara um novo código —
+    sem ele o usuário não teria o que digitar. TOTP (app) e códigos de
+    recuperação não precisam de envio. Retorna True se enviou por e-mail."""
+    config = mfa_ativo(user)
+    if config is not None and config.metodo == ConfiguracaoMFA.Metodo.EMAIL:
+        return enviar_codigo_email(user, preparar_desafio_email(config))
+    return False
+
+
 def verificar_codigo(user, codigo: str, permitir_recuperacao: bool = True) -> bool:
     config = getattr(user, "mfa", None)
     if config is None:
