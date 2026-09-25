@@ -17,7 +17,7 @@ import { MapaDeFases } from "@/components/trilhas/MapaDeFases";
 import { PainelDeTrilhas } from "@/components/trilhas/PainelDeTrilhas";
 import { api as apiReal, temSessao as temSessaoReal } from "@/lib/api";
 import type { Desafio } from "@/lib/desafios";
-import type { ResultadoConclusao } from "@/lib/types";
+import type { RespostaConclusao } from "@/lib/types";
 
 // O teste que fecha a migração: o progresso saiu do navegador e foi para a
 // conta. Antes desta entrega, 215 testes ficavam verdes com a funcionalidade
@@ -114,12 +114,14 @@ beforeEach(() => {
     },
   ]);
   concluirExercicio.mockResolvedValue({
+    aprovado: true,
+    correcao: null,
     ja_concluido: false,
     xp_ganho: 50,
     subiu_de_nivel: false,
     pode_evoluir: false,
     progresso: progressoAtual(),
-  } satisfies ResultadoConclusao);
+  } satisfies RespostaConclusao);
 
   // Espionar o protótipo pega qualquer acesso, inclusive `sessionStorage`, que
   // compartilha a mesma classe e seria só a chave trocando de casa.

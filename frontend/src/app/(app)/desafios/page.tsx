@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { PainelDeDesafios } from "@/components/desafios/PainelDeDesafios";
+import { PortaDeAcesso } from "@/components/layout/PortaDeAcesso";
 import { buscarTrilha, listarTrilhas } from "@/lib/api";
 import { dataPorExtenso, desafiosDoDia } from "@/lib/desafios";
 
@@ -27,7 +28,7 @@ export default async function DesafiosPage() {
 
   if (desafios.length === 0) {
     return (
-      <>
+      <PortaDeAcesso perm="trilhas.view">
         <h1 className="titulo text-xl text-ink-soft">Desafio do dia</h1>
         <p className="mt-6 border border-edge bg-panel p-6 text-xs leading-relaxed text-ink-muted">
           Ainda não há fases publicadas para sortear. Assim que a primeira
@@ -39,9 +40,13 @@ export default async function DesafiosPage() {
         >
           Ver as trilhas
         </Link>
-      </>
+      </PortaDeAcesso>
     );
   }
 
-  return <PainelDeDesafios desafios={desafios} dia={dataPorExtenso(hoje)} />;
+  return (
+    <PortaDeAcesso perm="trilhas.view">
+      <PainelDeDesafios desafios={desafios} dia={dataPorExtenso(hoje)} />
+    </PortaDeAcesso>
+  );
 }

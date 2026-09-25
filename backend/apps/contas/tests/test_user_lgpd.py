@@ -13,7 +13,7 @@ from .helpers import criar_aluno
 
 class AnonimizarModeloTest(TestCase):
     def setUp(self):
-        self.user = criar_aluno()
+        self.user = criar_aluno(email_pendente="pendente@example.com")
         self.email_original = self.user.email
         self.mudou = self.user.anonimizar()
         self.user.refresh_from_db()
@@ -21,6 +21,7 @@ class AnonimizarModeloTest(TestCase):
     def test_embaralha_identidade(self):
         self.assertTrue(self.mudou)
         self.assertNotEqual(self.user.email, self.email_original)
+        self.assertEqual(self.user.email_pendente, "")  # também é PII
         self.assertNotIn("aluno", self.user.nickname)
         self.assertFalse(self.user.has_usable_password())
 

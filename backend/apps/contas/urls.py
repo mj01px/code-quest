@@ -12,6 +12,7 @@ from .views import (
     LoginMfaView,
     LoginView,
     MfaConfirmarView,
+    MfaDesativarIniciarView,
     MfaDesativarView,
     MfaIniciarView,
     MfaStatusView,
@@ -24,6 +25,13 @@ from .views import (
     SolicitarExclusaoView,
     TrocarEmailView,
     VerificarEmailView,
+)
+from .views_rbac import (
+    NivelDetailView,
+    NivelListCreateView,
+    PermissaoListView,
+    UsuarioListView,
+    UsuarioNivelView,
 )
 
 app_name = "contas"
@@ -65,7 +73,30 @@ urlpatterns = [
     path("auth/eu/mfa/", MfaStatusView.as_view(), name="mfa"),
     path("auth/eu/mfa/iniciar/", MfaIniciarView.as_view(), name="mfa-iniciar"),
     path("auth/eu/mfa/confirmar/", MfaConfirmarView.as_view(), name="mfa-confirmar"),
+    path(
+        "auth/eu/mfa/desativar/iniciar/",
+        MfaDesativarIniciarView.as_view(),
+        name="mfa-desativar-iniciar",
+    ),
     path("auth/eu/mfa/desativar/", MfaDesativarView.as_view(), name="mfa-desativar"),
+    # --- Painel de RBAC (admin) ---
+    path(
+        "auth/admin/permissoes/",
+        PermissaoListView.as_view(),
+        name="admin-permissoes",
+    ),
+    path("auth/admin/niveis/", NivelListCreateView.as_view(), name="admin-niveis"),
+    path(
+        "auth/admin/niveis/<uuid:pk>/",
+        NivelDetailView.as_view(),
+        name="admin-nivel",
+    ),
+    path("auth/admin/usuarios/", UsuarioListView.as_view(), name="admin-usuarios"),
+    path(
+        "auth/admin/usuarios/<uuid:pk>/nivel/",
+        UsuarioNivelView.as_view(),
+        name="admin-usuario-nivel",
+    ),
     path("auth/eu/email/", TrocarEmailView.as_view(), name="trocar-email"),
     path(
         "auth/eu/email/confirmar/",

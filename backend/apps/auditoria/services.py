@@ -4,10 +4,16 @@ Ponto único de escrita. Qualquer fluxo que precise registrar um evento chama
 `registrar(...)`. A gravação é resiliente: uma falha aqui nunca derruba a
 requisição que a originou (um login não pode falhar porque a auditoria falhou).
 
+Exceção: quando o registro é prova obrigatória (hoje, só a anonimização LGPD),
+não use `registrar()`. Grave com `RegistroDeAuditoria.objects.create()` dentro
+do atomic() da ação, para que a falha do registro desfaça a ação.
+
 Regra de ouro: NUNCA passe senha, token ou conteúdo sensível em `metadata`.
 """
 
 import logging
+
+from django.db import transaction
 
 from .models import AcaoAuditoria, RegistroDeAuditoria
 
@@ -63,16 +69,20 @@ def registrar(acao, *, request=None, actor=None, alvo=None, **metadata):
             alvo_tipo = alvo.__class__.__name__.lower()
             alvo_id = str(getattr(alvo, "pk", "") or "")
 
-        return RegistroDeAuditoria.objects.create(
-            acao=acao,
-            actor=ator_fk,
-            actor_email_snapshot=email,
-            alvo_tipo=alvo_tipo,
-            alvo_id=alvo_id,
-            ip=_ip(request),
-            user_agent=_user_agent(request),
-            metadata=metadata or {},
-        )
+        # Savepoint próprio: qualquer exceção dentro do save() marca para
+        # rollback o atomic() de quem chamou (mark_for_rollback_on_error). Sem
+        # ele, o except abaixo engole o erro e a ação volta atrás em silêncio.
+        with transaction.atomic():
+            return RegistroDeAuditoria.objects.create(
+                acao=acao,
+                actor=ator_fk,
+                actor_email_snapshot=email,
+                alvo_tipo=alvo_tipo,
+                alvo_id=alvo_id,
+                ip=_ip(request),
+                user_agent=_user_agent(request),
+                metadata=metadata or {},
+            )
     except Exception:  # noqa: BLE001 - auditoria nunca pode quebrar o fluxo
         logger.warning("Falha ao registrar auditoria (acao=%s)", acao, exc_info=True)
         return None

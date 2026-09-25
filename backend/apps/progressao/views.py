@@ -6,10 +6,17 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from apps.core.permissions import HasPerm
+from apps.correcao.excecoes import CorretorIndisponivel
+from apps.correcao.judge0 import Judge0Error
+from apps.correcao.serializers import CorrecaoSerializer, EnvioDeCodigoSerializer
+from apps.correcao.services import corrigir_envio, tem_correcao_automatica
+from apps.correcao.views import PODE_SUBMETER_CODIGO, Judge0PorMinuto, codigo_enviado
 from apps.trilhas.models import Exercicio, Trilha
 
 from .models import TrilhaIniciada
 from .serializers import (
+    ConclusaoSerializer,
     ExercicioConcluidoSerializer,
     ProgressoSerializer,
     ResultadoXPSerializer,
@@ -24,6 +31,11 @@ from .services import (
     obter_progresso,
     trilhas_iniciadas,
 )
+
+# Iniciar trilha e concluir exercício são capacidades governadas pelo RBAC
+# ler o próprio progresso continua exigindo só login
+PODE_INICIAR_TRILHA = HasPerm("trilhas.enroll")
+PODE_CONCLUIR_EXERCICIO = HasPerm("exercicios.complete")
 
 
 @extend_schema(tags=["progressao"], responses=ProgressoSerializer)
@@ -51,7 +63,7 @@ class IniciarTrilhaView(APIView):
     tela a tratar como falha algo que está certo.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, PODE_INICIAR_TRILHA]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "conclusao"
 
@@ -86,9 +98,10 @@ class MinhasTrilhasIniciadasView(APIView):
         return Response(trilhas_iniciadas(user=request.user))
 
 
-@extend_schema(tags=["progressao"], responses=ResultadoXPSerializer)
+@extend_schema(
+    tags=["progressao"], request=EnvioDeCodigoSerializer, responses=ConclusaoSerializer)
 class ConcluirExercicioView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, PODE_CONCLUIR_EXERCICIO]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "conclusao"
 
@@ -99,12 +112,40 @@ class ConcluirExercicioView(APIView):
             slug=exercicio_slug,
         )
 
+        correcao = None
+        if tem_correcao_automatica(exercicio):
+            # Só o envio que chama o Judge0 gasta o balde dele, o mesmo de
+            # executar/. Concluir exercício sem código segue em `conclusao`.
+            # Permissão antes do balde: 403 não gasta a rajada de ninguém.
+            self.permission_classes = [PODE_SUBMETER_CODIGO]
+            self.check_permissions(request)
+            self.throttle_classes = [Judge0PorMinuto]
+            self.check_throttles(request)
+            try:
+                correcao = corrigir_envio(
+                    user=request.user,
+                    exercicio=exercicio,
+                    codigo=codigo_enviado(request),
+                )
+            except Judge0Error:
+                raise CorretorIndisponivel() from None
+
+            if not correcao.aprovado:
+                return Response(
+                    {"aprovado": False, "correcao": CorrecaoSerializer(correcao).data}
+                )
+
         resultado = creditar_exercicio(user=request.user, exercicio=exercicio)
-        # recarrega o estado atualizado da barra
         montar_progresso(resultado.progresso)
 
-        dados = ResultadoXPSerializer(resultado, context={"request": request})
-        return Response(dados.data)
+        dados = ResultadoXPSerializer(resultado, context={"request": request}).data
+        return Response(
+            {
+                **dados,
+                "aprovado": True,
+                "correcao": CorrecaoSerializer(correcao).data if correcao else None,
+            }
+        )
 
 
 @extend_schema(

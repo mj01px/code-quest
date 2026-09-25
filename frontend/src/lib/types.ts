@@ -3,8 +3,6 @@ export type Dominio =
 
 export type Estagio = 1 | 2 | 3;
 
-export type Papel = "ALUNO" | "AUTOR" | "ADMIN";
-
 export interface EstagioCriatura {
   estagio: Estagio;
   rotulo: string;
@@ -62,10 +60,35 @@ export interface Usuario {
   id: string;
   email: string;
   nickname: string;
-  papel: Papel;
-  papel_rotulo: string;
   permissoes: string[];
+  is_admin: boolean;
   criado_em: string;
+}
+
+// --- RBAC (painel de admin) ---
+export interface PermissaoCatalogo {
+  codename: string;
+  rotulo: string;
+  modulo: string;
+}
+
+export interface NivelDeAcesso {
+  id: string;
+  nome: string;
+  descricao: string;
+  sistema: boolean;
+  acesso_admin: boolean;
+  permissoes: string[]; // codenames
+  qtd_usuarios: number;
+  criado_em: string;
+}
+
+export interface UsuarioAdmin {
+  id: string;
+  nickname: string;
+  email: string;
+  criado_em: string;
+  nivel: { id: string; nome: string } | null;
 }
 
 export type DocumentoLegal = "TERMOS" | "PRIVACIDADE";
@@ -196,6 +219,66 @@ export interface ExercicioConcluido {
   criado_em: string;
 }
 
+export type Veredito =
+  | "APROVADO"
+  | "RESPOSTA_ERRADA"
+  | "TEMPO_ESGOTADO"
+  | "ERRO_DE_EXECUCAO";
+
+export type ModoCorrecao = "EXECUTAR" | "ENVIAR";
+
+export interface RequisitoEstrutural {
+  regra: "exigir" | "proibir";
+  construcao: string;
+  nome?: string;
+}
+
+export interface ExemploDeCaso {
+  ordem: number;
+  argumentos: unknown[];
+  esperado: unknown;
+  erro_esperado: string;
+}
+
+export interface EspecificacaoDeCodigo {
+  linguagem: "PYTHON";
+  funcao: string;
+  codigo_inicial: string;
+  requisitos: RequisitoEstrutural[];
+  limite_de_caracteres: number;
+  exemplos: ExemploDeCaso[];
+   codigo_aprovado: string;
+}
+
+
+export interface ResultadoDoCaso {
+  ordem: number;
+  visivel: boolean;
+  passou: boolean;
+  argumentos?: unknown[];
+  esperado?: unknown;
+  erro_esperado?: string;
+  obtido?: unknown;
+  erro?: string;
+}
+
+export interface Correcao {
+  modo: ModoCorrecao;
+  veredito: Veredito;
+  aprovado: boolean;
+  aprovados: number;
+  total: number;
+  casos: ResultadoDoCaso[];
+  saida: string;
+  erro: string;
+  tempo: number | null;
+  memoria: number | null;
+}
+
+// reprovado nao tem xp
+export type RespostaConclusao =
+  | ({ aprovado: true; correcao: Correcao | null } & ResultadoConclusao)
+  | { aprovado: false; correcao: Correcao };
 // Uma linha do histórico de atividade do próprio titular, como o backend
 // devolve em /auth/eu/atividade/. O rótulo já vem legível, em pt-BR.
 export interface AtividadeItem {

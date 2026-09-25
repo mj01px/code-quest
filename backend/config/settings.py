@@ -54,7 +54,9 @@ INSTALLED_APPS = [
     'apps.auditoria',
     'apps.gamificacao',
     'apps.trilhas',
-    'apps.progressao'
+    'apps.progressao',
+    'apps.correcao',
+
 ]
 
 MIDDLEWARE = [
@@ -140,6 +142,17 @@ THROTTLE_EU_PROGRESSO = env('THROTTLE_EU_PROGRESSO', default='120/min')
 # e em balde proprio, para que raspar gabarito nao se esconda no trafego normal.
 THROTTLE_AUTORIA = env('THROTTLE_AUTORIA', default='30/min')
 
+JUDGE0_URL = env('JUDGE0_URL', default='').rstrip('/')
+JUDGE0_TOKEN = env('JUDGE0_TOKEN', default='')
+JUDGE0_TIMEOUT = env.float('JUDGE0_TIMEOUT', default=15.0)
+# Cota diaria do plano no RapidAPI (50 no plano atual); o disjuntor para em 90%.
+# Default igual ao plano: com 300, onde a variavel faltasse o disjuntor abriria
+# depois do 429 do proprio RapidAPI, ou seja, nunca.
+JUDGE0_LIMITE_DIARIO = env.int('JUDGE0_LIMITE_DIARIO', default=50)
+# Chamadas pagas por usuario por dia: uma conta sozinha nao abre o disjuntor.
+JUDGE0_LIMITE_POR_USUARIO = env.int('JUDGE0_LIMITE_POR_USUARIO', default=10)
+
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'apps.contas.autenticacao.CookieJWTAuthentication',
@@ -163,6 +176,9 @@ REST_FRAMEWORK = {
         'catalogo': THROTTLE_CATALOGO,
         'eu_progresso': THROTTLE_EU_PROGRESSO,
         'autoria': THROTTLE_AUTORIA,
+        # Rajada por usuario em tudo que chama o Judge0 (executar/ e o envio de
+        # concluir/). O teto do dia fica em JUDGE0_LIMITE_POR_USUARIO.
+        'judge0': '5/min',
     },
     # Sem NUM_PROXIES o DRF identifica o cliente por X-Forwarded-For, que o
     # proprio cliente manda. Zero forca REMOTE_ADDR e fecha a burla do limite.
@@ -230,7 +246,8 @@ EMAIL_BACKEND = env(
 
 VERIFICACAO_EMAIL_MAX_AGE = env.int('VERIFICACAO_EMAIL_MAX_AGE', default=60 * 60 * 24)
 REDEFINICAO_SENHA_MAX_AGE = env.int('REDEFINICAO_SENHA_MAX_AGE', default=60 * 30)
-TROCA_EMAIL_MAX_AGE = env.int('TROCA_EMAIL_MAX_AGE', default=60 * 60 * 24)
+# Troca de e-mail: o link vai para o endereco ATUAL e vive pouco (vetor A1).
+TROCA_EMAIL_MAX_AGE = env.int('TROCA_EMAIL_MAX_AGE', default=60 * 30)
 
 LOGIN_MAX_TENTATIVAS = env.int('LOGIN_MAX_TENTATIVAS', default=5)
 LOGIN_BLOQUEIO_SEGUNDOS = env.int('LOGIN_BLOQUEIO_SEGUNDOS', default=60 * 15)

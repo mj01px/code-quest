@@ -10,6 +10,7 @@ api = [
     path("", include("apps.gamificacao.urls")),
     path("", include("apps.trilhas.urls")),
     path("", include("apps.progressao.urls")),
+    path("", include("apps.correcao.urls")),
 ]
 
 urlpatterns = [

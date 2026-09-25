@@ -56,6 +56,23 @@ async function preencher(usuario: ReturnType<typeof userEvent.setup>) {
   await usuario.type(screen.getByLabelText("E-MAIL"), "novato@exemplo.com");
   await usuario.type(screen.getByLabelText("NICKNAME"), "novato");
   await usuario.type(screen.getByLabelText("SENHA"), SENHA);
+  await escolherNascimento(usuario, 2000);
+}
+
+/** Dirige o date picker próprio até um dia do ano dado (16+). */
+async function escolherNascimento(
+  usuario: ReturnType<typeof userEvent.setup>,
+  ano: number,
+) {
+  await usuario.click(screen.getByLabelText("DATA DE NASCIMENTO"));
+  await usuario.click(screen.getByRole("button", { name: "Escolher ano" }));
+  while (!screen.queryByRole("button", { name: String(ano) })) {
+    await usuario.click(screen.getByRole("button", { name: "Anos anteriores" }));
+  }
+  await usuario.click(screen.getByRole("button", { name: String(ano) }));
+  await usuario.click(
+    screen.getByRole("button", { name: new RegExp(`^15/\\d{2}/${ano}$`) }),
+  );
 }
 
 function caixaDeAceite() {
@@ -94,6 +111,26 @@ describe("FormularioCadastro", () => {
     expect(
       screen.getByText(
         "É preciso aceitar os Termos de Uso e a Política de Privacidade.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("não cria conta para menor de 16 anos", async () => {
+    const usuario = userEvent.setup();
+    render(<FormularioCadastro aoCadastrar={aoCadastrar} />);
+    await waitFor(() => expect(caixaDeAceite()).toBeEnabled());
+
+    await usuario.type(screen.getByLabelText("E-MAIL"), "novato@exemplo.com");
+    await usuario.type(screen.getByLabelText("NICKNAME"), "novato");
+    await usuario.type(screen.getByLabelText("SENHA"), SENHA);
+    await escolherNascimento(usuario, new Date().getFullYear() - 10);
+    await usuario.click(caixaDeAceite());
+    await usuario.click(screen.getByRole("button", { name: "CRIAR CONTA" }));
+
+    expect(registrar).not.toHaveBeenCalled();
+    expect(
+      screen.getByText(
+        "É preciso ter pelo menos 16 anos para criar uma conta.",
       ),
     ).toBeInTheDocument();
   });

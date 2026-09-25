@@ -8,8 +8,9 @@ from django.utils.translation import gettext_lazy as _
 class AcaoAuditoria(models.TextChoices):
     """Códigos das ações registradas na trilha de auditoria.
 
-    Os cinco últimos ficam definidos para uso futuro (administração de usuários
-    e exportação de dados), quando os endpoints correspondentes existirem.
+    Os quatro últimos (papel e suspensão de conta) seguem sem uso: o painel de
+    administração troca o nível de acesso (`NIVEL_ATRIBUIDO`), não o `role`, e
+    suspensão ainda não tem endpoint.
     """
 
     LOGIN_OK = "LOGIN_OK", _("Login bem-sucedido")
@@ -19,6 +20,8 @@ class AcaoAuditoria(models.TextChoices):
     EMAIL_VERIFICADO = "EMAIL_VERIFICADO", _("E-mail verificado")
     SENHA_REDEFINIDA = "SENHA_REDEFINIDA", _("Senha redefinida")
     TROCA_EMAIL_SOLICITADA = "TROCA_EMAIL_SOLICITADA", _("Troca de e-mail solicitada")
+    # Etapa 1: o endereço atual aprovou a troca (o IP de quem aprovou fica aqui).
+    TROCA_EMAIL_AUTORIZADA = "TROCA_EMAIL_AUTORIZADA", _("Troca de e-mail autorizada")
     TROCA_EMAIL_CONFIRMADA = "TROCA_EMAIL_CONFIRMADA", _("Troca de e-mail confirmada")
     EXCLUSAO_SOLICITADA = "EXCLUSAO_SOLICITADA", _("Exclusão de conta solicitada")
     NICKNAME_ALTERADO = "NICKNAME_ALTERADO", _("Nickname alterado")
@@ -30,6 +33,11 @@ class AcaoAuditoria(models.TextChoices):
     MFA_DESATIVADO = "MFA_DESATIVADO", _("Verificação em duas etapas desativada")
     ACESSO_AUDITORIA = "ACESSO_AUDITORIA", _("Consulta à trilha de auditoria")
     CONTA_ANONIMIZADA = "CONTA_ANONIMIZADA", _("Conta anonimizada")
+    # Painel de RBAC: nível é o conjunto de permissões, não o `role` do usuário.
+    NIVEL_CRIADO = "NIVEL_CRIADO", _("Nível de acesso criado")
+    NIVEL_EDITADO = "NIVEL_EDITADO", _("Nível de acesso editado")
+    NIVEL_REMOVIDO = "NIVEL_REMOVIDO", _("Nível de acesso removido")
+    NIVEL_ATRIBUIDO = "NIVEL_ATRIBUIDO", _("Nível de acesso atribuído a usuário")
     # Definidos para uso futuro (administração):
     PAPEL_CONCEDIDO = "PAPEL_CONCEDIDO", _("Papel concedido")
     PAPEL_REMOVIDO = "PAPEL_REMOVIDO", _("Papel removido")
@@ -48,6 +56,7 @@ ACOES_DO_TITULAR = frozenset(
         AcaoAuditoria.EMAIL_VERIFICADO,
         AcaoAuditoria.SENHA_REDEFINIDA,
         AcaoAuditoria.TROCA_EMAIL_SOLICITADA,
+        AcaoAuditoria.TROCA_EMAIL_AUTORIZADA,
         AcaoAuditoria.TROCA_EMAIL_CONFIRMADA,
         AcaoAuditoria.EXCLUSAO_SOLICITADA,
         AcaoAuditoria.NICKNAME_ALTERADO,

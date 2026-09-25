@@ -4,8 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { ProvedorProgresso } from "@/components/progresso/ProvedorProgresso";
 import { BotaoConclusao } from "@/components/trilhas/BotaoConclusao";
 import { ErroApi, api as apiReal, temSessao as temSessaoReal } from "@/lib/api";
-import type { ExercicioConcluido, ResultadoConclusao } from "@/lib/types";
-
+import type { ExercicioConcluido, RespostaConclusao } from "@/lib/types";
 import { minhaCriatura, progressoAtual, usuario } from "./fixtures";
 
 jest.mock("@/lib/api", () => {
@@ -54,12 +53,12 @@ const BASE = {
   progresso: progressoAtual(),
 };
 
-function novoCredito(xp = 50): ResultadoConclusao {
-  return { ...BASE, ja_concluido: false, xp_ganho: xp };
+function novoCredito(xp = 50): RespostaConclusao {
+  return { ...BASE, aprovado: true, correcao: null, ja_concluido: false, xp_ganho: xp };
 }
 
-function repeticao(): ResultadoConclusao {
-  return { ...BASE, ja_concluido: true, xp_ganho: 0 };
+function repeticao(): RespostaConclusao {
+  return { ...BASE, aprovado: true, correcao: null, ja_concluido: true, xp_ganho: 0 };
 }
 
 function jaConcluido(): ExercicioConcluido {
@@ -220,8 +219,7 @@ describe("BotaoConclusao", () => {
   it("continua focável enquanto envia, em vez de sumir do leitor de tela", async () => {
     // `disabled` tira o foco do botão, e o leitor cala justamente sobre o
     // elemento que acabou de mudar. `aria-disabled` mantém foco e anúncio.
-    let liberar: (v: ResultadoConclusao) => void = () => {};
-    concluirExercicio.mockImplementation(
+    let liberar: (v: RespostaConclusao) => void = () => {};    concluirExercicio.mockImplementation(
       () => new Promise((r) => (liberar = r)),
     );
     await montarPronto();
@@ -239,8 +237,7 @@ describe("BotaoConclusao", () => {
   it("dois cliques no mesmo instante mandam um POST só", async () => {
     // O trinco é um ref: checar `estado` não bastaria, porque os dois cliques
     // leem o mesmo valor antes do re-render.
-    let liberar: (v: ResultadoConclusao) => void = () => {};
-    concluirExercicio.mockImplementation(
+    let liberar: (v: RespostaConclusao) => void = () => {};    concluirExercicio.mockImplementation(
       () => new Promise((r) => (liberar = r)),
     );
     await montarPronto();

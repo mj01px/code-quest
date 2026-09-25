@@ -17,6 +17,25 @@ export function IconeEngrenagem() {
   );
 }
 
+export function IconeCalendario() {
+  return (
+    <svg viewBox="0 0 9 9" width="15" height="15" fill="currentColor" aria-hidden="true">
+      <rect x="2" y="0" width="1" height="1" />
+      <rect x="6" y="0" width="1" height="1" />
+      <rect x="0" y="1" width="9" height="2" />
+      <rect x="0" y="3" width="1" height="6" />
+      <rect x="8" y="3" width="1" height="6" />
+      <rect x="0" y="8" width="9" height="1" />
+      <rect x="2" y="4" width="1" height="1" />
+      <rect x="4" y="4" width="1" height="1" />
+      <rect x="6" y="4" width="1" height="1" />
+      <rect x="2" y="6" width="1" height="1" />
+      <rect x="4" y="6" width="1" height="1" />
+      <rect x="6" y="6" width="1" height="1" />
+    </svg>
+  );
+}
+
 export function IconeOlho() {
   return (
     <svg viewBox="0 0 9 7" width="15" height="15" fill="currentColor" aria-hidden="true">

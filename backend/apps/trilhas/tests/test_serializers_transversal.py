@@ -90,6 +90,7 @@ class VarreduraCobreOProjetoTest(TestCase):
                 "apps.autoria.serializers",
                 "apps.auditoria.serializers",
                 "apps.contas.serializers",
+                "apps.correcao.serializers",
                 "apps.gamificacao.serializers",
                 "apps.progressao.serializers",
                 "apps.trilhas.serializers",

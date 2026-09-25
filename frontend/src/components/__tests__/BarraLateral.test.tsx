@@ -105,6 +105,41 @@ describe("BarraLateral: navegação", () => {
   });
 });
 
+describe("BarraLateral: item de admin", () => {
+  it("não mostra ADMIN para aluno", async () => {
+    montar();
+    await waitFor(() => expect(bloco()).toHaveClass("opacity-100"));
+
+    expect(screen.queryByRole("link", { name: /ADMIN/ })).toBeNull();
+  });
+
+  it("mostra ADMIN para administrador", async () => {
+    mock.api.eu.mockResolvedValue(
+      usuario({ is_admin: true }),
+    );
+    montar();
+    await waitFor(() => expect(bloco()).toHaveClass("opacity-100"));
+
+    expect(screen.getByRole("link", { name: /ADMIN/ })).toHaveAttribute(
+      "href",
+      "/admin",
+    );
+  });
+});
+
+describe("BarraLateral: permissões", () => {
+  it("esconde CRIATURA de quem não tem criaturas.view", async () => {
+    mock.api.eu.mockResolvedValue(usuario({ permissoes: ["trilhas.view"] }));
+    montar();
+    await waitFor(() => expect(bloco()).toHaveClass("opacity-100"));
+
+    expect(screen.queryByRole("link", { name: /CRIATURA/ })).toBeNull();
+    expect(
+      screen.getByRole("link", { name: /DESAFIO DO DIA/ }),
+    ).toBeInTheDocument();
+  });
+});
+
 describe("BarraLateral: identidade e XP", () => {
   it("troca o estado neutro pelos dados da conta", async () => {
     montar();

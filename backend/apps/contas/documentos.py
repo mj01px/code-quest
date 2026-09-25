@@ -22,13 +22,13 @@ class DocumentoVigente:
 
 VIGENTES: dict[str, DocumentoVigente] = {
     Documento.TERMOS: DocumentoVigente(
-        versao="1.0",
-        vigente_desde=date(2026, 9, 8),
+        versao="1.1",
+        vigente_desde=date(2026, 9, 25),
         caminho="/termos",
     ),
     Documento.PRIVACIDADE: DocumentoVigente(
-        versao="1.0",
-        vigente_desde=date(2026, 9, 8),
+        versao="1.1",
+        vigente_desde=date(2026, 9, 25),
         caminho="/privacidade",
     ),
 }

@@ -1,19 +1,24 @@
 import type {
   AtividadeItem,
   BonusXp,
+  Correcao,
   Consentimento,
   Criatura,
   DocumentosLegais,
+  EspecificacaoDeCodigo,
   Evolucao,
   ExercicioConcluido,
   ExercicioDetalhe,
   MinhaCriatura,
+  NivelDeAcesso,
   Pagina,
+  PermissaoCatalogo,
   ProgressoAtual,
-  ResultadoConclusao,
+  RespostaConclusao,
   TrilhaDetalhe,
   TrilhaResumo,
   Usuario,
+  UsuarioAdmin,
 } from "./types";
 
 // No navegador tudo passa pela mesma origem, via rewrite do Next: e o que
@@ -146,6 +151,26 @@ async function interpretar(resposta: Response) {
   );
 }
 
+/**
+ * Derruba uma sessão morta no servidor. `/auth/sair/` é público e limpa os
+ * cookies httpOnly (que o JS não alcança) mesmo sem um token válido. Usado
+ * quando o navegador tem o cookie-sinal, mas o servidor recusa a credencial
+ * (token expirado sem refresh possível, ou usuário removido) — sem isso o
+ * cookie morto seguiria em toda requisição, quebrando até telas públicas.
+ */
+async function purgarSessao(prazo: AbortSignal): Promise<void> {
+  try {
+    await fetch(`${BASE}/auth/sair/`, {
+      method: "POST",
+      credentials: "same-origin",
+      signal: prazo,
+    });
+  } catch {
+    // Não deu para purgar: o retry ainda mandará o cookie morto e o 401 sobe
+    // normalmente, sem loop (o retry vai com jaRenovou=true).
+  }
+}
+
 async function renovar(prazo: AbortSignal): Promise<boolean> {
   const csrf = await garantirCsrf(prazo);
 
@@ -217,8 +242,21 @@ async function requisicao<T>(
     throw eTempoEsgotado(erro) ? ERRO_TEMPO : ERRO_REDE;
   }
 
-  if (resposta.status === 401 && autenticado && !jaRenovou) {
-    if (await renovar(prazo)) {
+  if (resposta.status === 401 && noNavegador && !jaRenovou) {
+    // Pedido autenticado: tenta renovar o token de acesso primeiro.
+    if (autenticado && (await renovar(prazo))) {
+      return requisicao<T>(
+        caminho,
+        { metodo, corpo, autenticado, revalidacao, etiquetas },
+        true,
+        prazo,
+      );
+    }
+    // Sessão fantasma: o navegador acha que há sessão, mas o servidor negou e a
+    // renovação não resolveu. Purga a sessão morta e refaz o pedido como anônimo
+    // (uma vez) — assim cadastro/documentos voltam a funcionar com token órfão.
+    if (temSessao()) {
+      await purgarSessao(prazo);
       return requisicao<T>(
         caminho,
         { metodo, corpo, autenticado, revalidacao, etiquetas },
@@ -277,6 +315,7 @@ export interface DadosRegistro {
   email: string;
   nickname: string;
   senha: string;
+  data_nascimento: string; // "YYYY-MM-DD"
   aceite_documentos: boolean;
   versao_termos: string;
   versao_privacidade: string;
@@ -365,6 +404,15 @@ export const api = {
     });
   },
 
+  // Dispara o código por e-mail para confirmar a desativação (método e-mail).
+  // Para o método app o retorno vem com email_enviado=false: nada a enviar.
+  mfaDesativarIniciar() {
+    return requisicao<{ email_enviado: boolean }>(
+      "/auth/eu/mfa/desativar/iniciar/",
+      { metodo: "POST", autenticado: true },
+    );
+  },
+
   mfaDesativar(codigo: string) {
     return requisicao<void>("/auth/eu/mfa/desativar/", {
       metodo: "POST",
@@ -375,6 +423,72 @@ export const api = {
 
   sair() {
     return requisicao<void>("/auth/sair/", { metodo: "POST" });
+  },
+
+  // --- Painel de RBAC (admin) ---
+  adminPermissoes() {
+    return requisicao<PermissaoCatalogo[]>("/auth/admin/permissoes/", {
+      autenticado: true,
+    });
+  },
+
+  adminNiveis() {
+    return requisicao<NivelDeAcesso[]>("/auth/admin/niveis/", {
+      autenticado: true,
+    });
+  },
+
+  adminCriarNivel(dados: {
+    nome: string;
+    descricao?: string;
+    permissoes?: string[];
+    acesso_admin?: boolean;
+  }) {
+    return requisicao<NivelDeAcesso>("/auth/admin/niveis/", {
+      metodo: "POST",
+      corpo: dados,
+      autenticado: true,
+    });
+  },
+
+  adminAtualizarNivel(
+    id: string,
+    dados: {
+      nome?: string;
+      descricao?: string;
+      permissoes?: string[];
+      acesso_admin?: boolean;
+    },
+  ) {
+    return requisicao<NivelDeAcesso>(`/auth/admin/niveis/${id}/`, {
+      metodo: "PATCH",
+      corpo: dados,
+      autenticado: true,
+    });
+  },
+
+  adminRemoverNivel(id: string) {
+    return requisicao<void>(`/auth/admin/niveis/${id}/`, {
+      metodo: "DELETE",
+      autenticado: true,
+    });
+  },
+
+  adminUsuarios() {
+    return requisicao<UsuarioAdmin[]>("/auth/admin/usuarios/", {
+      autenticado: true,
+    });
+  },
+
+  adminAtribuirNivel(usuarioId: string, nivelId: string | null) {
+    return requisicao<UsuarioAdmin>(
+      `/auth/admin/usuarios/${usuarioId}/nivel/`,
+      {
+        metodo: "PATCH",
+        corpo: { nivel_de_acesso: nivelId },
+        autenticado: true,
+      },
+    );
   },
 
   eu() {
@@ -415,16 +529,17 @@ export const api = {
     });
   },
 
-  trocarEmail(email: string) {
+  trocarEmail(email: string, senhaAtual: string) {
     return requisicao<{ email_enviado: boolean }>("/auth/eu/email/", {
       metodo: "POST",
-      corpo: { email },
+      corpo: { email, senha_atual: senhaAtual },
       autenticado: true,
     });
   },
 
+  // 1º link (endereço atual) devolve etapa "posse": falta o 2º, no novo.
   confirmarTrocaEmail(token: string) {
-    return requisicao<Usuario>("/auth/eu/email/confirmar/", {
+    return requisicao<{ etapa?: "posse" }>("/auth/eu/email/confirmar/", {
       metodo: "POST",
       corpo: { token },
     });
@@ -528,14 +643,38 @@ export const api = {
     );
   },
 
-  // Sem corpo: o XP vem da dificuldade cadastrada e o backend ignora o que
-  // chegar por aqui. Mandar payload só daria a impressão de que dá para influir.
-  concluirExercicio(trilhaSlug: string, exercicioSlug: string) {
+  // exercicio busca as especificacoes no banco
+  especificacaoDeCodigo(trilhaSlug: string, exercicioSlug: string) {
+    const caminho = `/exercicios/${encodeURIComponent(
+      trilhaSlug,
+    )}/${encodeURIComponent(exercicioSlug)}/codigo/`;
+    return requisicao<EspecificacaoDeCodigo>(caminho, { autenticado: true });
+  },
+
+  // o botao so funciona quando temos casos visiveis e nao devolve xp imediatamente
+  executarCodigo(trilhaSlug: string, exercicioSlug: string, codigo: string) {
+    const caminho = `/exercicios/${encodeURIComponent(
+      trilhaSlug,
+    )}/${encodeURIComponent(exercicioSlug)}/executar/`;
+    return requisicao<Correcao>(caminho, {
+      metodo: "POST",
+      corpo: { codigo },
+      autenticado: true,
+    });
+  },
+
+  // xp puxado da dificuldade, de acordo com o que solicita no exercicio
+  concluirExercicio(
+    trilhaSlug: string,
+    exercicioSlug: string,
+    codigo?: string,
+  ) {
     const caminho = `/exercicios/${encodeURIComponent(
       trilhaSlug,
     )}/${encodeURIComponent(exercicioSlug)}/concluir/`;
-    return requisicao<ResultadoConclusao>(caminho, {
+    return requisicao<RespostaConclusao>(caminho, {
       metodo: "POST",
+      corpo: codigo === undefined ? undefined : { codigo },
       autenticado: true,
     });
   },

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { SeloBonusXp } from "@/components/gamificacao/SeloBonusXp";
-import { BotaoConclusao } from "@/components/trilhas/BotaoConclusao";
+import { AreaDeResolucao } from "@/components/exercicio/AreaDeResolucao";
 import { BotaoProximoExercicio } from "@/components/trilhas/BotaoProximoExercicio";
 import { Badge, BadgeDificuldade } from "@/components/ui/Badge";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
@@ -115,9 +115,9 @@ export default async function ExercicioPage({
         </div>
       </article>
 
-      <BotaoConclusao
+      <AreaDeResolucao
         trilhaSlug={exercicio.trilha_slug}
-        faseSlug={exercicio.slug}
+        exercicioSlug={exercicio.slug}
       />
 
       <div className="mt-4 flex justify-end">
@@ -127,11 +127,6 @@ export default async function ExercicioPage({
           proximoSlug={proximo?.slug ?? null}
         />
       </div>
-
-      <p className="mt-6 border border-edge bg-panel p-4 text-xs leading-relaxed text-ink-muted">
-        O terminal integrado para resolver e submeter este exercício chega em uma
-        próxima entrega.
-      </p>
 
       <Link
         href={`/trilhas/${exercicio.trilha_slug}`}

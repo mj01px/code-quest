@@ -142,6 +142,7 @@ class DocumentosLegaisTest(APITestCase):
                 "email": "eco@exemplo.com",
                 "nickname": "eco",
                 "senha": SENHA_PADRAO,
+                "data_nascimento": "2000-01-01",
                 "aceite_documentos": True,
                 "versao_termos": documentos["termos"]["versao"],
                 "versao_privacidade": documentos["privacidade"]["versao"],

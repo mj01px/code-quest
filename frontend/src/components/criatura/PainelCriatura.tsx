@@ -199,12 +199,12 @@ export function PainelCriatura() {
         </p>
       ) : null}
 
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
         {/* CARD DO PET ATIVO */}
-        <section className="flex w-full flex-col items-center gap-4 border-[3px] border-brand bg-panel p-6 shadow-frame lg:w-[440px] lg:shrink-0">
+        <section className="flex w-full flex-col items-center gap-4 border-[3px] border-brand bg-panel p-6 shadow-frame lg:w-[400px] lg:shrink-0">
           {ativa ? (
             <>
-              <div className="relative flex h-[220px] w-[220px] items-center justify-center overflow-hidden border-2 border-brand-shadow bg-panel-deep shadow-halo">
+              <div className="relative flex h-[220px] w-[220px] items-center justify-center overflow-hidden bg-panel">
                 {ativa.sprite ? (
                   <Image
                     src={ativa.sprite}
@@ -289,11 +289,11 @@ export function PainelCriatura() {
 
         {/* PAINEL COM ABAS */}
         <section className="flex w-full flex-col border-2 border-edge bg-panel shadow-pixel">
-          <div className="flex border-b-2 border-edge">
+          <div className="flex shrink-0 border-b-2 border-edge">
             <button
               type="button"
               onClick={() => setAba("equipe")}
-              className={`flex-1 cursor-pointer border-b-[3px] px-2 py-4 font-label text-[11px] tracking-[1px] ${
+              className={`flex-1 cursor-pointer border-b-[3px] px-2 py-5 font-label text-[13px] tracking-[1px] ${
                 aba === "equipe"
                   ? "border-brand-light text-ink"
                   : "border-transparent text-ink-dim hover:text-ink-muted"
@@ -304,7 +304,7 @@ export function PainelCriatura() {
             <button
               type="button"
               onClick={irParaAdquirir}
-              className={`flex-1 cursor-pointer border-b-[3px] px-2 py-4 font-label text-[11px] tracking-[1px] ${
+              className={`flex-1 cursor-pointer border-b-[3px] px-2 py-5 font-label text-[13px] tracking-[1px] ${
                 aba === "adquirir"
                   ? "border-brand-light text-ink"
                   : "border-transparent text-ink-dim hover:text-ink-muted"
@@ -315,7 +315,7 @@ export function PainelCriatura() {
           </div>
 
           {aba === "equipe" ? (
-            <div className="flex flex-col gap-3 p-5">
+            <div className="flex flex-col gap-4 p-6 lg:max-h-[420px] lg:overflow-y-auto">
               <div className="flex items-baseline justify-between">
                 <span className="font-label text-[11px] tracking-[2px] text-ink-label">
                   SUA EQUIPE
@@ -333,7 +333,7 @@ export function PainelCriatura() {
                 criaturas.map((posse) => (
                   <div
                     key={posse.id}
-                    className={`flex flex-wrap items-center gap-3 border-2 bg-panel-soft p-3 ${
+                    className={`flex flex-wrap items-center gap-4 border-2 bg-panel-soft p-4 ${
                       posse.ativa ? "border-edge-soft" : "border-edge"
                     }`}
                   >
@@ -349,7 +349,7 @@ export function PainelCriatura() {
                       ) : null}
                     </span>
                     <span className="flex min-w-[120px] flex-[1_1_140px] flex-col gap-1">
-                      <span className="font-body text-lg leading-none text-ink">
+                      <span className="font-body text-xl leading-none text-ink">
                         {posse.criatura.nome}
                       </span>
                       <span className="font-label text-[9px] tracking-[1px] text-ink-muted">
@@ -382,7 +382,7 @@ export function PainelCriatura() {
               </p>
             </div>
           ) : (
-            <div className="flex flex-col gap-3 p-5">
+            <div className="flex flex-col gap-4 p-6 lg:max-h-[420px] lg:overflow-y-auto">
               <span className="font-label text-[11px] tracking-[2px] text-ink-label">
                 CATÁLOGO DE CRIATURAS
               </span>
@@ -393,18 +393,18 @@ export function PainelCriatura() {
                 </p>
               ) : (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {(catalogo ?? []).map((criatura) => {
+                  {(catalogo ?? [])
+                    .filter((criatura) => criatura.disponivel)
+                    .map((criatura) => {
                     const tenho = possuidos.has(criatura.slug);
                     const sprite = criatura.estagios[0]?.sprite ?? null;
                     return (
                       <div
                         key={criatura.slug}
                         className={`flex flex-col items-center gap-2 border-2 p-4 ${
-                          criatura.disponivel
-                            ? tenho
-                              ? "border-brand-strong bg-panel-soft"
-                              : "border-edge bg-panel-soft"
-                            : "border-edge bg-panel-deep opacity-50"
+                          tenho
+                            ? "border-brand-strong bg-panel-soft"
+                            : "border-edge bg-panel-soft"
                         }`}
                       >
                         <span className="flex h-[84px] w-[84px] items-center justify-center border-2 border-edge bg-panel-deep">
@@ -418,18 +418,14 @@ export function PainelCriatura() {
                             />
                           ) : null}
                         </span>
-                        <span className="font-body text-lg leading-none text-ink">
+                        <span className="font-body text-xl leading-none text-ink">
                           {criatura.nome}
                         </span>
                         <span className="text-center font-label text-[8px] tracking-[1px] text-ink-muted">
                           {criatura.dominio_rotulo.toUpperCase()}
                         </span>
 
-                        {!criatura.disponivel ? (
-                          <span className="border border-edge-soft px-2.5 py-1.5 font-label text-[9px] tracking-[1px] text-ink-muted">
-                            EM BREVE
-                          </span>
-                        ) : tenho ? (
+                        {tenho ? (
                           <span className="border border-success px-2.5 py-1.5 font-label text-[9px] tracking-[1px] text-success">
                             NA EQUIPE
                           </span>
@@ -454,7 +450,7 @@ export function PainelCriatura() {
               )}
 
               <p className="m-0 font-body text-base leading-[1.5] tracking-[1px] text-ink-dim">
-                Existe uma criatura por domínio. As bloqueadas chegam nas
+                Existe uma criatura por domínio. Novas criaturas chegam nas
                 próximas trilhas.
               </p>
             </div>
