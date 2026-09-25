@@ -45,9 +45,17 @@ const DADOS = [
     ],
   },
   {
-    chave: "papel",
+    chave: "nascimento",
     celulas: [
-      "Papel (aluno, autor, administrador)",
+      "Data de nascimento",
+      "Confirmar a idade mínima de 16 anos no cadastro. Não aparece no seu perfil nem no ranking.",
+      "Execução de contrato (art. 7º, V)",
+    ],
+  },
+  {
+    chave: "nivel",
+    celulas: [
+      "Nível de acesso",
       "Define o que você pode acessar dentro da plataforma.",
       "Execução de contrato (art. 7º, V)",
     ],

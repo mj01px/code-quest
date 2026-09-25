@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { PainelCadastro } from "@/components/auth/PainelCadastro";
@@ -51,6 +51,9 @@ async function cadastrar(usuario: ReturnType<typeof userEvent.setup>) {
   await usuario.type(screen.getByLabelText("E-MAIL"), "novato@exemplo.com");
   await usuario.type(screen.getByLabelText("NICKNAME"), "novato");
   await usuario.type(screen.getByLabelText("SENHA"), SENHA);
+  fireEvent.change(screen.getByLabelText("DATA DE NASCIMENTO"), {
+    target: { value: "2000-01-01" },
+  });
   await usuario.click(screen.getByRole("checkbox"));
   await usuario.click(screen.getByRole("button", { name: "CRIAR CONTA" }));
 }

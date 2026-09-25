@@ -191,6 +191,19 @@
     outline: 2px solid var(--color-brand-pale);
     outline-offset: 2px;
   }
+
+  /* O popup do calendario e desenhado pelo browser e nao aceita CSS proprio;
+     color-scheme: dark faz ele abrir no tema escuro, combinando com o app. */
+  input[type="date"] {
+    color-scheme: dark;
+  }
+
+  /* Tinge o icone do calendario no roxo da marca (fica cinza por padrao). */
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    filter: invert(64%) sepia(38%) saturate(2200%) hue-rotate(238deg)
+      brightness(101%);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

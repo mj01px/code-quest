@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { FormularioCadastro } from "@/components/auth/FormularioCadastro";
@@ -56,6 +56,10 @@ async function preencher(usuario: ReturnType<typeof userEvent.setup>) {
   await usuario.type(screen.getByLabelText("E-MAIL"), "novato@exemplo.com");
   await usuario.type(screen.getByLabelText("NICKNAME"), "novato");
   await usuario.type(screen.getByLabelText("SENHA"), SENHA);
+  // input[type=date]: fireEvent.change é o jeito estável no jsdom.
+  fireEvent.change(screen.getByLabelText("DATA DE NASCIMENTO"), {
+    target: { value: "2000-01-01" },
+  });
 }
 
 function caixaDeAceite() {
@@ -94,6 +98,28 @@ describe("FormularioCadastro", () => {
     expect(
       screen.getByText(
         "É preciso aceitar os Termos de Uso e a Política de Privacidade.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("não cria conta para menor de 16 anos", async () => {
+    const usuario = userEvent.setup();
+    render(<FormularioCadastro aoCadastrar={aoCadastrar} />);
+    await waitFor(() => expect(caixaDeAceite()).toBeEnabled());
+
+    await usuario.type(screen.getByLabelText("E-MAIL"), "novato@exemplo.com");
+    await usuario.type(screen.getByLabelText("NICKNAME"), "novato");
+    await usuario.type(screen.getByLabelText("SENHA"), SENHA);
+    fireEvent.change(screen.getByLabelText("DATA DE NASCIMENTO"), {
+      target: { value: "2020-01-01" },
+    });
+    await usuario.click(caixaDeAceite());
+    await usuario.click(screen.getByRole("button", { name: "CRIAR CONTA" }));
+
+    expect(registrar).not.toHaveBeenCalled();
+    expect(
+      screen.getByText(
+        "É preciso ter pelo menos 16 anos para criar uma conta.",
       ),
     ).toBeInTheDocument();
   });

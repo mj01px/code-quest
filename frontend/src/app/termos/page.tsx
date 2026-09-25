@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ADefinir } from "@/components/legal/ADefinir";
 import { PaginaLegal } from "@/components/legal/PaginaLegal";
 import { Destaque, Item, Lista, Paragrafo, Secao } from "@/components/legal/Prosa";
 import { DADOS_LEGAIS } from "@/lib/dadosLegais";
@@ -53,9 +52,10 @@ export default async function PaginaTermos() {
 
       <Secao numero={2} titulo="Quem pode criar conta">
         <Paragrafo>
-          É preciso ter <ADefinir>idade mínima</ADefinir> anos ou mais para criar
-          uma conta por conta própria. Abaixo dessa idade, o cadastro só pode ser
-          feito com a participação de um dos pais ou do responsável legal.
+          É preciso ter <Destaque>16 anos ou mais</Destaque> para criar uma
+          conta. No cadastro pedimos a sua data de nascimento e conferimos a
+          idade na hora: quem ainda não completou 16 anos não consegue se
+          cadastrar.
         </Paragrafo>
         <Paragrafo>
           Cada pessoa pode manter uma conta. Criar contas múltiplas para inflar
