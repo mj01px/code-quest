@@ -30,6 +30,11 @@ class AcaoAuditoria(models.TextChoices):
     MFA_DESATIVADO = "MFA_DESATIVADO", _("Verificação em duas etapas desativada")
     ACESSO_AUDITORIA = "ACESSO_AUDITORIA", _("Consulta à trilha de auditoria")
     CONTA_ANONIMIZADA = "CONTA_ANONIMIZADA", _("Conta anonimizada")
+    # Painel de RBAC: nível é o conjunto de permissões, não o `role` do usuário.
+    NIVEL_CRIADO = "NIVEL_CRIADO", _("Nível de acesso criado")
+    NIVEL_EDITADO = "NIVEL_EDITADO", _("Nível de acesso editado")
+    NIVEL_REMOVIDO = "NIVEL_REMOVIDO", _("Nível de acesso removido")
+    NIVEL_ATRIBUIDO = "NIVEL_ATRIBUIDO", _("Nível de acesso atribuído a usuário")
     # Definidos para uso futuro (administração):
     PAPEL_CONCEDIDO = "PAPEL_CONCEDIDO", _("Papel concedido")
     PAPEL_REMOVIDO = "PAPEL_REMOVIDO", _("Papel removido")

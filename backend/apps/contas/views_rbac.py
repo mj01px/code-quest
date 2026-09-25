@@ -4,12 +4,14 @@ Catálogo de permissões (leitura), CRUD de níveis de acesso e atribuição de 
 nível a um usuário. Tudo protegido por `IsAdmin` — o painel inteiro é do admin.
 """
 
+from django.db import transaction
 from django.db.models import Count
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.exceptions import ErrorDetail, ValidationError
 from rest_framework.response import Response
 
+from apps.auditoria.services import AcaoAuditoria, registrar
 from apps.core.permissions import IsAdmin
 
 from .models import NivelDeAcesso, Permissao, User
@@ -25,6 +27,20 @@ def _niveis_com_contagem():
     return NivelDeAcesso.objects.annotate(
         qtd_usuarios=Count("usuarios")
     ).prefetch_related("permissoes")
+
+
+def _retrato(nivel):
+    # Estado auditável de um nível: o que o painel deixa editar.
+    return {
+        "nome": nivel.nome,
+        "descricao": nivel.descricao,
+        "acesso_admin": nivel.acesso_admin,
+        "permissoes": sorted(nivel.permissoes.values_list("codename", flat=True)),
+    }
+
+
+def _ref_nivel(nivel):
+    return None if nivel is None else {"id": str(nivel.pk), "nome": nivel.nome}
 
 
 @extend_schema(tags=["admin"])
@@ -46,6 +62,16 @@ class NivelListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         return _niveis_com_contagem()
 
+    def perform_create(self, serializer):
+        with transaction.atomic():
+            nivel = serializer.save()
+            registrar(
+                AcaoAuditoria.NIVEL_CRIADO,
+                request=self.request,
+                alvo=nivel,
+                **_retrato(nivel),
+            )
+
 
 @extend_schema(tags=["admin"])
 class NivelDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -54,6 +80,20 @@ class NivelDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         return _niveis_com_contagem()
+
+    def perform_update(self, serializer):
+        with transaction.atomic():
+            antes = _retrato(serializer.instance)
+            nivel = serializer.save()
+            depois = _retrato(nivel)
+            mudou = [campo for campo in antes if antes[campo] != depois[campo]]
+            registrar(
+                AcaoAuditoria.NIVEL_EDITADO,
+                request=self.request,
+                alvo=nivel,
+                antes={campo: antes[campo] for campo in mudou},
+                depois={campo: depois[campo] for campo in mudou},
+            )
 
     def perform_destroy(self, instance):
         if instance.sistema:
@@ -74,7 +114,15 @@ class NivelDetailView(generics.RetrieveUpdateDestroyAPIView):
                     )
                 }
             )
-        instance.delete()
+        with transaction.atomic():
+            # Registra antes: depois do delete() o nível perde o pk.
+            registrar(
+                AcaoAuditoria.NIVEL_REMOVIDO,
+                request=self.request,
+                alvo=instance,
+                **_retrato(instance),
+            )
+            instance.delete()
 
 
 @extend_schema(tags=["admin"])
@@ -119,8 +167,17 @@ class UsuarioNivelView(generics.GenericAPIView):
                 }
             )
 
-        usuario.nivel_de_acesso = novo_nivel
-        usuario.save(update_fields=["nivel_de_acesso"])
+        anterior = usuario.nivel_de_acesso
+        with transaction.atomic():
+            usuario.nivel_de_acesso = novo_nivel
+            usuario.save(update_fields=["nivel_de_acesso"])
+            registrar(
+                AcaoAuditoria.NIVEL_ATRIBUIDO,
+                request=request,
+                alvo=usuario,
+                nivel_anterior=_ref_nivel(anterior),
+                nivel_novo=_ref_nivel(novo_nivel),
+            )
         usuario.invalidar_cache_permissoes()
 
         return Response(

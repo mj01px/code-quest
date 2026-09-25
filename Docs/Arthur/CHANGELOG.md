@@ -55,6 +55,18 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
   "Ambiente de desenvolvimento": ambos deixam explícito que a limpeza é
   higiene do ambiente, não ocultação de uso de IA no projeto.
 
+### Segurança
+
+- **Painel de RBAC auditado** (`backend/apps/contas/views_rbac.py`): criar,
+  editar e remover nível de acesso, e atribuir nível a um usuário, passam a
+  gravar `NIVEL_CRIADO`, `NIVEL_EDITADO`, `NIVEL_REMOVIDO` e `NIVEL_ATRIBUIDO`
+  (migration `auditoria/0005`), com ator, alvo e valores antigo e novo. Cada
+  ação roda em `transaction.atomic()` junto com o seu registro.
+- **`registrar()` isolado num savepoint** (`backend/apps/auditoria/services.py`):
+  o `save()` do Django marca para rollback o `atomic()` de quem chamou em
+  qualquer exceção. Sem o savepoint, uma falha ao gravar a auditoria desfazia a
+  ação em silêncio, com resposta 200. Vale para todos os chamadores.
+
 ### Notas
 
 - As rotas de detalhe usam `generateStaticParams` com `dynamicParams = false`.
