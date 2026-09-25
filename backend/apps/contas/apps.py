@@ -8,3 +8,6 @@ class ContasConfig(AppConfig):
     name = "apps.contas"
     label = "contas"
     verbose_name = _("Contas")
+
+    def ready(self):
+        from . import signals  # noqa: F401  (registra os receivers)

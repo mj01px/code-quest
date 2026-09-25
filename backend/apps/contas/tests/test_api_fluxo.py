@@ -6,7 +6,10 @@ lado de fora: faltava a camada de serializer, view e url. Se alguém quebrar uma
 rota, um nome de campo ou o formato do erro, é aqui que aparece.
 """
 
+from datetime import timedelta
+
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -15,6 +18,15 @@ from apps.contas.models import User
 from apps.gamificacao.models import UserCreature
 
 from .helpers import SENHA_PADRAO, criar_aluno, payload_aceite
+
+
+def _anos_atras(anos: int, dias: int = 0) -> str:
+    hoje = timezone.localdate()
+    try:
+        base = hoje.replace(year=hoje.year - anos)
+    except ValueError:  # 29/02 em ano não bissexto
+        base = hoje.replace(year=hoje.year - anos, day=28)
+    return (base + timedelta(days=dias)).isoformat()
 
 
 class CadastroTest(APITestCase):
@@ -44,6 +56,40 @@ class CadastroTest(APITestCase):
     def test_nao_devolve_a_senha(self):
         r = self.client.post(self.url, self.payload, format="json")
         self.assertNotIn("senha", r.data.get("usuario", {}))
+
+    # ---------------------------------------------------- idade mínima (16)
+    def test_guarda_a_data_de_nascimento(self):
+        self.client.post(self.url, self.payload, format="json")
+        criado = User.objects.get(nickname="novato")
+        self.assertEqual(criado.birth_date.isoformat(), "2000-01-01")
+
+    def test_data_de_nascimento_e_obrigatoria(self):
+        del self.payload["data_nascimento"]
+        r = self.client.post(self.url, self.payload, format="json")
+        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(r.data["error"]["details"][0]["field"], "data_nascimento")
+        self.assertFalse(User.objects.filter(nickname="novato").exists())
+
+    def test_exatamente_16_hoje_pode(self):
+        self.payload["data_nascimento"] = _anos_atras(16)
+        r = self.client.post(self.url, self.payload, format="json")
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED)
+
+    def test_um_dia_antes_de_completar_16_nao_pode(self):
+        # Faria 16 só amanhã: hoje ainda tem 15.
+        self.payload["data_nascimento"] = _anos_atras(16, dias=1)
+        r = self.client.post(self.url, self.payload, format="json")
+        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            r.data["error"]["details"][0]["code"], "idade_minima"
+        )
+        self.assertFalse(User.objects.filter(nickname="novato").exists())
+
+    def test_data_no_futuro_e_recusada(self):
+        self.payload["data_nascimento"] = _anos_atras(-1)
+        r = self.client.post(self.url, self.payload, format="json")
+        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(User.objects.filter(nickname="novato").exists())
 
     def test_email_duplicado_responde_igual_e_nao_cria(self):
         criar_aluno("existente")
@@ -323,6 +369,7 @@ class FormatoDeErroTest(APITestCase):
                 "email",
                 "nickname",
                 "senha",
+                "data_nascimento",
                 "aceite_documentos",
                 "versao_termos",
                 "versao_privacidade",

@@ -12,6 +12,7 @@ class PermissionSpec:
 
 CATALOG: tuple[PermissionSpec, ...] = (
     PermissionSpec("trilhas.view", "Ver trilhas, aulas e exercícios publicados", "trilhas"),
+    PermissionSpec("trilhas.enroll", "Iniciar uma trilha", "trilhas"),
     PermissionSpec("trilhas.create", "Criar trilhas, aulas e exercícios", "trilhas"),
     PermissionSpec("trilhas.edit", "Editar conteúdo de própria autoria", "trilhas"),
     PermissionSpec("trilhas.submit_review", "Enviar conteúdo para revisão", "trilhas"),
@@ -22,8 +23,12 @@ CATALOG: tuple[PermissionSpec, ...] = (
         "Ver solução de referência e testes ocultos",
         "trilhas",
     ),
+    PermissionSpec("exercicios.complete", "Concluir exercícios e ganhar XP", "exercicios"),
     PermissionSpec("submissoes.create", "Submeter código para execução", "submissoes"),
     PermissionSpec("submissoes.view_all", "Ver submissões de qualquer usuário", "submissoes"),
+    PermissionSpec("criaturas.view", "Ver e gerenciar as próprias criaturas", "criaturas"),
+    PermissionSpec("criaturas.acquire", "Adquirir novas criaturas", "criaturas"),
+    PermissionSpec("criaturas.evolve", "Evoluir criaturas", "criaturas"),
     PermissionSpec(
         "gamificacao.manage_catalog",
         "Gerenciar o catálogo de criaturas",
@@ -43,7 +48,12 @@ ALL_CODENAMES = frozenset(spec.codename for spec in CATALOG)
 _STUDENT = frozenset(
     {
         "trilhas.view",
+        "trilhas.enroll",
+        "exercicios.complete",
         "submissoes.create",
+        "criaturas.view",
+        "criaturas.acquire",
+        "criaturas.evolve",
         "comunidades.create",
         "comunidades.join",
     }

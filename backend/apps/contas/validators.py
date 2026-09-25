@@ -1,4 +1,5 @@
 import re
+from datetime import date
 
 from django.core.exceptions import ValidationError
 from django.core.validators import MinLengthValidator, RegexValidator
@@ -6,6 +7,20 @@ from django.utils.translation import gettext_lazy as _
 
 NICKNAME_MIN_LENGTH = 3
 NICKNAME_MAX_LENGTH = 20
+
+# Idade mínima para criar conta por conta própria. Verificada no cadastro pela
+# data de nascimento.
+IDADE_MINIMA_ANOS = 16
+
+
+def calcular_idade(nascimento: date, hoje: date | None = None) -> int:
+    """Idade em anos completos. Só conta o aniversário depois que ele passou."""
+    hoje = hoje or date.today()
+    return (
+        hoje.year
+        - nascimento.year
+        - ((hoje.month, hoje.day) < (nascimento.month, nascimento.day))
+    )
 
 # Teto do comprimento da senha. Segue o NIST SP 800-63B (aceitar ao menos 64) e
 # corta o vetor de negação de serviço em que uma senha gigante forçaria o Argon2

@@ -47,6 +47,10 @@ def exportar_dados(user) -> dict:
             "email": user.email,
             "nickname": user.nickname,
             "papel": user.role,
+            "nivel_de_acesso": (
+                user.nivel_de_acesso.nome if user.nivel_de_acesso_id else None
+            ),
+            "data_nascimento": iso(user.birth_date),
             "criado_em": iso(user.created_at),
             "email_verificado_em": iso(user.email_verified_at),
         },
