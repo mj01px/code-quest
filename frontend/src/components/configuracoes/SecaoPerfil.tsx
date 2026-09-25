@@ -3,15 +3,19 @@
 interface Erros {
   nickname?: string | null;
   email?: string | null;
+  senha_atual?: string | null;
 }
 
 interface Props {
   nickname: string;
   email: string;
+  pedirSenha: boolean;
+  senhaAtual: string;
   erros: Erros;
   enviandoToken: boolean;
   aoMudarNickname: (valor: string) => void;
   aoMudarEmail: (valor: string) => void;
+  aoMudarSenhaAtual: (valor: string) => void;
   aoAlterarToken: () => void;
 }
 
@@ -25,10 +29,13 @@ const ERRO = "font-body text-base leading-[1.6] tracking-wide text-danger";
 export function SecaoPerfil({
   nickname,
   email,
+  pedirSenha,
+  senhaAtual,
   erros,
   enviandoToken,
   aoMudarNickname,
   aoMudarEmail,
+  aoMudarSenhaAtual,
   aoAlterarToken,
 }: Props) {
   return (
@@ -71,6 +78,27 @@ export function SecaoPerfil({
           </div>
           {erros.email ? <p className={ERRO}>{erros.email}</p> : null}
         </div>
+
+        {pedirSenha ? (
+          <div className="flex flex-col gap-2">
+            <label htmlFor="cfg-senha-atual" className={ROTULO}>
+              SENHA ATUAL
+            </label>
+            <div className={CAMPO}>
+              <input
+                id="cfg-senha-atual"
+                type="password"
+                autoComplete="current-password"
+                value={senhaAtual}
+                onChange={(e) => aoMudarSenhaAtual(e.target.value)}
+                className={ENTRADA}
+              />
+            </div>
+            {erros.senha_atual ? (
+              <p className={ERRO}>{erros.senha_atual}</p>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-edge pt-3">
           <span className="font-body text-lg tracking-[1px] text-ink-muted">

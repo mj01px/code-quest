@@ -298,12 +298,36 @@ class ReenviarVerificacaoSerializer(serializers.Serializer):
 
 class TrocaEmailSerializer(serializers.Serializer):
     email = serializers.EmailField(write_only=True)
+    senha_atual = serializers.CharField(
+        write_only=True, style={"input_type": "password"}, trim_whitespace=False
+    )
 
     def validate_email(self, valor):
         return User.objects.normalize_email(valor).lower()
 
     def validate(self, dados):
         usuario = self.context["request"].user
+        # Primeiro a senha: só a sessão não basta para trocar o e-mail (A1), e
+        # quem não tem a senha não descobre se o endereço novo já tem conta.
+        # Conta no mesmo bloqueio do login: sem isto, é um oráculo de senha.
+        if usuario.esta_bloqueado:
+            raise serializers.ValidationError(
+                {
+                    "senha_atual": serializers.ErrorDetail(
+                        "Muitas tentativas. Espere alguns minutos.",
+                        code="bloqueado",
+                    )
+                }
+            )
+        if not usuario.check_password(dados["senha_atual"]):
+            usuario.registrar_falha_de_login()
+            raise serializers.ValidationError(
+                {
+                    "senha_atual": serializers.ErrorDetail(
+                        "Senha incorreta.", code="senha_incorreta"
+                    )
+                }
+            )
         novo = dados["email"]
         if novo == usuario.email:
             raise serializers.ValidationError(
@@ -352,6 +376,10 @@ class ConfirmarTrocaEmailSerializer(serializers.Serializer):
             )
 
         novo = lido["email"]
+        # Só o pedido vigente vale: o pendente é gravado depois da senha
+        # conferida, e um pedido novo invalida o link do anterior.
+        if novo != usuario.email_pendente:
+            self._recusar()
         if User.objects.filter(email=novo).exclude(pk=usuario.pk).exists():
             raise serializers.ValidationError(
                 {
@@ -363,6 +391,7 @@ class ConfirmarTrocaEmailSerializer(serializers.Serializer):
 
         self.usuario = usuario
         self.novo_email = novo
+        self.posse = lido.get("posse") is True
         return dados
 
 

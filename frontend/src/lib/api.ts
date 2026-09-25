@@ -530,16 +530,17 @@ export const api = {
     });
   },
 
-  trocarEmail(email: string) {
+  trocarEmail(email: string, senhaAtual: string) {
     return requisicao<{ email_enviado: boolean }>("/auth/eu/email/", {
       metodo: "POST",
-      corpo: { email },
+      corpo: { email, senha_atual: senhaAtual },
       autenticado: true,
     });
   },
 
+  // 1º link (endereço atual) devolve etapa "posse": falta o 2º, no novo.
   confirmarTrocaEmail(token: string) {
-    return requisicao<Usuario>("/auth/eu/email/confirmar/", {
+    return requisicao<{ etapa?: "posse" }>("/auth/eu/email/confirmar/", {
       metodo: "POST",
       corpo: { token },
     });

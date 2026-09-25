@@ -87,13 +87,14 @@ class NivelDetailView(generics.RetrieveUpdateDestroyAPIView):
             nivel = serializer.save()
             depois = _retrato(nivel)
             mudou = [campo for campo in antes if antes[campo] != depois[campo]]
-            registrar(
-                AcaoAuditoria.NIVEL_EDITADO,
-                request=self.request,
-                alvo=nivel,
-                antes={campo: antes[campo] for campo in mudou},
-                depois={campo: depois[campo] for campo in mudou},
-            )
+            if mudou:  # PATCH sem diff real não é edição: sem registro.
+                registrar(
+                    AcaoAuditoria.NIVEL_EDITADO,
+                    request=self.request,
+                    alvo=nivel,
+                    antes={campo: antes[campo] for campo in mudou},
+                    depois={campo: depois[campo] for campo in mudou},
+                )
 
     def perform_destroy(self, instance):
         if instance.sistema:

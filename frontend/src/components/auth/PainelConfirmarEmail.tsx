@@ -1,8 +1,9 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { PainelAuth } from "@/components/layout/PainelAuth";
+import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelLink } from "@/components/ui/PixelLink";
 import {
   ArteConfirmado,
@@ -13,7 +14,9 @@ import {
 import { ErroApi, api } from "@/lib/api";
 
 type Estado =
+  | "aguardando"
   | "conferindo"
+  | "falta_posse"
   | "confirmado"
   | "recusado"
   | "sem_token"
@@ -25,7 +28,7 @@ const TITULO = (
   </>
 );
 
-const LINHA = "Confirmando seu novo endereço...";
+const LINHA = "Confirmando a troca de endereço...";
 
 const ESTILO_H2 =
   "m-0 font-display text-[13px] leading-[1.8] tracking-[1px] text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)]";
@@ -46,31 +49,47 @@ export function PainelConfirmarEmailCarregando() {
 export function PainelConfirmarEmail() {
   const token = useSearchParams().get("token");
   const [estado, setEstado] = useState<Estado>(
-    token ? "conferindo" : "sem_token",
+    token ? "aguardando" : "sem_token",
   );
 
-  useEffect(() => {
+  // Só no clique: o link chega ao endereço atual, e abri-lo (ou um scanner
+  // de e-mail abri-lo) não pode autorizar a troca sozinho.
+  function confirmar() {
     if (!token) return;
-
-    let ativo = true;
+    setEstado("conferindo");
     api
       .confirmarTrocaEmail(token)
-      .then(() => {
-        if (ativo) setEstado("confirmado");
-      })
+      .then((r) => setEstado(r.etapa === "posse" ? "falta_posse" : "confirmado"))
       .catch((erro) => {
-        if (!ativo) return;
         setEstado(
           erro instanceof ErroApi && erro.temCodigo("link_ja_usado")
             ? "ja_usado"
             : "recusado",
         );
       });
+  }
 
-    return () => {
-      ativo = false;
-    };
-  }, [token]);
+  if (estado === "aguardando") {
+    return (
+      <PainelAuth
+        titulo={TITULO}
+        linhaTerminal={LINHA}
+        ilustracao={<ArteEnvelope />}
+        formulario={
+          <div className="flex flex-col gap-5">
+            <h2 className={ESTILO_H2}>CONFIRMAR TROCA?</h2>
+            <p className={ESTILO_P}>
+              Só confirme se foi você quem pediu a troca. Se não foi, feche
+              esta página e troque sua senha.
+            </p>
+            <PixelButton type="button" onClick={confirmar} className="w-full">
+              CONFIRMAR TROCA
+            </PixelButton>
+          </div>
+        }
+      />
+    );
+  }
 
   if (estado === "conferindo") {
     return (
@@ -85,6 +104,28 @@ export function PainelConfirmarEmail() {
           >
             Conferindo seu link...
           </p>
+        }
+      />
+    );
+  }
+
+  if (estado === "falta_posse") {
+    return (
+      <PainelAuth
+        titulo={TITULO}
+        linhaTerminal={LINHA}
+        ilustracao={<ArteEnvelope />}
+        formulario={
+          <div className="flex flex-col gap-5">
+            <h2 className={ESTILO_H2}>TROCA AUTORIZADA</h2>
+            <p className={ESTILO_P}>
+              Falta um passo: enviamos um link para o novo endereço. Abra por
+              lá para confirmar que ele é seu. Até isso, nada muda na conta.
+            </p>
+            <PixelLink href="/configuracoes" className="w-full">
+              VOLTAR ÀS CONFIGURAÇÕES
+            </PixelLink>
+          </div>
         }
       />
     );
@@ -147,7 +188,7 @@ export function PainelConfirmarEmail() {
           </h2>
           <p className={ESTILO_P}>
             {semToken
-              ? "Abra o link direto do e-mail que enviamos para o novo endereço."
+              ? "Abra o link direto do e-mail que enviamos para o seu endereço atual."
               : "Esse link já foi usado ou expirou. Se precisar, peça a troca de novo nas Configurações."}
           </p>
           <PixelLink href="/configuracoes" className="w-full">

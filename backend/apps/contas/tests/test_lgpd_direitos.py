@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
@@ -67,6 +69,26 @@ class AnonimizacaoTests(TestCase):
             RegistroDeAuditoria.objects.filter(
                 acao=AcaoAuditoria.CONTA_ANONIMIZADA, actor=usuario
             ).exists()
+        )
+
+    def test_anonimizacao_nao_conclui_se_a_auditoria_falhar(self):
+        # O registro é prova obrigatória: sem ele, nada da anonimização fica.
+        usuario = criar_aluno("sem-prova")
+        email_original = usuario.email
+        AceiteDeTermos.registrar_vigentes(usuario, ip="200.1.2.3")
+
+        with patch(
+            "apps.auditoria.models.RegistroDeAuditoria.objects.create",
+            side_effect=RuntimeError("banco fora"),
+        ), self.assertRaises(RuntimeError):
+            anonimizar_conta(usuario)
+
+        usuario = User.objects.get(pk=usuario.pk)
+        self.assertFalse(usuario.is_anonymized)
+        self.assertTrue(usuario.is_active)
+        self.assertEqual(usuario.email, email_original)
+        self.assertTrue(
+            all(a.ip == "200.1.2.3" for a in AceiteDeTermos.objects.filter(user=usuario))
         )
 
     def test_anonimizacao_e_idempotente(self):

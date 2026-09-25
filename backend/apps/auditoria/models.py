@@ -8,8 +8,8 @@ from django.utils.translation import gettext_lazy as _
 class AcaoAuditoria(models.TextChoices):
     """Códigos das ações registradas na trilha de auditoria.
 
-    Os cinco últimos ficam definidos para uso futuro (administração de usuários
-    e exportação de dados), quando os endpoints correspondentes existirem.
+    Os quatro últimos (papel e suspensão de conta) ficam definidos para uso
+    futuro, quando os endpoints de administração de usuários existirem.
     """
 
     LOGIN_OK = "LOGIN_OK", _("Login bem-sucedido")

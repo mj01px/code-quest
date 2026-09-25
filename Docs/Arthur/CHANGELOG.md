@@ -61,11 +61,30 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
   editar e remover nível de acesso, e atribuir nível a um usuário, passam a
   gravar `NIVEL_CRIADO`, `NIVEL_EDITADO`, `NIVEL_REMOVIDO` e `NIVEL_ATRIBUIDO`
   (migration `auditoria/0005`), com ator, alvo e valores antigo e novo. Cada
-  ação roda em `transaction.atomic()` junto com o seu registro.
+  ação roda em `transaction.atomic()` junto com o seu registro. Um PATCH que
+  não muda nada não grava `NIVEL_EDITADO`.
 - **`registrar()` isolado num savepoint** (`backend/apps/auditoria/services.py`):
   o `save()` do Django marca para rollback o `atomic()` de quem chamou em
   qualquer exceção. Sem o savepoint, uma falha ao gravar a auditoria desfazia a
   ação em silêncio, com resposta 200. Vale para todos os chamadores.
+- **Anonimização LGPD exige o registro** (`backend/apps/contas/lgpd.py`): o
+  `CONTA_ANONIMIZADA` é prova obrigatória e passa a ser gravado direto, fora do
+  `registrar()`. Se o registro falhar, a anonimização inteira volta atrás.
+- **Troca de e-mail com senha atual** (vetor A1 do handoff): antes, uma sessão
+  roubada trocava o e-mail sem senha e, com o 2FA por e-mail, tomava a conta.
+  Agora `POST /auth/eu/email/` exige `senha_atual` (as tentativas erradas
+  contam no bloqueio do login) e grava o pedido em `User.email_pendente`
+  (migration `contas/0013`). A troca tem duas etapas no mesmo
+  `/auth/eu/email/confirmar/`: o 1º link vai ao endereço ATUAL, que autoriza;
+  o 2º vai ao NOVO, que prova a posse, e só ele efetiva a troca. Cada link vale
+  30 minutos (`TROCA_EMAIL_MAX_AGE`, antes 24 horas), uma vez só. Um pedido
+  novo ou uma redefinição de senha invalidam o pendente. Login, 2FA e
+  redefinição de senha seguem no endereço atual até a efetivação. A tela de
+  Configurações pede a senha atual e a página do link só confirma no clique.
+- **2FA não troca de método só com a sessão**
+  (`backend/apps/contas/views.py`, `MfaIniciarView`): com 2FA ativo, iniciar
+  outro método desligava o atual sem código. Agora é recusado
+  (`mfa_ja_ativo`); trocar de método passa por desativar, que exige código.
 
 ### Notas
 

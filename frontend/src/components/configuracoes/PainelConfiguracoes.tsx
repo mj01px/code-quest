@@ -14,6 +14,7 @@ import { SecaoZonaRisco } from "./SecaoZonaRisco";
 interface ErrosPerfil {
   nickname?: string | null;
   email?: string | null;
+  senha_atual?: string | null;
 }
 
 export function PainelConfiguracoes() {
@@ -24,6 +25,7 @@ export function PainelConfiguracoes() {
 
   const [nickname, setNickname] = useState("");
   const [email, setEmail] = useState("");
+  const [senhaAtual, setSenhaAtual] = useState("");
   const [errosPerfil, setErrosPerfil] = useState<ErrosPerfil>({});
   const [salvando, setSalvando] = useState(false);
   const [enviandoToken, setEnviandoToken] = useState(false);
@@ -76,6 +78,12 @@ export function PainelConfiguracoes() {
     setErrosPerfil((atual) => ({ ...atual, email: null }));
   }
 
+  function mudarSenhaAtual(valor: string) {
+    setSenhaAtual(valor);
+    setStatus(null);
+    setErrosPerfil((atual) => ({ ...atual, senha_atual: null }));
+  }
+
   async function alterarToken() {
     if (!usuario) return;
     setEnviandoToken(true);
@@ -93,15 +101,23 @@ export function PainelConfiguracoes() {
   async function salvar() {
     if (!usuario) return;
 
-    const erroNick = validarNickname(nickname);
-    const erroMail = validarEmail(email);
-    setErrosPerfil({ nickname: erroNick, email: erroMail });
-    if (erroNick || erroMail) return;
-
     const novoNick = nickname.trim();
     const novoEmail = email.trim();
     const nickMudou = novoNick !== usuario.nickname;
     const emailMudou = novoEmail.toLowerCase() !== usuario.email.toLowerCase();
+
+    const erroNick = validarNickname(nickname);
+    const erroMail = validarEmail(email);
+    const erroSenha =
+      emailMudou && !senhaAtual
+        ? "Informe sua senha atual para trocar o e-mail."
+        : null;
+    setErrosPerfil({
+      nickname: erroNick,
+      email: erroMail,
+      senha_atual: erroSenha,
+    });
+    if (erroNick || erroMail || erroSenha) return;
 
     setSalvando(true);
     setStatus(null);
@@ -112,10 +128,12 @@ export function PainelConfiguracoes() {
         setNickname(atualizado.nickname);
       }
       if (emailMudou) {
-        await api.trocarEmail(novoEmail);
+        await api.trocarEmail(novoEmail, senhaAtual);
         setEmail(usuario.email);
+        setSenhaAtual("");
+        // O link vai para o endereço ATUAL: é ele quem autoriza a troca.
         setStatus(
-          `> LINK ENVIADO PARA ${novoEmail.toUpperCase()} — CONFIRME POR LÁ`,
+          `> LINK ENVIADO PARA ${usuario.email.toUpperCase()}: CONFIRME POR LÁ`,
         );
       } else if (nickMudou) {
         setStatus("> PERFIL SALVO");
@@ -128,8 +146,9 @@ export function PainelConfiguracoes() {
         setErrosPerfil({
           nickname: porCampo.nickname ?? null,
           email: porCampo.email ?? null,
+          senha_atual: porCampo.senha_atual ?? null,
         });
-        if (!porCampo.nickname && !porCampo.email) {
+        if (!porCampo.nickname && !porCampo.email && !porCampo.senha_atual) {
           setStatus(`> ${e.message.toUpperCase()}`);
         }
       } else {
@@ -159,9 +178,8 @@ export function PainelConfiguracoes() {
     );
   }
 
-  const sujo =
-    nickname.trim() !== usuario.nickname ||
-    email.trim().toLowerCase() !== usuario.email.toLowerCase();
+  const emailSujo = email.trim().toLowerCase() !== usuario.email.toLowerCase();
+  const sujo = nickname.trim() !== usuario.nickname || emailSujo;
   const linhaStatus =
     status ?? (sujo ? "> ALTERAÇÕES NÃO SALVAS" : "> TUDO SALVO");
 
@@ -179,10 +197,13 @@ export function PainelConfiguracoes() {
       <SecaoPerfil
         nickname={nickname}
         email={email}
+        pedirSenha={emailSujo}
+        senhaAtual={senhaAtual}
         erros={errosPerfil}
         enviandoToken={enviandoToken}
         aoMudarNickname={mudarNickname}
         aoMudarEmail={mudarEmail}
+        aoMudarSenhaAtual={mudarSenhaAtual}
         aoAlterarToken={alterarToken}
       />
 

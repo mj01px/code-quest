@@ -252,7 +252,13 @@ class TrocarEmailView(generics.GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        enviado = enviar_troca_email(request.user, serializer.validated_data["email"])
+        # Senha já conferida no serializer. O `email` só muda na confirmação:
+        # até lá login, 2FA e redefinição de senha seguem no endereço atual.
+        usuario = request.user
+        usuario.email_pendente = serializer.validated_data["email"]
+        usuario.save(update_fields=["email_pendente", "updated_at"])
+
+        enviado = enviar_troca_email(usuario, usuario.email_pendente)
         registrar(
             AcaoAuditoria.TROCA_EMAIL_SOLICITADA, request=request, actor=request.user
         )
@@ -271,9 +277,23 @@ class ConfirmarTrocaEmailView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
 
         usuario = serializer.usuario
+        if not serializer.posse:
+            # Etapa 1: o endereço atual autorizou. O e-mail ainda não muda: o
+            # 2º link vai ao endereço novo, para provar que ele é do titular
+            # (sem isso, um erro de digitação entregaria a conta a um estranho).
+            enviado = enviar_troca_email(usuario, serializer.novo_email, posse=True)
+            return Response(
+                {"etapa": "posse", "email_enviado": enviado}, status=status.HTTP_200_OK
+            )
+
+        # Etapa 2: posse provada. Só aqui o `email` muda e o 2FA passa a olhar
+        # para ele.
         usuario.email = serializer.novo_email
+        usuario.email_pendente = ""
         usuario.email_verified_at = timezone.now()
-        usuario.save(update_fields=["email", "email_verified_at", "updated_at"])
+        usuario.save(
+            update_fields=["email", "email_pendente", "email_verified_at", "updated_at"]
+        )
         registrar(
             AcaoAuditoria.TROCA_EMAIL_CONFIRMADA, request=request, actor=usuario
         )
@@ -317,12 +337,16 @@ class RedefinirSenhaView(generics.GenericAPIView):
         usuario.failed_logins = 0
         usuario.locked_until = None
         usuario.email_verified_at = usuario.email_verified_at or timezone.now()
+        # Trocar a senha cancela uma troca de e-mail pendente: é o que o aviso
+        # de troca manda fazer se o pedido não foi do titular.
+        usuario.email_pendente = ""
         usuario.save(
             update_fields=[
                 "password",
                 "failed_logins",
                 "locked_until",
                 "email_verified_at",
+                "email_pendente",
                 "updated_at",
             ]
         )
@@ -467,6 +491,18 @@ class MfaIniciarView(generics.GenericAPIView):
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        # iniciar_setup desliga o método atual. Com 2FA ativo, trocar de método
+        # passa por desativar (que exige código); senão a sessão sozinha
+        # desligaria o 2FA e o trocaria pelo do atacante.
+        if mfa.mfa_ativo(request.user) is not None:
+            raise ValidationError(
+                {
+                    "detail": ErrorDetail(
+                        "Desative o 2FA atual antes de trocar de método.",
+                        code="mfa_ja_ativo",
+                    )
+                }
+            )
         dados = mfa.iniciar_setup(request.user, serializer.validated_data["metodo"])
         return Response(dados, status=status.HTTP_200_OK)
 

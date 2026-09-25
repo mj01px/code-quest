@@ -41,6 +41,16 @@ class User(AbstractBaseUser, PermissionsMixin):
         error_messages={"unique": _("Já existe uma conta com este e-mail.")},
     )
 
+    email_pendente = models.EmailField(
+        blank=True,
+        default="",
+        verbose_name=_("e-mail pendente"),
+        help_text=_(
+            "Endereço pedido na troca de e-mail, ainda não confirmado pelo "
+            "endereço atual. Login e 2FA seguem no e-mail atual até lá."
+        ),
+    )
+
     nickname = models.CharField(
         max_length=NICKNAME_MAX_LENGTH,
         verbose_name=_("nickname"),
@@ -289,6 +299,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
         marca = uuid.uuid4().hex[:12]
         self.email = f"anon-{marca}@anonimizado.invalid"
+        self.email_pendente = ""
         self.nickname = f"anon_{marca}"
         self.set_unusable_password()
         self.failed_logins = 0
@@ -300,6 +311,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         self.save(
             update_fields=[
                 "email",
+                "email_pendente",
                 "nickname",
                 "password",
                 "failed_logins",

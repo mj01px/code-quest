@@ -4,6 +4,10 @@ Ponto único de escrita. Qualquer fluxo que precise registrar um evento chama
 `registrar(...)`. A gravação é resiliente: uma falha aqui nunca derruba a
 requisição que a originou (um login não pode falhar porque a auditoria falhou).
 
+Exceção: quando o registro é prova obrigatória (hoje, só a anonimização LGPD),
+não use `registrar()`. Grave com `RegistroDeAuditoria.objects.create()` dentro
+do atomic() da ação, para que a falha do registro desfaça a ação.
+
 Regra de ouro: NUNCA passe senha, token ou conteúdo sensível em `metadata`.
 """
 

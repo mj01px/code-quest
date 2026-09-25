@@ -102,6 +102,23 @@ class MfaSetupTest(APITestCase):
         self.assertTrue(r.data["email_enviado"])
         self.assertEqual(len(mail.outbox), 1)
 
+    def test_iniciar_com_2fa_ativo_e_recusado_e_nao_desliga_o_atual(self):
+        # Só a sessão não pode trocar o 2FA da vítima pelo do atacante.
+        self._ativar_app()
+
+        r = self.client.post(
+            reverse("contas:mfa-iniciar"), {"metodo": "APP"}, format="json"
+        )
+
+        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(r.data["error"]["code"], "mfa_ja_ativo")
+        config = ConfiguracaoMFA.objects.get(user=self.usuario)
+        self.assertTrue(config.ativo)
+        self.assertEqual(
+            CodigoRecuperacaoMFA.objects.filter(user=self.usuario).count(),
+            mfa.QTD_RECUPERACAO,
+        )
+
     # ------------------------------------------------------------ desativar
     def test_desativar_exige_codigo_valido(self):
         secret, _ = self._ativar_app()

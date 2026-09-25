@@ -9,7 +9,7 @@ import { TelaBase } from "@/components/layout/TelaBase";
 
 export const metadata: Metadata = {
   title: "Confirmar e-mail",
-  description: "Confirme seu novo e-mail para concluir a troca.",
+  description: "Confirme a troca do e-mail da sua conta.",
 };
 
 export default function PaginaConfirmarEmail() {

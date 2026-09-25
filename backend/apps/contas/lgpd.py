@@ -45,6 +45,7 @@ def exportar_dados(user) -> dict:
         "perfil": {
             "id": str(user.id),
             "email": user.email,
+            "email_pendente": user.email_pendente or None,
             "nickname": user.nickname,
             "papel": user.role,
             "nivel_de_acesso": (
@@ -94,9 +95,12 @@ def anonimizar_conta(user) -> bool:
     """Executa a exclusão por anonimização: embaralha a PII do usuário e apaga a
     PII derivada (snapshot de e-mail na auditoria, IP dos aceites), preservando
     os agregados e a prova de aceite. Idempotente.
+
+    O registro CONTA_ANONIMIZADA é prova obrigatória (decisão de 2026-09-25):
+    é gravado direto, sem o `registrar()` que engole falha. Se não gravar, a
+    exceção sobe e o atomic() desfaz a anonimização inteira.
     """
     from apps.auditoria.models import AcaoAuditoria, RegistroDeAuditoria
-    from apps.auditoria.services import registrar
 
     from .models import AceiteDeTermos
 
@@ -106,8 +110,10 @@ def anonimizar_conta(user) -> bool:
     with transaction.atomic():
         user.anonimizar()
         # Registra o evento antes do scrub, para que o update abaixo limpe o
-        # snapshot desta própria linha também — nada de e-mail sobra na trilha.
-        registrar(AcaoAuditoria.CONTA_ANONIMIZADA, actor=user)
+        # snapshot desta própria linha também: nada de e-mail sobra na trilha.
+        RegistroDeAuditoria.objects.create(
+            acao=AcaoAuditoria.CONTA_ANONIMIZADA, actor=user
+        )
         RegistroDeAuditoria.objects.filter(actor=user).update(actor_email_snapshot="")
         AceiteDeTermos.objects.filter(user=user).update(ip=None)
 

@@ -275,6 +275,16 @@ class AuditoriaDoPainelTest(APITestCase):
             },
         )
 
+    def test_patch_sem_mudanca_nao_cria_registro(self):
+        nivel = self._nivel_editavel()
+        r = self.client.patch(
+            reverse("contas:admin-nivel", kwargs={"pk": nivel.pk}),
+            {"descricao": "velha", "permissoes": ["trilhas.view"]},
+            format="json",
+        )
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+        self.assertTrue(self._sem_registro(AcaoAuditoria.NIVEL_EDITADO))
+
     def test_editar_nivel_sobrevive_a_falha_da_auditoria(self):
         nivel = self._nivel_editavel()
         with self._falhando_a_auditoria(), self.assertLogs("apps.auditoria", "WARNING"):
