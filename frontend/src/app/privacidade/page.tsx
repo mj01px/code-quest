@@ -335,16 +335,16 @@ export default async function PaginaPrivacidade() {
 
       <Secao numero={9} titulo="Crianças e adolescentes">
         <Paragrafo>
-          A CodeQuest é destinada a pessoas com{" "}
-          <ADefinir>idade mínima</ADefinir> anos ou mais. O tratamento de dados
-          de crianças e adolescentes segue o art. 14 da LGPD e é feito sempre no
+          A CodeQuest é destinada a pessoas com <Destaque>16 anos ou mais</Destaque>.
+          No cadastro pedimos a data de nascimento e confirmamos a idade na hora:
+          quem ainda não completou 16 anos não consegue criar conta. O tratamento
+          de dados de adolescentes segue o art. 14 da LGPD e é feito sempre no
           melhor interesse deles.
         </Paragrafo>
         <Paragrafo>
-          Se identificarmos uma conta criada por criança sem o consentimento
-          específico de pelo menos um dos pais ou do responsável legal,
-          suspendemos a conta e apagamos os dados. Se você é responsável e
-          quiser pedir isso, use o contato da seção 1.
+          Se identificarmos uma conta de alguém com menos de 16 anos, suspendemos
+          a conta e apagamos os dados. Se você é responsável e quiser pedir isso,
+          use o contato da seção 1.
         </Paragrafo>
       </Secao>
 
