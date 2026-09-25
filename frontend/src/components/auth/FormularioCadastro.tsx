@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { CampoData } from "@/components/ui/CampoData";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelCheckbox } from "@/components/ui/PixelCheckbox";
 import { PixelField } from "@/components/ui/PixelField";
@@ -12,6 +13,7 @@ import {
   NICKNAME_MAX,
   SENHA_MAX,
   validarAceite,
+  validarDataNascimento,
   validarEmail,
   validarNickname,
   validarSenha,
@@ -21,6 +23,7 @@ interface Erros {
   email?: string | null;
   nickname?: string | null;
   senha?: string | null;
+  dataNascimento?: string | null;
   aceite?: string | null;
   geral?: string | null;
 }
@@ -29,6 +32,7 @@ const CAMPOS_DA_TELA = [
   "email",
   "nickname",
   "senha",
+  "data_nascimento",
   "aceite_documentos",
 ] as const;
 
@@ -47,6 +51,7 @@ export function FormularioCadastro({ aoCadastrar }: Props) {
   const [email, setEmail] = useState("");
   const [nickname, setNickname] = useState("");
   const [senha, setSenha] = useState("");
+  const [dataNascimento, setDataNascimento] = useState("");
   const [aceite, setAceite] = useState(false);
   const [documentos, setDocumentos] = useState<DocumentosLegais | null>(null);
   const [falhaDocumentos, setFalhaDocumentos] = useState(false);
@@ -78,6 +83,7 @@ export function FormularioCadastro({ aoCadastrar }: Props) {
       email: validarEmail(email),
       nickname: validarNickname(nickname),
       senha: validarSenha(senha, [email, nickname]),
+      dataNascimento: validarDataNascimento(dataNascimento),
       aceite: validarAceite(aceite),
     };
     setErros(encontrados);
@@ -90,6 +96,7 @@ export function FormularioCadastro({ aoCadastrar }: Props) {
         email: endereco,
         nickname: nickname.trim(),
         senha,
+        data_nascimento: dataNascimento,
         aceite_documentos: aceite,
         versao_termos: documentos.termos.versao,
         versao_privacidade: documentos.privacidade.versao,
@@ -106,6 +113,7 @@ export function FormularioCadastro({ aoCadastrar }: Props) {
           email: porCampo.email ?? null,
           nickname: porCampo.nickname ?? null,
           senha: porCampo.senha ?? null,
+          dataNascimento: porCampo.data_nascimento ?? null,
           aceite: porCampo.aceite_documentos ?? null,
           geral: conhecido ? null : erro.message,
         });
@@ -153,6 +161,14 @@ export function FormularioCadastro({ aoCadastrar }: Props) {
         value={senha}
         erro={erros.senha}
         onChange={(e) => setSenha(e.target.value)}
+      />
+
+      <CampoData
+        rotulo="DATA DE NASCIMENTO"
+        name="data_nascimento"
+        value={dataNascimento}
+        erro={erros.dataNascimento}
+        onChange={setDataNascimento}
       />
 
       <PixelCheckbox

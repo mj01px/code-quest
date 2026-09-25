@@ -1,9 +1,12 @@
-"""O controle de acesso vem do papel, não das tabelas de permissão do Django.
+"""O controle de acesso vem do nível de acesso do usuário, não das tabelas de
+permissão do Django.
 
-`auth_permission` e `auth_group` não são usados. Quem decide é o `role`, pelo
-mapa estático em `apps/contas/rbac.py`, consultado através do `has_perm`, que
-é a interface do Django mantida de propósito para que as views perguntem pela
-capacidade e não pelo cargo.
+`auth_permission` e `auth_group` não são usados. Quem decide é o `has_perm`:
+todo usuário tem exatamente as permissões do seu `nivel_de_acesso` (tabela
+dinâmica semeada a partir do catálogo estático em `apps/contas/rbac.py`). Não há
+curto-circuito por papel — um admin tem tudo porque o nível "Admin" concede o
+catálogo inteiro. Mantemos `has_perm` como interface do Django para que as views
+perguntem pela capacidade e não pelo cargo.
 
 Duas regras aqui não são detalhe de implementação e sim exigência escrita:
 
@@ -19,7 +22,7 @@ Duas regras aqui não são detalhe de implementação e sim exigência escrita:
 
 from django.test import TestCase
 
-from apps.contas.models import User
+from apps.contas.models import NivelDeAcesso, User
 from apps.contas.rbac import (
     ALL_CODENAMES,
     CATALOG,
@@ -94,12 +97,12 @@ class HasPermPorPapelTest(TestCase):
         self.assertFalse(self.autor.has_perm("trilhas.review"))
         self.assertFalse(self.autor.has_perm("trilhas.publish"))
 
-    def test_admin_recebe_tudo_por_curto_circuito(self):
+    def test_admin_tem_o_catalogo_inteiro_pelo_nivel(self):
         self.assertTrue(self.admin.has_perm("trilhas.publish"))
         self.assertTrue(self.admin.has_perm("auditoria.view"))
-        # O curto-circuito responde antes de olhar o catálogo, então até um
-        # codename inexistente passa. É intencional e vale documentar.
-        self.assertTrue(self.admin.has_perm("codename.inexistente"))
+        # Sem curto-circuito por papel: o admin tem tudo porque o nível "Admin"
+        # concede o catálogo inteiro — mas não uma permissão fora dele.
+        self.assertFalse(self.admin.has_perm("codename.inexistente"))
 
 
 class ContaInativaTest(TestCase):
@@ -121,25 +124,45 @@ class ContaInativaTest(TestCase):
 
 
 class CacheDePermissaoTest(TestCase):
-    """O cache é chaveado pelo papel, então se invalida sozinho.
+    """O cache é chaveado por papel + nível, então se invalida sozinho.
 
-    Isso substitui a invalidação manual que seria necessária se as permissões
-    viessem de uma tabela mutável. Promover ou rebaixar na mesma instância
-    precisa refletir imediatamente.
+    As permissões vêm do nível de acesso; trocar o nível na mesma instância
+    precisa refletir imediatamente, sem invalidação manual.
     """
 
-    def test_promover_na_mesma_instancia_reflete_na_hora(self):
+    def test_promover_de_nivel_na_mesma_instancia_reflete_na_hora(self):
+        autor = NivelDeAcesso.objects.get(nome="Autor")
         user = criar_aluno("promovido")
         self.assertFalse(user.has_perm("trilhas.create"))
-        user.role = User.Role.AUTHOR
+        user.nivel_de_acesso = autor
         self.assertTrue(user.has_perm("trilhas.create"))
 
-    def test_rebaixar_na_mesma_instancia_reflete_na_hora(self):
+    def test_rebaixar_de_nivel_na_mesma_instancia_reflete_na_hora(self):
+        aluno = NivelDeAcesso.objects.get(nome="Aluno")
         user = criar_autor("rebaixado")
         self.assertTrue(user.has_perm("trilhas.create"))
-        user.role = User.Role.STUDENT
+        user.nivel_de_acesso = aluno
         self.assertFalse(user.has_perm("trilhas.create"))
 
     def test_consultas_repetidas_devolvem_o_mesmo_conjunto(self):
         user = criar_autor("repetido")
         self.assertIs(user.get_role_permissions(), user.get_role_permissions())
+
+
+class AdminVemDoNivelTest(TestCase):
+    """Ser admin da plataforma passou a depender do nível, não do papel."""
+
+    def test_is_platform_admin_segue_o_nivel(self):
+        admin = criar_admin("chefe")
+        self.assertTrue(admin.is_platform_admin)
+        admin.nivel_de_acesso = NivelDeAcesso.objects.get(nome="Aluno")
+        self.assertFalse(admin.is_platform_admin)
+        self.assertFalse(admin.has_perm("auditoria.view"))
+
+    def test_nivel_customizado_pode_conceder_o_painel(self):
+        user = criar_aluno("gerente")
+        self.assertFalse(user.is_platform_admin)
+        user.nivel_de_acesso = NivelDeAcesso.objects.create(
+            nome="suporte", acesso_admin=True
+        )
+        self.assertTrue(user.is_platform_admin)

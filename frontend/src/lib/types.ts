@@ -3,8 +3,6 @@ export type Dominio =
 
 export type Estagio = 1 | 2 | 3;
 
-export type Papel = "ALUNO" | "AUTOR" | "ADMIN";
-
 export interface EstagioCriatura {
   estagio: Estagio;
   rotulo: string;
@@ -62,10 +60,35 @@ export interface Usuario {
   id: string;
   email: string;
   nickname: string;
-  papel: Papel;
-  papel_rotulo: string;
   permissoes: string[];
+  is_admin: boolean;
   criado_em: string;
+}
+
+// --- RBAC (painel de admin) ---
+export interface PermissaoCatalogo {
+  codename: string;
+  rotulo: string;
+  modulo: string;
+}
+
+export interface NivelDeAcesso {
+  id: string;
+  nome: string;
+  descricao: string;
+  sistema: boolean;
+  acesso_admin: boolean;
+  permissoes: string[]; // codenames
+  qtd_usuarios: number;
+  criado_em: string;
+}
+
+export interface UsuarioAdmin {
+  id: string;
+  nickname: string;
+  email: string;
+  criado_em: string;
+  nivel: { id: string; nome: string } | null;
 }
 
 export type DocumentoLegal = "TERMOS" | "PRIVACIDADE";

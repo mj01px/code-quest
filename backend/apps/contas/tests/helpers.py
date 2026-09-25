@@ -45,6 +45,8 @@ def criar_admin(nickname: str = "administrador", **extra) -> User:
 
 def payload_aceite() -> dict:
     return {
+        # Maior de 16 (idade mínima), fixo para o teste ser determinístico.
+        "data_nascimento": "2000-01-01",
         "aceite_documentos": True,
         "versao_termos": versao_vigente(Documento.TERMOS),
         "versao_privacidade": versao_vigente(Documento.PRIVACIDADE),

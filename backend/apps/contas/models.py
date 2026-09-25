@@ -55,6 +55,13 @@ class User(AbstractBaseUser, PermissionsMixin):
         ],
     )
 
+    birth_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name=_("data de nascimento"),
+        help_text=_("Usada para confirmar a idade mínima no cadastro."),
+    )
+
     role = models.CharField(
         max_length=10,
         choices=Role.choices,
@@ -64,6 +71,19 @@ class User(AbstractBaseUser, PermissionsMixin):
         help_text=_(
             "O papel de autor é concedido por um administrador, "
             "nunca escolhido no cadastro."
+        ),
+    )
+
+    nivel_de_acesso = models.ForeignKey(
+        "contas.NivelDeAcesso",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="usuarios",
+        verbose_name=_("nível de acesso"),
+        help_text=_(
+            "Define as permissões granulares. Um ADMIN ignora este campo e "
+            "pode tudo; sem nível, cai nas permissões padrão do papel."
         ),
     )
 
@@ -171,23 +191,44 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     @property
     def is_platform_admin(self) -> bool:
-        return self.role == self.Role.ADMIN
+        # O acesso ao painel vem do NÍVEL, não do papel: um nível o concede
+        # (o "Admin" concede). Conta inativa nunca é admin.
+        return bool(
+            self.is_active
+            and self.nivel_de_acesso_id is not None
+            and self.nivel_de_acesso.acesso_admin
+        )
 
     def has_perm(self, perm, obj=None) -> bool:
+        # Sem curto-circuito por papel: quem manda é o nível de acesso. Assim,
+        # rebaixar o nível de um admin realmente o rebaixa.
         if not self.is_active:
             return False
-        if self.role == self.Role.ADMIN:
-            return True
         if not isinstance(perm, str):
             return super().has_perm(perm, obj)
         return perm in self.get_role_permissions()
 
     def get_role_permissions(self) -> frozenset[str]:
+        # As permissões vêm do nível de acesso; sem nível, caímos nas permissões
+        # padrão do papel (útil para contas ainda não migradas). O cache depende
+        # de papel + nível: muda se qualquer um trocar no objeto.
+        chave = (self.role, self.nivel_de_acesso_id)
         cache = getattr(self, "_perm_cache", None)
-        if cache is None or cache[0] != self.role:
-            cache = (self.role, permissions_for_role(self.role))
+        if cache is None or cache[0] != chave:
+            if self.nivel_de_acesso_id is not None:
+                perms = frozenset(
+                    self.nivel_de_acesso.permissoes.values_list("codename", flat=True)
+                )
+            else:
+                perms = permissions_for_role(self.role)
+            cache = (chave, perms)
             self._perm_cache = cache
         return cache[1]
+
+    def invalidar_cache_permissoes(self) -> None:
+        """Descarta o cache após trocar o nível de acesso na mesma instância."""
+        if hasattr(self, "_perm_cache"):
+            del self._perm_cache
 
     @property
     def email_verificado(self) -> bool:
@@ -270,6 +311,75 @@ class User(AbstractBaseUser, PermissionsMixin):
             ]
         )
         return True
+
+
+class Permissao(models.Model):
+    """Catálogo de permissões granulares que um nível de acesso pode conceder.
+
+    Semeado a partir de `rbac.CATALOG` numa migração de dados: o código continua
+    sendo a fonte da verdade de quais permissões existem; esta tabela só as
+    materializa para que a UI as liste e os níveis as referenciem.
+    """
+
+    codename = models.CharField(
+        max_length=64, unique=True, verbose_name=_("código")
+    )
+    rotulo = models.CharField(max_length=160, verbose_name=_("rótulo"))
+    modulo = models.CharField(max_length=32, db_index=True, verbose_name=_("módulo"))
+    ordem = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["modulo", "ordem", "codename"]
+        verbose_name = _("permissão")
+        verbose_name_plural = _("permissões")
+
+    def __str__(self) -> str:
+        return self.codename
+
+
+class NivelDeAcesso(models.Model):
+    """Um conjunto nomeado de permissões, atribuível a usuários.
+
+    Ex.: "aluno_sem_criatura". Um usuário com `role` ADMIN ignora o nível e pode
+    tudo; os demais têm exatamente as permissões do seu nível.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)
+    nome = models.CharField(max_length=80, unique=True, verbose_name=_("nome"))
+    descricao = models.CharField(
+        max_length=255, blank=True, default="", verbose_name=_("descrição")
+    )
+    permissoes = models.ManyToManyField(
+        Permissao,
+        related_name="niveis",
+        blank=True,
+        verbose_name=_("permissões"),
+    )
+    sistema = models.BooleanField(
+        default=False,
+        verbose_name=_("nível de sistema"),
+        help_text=_(
+            "Níveis embutidos (Aluno, Autor, Admin) não podem ser removidos."
+        ),
+    )
+    acesso_admin = models.BooleanField(
+        default=False,
+        verbose_name=_("acesso ao painel admin"),
+        help_text=_(
+            "Usuários neste nível podem abrir o /admin. É o que define quem é "
+            "administrador da plataforma."
+        ),
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["nome"]
+        verbose_name = _("nível de acesso")
+        verbose_name_plural = _("níveis de acesso")
+
+    def __str__(self) -> str:
+        return self.nome
 
 
 class AceiteDeTermos(models.Model):

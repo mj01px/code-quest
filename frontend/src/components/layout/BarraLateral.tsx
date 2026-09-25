@@ -8,12 +8,17 @@ import { useState } from "react";
 import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 import { api } from "@/lib/api";
 
+// `perm` null = sempre visível; senão só aparece se o usuário tiver a permissão.
 export const ITENS = [
-  { rotulo: "TRILHAS", href: "/trilhas" },
-  { rotulo: "DESAFIO DO DIA", href: "/desafios" },
-  { rotulo: "CRIATURA", href: "/criatura" },
-  { rotulo: "CONFIGURAÇÕES", href: "/configuracoes" },
+  { rotulo: "TRILHAS", href: "/trilhas", perm: "trilhas.view" },
+  { rotulo: "DESAFIO DO DIA", href: "/desafios", perm: "trilhas.view" },
+  { rotulo: "CRIATURA", href: "/criatura", perm: "criaturas.view" },
+  { rotulo: "CONFIGURAÇÕES", href: "/configuracoes", perm: null },
 ] as const;
+
+// Só aparece para administradores. A rota /admin também se protege sozinha:
+// o item some da barra, mas quem digitar a URL direto cai na guarda de papel.
+export const ITEM_ADMIN = { rotulo: "ADMIN", href: "/admin" } as const;
 
 const BLOCOS = 10;
 
@@ -32,6 +37,13 @@ export function BarraLateral() {
   // Os dados vêm do Context, não de busca própria: sem isso o bloco piscaria
   // a cada troca de rota. O provedor vive no layout do route group.
   const { usuario, criatura, progresso, carregando } = useProgresso();
+
+  // Enquanto o usuário não carrega, mostra os itens sem filtrar (evita flicker);
+  // carregado, esconde o que o nível de acesso não permite.
+  const permitidos = usuario
+    ? ITENS.filter((i) => i.perm === null || usuario.permissoes.includes(i.perm))
+    : ITENS;
+  const itens = usuario?.is_admin ? [...permitidos, ITEM_ADMIN] : permitidos;
 
   // Apesar do nome, `xp_para_o_proximo` NÃO é quanto falta: é o tamanho da
   // faixa do nível inteiro (xp do próximo menos xp do atual). Ou seja, ele já
@@ -147,7 +159,7 @@ export function BarraLateral() {
 
       <nav aria-label="Navegação principal">
         <ul className="m-0 grid list-none grid-cols-2 gap-2 p-0 sm:grid-cols-3 lg:flex lg:flex-col">
-          {ITENS.map((item) => {
+          {itens.map((item) => {
             const ativo = estaAtivo(item.href, caminho);
 
             return (

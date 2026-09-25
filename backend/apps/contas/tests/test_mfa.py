@@ -6,6 +6,8 @@ entrar de novo passando pelo 2º fator. Se alguém quebrar uma rota, o formato d
 desafio ou a regra de "a senha sozinha não basta", é aqui que aparece.
 """
 
+import re
+
 import pyotp
 from django.core import mail
 from django.urls import reverse
@@ -126,6 +128,46 @@ class MfaSetupTest(APITestCase):
                 actor=self.usuario, acao=AcaoAuditoria.MFA_DESATIVADO
             ).exists()
         )
+
+    # ------------------------------------------- desativar por e-mail (envio)
+    def _ativar_email(self):
+        self.client.post(
+            reverse("contas:mfa-iniciar"), {"metodo": "EMAIL"}, format="json"
+        )
+        config = ConfiguracaoMFA.objects.get(user=self.usuario)
+        codigo = mfa.preparar_desafio_email(config)
+        self.client.post(
+            reverse("contas:mfa-confirmar"), {"codigo": codigo}, format="json"
+        )
+
+    def test_desativar_iniciar_por_email_envia_codigo_que_funciona(self):
+        self._ativar_email()
+        mail.outbox.clear()
+
+        iniciar = self.client.post(reverse("contas:mfa-desativar-iniciar"))
+        self.assertEqual(iniciar.status_code, status.HTTP_200_OK)
+        self.assertTrue(iniciar.data["email_enviado"])
+        self.assertEqual(len(mail.outbox), 1)
+
+        codigo = re.search(r"\b\d{6}\b", mail.outbox[-1].body).group()
+        desativar = self.client.post(
+            reverse("contas:mfa-desativar"), {"codigo": codigo}, format="json"
+        )
+        self.assertEqual(desativar.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(ConfiguracaoMFA.objects.get(user=self.usuario).ativo)
+
+    def test_desativar_iniciar_com_app_nao_envia_email(self):
+        self._ativar_app()
+        mail.outbox.clear()
+
+        r = self.client.post(reverse("contas:mfa-desativar-iniciar"))
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+        self.assertFalse(r.data["email_enviado"])
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_desativar_iniciar_exige_mfa_ativo(self):
+        r = self.client.post(reverse("contas:mfa-desativar-iniciar"))
+        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
 
 
 class LoginComMfaTest(APITestCase):

@@ -503,6 +503,28 @@ class MfaConfirmarView(generics.GenericAPIView):
 
 
 @extend_schema(tags=["auth"], responses=None)
+class MfaDesativarIniciarView(APIView):
+    """Dispara o código por e-mail para confirmar a desativação, quando o
+    método ativo é e-mail. Para app/recuperação não há nada a enviar."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "verificacao"
+
+    def post(self, request, *args, **kwargs):
+        if mfa.mfa_ativo(request.user) is None:
+            raise ValidationError(
+                {
+                    "detail": ErrorDetail(
+                        "O 2FA não está ativo.", code="mfa_inativo"
+                    )
+                }
+            )
+        enviado = mfa.iniciar_desafio_desativacao(request.user)
+        return Response({"email_enviado": enviado}, status=status.HTTP_200_OK)
+
+
+@extend_schema(tags=["auth"], responses=None)
 class MfaDesativarView(generics.GenericAPIView):
     """Desativa o 2FA (exige um código válido, ou de recuperação)."""
 

@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from apps.core.permissions import HasPerm
 from apps.correcao.excecoes import CorretorIndisponivel
 from apps.correcao.judge0 import Judge0Error
 from apps.correcao.serializers import CorrecaoSerializer, EnvioDeCodigoSerializer
@@ -14,6 +15,11 @@ from apps.correcao.views import codigo_enviado
 from apps.trilhas.models import Exercicio, Trilha
 
 from .models import TrilhaIniciada
+
+# Iniciar trilha e concluir exercício são capacidades governadas pelo RBAC
+# ler o próprio progresso continua exigindo só login
+PODE_INICIAR_TRILHA = HasPerm("trilhas.enroll")
+PODE_CONCLUIR_EXERCICIO = HasPerm("exercicios.complete")
 from .serializers import (
     ExercicioConcluidoSerializer,
     ProgressoSerializer,
@@ -57,7 +63,7 @@ class IniciarTrilhaView(APIView):
     tela a tratar como falha algo que está certo.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, PODE_INICIAR_TRILHA]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "conclusao"
 
@@ -95,7 +101,7 @@ class MinhasTrilhasIniciadasView(APIView):
 @extend_schema(
     tags=["progressao"], request=EnvioDeCodigoSerializer, responses=ConclusaoSerializer)
 class ConcluirExercicioView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, PODE_CONCLUIR_EXERCICIO]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "conclusao"
 

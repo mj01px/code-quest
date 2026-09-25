@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ADefinir } from "@/components/legal/ADefinir";
 import { PaginaLegal } from "@/components/legal/PaginaLegal";
 import { Destaque, Paragrafo, Secao } from "@/components/legal/Prosa";
+import { DADOS_LEGAIS } from "@/lib/dadosLegais";
 
 export const metadata: Metadata = {
   title: "Suporte",
@@ -48,8 +48,11 @@ export default function PaginaSuporte() {
     >
       <Secao numero={1} titulo="Como falar com a gente">
         <Destaque>
-          Escreva para <ADefinir>e-mail de contato</ADefinir>. Respondemos em até{" "}
-          <ADefinir>prazo de resposta</ADefinir>, em dias úteis.
+          Escreva para{" "}
+          <a href={`mailto:${DADOS_LEGAIS.emailContato}`}>
+            {DADOS_LEGAIS.emailContato}
+          </a>
+          . Respondemos em até 15 dias.
         </Destaque>
         <Paragrafo>
           Para agilizar, conte o que você tentou fazer, o que aconteceu e qual o
@@ -60,10 +63,14 @@ export default function PaginaSuporte() {
 
       <Secao numero={2} titulo="Seus dados pessoais">
         <Paragrafo>
-          O mesmo endereço é o canal do encarregado pelo tratamento de dados
-          pessoais, previsto no art. 41 da LGPD. Use-o para acessar, corrigir,
-          portar ou excluir seus dados, ou para tirar qualquer dúvida sobre o
-          que a plataforma guarda.
+          Para acessar, corrigir, portar ou excluir seus dados, ou para tirar
+          qualquer dúvida sobre o que a plataforma guarda, fale com o
+          encarregado pelo tratamento de dados pessoais (art. 41 da LGPD),{" "}
+          {DADOS_LEGAIS.encarregado}, em{" "}
+          <a href={`mailto:${DADOS_LEGAIS.emailEncarregado}`}>
+            {DADOS_LEGAIS.emailEncarregado}
+          </a>
+          .
         </Paragrafo>
         <Paragrafo>
           A lista completa do que é tratado, com finalidade e base legal, está
@@ -84,29 +91,30 @@ export default function PaginaSuporte() {
       <Secao numero={4} titulo="Dúvidas frequentes">
         <div className="flex flex-col gap-6">
           <Pergunta titulo="ESQUECI MINHA SENHA">
-            A recuperação automática de senha ainda não existe na plataforma.
-            Por enquanto, escreva para o contato acima do seu e-mail cadastrado
-            e nós ajudamos a recuperar o acesso.
+            Na tela de entrada, use{" "}
+            <Link href="/recuperar-senha">recuperar senha</Link>. Enviamos um
+            link para o seu e-mail cadastrado para você criar uma senha nova.
           </Pergunta>
 
           <Pergunta titulo="MEU PROGRESSO NAS TRILHAS SUMIU">
-            Hoje o progresso fica guardado no seu próprio navegador, não na sua
-            conta. Ele se perde ao limpar os dados de navegação, usar janela
-            anônima ou trocar de aparelho. Estamos trabalhando para levá-lo para
-            a conta, e não há como recuperar o que já se perdeu.
+            O progresso fica guardado na sua conta, então aparece em qualquer
+            aparelho em que você entrar. Se algo sumiu, confira se entrou na
+            conta certa e, se o problema continuar, mande o seu nickname para o
+            contato acima.
           </Pergunta>
 
           <Pergunta titulo="QUERO TROCAR MEU NICKNAME OU MEU E-MAIL">
-            O nickname pode ser alterado, mas a tela de perfil ainda está em
-            construção: peça pelo e-mail de contato. O e-mail de cadastro não
-            pode ser trocado no momento, porque é o que identifica sua conta.
+            Os dois podem ser alterados na tela de{" "}
+            <Link href="/configuracoes">Configurações</Link>. A troca de e-mail
+            só vale depois que você confirma pelo link que enviamos.
           </Pergunta>
 
           <Pergunta titulo="COMO EXCLUO MINHA CONTA">
-            Peça pelo e-mail de contato. A conta é desativada na hora e os dados
-            seguem o prazo descrito na seção 6 da{" "}
-            <Link href="/privacidade">Política de Privacidade</Link>. A tela para
-            fazer isso sozinho está em construção.
+            Na tela de <Link href="/configuracoes">Configurações</Link>, na
+            zona de risco. Enviamos um link de confirmação para o seu e-mail e,
+            ao confirmar, a exclusão é imediata e não tem volta. O que acontece
+            com os dados está na seção 6 da{" "}
+            <Link href="/privacidade">Política de Privacidade</Link>.
           </Pergunta>
 
           <Pergunta titulo="POSSO TER MAIS DE UMA CONTA">

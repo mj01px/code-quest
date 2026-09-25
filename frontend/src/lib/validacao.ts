@@ -7,6 +7,7 @@ export const NICKNAME_MAX = 20;
 export const SENHA_MIN = 8;
 export const SENHA_MAX = 128;
 export const EMAIL_MAX = 254;
+export const IDADE_MINIMA = 16;
 // Código de 2FA: 6 dígitos (TOTP/e-mail) ou recuperação "xxxx-xxxx" (9 chars).
 export const CODIGO_MFA_MAX = 12;
 
@@ -114,5 +115,30 @@ export function validarConfirmacao(
 export function validarAceite(aceito: boolean): string | null {
   if (!aceito)
     return "É preciso aceitar os Termos de Uso e a Política de Privacidade.";
+  return null;
+}
+
+/** Idade em anos completos na data de hoje (só conta o aniversário já passado). */
+function idadeEmAnos(nascimento: Date, hoje: Date): number {
+  let anos = hoje.getFullYear() - nascimento.getFullYear();
+  const aniversarioAindaNaoChegou =
+    hoje.getMonth() < nascimento.getMonth() ||
+    (hoje.getMonth() === nascimento.getMonth() &&
+      hoje.getDate() < nascimento.getDate());
+  if (aniversarioAindaNaoChegou) anos -= 1;
+  return anos;
+}
+
+export function validarDataNascimento(valor: string): string | null {
+  if (!valor) return "Informe sua data de nascimento.";
+  // input[type=date] entrega "YYYY-MM-DD"; monta em horário local.
+  const [ano, mes, dia] = valor.split("-").map(Number);
+  const nascimento = new Date(ano, (mes ?? 1) - 1, dia ?? 1);
+  if (Number.isNaN(nascimento.getTime())) return "Data inválida.";
+
+  const hoje = new Date();
+  if (nascimento > hoje) return "Data inválida.";
+  if (idadeEmAnos(nascimento, hoje) < IDADE_MINIMA)
+    return `É preciso ter pelo menos ${IDADE_MINIMA} anos para criar uma conta.`;
   return null;
 }

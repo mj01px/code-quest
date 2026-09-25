@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -17,7 +18,7 @@ from .senha import ler_token as ler_token_senha
 from .senha import token_confere
 from .troca_email import ler_token as ler_token_troca
 from .troca_email import token_confere as token_confere_troca
-from .validators import SENHA_MAX_LENGTH
+from .validators import IDADE_MINIMA_ANOS, SENHA_MAX_LENGTH, calcular_idade
 from .verificacao import ler_token, ler_token_qualquer_idade
 
 User = get_user_model()
@@ -47,6 +48,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
     papel = serializers.CharField(source="role", read_only=True)
     papel_rotulo = serializers.CharField(source="get_role_display", read_only=True)
     permissoes = serializers.SerializerMethodField()
+    is_admin = serializers.BooleanField(source="is_platform_admin", read_only=True)
     criado_em = serializers.DateTimeField(source="created_at", read_only=True)
 
     class Meta:
@@ -58,6 +60,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
             "papel",
             "papel_rotulo",
             "permissoes",
+            "is_admin",
             "criado_em",
         )
         read_only_fields = ("id", "email")
@@ -85,6 +88,10 @@ class RegistroSerializer(serializers.ModelSerializer):
         trim_whitespace=False,
     )
 
+    data_nascimento = serializers.DateField(
+        write_only=True, required=True, source="birth_date"
+    )
+
     aceite_documentos = serializers.BooleanField(write_only=True, required=True)
 
     versao_termos = serializers.CharField(
@@ -100,6 +107,7 @@ class RegistroSerializer(serializers.ModelSerializer):
             "email",
             "nickname",
             "senha",
+            "data_nascimento",
             "aceite_documentos",
             "versao_termos",
             "versao_privacidade",
@@ -107,6 +115,20 @@ class RegistroSerializer(serializers.ModelSerializer):
 
     def validate_email(self, valor):
         return User.objects.normalize_email(valor).lower()
+
+    def validate_data_nascimento(self, valor):
+        hoje = timezone.localdate()
+        if valor > hoje:
+            raise serializers.ValidationError(
+                "Data de nascimento inválida.", code="data_invalida"
+            )
+        if calcular_idade(valor, hoje) < IDADE_MINIMA_ANOS:
+            raise serializers.ValidationError(
+                f"É preciso ter pelo menos {IDADE_MINIMA_ANOS} anos para criar "
+                "uma conta.",
+                code="idade_minima",
+            )
+        return valor
 
     def validate_nickname(self, valor):
         if User.objects.filter(nickname__iexact=valor).exists():
@@ -156,6 +178,7 @@ class RegistroSerializer(serializers.ModelSerializer):
                 email=dados["email"],
                 nickname=dados["nickname"],
                 password=dados["senha"],
+                birth_date=dados["birth_date"],
             )
             AceiteDeTermos.registrar_vigentes(usuario, ip=ip)
 

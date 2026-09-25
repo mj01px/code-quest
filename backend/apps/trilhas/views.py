@@ -12,6 +12,10 @@ from .serializers import (
 )
 
 # Catálogo publicado é leitura pública: AllowAny explícito, escrita devolve 405.
+# As telas de trilha renderizam no servidor com fetch anônimo, então a leitura
+# não pode exigir login; o RBAC de `trilhas.view` é aplicado no frontend (esconde
+# a área e bloqueia a tela). As CAPACIDADES (iniciar trilha, concluir exercício,
+# criaturas) essas sim são barradas no backend.
 # O escopo "catalogo" liga o limite definido em REST_FRAMEWORK.
 #
 # `throttle_classes` substitui as classes padrão em vez de somar a elas. Sem
