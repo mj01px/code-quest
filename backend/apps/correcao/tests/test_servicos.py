@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
 
 from apps.contas.tests.helpers import criar_aluno
+from apps.correcao.excecoes import CotaDiariaEsgotada
 from apps.correcao.judge0 import Execucao, Judge0Error
 from apps.correcao.models import Modo, Submissao, Veredito
 from apps.correcao.services import (
@@ -123,6 +124,17 @@ class CorrecaoTest(TestCase):
         self.assertEqual(self.executor.chamadas, 2)
         self.assertEqual(correcao.veredito, Veredito.RESPOSTA_ERRADA)
 
+    def test_esconder_um_caso_invalida_o_cache(self):
+        # O resultado guardado decide o que mostrar: se a visibilidade não
+        # entrasse na chave, o cache mostraria o caso que acabou de ser escondido.
+        self._enviar(CODIGO_CERTO)
+        self.exercicio.especificacao_codigo.casos.filter(ordem=1).update(visivel=False)
+
+        correcao = self._enviar(CODIGO_CERTO)
+
+        self.assertEqual(self.executor.chamadas, 2)
+        self.assertNotIn("argumentos", correcao.casos[0])
+
     def test_toda_tentativa_fica_registrada(self):
         self._executar(CODIGO_ERRADO)
         self._enviar(CODIGO_CERTO)
@@ -212,10 +224,15 @@ class VereditoPeloStatusTest(TestCase):
             self._com(ClienteFixo(execucao)).veredito, Veredito.ERRO_DE_EXECUCAO
         )
 
-    def test_fora_do_ar_nao_registra_submissao(self):
+    def test_fora_do_ar_registra_a_tentativa_paga(self):
+        # A chamada que falha também gastou a cota do RapidAPI: fica gravada
+        # (e conta na cota), mas sem hash, então nunca serve de cache.
         with self.assertRaises(Judge0Error):
             self._com(ClienteForaDoAr())
-        self.assertFalse(Submissao.objects.exists())
+        tentativa = Submissao.objects.get()
+        self.assertFalse(tentativa.em_cache)
+        self.assertEqual(tentativa.hash, "")
+        self.assertEqual(tentativa.veredito, Veredito.ERRO_DE_EXECUCAO)
 
 
 class ValidacaoTest(TestCase):
@@ -272,11 +289,11 @@ class ValidacaoTest(TestCase):
     def test_limite_diario_bloqueia_so_o_que_seria_pago(self):
         corrigir_envio(user=self.user, exercicio=self.exercicio, codigo=CODIGO_CERTO)
 
-        with self.assertRaises(ValidationError) as contexto:
+        with self.assertRaises(CotaDiariaEsgotada) as contexto:
             corrigir_envio(
                 user=self.user, exercicio=self.exercicio, codigo=CODIGO_ERRADO
             )
-        self.assertEqual(contexto.exception.code, "limite_diario")
+        self.assertEqual(contexto.exception.get_codes(), "limite_diario")
 
         # ja guarda o cache, entao nao envia de novo
         correcao = corrigir_envio(

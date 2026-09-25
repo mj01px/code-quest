@@ -8,11 +8,6 @@ from rest_framework.throttling import ScopedRateThrottle
 from apps.auditoria.services import AcaoAuditoria, registrar
 from apps.core.permissions import HasPerm
 
-# Capacidades de criatura, separadas: ver/gerenciar, adquirir e evoluir.
-PODE_VER_CRIATURAS = HasPerm("criaturas.view")
-PODE_ADQUIRIR_CRIATURA = HasPerm("criaturas.acquire")
-PODE_EVOLUIR_CRIATURA = HasPerm("criaturas.evolve")
-
 # Evoluir depende do nível, que mora em progressão. O import é só de serviço,
 # e progressão não importa views daqui: não há ciclo.
 from apps.progressao.services import evoluir_criatura
@@ -33,6 +28,11 @@ from .services import (
     select_starter_creature,
     xp_bonuses_for_user,
 )
+
+# Capacidades de criatura, separadas: ver/gerenciar, adquirir e evoluir.
+PODE_VER_CRIATURAS = HasPerm("criaturas.view")
+PODE_ADQUIRIR_CRIATURA = HasPerm("criaturas.acquire")
+PODE_EVOLUIR_CRIATURA = HasPerm("criaturas.evolve")
 
 
 @extend_schema(tags=["criaturas"])

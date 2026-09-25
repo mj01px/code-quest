@@ -282,6 +282,9 @@ class ConfirmarTrocaEmailView(generics.GenericAPIView):
             # 2º link vai ao endereço novo, para provar que ele é do titular
             # (sem isso, um erro de digitação entregaria a conta a um estranho).
             enviado = enviar_troca_email(usuario, serializer.novo_email, posse=True)
+            registrar(
+                AcaoAuditoria.TROCA_EMAIL_AUTORIZADA, request=request, actor=usuario
+            )
             return Response(
                 {"etapa": "posse", "email_enviado": enviado}, status=status.HTTP_200_OK
             )

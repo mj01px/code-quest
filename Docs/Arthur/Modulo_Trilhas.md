@@ -162,6 +162,25 @@ aparece com ela recolhida) leem o mesmo atributo por `useSyncExternalStore`,
 então nunca discordam. Ao recolher, o foco vai para o botão que assume o lugar,
 senão o teclado voltaria ao topo do documento.
 
+### CSP e o editor de código
+
+`frontend/next.config.ts` manda uma `Content-Security-Policy` em toda rota,
+via `headers()`. O que pede exceção é o Monaco da página do exercício: o
+`@monaco-editor/loader` busca `loader.js` e o CSS em `cdn.jsdelivr.net` em
+runtime, a fonte dos ícones vem como `data:` dentro do CSS e o worker nasce de
+um `blob:`. Daí `cdn.jsdelivr.net` em `script-src` e `style-src`, `data:` em
+`font-src` e `blob:` em `worker-src`. O resto fica em `'self'`: a API passa
+pelo rewrite de `/api/*` e os sprites seguem `SPRITE_BASE_URL` (`/criaturas/`).
+Se os sprites forem para outra origem, ela precisa entrar em `img-src`.
+
+`script-src` leva `'unsafe-inline'` porque o Next injeta script inline e as
+páginas estáticas não têm nonce. A política barra script de outra origem, mas
+não script inline injetado. Tirar isso exige nonce no `proxy.ts`, e o nonce
+força render dinâmico em toda página, abrindo mão do HTML estático de hoje.
+Quando isso acontecer, vale fixar a CDN no caminho do `monaco-editor`, porque
+o jsdelivr serve qualquer pacote do npm. `'unsafe-eval'` só entra no
+`next dev`.
+
 ## Como rodar
 
 Backend:

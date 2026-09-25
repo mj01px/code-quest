@@ -11,21 +11,16 @@ from apps.correcao.excecoes import CorretorIndisponivel
 from apps.correcao.judge0 import Judge0Error
 from apps.correcao.serializers import CorrecaoSerializer, EnvioDeCodigoSerializer
 from apps.correcao.services import corrigir_envio, tem_correcao_automatica
-from apps.correcao.views import codigo_enviado
+from apps.correcao.views import PODE_SUBMETER_CODIGO, Judge0PorMinuto, codigo_enviado
 from apps.trilhas.models import Exercicio, Trilha
 
 from .models import TrilhaIniciada
-
-# Iniciar trilha e concluir exercício são capacidades governadas pelo RBAC
-# ler o próprio progresso continua exigindo só login
-PODE_INICIAR_TRILHA = HasPerm("trilhas.enroll")
-PODE_CONCLUIR_EXERCICIO = HasPerm("exercicios.complete")
 from .serializers import (
+    ConclusaoSerializer,
     ExercicioConcluidoSerializer,
     ProgressoSerializer,
     ResultadoXPSerializer,
     TrilhaIniciadaSerializer,
-    ConclusaoSerializer
 )
 from .services import (
     creditar_exercicio,
@@ -36,6 +31,11 @@ from .services import (
     obter_progresso,
     trilhas_iniciadas,
 )
+
+# Iniciar trilha e concluir exercício são capacidades governadas pelo RBAC
+# ler o próprio progresso continua exigindo só login
+PODE_INICIAR_TRILHA = HasPerm("trilhas.enroll")
+PODE_CONCLUIR_EXERCICIO = HasPerm("exercicios.complete")
 
 
 @extend_schema(tags=["progressao"], responses=ProgressoSerializer)
@@ -112,9 +112,15 @@ class ConcluirExercicioView(APIView):
             slug=exercicio_slug,
         )
 
-
         correcao = None
         if tem_correcao_automatica(exercicio):
+            # Só o envio que chama o Judge0 gasta o balde dele, o mesmo de
+            # executar/. Concluir exercício sem código segue em `conclusao`.
+            # Permissão antes do balde: 403 não gasta a rajada de ninguém.
+            self.permission_classes = [PODE_SUBMETER_CODIGO]
+            self.check_permissions(request)
+            self.throttle_classes = [Judge0PorMinuto]
+            self.check_throttles(request)
             try:
                 correcao = corrigir_envio(
                     user=request.user,
@@ -152,7 +158,6 @@ class ConcluirExercicioView(APIView):
         )
     ],
 )
-
 class MeusExerciciosConcluidosView(generics.ListAPIView):
     """A lista que o front usa para marcar exercício feito.
 

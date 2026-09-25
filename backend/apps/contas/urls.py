@@ -1,13 +1,5 @@
 from django.urls import path
 
-from .views_rbac import (
-    NivelDetailView,
-    NivelListCreateView,
-    PermissaoListView,
-    UsuarioListView,
-    UsuarioNivelView,
-)
-
 from .views import (
     AceitarConsentimentosView,
     ConfirmarExclusaoView,
@@ -33,6 +25,13 @@ from .views import (
     SolicitarExclusaoView,
     TrocarEmailView,
     VerificarEmailView,
+)
+from .views_rbac import (
+    NivelDetailView,
+    NivelListCreateView,
+    PermissaoListView,
+    UsuarioListView,
+    UsuarioNivelView,
 )
 
 app_name = "contas"

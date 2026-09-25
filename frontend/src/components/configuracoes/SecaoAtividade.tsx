@@ -26,12 +26,13 @@ export function SecaoAtividade() {
   const [pagina, setPagina] = useState(1);
   const [itens, setItens] = useState<AtividadeItem[]>([]);
   const [total, setTotal] = useState(0);
-  const [carregando, setCarregando] = useState(true);
+  // Derivado: carrega enquanto a página pedida não é a que já respondeu.
+  const [paginaCarregada, setPaginaCarregada] = useState<number | null>(null);
+  const carregando = paginaCarregada !== pagina;
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
     let ativo = true;
-    setCarregando(true);
     (async () => {
       try {
         const dados = await api.minhaAtividade(pagina);
@@ -47,7 +48,7 @@ export function SecaoAtividade() {
             : "Não foi possível carregar sua atividade.",
         );
       } finally {
-        if (ativo) setCarregando(false);
+        if (ativo) setPaginaCarregada(pagina);
       }
     })();
     return () => {

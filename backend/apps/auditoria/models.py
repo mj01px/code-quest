@@ -8,8 +8,9 @@ from django.utils.translation import gettext_lazy as _
 class AcaoAuditoria(models.TextChoices):
     """Códigos das ações registradas na trilha de auditoria.
 
-    Os quatro últimos (papel e suspensão de conta) ficam definidos para uso
-    futuro, quando os endpoints de administração de usuários existirem.
+    Os quatro últimos (papel e suspensão de conta) seguem sem uso: o painel de
+    administração troca o nível de acesso (`NIVEL_ATRIBUIDO`), não o `role`, e
+    suspensão ainda não tem endpoint.
     """
 
     LOGIN_OK = "LOGIN_OK", _("Login bem-sucedido")
@@ -19,6 +20,8 @@ class AcaoAuditoria(models.TextChoices):
     EMAIL_VERIFICADO = "EMAIL_VERIFICADO", _("E-mail verificado")
     SENHA_REDEFINIDA = "SENHA_REDEFINIDA", _("Senha redefinida")
     TROCA_EMAIL_SOLICITADA = "TROCA_EMAIL_SOLICITADA", _("Troca de e-mail solicitada")
+    # Etapa 1: o endereço atual aprovou a troca (o IP de quem aprovou fica aqui).
+    TROCA_EMAIL_AUTORIZADA = "TROCA_EMAIL_AUTORIZADA", _("Troca de e-mail autorizada")
     TROCA_EMAIL_CONFIRMADA = "TROCA_EMAIL_CONFIRMADA", _("Troca de e-mail confirmada")
     EXCLUSAO_SOLICITADA = "EXCLUSAO_SOLICITADA", _("Exclusão de conta solicitada")
     NICKNAME_ALTERADO = "NICKNAME_ALTERADO", _("Nickname alterado")
@@ -53,6 +56,7 @@ ACOES_DO_TITULAR = frozenset(
         AcaoAuditoria.EMAIL_VERIFICADO,
         AcaoAuditoria.SENHA_REDEFINIDA,
         AcaoAuditoria.TROCA_EMAIL_SOLICITADA,
+        AcaoAuditoria.TROCA_EMAIL_AUTORIZADA,
         AcaoAuditoria.TROCA_EMAIL_CONFIRMADA,
         AcaoAuditoria.EXCLUSAO_SOLICITADA,
         AcaoAuditoria.NICKNAME_ALTERADO,

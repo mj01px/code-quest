@@ -5,6 +5,7 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
+from apps.contas.models import NivelDeAcesso, Permissao
 from apps.contas.tests.helpers import criar_aluno
 from apps.gamificacao.services import select_starter_creature
 from apps.progressao.models import EventoXP
@@ -163,3 +164,59 @@ class ApiCorrecaoTest(TestCase):
             {"codigo": CODIGO_CERTO, "xp": 999999, "aprovado": True},
         )
         self.assertEqual(resposta.data["xp_ganho"], 50)
+
+
+class SemPermissaoDeSubmeterTest(TestCase):
+    """Sem `submissoes.create`, nenhuma rota lê a especificação nem chega ao Judge0."""
+
+    def setUp(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
+        # Tudo do aluno menos submeter código: concluir continua permitido.
+        nivel = NivelDeAcesso.objects.create(nome="sem_submissao")
+        nivel.permissoes.set(
+            Permissao.objects.filter(codename__in=["trilhas.view", "exercicios.complete"])
+        )
+        self.user = criar_aluno(nivel_de_acesso=nivel)
+        select_starter_creature(user=self.user, creature_slug="shellby")
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.exercicio = criar_exercicio()
+        criar_especificacao(self.exercicio)
+        self.executor = ExecutorLocal()
+        patcher = mock.patch(CLIENTE, return_value=self.executor)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_especificacao_e_403(self):
+        resposta = self.client.get(_rota("correcao:especificacao", self.exercicio))
+        self.assertEqual(resposta.status_code, 403)
+
+    def test_executar_e_403_sem_chamar_o_judge0(self):
+        resposta = self.client.post(
+            _rota("correcao:executar", self.exercicio),
+            {"codigo": CODIGO_CERTO},
+            format="json",
+        )
+        self.assertEqual(resposta.status_code, 403)
+        self.assertEqual(self.executor.chamadas, 0)
+
+    def test_concluir_com_codigo_e_403_sem_chamar_o_judge0(self):
+        resposta = self.client.post(
+            _rota("progressao:concluir-exercicio", self.exercicio),
+            {"codigo": CODIGO_CERTO},
+            format="json",
+        )
+        self.assertEqual(resposta.status_code, 403)
+        self.assertEqual(resposta.data["error"]["code"], "permission_denied")
+        self.assertEqual(self.executor.chamadas, 0)
+        self.assertFalse(EventoXP.objects.exists())
+        # Permissão vem antes da rajada: o 403 não gasta o balde do Judge0.
+        self.assertIsNone(cache.get(f"throttle_judge0_{self.user.pk}"))
+
+    def test_concluir_sem_correcao_automatica_segue_permitido(self):
+        teorico = criar_exercicio(slug="ex-teorico")
+        resposta = self.client.post(
+            _rota("progressao:concluir-exercicio", teorico), {}, format="json"
+        )
+        self.assertEqual(resposta.status_code, 200)

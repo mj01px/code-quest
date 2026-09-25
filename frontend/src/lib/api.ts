@@ -15,7 +15,6 @@ import type {
   PermissaoCatalogo,
   ProgressoAtual,
   RespostaConclusao,
-  ResultadoConclusao,
   TrilhaDetalhe,
   TrilhaResumo,
   Usuario,

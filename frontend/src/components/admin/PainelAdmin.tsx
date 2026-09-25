@@ -9,9 +9,10 @@ import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 
 type Aba = "usuarios" | "niveis";
 
-// Guarda de papel no cliente: quem não é ADMIN nunca chega ao conteúdo. É de
-// navegação — a proteção de verdade fica em cada endpoint do painel (o backend
-// já resolve por RBAC/permissão). Enquanto o /eu não responde, segura a tela.
+// Guarda no cliente: sem `is_admin` (nível com acesso ao painel) ninguém
+// chega ao conteúdo. É de navegação: a proteção de verdade fica em cada
+// endpoint do painel (o backend já resolve por RBAC/permissão). Enquanto o
+// /eu não responde, segura a tela.
 export function PainelAdmin() {
   const router = useRouter();
   const { usuario, carregando } = useProgresso();

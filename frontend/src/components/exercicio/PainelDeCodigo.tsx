@@ -1,6 +1,6 @@
 "use client";
 
-import {useEffect, useRef, useState} from "react";
+import {useRef, useState} from "react";
 
 import {EditorDeCodigo} from "@/components/exercicio/EditorDeCodigo";
 import {ResultadoDosCasos, comoTexto} from "@/components/exercicio/ResultadoDosCasos";

@@ -1,4 +1,5 @@
 import ast
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 CONSTRUCOES = {
@@ -26,7 +27,7 @@ class Barrado:
     linha: int | None = None
 
 
-def requisitos_invalidos(requisitos):
+def requisitos_invalidos(requisitos: object) -> list[str]:
     if not isinstance(requisitos, list):
         return ["requisitos precisa ser uma lista"]
 
@@ -45,7 +46,7 @@ def requisitos_invalidos(requisitos):
     return problemas
 
 
-def _nome_chamado(no):
+def _nome_chamado(no: ast.Call) -> str | None:
     if isinstance(no.func, ast.Name):
         return no.func.id
     if isinstance(no.func, ast.Attribute):
@@ -53,22 +54,32 @@ def _nome_chamado(no):
     return None
 
 
-def _ocorrencias(arvore, item):
+def _ocorrencias(
+    arvore: ast.AST, item: Mapping[str, str]
+) -> list[ast.stmt | ast.expr]:
     tipos, _ = CONSTRUCOES[item["construcao"]]
-    achados = [no for no in ast.walk(arvore) if isinstance(no, tipos)]
+    achados: list[ast.stmt | ast.expr] = [
+        no for no in ast.walk(arvore) if isinstance(no, tipos)
+    ]
     if item["construcao"] == "chamada":
-        achados = [no for no in achados if _nome_chamado(no) == item["nome"]]
+        achados = [
+            no
+            for no in achados
+            if isinstance(no, ast.Call) and _nome_chamado(no) == item["nome"]
+        ]
     return achados
 
 
-def _descrever(item):
+def _descrever(item: Mapping[str, str]) -> str:
     _, descricao = CONSTRUCOES[item["construcao"]]
     if item["construcao"] == "chamada":
         return f"{descricao} {item['nome']}"
     return descricao
 
 
-def verificar(*, codigo, funcao, requisitos):
+def verificar(
+    *, codigo: str, funcao: str, requisitos: Sequence[Mapping[str, str]]
+) -> Barrado | None:
     try:
         arvore = ast.parse(codigo)
     except SyntaxError as erro:

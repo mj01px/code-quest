@@ -10,7 +10,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.auditoria.models import AcaoAuditoria, RegistroDeAuditoria
-from apps.contas.models import NivelDeAcesso, Permissao, User
+from apps.contas.models import NivelDeAcesso, Permissao
 
 from .helpers import criar_admin, criar_aluno
 

@@ -92,8 +92,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         related_name="usuarios",
         verbose_name=_("nível de acesso"),
         help_text=_(
-            "Define as permissões granulares. Um ADMIN ignora este campo e "
-            "pode tudo; sem nível, cai nas permissões padrão do papel."
+            "Define as permissões granulares, admin inclusive; sem nível, cai "
+            "nas permissões padrão do papel."
         ),
     )
 
@@ -352,8 +352,9 @@ class Permissao(models.Model):
 class NivelDeAcesso(models.Model):
     """Um conjunto nomeado de permissões, atribuível a usuários.
 
-    Ex.: "aluno_sem_criatura". Um usuário com `role` ADMIN ignora o nível e pode
-    tudo; os demais têm exatamente as permissões do seu nível.
+    Ex.: "aluno_sem_criatura". Todo usuário tem exatamente as permissões do seu
+    nível, admin inclusive: o `role` não dá atalho, e o painel admin vem de
+    `acesso_admin`. Sem nível, valem as permissões padrão do papel.
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid7, editable=False)

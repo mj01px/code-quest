@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { SeloBonusXp } from "@/components/gamificacao/SeloBonusXp";
-import { BotaoConclusao } from "@/components/trilhas/BotaoConclusao";
 import { AreaDeResolucao } from "@/components/exercicio/AreaDeResolucao";
 import { BotaoProximoExercicio } from "@/components/trilhas/BotaoProximoExercicio";
 import { Badge, BadgeDificuldade } from "@/components/ui/Badge";

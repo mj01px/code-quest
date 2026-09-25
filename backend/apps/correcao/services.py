@@ -1,6 +1,7 @@
 import hashlib
 import json
 from dataclasses import dataclass, field
+from datetime import timedelta
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -8,10 +9,13 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from . import analise_ast, harness
+from .excecoes import CotaDiariaEsgotada, CotaDoUsuarioEsgotada
 from .judge0 import STATUS_ACEITO, STATUS_TEMPO_ESGOTADO, obter_cliente
 from .models import EspecificacaoDeCodigo, Modo, Submissao, Veredito
 
 LIMITE_DE_CARACTERES = 10_000
+CACHE_DE_SUBMISSAO = timedelta(minutes=10)
+DISJUNTOR = 0.9  # fração da cota diária em que novas chamadas param
 
 
 @dataclass(frozen=True)
@@ -103,18 +107,34 @@ def _validar(*, user, exercicio, codigo):
         )
 
 
-def _checar_cota_diaria():
+def _checar_cota_diaria(user):
+    # Só chamadas pagas contam (acerto de cache e código barrado não). Conta
+    # no banco, então vale para todos os processos (contador em LocMemCache
+    # multiplicaria o teto por worker) e zera sozinho à meia-noite.
     inicio_do_dia = timezone.localtime().replace(
         hour=0, minute=0, second=0, microsecond=0
     )
-    usadas = Submissao.objects.filter(
-        criado_em__gte=inicio_do_dia, em_cache=False
-    ).count()
-    if usadas >= settings.JUDGE0_LIMITE_DIARIO:
-        raise ValidationError(
-            _("A correção atingiu o limite de hoje. Tente de novo amanhã."),
-            code="limite_diario",
-        )
+    pagas_hoje = Submissao.objects.filter(criado_em__gte=inicio_do_dia, em_cache=False)
+
+    # Teto por usuário: uma conta sozinha não chega ao disjuntor de todos.
+    if pagas_hoje.filter(user=user).count() >= settings.JUDGE0_LIMITE_POR_USUARIO:
+        raise CotaDoUsuarioEsgotada()
+
+    # Disjuntor global: para em 90% da cota do RapidAPI, com folga para as
+    # chamadas já em voo.
+    if pagas_hoje.count() >= settings.JUDGE0_LIMITE_DIARIO * DISJUNTOR:
+        raise CotaDiariaEsgotada()
+
+
+def _normalizar(codigo):
+    # Só para a chave do cache: espaço no fim de linha e linhas em branco nas
+    # bordas não mudam o resultado. A indentação fica como está. Quebra só em
+    # \n, \r\n e \r, os fins de linha do Python (splitlines quebraria em U+2028
+    # e juntaria programas diferentes na mesma chave).
+    # ponytail: espaço no fim de linha DENTRO de string multilinha muda o valor
+    # e cai na mesma chave; normalizar via tokenize se algum exercício depender.
+    linhas = codigo.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    return "\n".join(linha.rstrip() for linha in linhas).strip("\n")
 
 
 def _hash(*, especificacao, casos, codigo):
@@ -123,10 +143,13 @@ def _hash(*, especificacao, casos, codigo):
             "harness": harness.VERSAO,
             "linguagem": especificacao.linguagem,
             "funcao": especificacao.funcao,
+            # `visivel` entra porque o resultado guardado decide o que mostrar:
+            # sem ele, esconder um caso deixaria o cache mostrá-lo.
             "casos": [
-                [c.ordem, c.argumentos, c.esperado, c.erro_esperado] for c in casos
+                [c.ordem, c.argumentos, c.esperado, c.erro_esperado, c.visivel]
+                for c in casos
             ],
-            "codigo": codigo,
+            "codigo": _normalizar(codigo),
         },
         ensure_ascii=False,
         sort_keys=True,
@@ -254,16 +277,32 @@ def _corrigir(*, user, exercicio, codigo, modo):
         raise ValidationError({"exercicio": _sem_correcao()})
 
     chave = _hash(especificacao=especificacao, casos=casos, codigo=codigo)
+    # Cache de submissão idêntica: só resultado pago (em_cache=False), para o
+    # TTL contar da chamada real ao Judge0 e não renovar a cada acerto.
     anterior = (
-        Submissao.objects.filter(hash=chave, modo=modo).order_by("-criado_em").first()
+        Submissao.objects.filter(
+            hash=chave,
+            modo=modo,
+            em_cache=False,
+            criado_em__gte=timezone.now() - CACHE_DE_SUBMISSAO,
+        )
+        .order_by("-criado_em")
+        .first()
     )
 
+    submissao = Submissao(user=user, exercicio=exercicio, modo=modo, codigo=codigo)
     if anterior is not None:
         resultado = anterior.resultado
-        em_cache = True
+        submissao.em_cache = True
     else:
-        _checar_cota_diaria()
-        execucao = obter_cliente().executar(
+        cliente = obter_cliente()  # sem configuração não há chamada a contar
+        _checar_cota_diaria(user)
+        # Grava a tentativa ANTES da chamada paga. Sem hash ela não serve de
+        # cache, mas já conta na cota: chamada que falha (timeout, 5xx) também
+        # gasta o RapidAPI, e chamadas simultâneas passam a se enxergar.
+        submissao.veredito = Veredito.ERRO_DE_EXECUCAO
+        submissao.save()
+        execucao = cliente.executar(
             codigo=harness.montar_programa(codigo=codigo, funcao=especificacao.funcao),
             stdin=harness.montar_entrada(casos),
             linguagem=especificacao.linguagem,
@@ -271,18 +310,11 @@ def _corrigir(*, user, exercicio, codigo, modo):
         resultado = _julgar(casos=casos, execucao=execucao)
         resultado["tempo"] = execucao.tempo
         resultado["memoria"] = execucao.memoria
-        em_cache = False
 
-    Submissao.objects.create(
-        user=user,
-        exercicio=exercicio,
-        modo=modo,
-        codigo=codigo,
-        hash=chave,
-        veredito=resultado["veredito"],
-        resultado=resultado,
-        em_cache=em_cache,
-    )
+    submissao.hash = chave
+    submissao.veredito = resultado["veredito"]
+    submissao.resultado = resultado
+    submissao.save()
 
     return _correcao(
         modo=modo,

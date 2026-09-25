@@ -49,13 +49,15 @@ export function Item({ children }: { children: ReactNode }) {
   );
 }
 
+// span em bloco, não <p>: os Termos usam o Destaque dentro de um Paragrafo, e
+// <p> dentro de <p> é HTML inválido (quebra a hidratação).
 export function Destaque({ children }: { children: ReactNode }) {
   return (
-    <p
-      className={`m-0 border-l-4 border-brand bg-panel-soft px-4 py-3 text-pretty ${CORPO}`}
+    <span
+      className={`block border-l-4 border-brand bg-panel-soft px-4 py-3 text-pretty ${CORPO}`}
     >
       {children}
-    </p>
+    </span>
   );
 }
 

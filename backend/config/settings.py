@@ -142,12 +142,15 @@ THROTTLE_EU_PROGRESSO = env('THROTTLE_EU_PROGRESSO', default='120/min')
 # e em balde proprio, para que raspar gabarito nao se esconda no trafego normal.
 THROTTLE_AUTORIA = env('THROTTLE_AUTORIA', default='30/min')
 
-THROTTLE_EXECUCAO = env('THROTTLE_EXECUCAO', default='10/min')
-
 JUDGE0_URL = env('JUDGE0_URL', default='').rstrip('/')
 JUDGE0_TOKEN = env('JUDGE0_TOKEN', default='')
 JUDGE0_TIMEOUT = env.float('JUDGE0_TIMEOUT', default=15.0)
-JUDGE0_LIMITE_DIARIO = env.int('JUDGE0_LIMITE_DIARIO', default=300)
+# Cota diaria do plano no RapidAPI (50 no plano atual); o disjuntor para em 90%.
+# Default igual ao plano: com 300, onde a variavel faltasse o disjuntor abriria
+# depois do 429 do proprio RapidAPI, ou seja, nunca.
+JUDGE0_LIMITE_DIARIO = env.int('JUDGE0_LIMITE_DIARIO', default=50)
+# Chamadas pagas por usuario por dia: uma conta sozinha nao abre o disjuntor.
+JUDGE0_LIMITE_POR_USUARIO = env.int('JUDGE0_LIMITE_POR_USUARIO', default=10)
 
 
 REST_FRAMEWORK = {
@@ -173,8 +176,9 @@ REST_FRAMEWORK = {
         'catalogo': THROTTLE_CATALOGO,
         'eu_progresso': THROTTLE_EU_PROGRESSO,
         'autoria': THROTTLE_AUTORIA,
-        'execucao': THROTTLE_EXECUCAO,
-
+        # Rajada por usuario em tudo que chama o Judge0 (executar/ e o envio de
+        # concluir/). O teto do dia fica em JUDGE0_LIMITE_POR_USUARIO.
+        'judge0': '5/min',
     },
     # Sem NUM_PROXIES o DRF identifica o cliente por X-Forwarded-For, que o
     # proprio cliente manda. Zero forca REMOTE_ADDR e fecha a burla do limite.

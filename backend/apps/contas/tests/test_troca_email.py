@@ -122,6 +122,7 @@ class TrocaEmailTest(APITestCase):
         self.assertEqual(usuario.email, self.antigo)
         self.assertEqual(usuario.email_pendente, NOVO)
         self.assertEqual(mail.outbox[-1].to, [NOVO])
+        self.assertEqual(self._registros(AcaoAuditoria.TROCA_EMAIL_AUTORIZADA).count(), 1)
         self.assertFalse(self._registros(AcaoAuditoria.TROCA_EMAIL_CONFIRMADA).exists())
 
     # ------------------------------------------------------ etapa 2 (novo)
