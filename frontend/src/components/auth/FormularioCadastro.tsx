@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { CampoData } from "@/components/ui/CampoData";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelCheckbox } from "@/components/ui/PixelCheckbox";
 import { PixelField } from "@/components/ui/PixelField";
@@ -162,14 +163,12 @@ export function FormularioCadastro({ aoCadastrar }: Props) {
         onChange={(e) => setSenha(e.target.value)}
       />
 
-      <PixelField
+      <CampoData
         rotulo="DATA DE NASCIMENTO"
-        type="date"
         name="data_nascimento"
-        autoComplete="bday"
         value={dataNascimento}
         erro={erros.dataNascimento}
-        onChange={(e) => setDataNascimento(e.target.value)}
+        onChange={setDataNascimento}
       />
 
       <PixelCheckbox

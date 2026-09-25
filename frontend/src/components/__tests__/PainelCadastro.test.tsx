@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { PainelCadastro } from "@/components/auth/PainelCadastro";
@@ -51,9 +51,16 @@ async function cadastrar(usuario: ReturnType<typeof userEvent.setup>) {
   await usuario.type(screen.getByLabelText("E-MAIL"), "novato@exemplo.com");
   await usuario.type(screen.getByLabelText("NICKNAME"), "novato");
   await usuario.type(screen.getByLabelText("SENHA"), SENHA);
-  fireEvent.change(screen.getByLabelText("DATA DE NASCIMENTO"), {
-    target: { value: "2000-01-01" },
-  });
+  // date picker próprio: abre, vai para a seleção de anos, chega a 2000 e escolhe o dia 15.
+  await usuario.click(screen.getByLabelText("DATA DE NASCIMENTO"));
+  await usuario.click(screen.getByRole("button", { name: "Escolher ano" }));
+  while (!screen.queryByRole("button", { name: "2000" })) {
+    await usuario.click(screen.getByRole("button", { name: "Anos anteriores" }));
+  }
+  await usuario.click(screen.getByRole("button", { name: "2000" }));
+  await usuario.click(
+    screen.getByRole("button", { name: /^15\/\d{2}\/2000$/ }),
+  );
   await usuario.click(screen.getByRole("checkbox"));
   await usuario.click(screen.getByRole("button", { name: "CRIAR CONTA" }));
 }

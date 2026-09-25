@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { FormularioCadastro } from "@/components/auth/FormularioCadastro";
@@ -56,10 +56,23 @@ async function preencher(usuario: ReturnType<typeof userEvent.setup>) {
   await usuario.type(screen.getByLabelText("E-MAIL"), "novato@exemplo.com");
   await usuario.type(screen.getByLabelText("NICKNAME"), "novato");
   await usuario.type(screen.getByLabelText("SENHA"), SENHA);
-  // input[type=date]: fireEvent.change é o jeito estável no jsdom.
-  fireEvent.change(screen.getByLabelText("DATA DE NASCIMENTO"), {
-    target: { value: "2000-01-01" },
-  });
+  await escolherNascimento(usuario, 2000);
+}
+
+/** Dirige o date picker próprio até um dia do ano dado (16+). */
+async function escolherNascimento(
+  usuario: ReturnType<typeof userEvent.setup>,
+  ano: number,
+) {
+  await usuario.click(screen.getByLabelText("DATA DE NASCIMENTO"));
+  await usuario.click(screen.getByRole("button", { name: "Escolher ano" }));
+  while (!screen.queryByRole("button", { name: String(ano) })) {
+    await usuario.click(screen.getByRole("button", { name: "Anos anteriores" }));
+  }
+  await usuario.click(screen.getByRole("button", { name: String(ano) }));
+  await usuario.click(
+    screen.getByRole("button", { name: new RegExp(`^15/\\d{2}/${ano}$`) }),
+  );
 }
 
 function caixaDeAceite() {
@@ -110,9 +123,7 @@ describe("FormularioCadastro", () => {
     await usuario.type(screen.getByLabelText("E-MAIL"), "novato@exemplo.com");
     await usuario.type(screen.getByLabelText("NICKNAME"), "novato");
     await usuario.type(screen.getByLabelText("SENHA"), SENHA);
-    fireEvent.change(screen.getByLabelText("DATA DE NASCIMENTO"), {
-      target: { value: "2020-01-01" },
-    });
+    await escolherNascimento(usuario, new Date().getFullYear() - 10);
     await usuario.click(caixaDeAceite());
     await usuario.click(screen.getByRole("button", { name: "CRIAR CONTA" }));
 
