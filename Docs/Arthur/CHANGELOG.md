@@ -25,6 +25,12 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
   concluída. Nada disso chega ao servidor: a API segue somente-leitura.
 - **Testes**: 84 no backend (`apps/trilhas/tests/`, separados por camada) e 98
   no frontend (Jest + React Testing Library).
+- **Documentação para a orientação** (`Docs/Termos_de_Aceite/` e
+  `Docs/Integracao_API/`): Termos de Uso e Política de Privacidade v1.1
+  extraídos das páginas `/termos` e `/privacidade` sem mudança de texto, e o
+  guia de integração com a API (cookies, CSRF, fluxos de conta, envelope de
+  erro, limites e as 55 operações de `/api/v1/`, conferidas contra o schema do
+  drf-spectacular).
 
 ### Alterado
 

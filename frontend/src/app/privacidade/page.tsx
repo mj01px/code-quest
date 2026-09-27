@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ADefinir } from "@/components/legal/ADefinir";
 import { PaginaLegal } from "@/components/legal/PaginaLegal";
 import {
   Destaque,
@@ -113,6 +112,14 @@ const DADOS = [
     celulas: [
       "XP recebido por exercício, com data, trilhas iniciadas e nível",
       "Mostrar seu progresso, evoluir a criatura e montar o ranking.",
+      "Execução de contrato (art. 7º, V)",
+    ],
+  },
+  {
+    chave: "submissoes",
+    celulas: [
+      "Código-fonte enviado nos exercícios, com a data, o veredito e o resultado da execução",
+      "Corrigir o exercício, mostrar o resultado, reabrir no editor o último código aprovado e contar o limite diário de correções.",
       "Execução de contrato (art. 7º, V)",
     ],
   },
@@ -238,8 +245,9 @@ export default async function PaginaPrivacidade() {
         </Paragrafo>
         <Lista>
           <Item>
-            <strong className="text-ink-soft">Hospedagem</strong>:{" "}
-            <ADefinir>provedor e país onde o servidor roda</ADefinir>.
+            <strong className="text-ink-soft">Hospedagem</strong>: DigitalOcean,
+            em servidor fora do Brasil, o que caracteriza transferência
+            internacional nos termos do art. 33 da LGPD.
           </Item>
           <Item>
             <strong className="text-ink-soft">Envio de e-mail</strong>: Brevo,
@@ -248,6 +256,13 @@ export default async function PaginaPrivacidade() {
             duas etapas e confirmação de exclusão). O processamento ocorre em servidores na
             União Europeia, e fora do Brasil isso caracteriza transferência
             internacional nos termos do art. 33 da LGPD.
+          </Item>
+          <Item>
+            <strong className="text-ink-soft">Correção de código</strong>:
+            provedor terceiro do serviço de execução de código (Judge0 CE, via
+            RapidAPI), que executa e corrige o código dos exercícios. Recebe o
+            código que você envia, a linguagem do exercício e as entradas de
+            teste. Nenhum outro dado da sua conta vai junto.
           </Item>
         </Lista>
         <Paragrafo>
@@ -266,11 +281,22 @@ export default async function PaginaPrivacidade() {
         <Paragrafo>
           Quando você pede a exclusão, enviamos um link de confirmação para o
           seu e-mail. Ao confirmar, a exclusão é imediata e não tem volta: não
-          existe prazo para desistir. Os dados que identificam você (e-mail,
-          nickname e senha) são anonimizados na hora, e a conta não pode mais
-          ser acessada. O que sobra, como o XP ligado a uma conta anônima e
-          estatísticas agregadas de uso das trilhas, não permite mais chegar
-          até você.
+          existe prazo para desistir. Os dados que identificam você
+          diretamente (e-mail, nickname e senha) são anonimizados na hora, e a
+          conta não pode mais ser acessada. Continuam guardados, ligados a um
+          identificador aleatório no lugar do seu e-mail e nickname: a data de
+          nascimento, o XP, as trilhas iniciadas e as criaturas, o código
+          enviado nos exercícios, com vereditos e resultados, e a configuração
+          da verificação em duas etapas (chave do aplicativo e códigos de
+          recuperação), se existir.
+        </Paragrafo>
+        <Paragrafo>
+          O registro de ações sensíveis também continua, com IP e navegador de
+          origem, mas sem o seu e-mail, e segue o prazo de 180 dias acima. Isso
+          é pseudonimização, não anonimização: o vínculo direto com você some,
+          mas esses dados, combinados com outra informação, ainda poderiam
+          levar até você. Fora o registro de ações sensíveis, eles não têm hoje
+          prazo automático de exclusão.
         </Paragrafo>
         <Paragrafo>
           O registro de aceite dos documentos é mantido por 5 anos, mesmo após
@@ -335,24 +361,24 @@ export default async function PaginaPrivacidade() {
 
       <Secao numero={9} titulo="Crianças e adolescentes">
         <Paragrafo>
-          A CodeQuest é destinada a pessoas com{" "}
-          <ADefinir>idade mínima</ADefinir> anos ou mais. O tratamento de dados
-          de crianças e adolescentes segue o art. 14 da LGPD e é feito sempre no
+          A CodeQuest é destinada a pessoas com <Destaque>16 anos ou mais</Destaque>.
+          No cadastro pedimos a data de nascimento e confirmamos a idade na hora:
+          quem ainda não completou 16 anos não consegue criar conta. O tratamento
+          de dados de adolescentes segue o art. 14 da LGPD e é feito sempre no
           melhor interesse deles.
         </Paragrafo>
         <Paragrafo>
-          Se identificarmos uma conta criada por criança sem o consentimento
-          específico de pelo menos um dos pais ou do responsável legal,
-          suspendemos a conta e apagamos os dados. Se você é responsável e
-          quiser pedir isso, use o contato da seção 1.
+          Se identificarmos uma conta de alguém com menos de 16 anos, suspendemos
+          a conta e apagamos os dados. Se você é responsável e quiser pedir isso,
+          use o contato da seção 1.
         </Paragrafo>
       </Secao>
 
       <Secao numero={10} titulo="Mudanças nesta Política">
         <Paragrafo>
           Este documento tem versão e data de vigência, mostradas no topo desta
-          página. Quando publicarmos uma versão nova, avisamos na plataforma e
-          pedimos um novo aceite antes de você continuar usando.
+          página. Uma versão nova passa a valer na data de vigência dela, e o
+          seu aceite fica registrado quando você confirmar a versão nova.
         </Paragrafo>
         <Paragrafo>
           As regras de uso da plataforma estão nos{" "}
