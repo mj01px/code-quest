@@ -43,7 +43,7 @@ describe("sessão fantasma (token órfão)", () => {
     );
 
     await expect(api.documentosLegais()).rejects.toMatchObject({ status: 401 });
-    // Só o pedido original — nenhuma chamada a /auth/sair/.
+    // Só o pedido original, sem nenhuma chamada a /auth/sair/.
     expect(fetchFalso).toHaveBeenCalledTimes(1);
   });
 });

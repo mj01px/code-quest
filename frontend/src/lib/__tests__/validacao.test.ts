@@ -5,7 +5,7 @@ import {
   validarSenha,
 } from "@/lib/validacao";
 
-describe("validarSenha — política de complexidade", () => {
+describe("validarSenha: política de complexidade", () => {
   const forte = "Trilha-de-python-8";
 
   it("aceita uma senha com maiúscula, minúscula, número e especial", () => {
@@ -52,7 +52,7 @@ describe("validarSenha — política de complexidade", () => {
   });
 });
 
-describe("validarEmail — teto de tamanho", () => {
+describe("validarEmail: teto de tamanho", () => {
   it("aceita um e-mail normal", () => {
     expect(validarEmail("alguem@exemplo.com")).toBeNull();
   });

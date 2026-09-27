@@ -121,7 +121,7 @@ describe("BotaoConclusao", () => {
     expect(botao()).toHaveAttribute("aria-pressed", "true");
     // O que não pode acontecer: anunciar XP que não foi creditado de novo. A
     // região viva existe desde o primeiro render, então o que se afirma é que
-    // ela está muda — não que ela sumiu.
+    // ela está muda, não que ela sumiu.
     expect(screen.queryByText(/XP/)).not.toBeInTheDocument();
     expect(regiaoViva()).toBeEmptyDOMElement();
   });

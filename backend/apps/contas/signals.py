@@ -16,7 +16,7 @@ def atribuir_nivel_padrao(sender, instance, created, **kwargs):
     """Usuário novo recebe o nível de sistema do seu papel, se ainda não tem um.
 
     Usa `update()` para não redisparar o post_save nem tocar outros campos. Sem
-    o nível semeado (ex.: banco recém-criado antes da migração), não faz nada — a
+    o nível semeado (ex.: banco recém-criado antes da migração), não faz nada: a
     leitura de permissões cai no padrão do papel de qualquer forma.
     """
     if not created or instance.nivel_de_acesso_id is not None:

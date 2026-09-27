@@ -39,7 +39,7 @@ def ler_token(token: str) -> str | None:
 
 
 def ler_token_qualquer_idade(token: str) -> str | None:
-    """Lê o uid mesmo com o token vencido — só para identificar o dono e poder
+    """Lê o uid mesmo com o token vencido, só para identificar o dono e poder
     dizer 'já confirmado'. Nunca serve para verificar uma conta ainda pendente.
     """
     try:

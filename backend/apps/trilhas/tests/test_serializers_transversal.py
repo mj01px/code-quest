@@ -7,10 +7,10 @@ serializam a partir de modelos que alcançam `Exercicio` por relação.
 
 Três camadas, porque a allowlist de `Meta.fields` sozinha não segura:
 
-1. `Meta.fields` — a allowlist declarada.
-2. `Meta.exclude` e `fields = "__all__"` — proibidos: um campo novo no model
+1. `Meta.fields`, a allowlist declarada.
+2. `Meta.exclude` e `fields = "__all__"`, proibidos: um campo novo no model
    viraria campo público sozinho.
-3. Campos declarados na classe — um `SerializerMethodField` chamado `dica` que
+3. Campos declarados na classe: um `SerializerMethodField` chamado `dica` que
    devolvesse `obj.solucao_autor` passa pelas duas primeiras intacto. Aqui
    qualquer campo cujo nome cite `solucao` ou `autor` precisa estar na
    allowlist, e o corpo do método `get_<campo>` é lido atrás do campo proibido.
@@ -53,7 +53,7 @@ def serializers_do_projeto():
     """Cada `Serializer` definido num módulo de serializers, com seu caminho.
 
     Filtra por `__module__` para não varrer duas vezes o que foi importado de
-    outro módulo — e para que o caminho reportado seja onde a classe mora.
+    outro módulo, e para que o caminho reportado seja onde a classe mora.
     """
     vistos = []
     for nome, modulo in modulos_de_serializers():
@@ -142,7 +142,7 @@ class NenhumSerializerVazaSolucaoTest(TestCase):
 
             with self.subTest(serializer=caminho):
                 # `__all__` faria um campo novo no model virar campo público
-                # sozinho — inclusive na app de autoria.
+                # sozinho, inclusive na app de autoria.
                 self.assertNotEqual(getattr(meta, "fields", None), "__all__")
                 self.assertFalse(hasattr(meta, "exclude"))
 

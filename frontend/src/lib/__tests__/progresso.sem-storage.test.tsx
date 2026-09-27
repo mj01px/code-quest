@@ -21,7 +21,7 @@ import type { RespostaConclusao } from "@/lib/types";
 
 // O teste que fecha a migração: o progresso saiu do navegador e foi para a
 // conta. Antes desta entrega, 215 testes ficavam verdes com a funcionalidade
-// quebrada porque semeavam `localStorage` na mão — a suíte descrevia o mock, e
+// quebrada porque semeavam `localStorage` na mão: a suíte descrevia o mock, e
 // não o produto.
 //
 // Aqui não se olha o que a tela desenha: espiona-se a própria `Storage`. Se
@@ -29,7 +29,7 @@ import type { RespostaConclusao } from "@/lib/types";
 // falha, mesmo que a tela continue certa.
 //
 // A preferência de sidebar (`codequest:sidebar`) continua legitimamente em
-// `localStorage` — é do dispositivo, não da conta. Por isso este arquivo monta
+// `localStorage`, que é do dispositivo, não da conta. Por isso este arquivo monta
 // só as superfícies de progresso, e não a moldura do app.
 //
 // O `ProvedorProgresso` entra junto porque é ele quem busca agora: sem ele os

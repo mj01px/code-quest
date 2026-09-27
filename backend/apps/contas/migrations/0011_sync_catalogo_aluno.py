@@ -2,7 +2,7 @@
 aos níveis de sistema.
 
 Cria as permissões novas (iniciar trilha, concluir exercício, ver/adquirir/evoluir
-criatura) e as ADICIONA aos níveis Aluno/Autor/Admin — sem remover nada, para
+criatura) e as ADICIONA aos níveis Aluno/Autor/Admin, sem remover nada, para
 preservar edições feitas pelo admin.
 """
 

@@ -162,7 +162,7 @@ export function PainelConfirmarEmail() {
           <div className="flex flex-col gap-5">
             <h2 className={ESTILO_H2}>E-MAIL JÁ TROCADO</h2>
             <p className={ESTILO_P}>
-              Este link já foi usado — a troca de e-mail já está feita. É só
+              Este link já foi usado e a troca de e-mail já está feita. É só
               entrar com o novo endereço.
             </p>
             <PixelLink href="/entrar" className="w-full">

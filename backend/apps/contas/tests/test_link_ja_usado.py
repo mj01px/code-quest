@@ -1,5 +1,5 @@
 """Links de uso único, ao serem reabertos depois de já executados, respondem
-com o código `link_ja_usado` — para a interface mostrar 'já feito' em vez de
+com o código `link_ja_usado`, para a interface mostrar 'já feito' em vez de
 'link inválido'."""
 
 from django.urls import reverse

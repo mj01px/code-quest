@@ -4,8 +4,8 @@
 import { ErroApi, buscarTrilha } from "@/lib/api";
 
 // O bug que motivou o prazo: um fetch que nunca assenta deixava o botão preso
-// em "Registrando…" para sempre. Testar o mapeamento do erro não prova isso —
-// só prova que existe prazo um fetch que de fato nunca resolve sozinho.
+// em "Registrando…" para sempre. Testar o mapeamento do erro não prova isso.
+// Só prova que existe prazo um fetch que de fato nunca resolve sozinho.
 
 const fetchFalso = jest.fn();
 

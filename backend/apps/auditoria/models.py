@@ -76,7 +76,7 @@ class RegistroDeAuditoria(models.Model):
     É append-only: uma vez gravado, não pode ser alterado (o save() recusa
     updates). A remoção fica a cargo da purga por retenção (queryset.delete(),
     que não passa pelo save()). Nunca guarda senhas, tokens nem conteúdo
-    sensível — apenas metadados não sensíveis em `metadata`.
+    sensível: apenas metadados não sensíveis em `metadata`.
     """
 
     id = models.UUIDField(

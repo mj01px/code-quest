@@ -1,7 +1,7 @@
 """A lista de exercícios concluídos do próprio aluno.
 
 Ela existe para o front parar de guardar progresso em `localStorage`: a marca
-de "feito" passa a vir do banco. Por isso o que se testa aqui é o contrato —
+de "feito" passa a vir do banco. Por isso o que se testa aqui é o contrato:
 quem enxerga o quê, o recorte por trilha, e o que a rota **não** devolve.
 """
 
@@ -148,7 +148,7 @@ class ApiExerciciosConcluidosTest(TestCase):
     def test_ajuste_de_progressao_nao_conta_como_conclusao(self):
         # A UniqueConstraint de EventoXP só vale para `origem=EXERCICIO`, então
         # um AJUSTE pode apontar para o mesmo exercício. Sem o filtro de origem
-        # a lista teria linha repetida — e ajuste não é conclusão.
+        # a lista teria linha repetida, e ajuste não é conclusão.
         exercicio = criar_exercicio_em("python", "ex-1")
         self._concluir(exercicio)
         EventoXP.objects.create(

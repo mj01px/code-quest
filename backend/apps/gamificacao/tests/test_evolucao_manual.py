@@ -2,7 +2,7 @@
 
 Duas regras de produto moram aqui. A primeira: cruzar o nível não evolui nada
 sozinho, só abre a porta. A segunda: nunca pular estágio, nem para quem chega
-ao nível final ainda em filhote — a forma intermediária existe para ser vista,
+ao nível final ainda em filhote. A forma intermediária existe para ser vista,
 e pular tiraria do aluno uma evolução que ele ganhou.
 """
 

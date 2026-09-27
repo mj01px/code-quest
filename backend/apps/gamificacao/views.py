@@ -38,7 +38,7 @@ PODE_EVOLUIR_CRIATURA = HasPerm("criaturas.evolve")
 @extend_schema(tags=["criaturas"])
 class CatalogoCriaturasView(generics.ListAPIView):
     # A lista de todas as criaturas é pública (vitrine), como o catálogo de
-    # trilhas. O que é do usuário — minhas/adquirir/evoluir/ativa/bônus — é que
+    # trilhas. O que é do usuário (minhas/adquirir/evoluir/ativa/bônus) é que
     # passa pelo RBAC.
     serializer_class = CriaturaSerializer
     permission_classes = [AllowAny]

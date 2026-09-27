@@ -247,7 +247,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     def marcar_email_verificado(self) -> bool:
         """Marca o e-mail como verificado de forma atômica e devolve se ESTA
         chamada foi a que marcou. Sob duas requisições simultâneas (ex.: o
-        StrictMode dispara a verificação em dobro), só uma ganha o UPDATE — o
+        StrictMode dispara a verificação em dobro), só uma ganha o UPDATE, o
         que evita auditar a verificação duas vezes."""
         agora = timezone.now()
         marcou = (

@@ -55,13 +55,13 @@ export function BotaoConclusao({
         setAviso("Este exercício é de código: envie pelo editor.");
         return;
       }
-      // Repetição volta ja_concluido: true — marca feito sem anunciar XP de novo.
+      // Repetição volta ja_concluido: true, e marca feito sem anunciar XP de novo.
       setXpGanho(resultado.ja_concluido ? null : resultado.xp_ganho);
       setEstado("concluido");
       // Atualiza XP, nível e conclusões de uma vez.
       recarregar();
     } catch (erro) {
-      // Sem retry — aluno decide se tenta de novo.
+      // Sem retry: o aluno decide se tenta de novo.
       setEstado("inicial");
       setAviso(mensagemNeutra(erro));
     } finally {
@@ -97,7 +97,7 @@ export function BotaoConclusao({
             : "Marcar como concluído"}
       </button>
 
-      {/* Região viva sempre presente — leitor de tela precisa já estar observando. */}
+      {/* Região viva sempre presente, porque o leitor de tela precisa já estar observando. */}
       <p
         role="status"
         aria-live="polite"

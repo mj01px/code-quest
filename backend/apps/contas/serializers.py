@@ -271,7 +271,7 @@ class VerificarEmailSerializer(serializers.Serializer):
                 return valor
 
         # Token vencido/inválido: se ainda dá para identificar o dono e a conta
-        # já está verificada, é um link antigo de algo já feito — sucesso, não
+        # já está verificada, é um link antigo de algo já feito: sucesso, não
         # recusa. (Nunca verifica uma conta pendente por aqui.)
         uid_antigo = ler_token_qualquer_idade(valor)
         if uid_antigo is not None:

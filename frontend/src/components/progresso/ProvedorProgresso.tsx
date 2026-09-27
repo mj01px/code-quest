@@ -137,7 +137,7 @@ export function ProvedorProgresso({ children }: { children: ReactNode }) {
   );
 }
 
-/** Lança se usado fora do provedor — evita estado neutro silencioso. */
+/** Lança se usado fora do provedor, para evitar estado neutro silencioso. */
 export function useProgresso(): ValorProgresso {
   const valor = useContext(ProgressoContext);
   if (valor === null) {

@@ -312,7 +312,7 @@ def creditar_exercicio(*, user, exercicio):
         # antes rebaixaria a conta se outro pedido já tivesse subido mais. O
         # filtro deixa a comparação no banco, e o rowcount responde a pergunta
         # que o front usa: foi ESTE pedido que subiu?
-        # `nivel_id` é o próprio `Nivel.numero` — PK semântica e monotônica —,
+        # `nivel_id` é o próprio `Nivel.numero` (PK semântica e monotônica),
         # então `__lt` compara ordem de nível, não chave surrogada.
         subiu = (
             ProgressoCriatura.objects.filter(

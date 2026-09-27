@@ -155,7 +155,7 @@ async function interpretar(resposta: Response) {
  * Derruba uma sessão morta no servidor. `/auth/sair/` é público e limpa os
  * cookies httpOnly (que o JS não alcança) mesmo sem um token válido. Usado
  * quando o navegador tem o cookie-sinal, mas o servidor recusa a credencial
- * (token expirado sem refresh possível, ou usuário removido) — sem isso o
+ * (token expirado sem refresh possível, ou usuário removido). Sem isso, o
  * cookie morto seguiria em toda requisição, quebrando até telas públicas.
  */
 async function purgarSessao(prazo: AbortSignal): Promise<void> {
@@ -230,7 +230,7 @@ async function requisicao<T>(
       headers,
       credentials: "same-origin",
       // Só no navegador: no servidor, `signal` desliga a memoização de fetch do
-      // Next, e a mesma URL passaria a ser buscada duas vezes por render — as
+      // Next, e a mesma URL passaria a ser buscada duas vezes por render, já que as
       // páginas de trilha e exercício carregam em generateMetadata e no corpo.
       ...(noNavegador ? { signal: prazo } : {}),
       body: corpo === undefined ? undefined : JSON.stringify(corpo),
@@ -254,7 +254,7 @@ async function requisicao<T>(
     }
     // Sessão fantasma: o navegador acha que há sessão, mas o servidor negou e a
     // renovação não resolveu. Purga a sessão morta e refaz o pedido como anônimo
-    // (uma vez) — assim cadastro/documentos voltam a funcionar com token órfão.
+    // (uma vez), e assim cadastro/documentos voltam a funcionar com token órfão.
     if (temSessao()) {
       await purgarSessao(prazo);
       return requisicao<T>(

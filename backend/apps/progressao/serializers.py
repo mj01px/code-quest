@@ -61,7 +61,7 @@ class ExercicioConcluidoSerializer(serializers.ModelSerializer):
     """Só o que a tela precisa para marcar o exercício como feito.
 
     Nasce de `EventoXP` e nomeia campo a campo, então nada de `Exercicio` vaza
-    por aqui — `solucao_autor` inclusive.
+    por aqui, `solucao_autor` inclusive.
     """
 
     trilha_slug = serializers.SlugField(source="exercicio.trilha.slug", read_only=True)

@@ -6,8 +6,8 @@ import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 
 /**
  * Esconde uma área de quem está logado mas não tem a permissão. É uma barreira
- * de UX (a leitura pública do catálogo segue no backend); as CAPACIDADES —
- * iniciar trilha, concluir exercício, adquirir/evoluir criatura — são barradas
+ * de UX (a leitura pública do catálogo segue no backend); as CAPACIDADES
+ * (iniciar trilha, concluir exercício, adquirir/evoluir criatura) são barradas
  * de verdade no servidor. Deslogado (sem usuário) vê o conteúdo público.
  */
 export function PortaDeAcesso({
@@ -19,7 +19,7 @@ export function PortaDeAcesso({
 }) {
   const { usuario } = useProgresso();
 
-  // Durante o carregamento (usuário ainda nulo) mostramos o conteúdo — ele é
+  // Durante o carregamento (usuário ainda nulo) mostramos o conteúdo, que é
   // público no backend e vem pronto do SSR. Só bloqueamos depois de saber que o
   // usuário logado não tem a permissão.
   if (usuario && !usuario.permissoes.includes(perm)) {

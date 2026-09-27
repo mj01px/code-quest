@@ -2,7 +2,7 @@
 
 Vem depois de Lógica de Programação e não repete o que já foi visto lá:
 variável, condicional, repetição e função já são conhecidas. O que esta trilha
-acrescenta é o que a linguagem tem de próprio — texto, estruturas de dados,
+acrescenta é o que a linguagem tem de próprio: texto, estruturas de dados,
 compreensões, exceções e o mundo fora do programa (arquivos e módulos).
 """
 

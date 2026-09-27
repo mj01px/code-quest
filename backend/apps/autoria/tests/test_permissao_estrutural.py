@@ -2,7 +2,7 @@
 
 A opção de namespace isolado foi escolhida por causa deste teste: aqui não há
 view legitimamente pública, então dá para exigir a permissão em todas elas.
-Em `apps.trilhas` isso seria impossível — três views de lá são `AllowAny`.
+Em `apps.trilhas` isso seria impossível, porque três views de lá são `AllowAny`.
 
 A varredura inspeciona **comportamento** (`get_permissions()`, `get_throttles()`)
 e não os atributos de classe: uma view que sobrescreva esses métodos passaria
@@ -67,7 +67,7 @@ class TodaViewDeAutoriaExigePermissaoTest(TestCase):
     def test_toda_view_usa_throttle_de_escopo_proprio(self):
         # `throttle_scope` sozinho é decoração: só `ScopedRateThrottle` o lê.
         # Sem a classe, a view cai no balde `user`, compartilhado com a API
-        # inteira — exatamente o que o escopo existe para impedir.
+        # inteira, exatamente o que o escopo existe para impedir.
         for nome, cls in self.views:
             with self.subTest(rota=nome):
                 classes = [type(t) for t in cls().get_throttles()]

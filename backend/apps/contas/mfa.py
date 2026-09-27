@@ -66,7 +66,7 @@ def verificar_totp(secret: str, codigo: str) -> bool:
 
 
 def qr_data_uri(uri: str) -> str:
-    """QR em SVG (data: URI), gerado direto da matriz — sem Pillow nem lxml."""
+    """QR em SVG (data: URI), gerado direto da matriz, sem Pillow nem lxml."""
     qr = qrcode.QRCode(border=2, box_size=1)
     qr.add_data(uri)
     qr.make(fit=True)
@@ -191,8 +191,8 @@ def iniciar_desafio_login(user) -> None:
 
 
 def iniciar_desafio_desativacao(user) -> bool:
-    """Para desativar, se o método ativo for e-mail, dispara um novo código —
-    sem ele o usuário não teria o que digitar. TOTP (app) e códigos de
+    """Para desativar, se o método ativo for e-mail, dispara um novo código,
+    porque sem ele o usuário não teria o que digitar. TOTP (app) e códigos de
     recuperação não precisam de envio. Retorna True se enviou por e-mail."""
     config = mfa_ativo(user)
     if config is not None and config.metodo == ConfiguracaoMFA.Metodo.EMAIL:

@@ -109,7 +109,7 @@ class VerificarEmailView(generics.GenericAPIView):
         usuario = serializer.usuario
         ja_confirmado = serializer.ja_verificado
         # Marca de forma atômica: sob a corrida (StrictMode dispara em dobro),
-        # só a chamada que realmente marcou audita — evita o log duplicado.
+        # só a chamada que realmente marcou audita, o que evita o log duplicado.
         if not ja_confirmado and usuario.marcar_email_verificado():
             registrar(AcaoAuditoria.EMAIL_VERIFICADO, request=request, actor=usuario)
 
@@ -409,7 +409,7 @@ class AceitarConsentimentosView(APIView):
 @extend_schema(tags=["auth"], request=None, responses=None)
 class SolicitarExclusaoView(APIView):
     """Passo 1 da exclusão: manda o e-mail de confirmação. Não muda nada na
-    conta ainda — a exclusão só acontece quando o link for confirmado."""
+    conta ainda: a exclusão só acontece quando o link for confirmado."""
 
     permission_classes = [IsAuthenticated]
     throttle_classes = [ScopedRateThrottle]

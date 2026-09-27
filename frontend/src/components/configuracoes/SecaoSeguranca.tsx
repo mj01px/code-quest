@@ -114,7 +114,7 @@ export function SecaoSeguranca() {
   async function iniciarDesativacao() {
     limpar();
     setFase("desativando");
-    // No método e-mail o código precisa ser disparado agora — sem isso o
+    // No método e-mail o código precisa ser disparado agora. Sem isso, o
     // usuário não tem o que digitar. App/recuperação não dependem de envio.
     if (metodo === "EMAIL") {
       setOcupado(true);
@@ -309,11 +309,11 @@ export function SecaoSeguranca() {
         {fase === "recuperacao" ? (
           <div className="flex flex-col gap-4">
             <span className="font-label text-[12px] tracking-[2px] text-brand-light">
-              2FA ATIVADO — GUARDE ESTES CÓDIGOS
+              2FA ATIVADO: GUARDE ESTES CÓDIGOS
             </span>
             <span className="font-body text-base leading-[1.5] tracking-[1px] text-ink-muted">
               Cada código serve uma vez, caso você perca o acesso ao segundo
-              fator. Só aparecem agora — guarde num lugar seguro.
+              fator. Eles só aparecem agora, então guarde num lugar seguro.
             </span>
             <ul className="m-0 grid list-none grid-cols-2 gap-2 border-2 border-edge-soft bg-field p-4">
               {recuperacao.map((c) => (

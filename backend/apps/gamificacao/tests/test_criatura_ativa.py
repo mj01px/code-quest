@@ -194,7 +194,7 @@ class AtivarNaoHerdaProgressoTest(TestCase):
     `ProgressoCriatura` é OneToOne com `UserCreature`: cada criatura tem o seu
     `xp_total` e o seu `nivel`. Logo o estágio de cada uma segue o nível DELA.
     Uma criatura recém-ativada em nível 1 é HATCHLING mesmo que a anterior já
-    fosse ADULTA — e `definir_criatura_ativa` não sincroniza estágio de
+    fosse ADULTA, e `definir_criatura_ativa` não sincroniza estágio de
     propósito. Sincronizar contra o nível da outra é que seria o defeito.
 
     O teste trava a não-herança, não a decisão de produto de manter progressos

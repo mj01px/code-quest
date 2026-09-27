@@ -1,7 +1,7 @@
 """Marca o nível de sistema 'Admin' como o que concede acesso ao painel.
 
 Depois desta migração, quem é administrador da plataforma é quem está num nível
-com `acesso_admin=True` — não mais o papel `role`.
+com `acesso_admin=True`, e não mais o papel `role`.
 """
 
 from django.db import migrations

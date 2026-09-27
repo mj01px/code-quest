@@ -1,18 +1,18 @@
 # Módulo de Trilhas
 
-Catálogo de conteúdo do CodeQuest: trilhas, aulas e exercícios, com a primeira
-trilha ("Lógica de Programação") preenchida com 6 módulos e 26 fases, mais o
-progresso local do aluno.
+O catálogo de conteúdo do CodeQuest: trilhas, aulas e exercícios. A primeira
+trilha, "Lógica de Programação", já vem preenchida com 6 módulos e 26 fases,
+e o aluno conta com progresso local.
 
 ## Objetivo
 
-Entregar a leitura pública do catálogo, listagem de trilhas, detalhe da trilha
-com suas fases e o detalhe de cada exercício, sobre um modelo de dados que
-comporta o fluxo editorial já previsto no RBAC do projeto.
+Oferecer a leitura pública do catálogo (a listagem de trilhas, o detalhe de
+cada trilha com suas fases e o detalhe de cada exercício) sobre um modelo de
+dados capaz de comportar o fluxo editorial que o RBAC do projeto já previa.
 
 ## Modelo de dados
 
-Três níveis, `Trilha → Aula → Exercicio`:
+São três níveis, `Trilha → Aula → Exercicio`:
 
 | Model | Campos principais |
 |---|---|
@@ -20,28 +20,29 @@ Três níveis, `Trilha → Aula → Exercicio`:
 | `Aula` | `trilha` (FK), `titulo`, `slug` (único **por trilha**), `conteudo`, `ordem`, `pre_requisito` (self-FK opcional), `status` |
 | `Exercicio` | `aula` (FK), `titulo`, `slug` (único **por aula**), `enunciado`, `tipo`, `dificuldade`, `ordem`, `solucao_autor`, `status` |
 
-Decisões que valem registrar:
+Algumas decisões merecem registro:
 
-- **Trilha não tem campo de criatura.** O mascote pertence ao usuário
-  (`gamificacao.UserCreature`), é escolhido no cadastro e evolui com o nível.
-  Amarrar mascote à trilha descaracterizaria o pet a cada trilha nova.
-- **`status` é o fluxo editorial** `RASCUNHO → REVISAO → APROVADO → PUBLICADO`,
-  espelhando os codenames que já existiam em `apps/contas/rbac.py`
-  (`trilhas.create`, `submit_review`, `review`, `publish`). Só `PUBLICADO`
-  aparece na API: `APROVADO` ainda não é público, a publicação é um ato à
-  parte.
-- **`pre_requisito` é validado em `clean()`**: precisa ser da mesma trilha e não
-  pode ser a própria aula. `on_delete=SET_NULL` para que apagar uma fase não
-  derrube a seguinte.
-- **`solucao_autor` nunca é serializado.** Nenhum serializer o declara, e um
-  teste varre o módulo inteiro para garantir que nenhum serializer futuro o
-  inclua. O acesso do autor virá por rota própria, protegida por
+- **Trilha não tem campo de criatura.** O mascote é do usuário
+  (`gamificacao.UserCreature`): é escolhido no cadastro e evolui com o nível.
+  Prender o mascote à trilha tiraria o sentido do pet a cada trilha nova.
+- **`status` representa o fluxo editorial**
+  `RASCUNHO → REVISAO → APROVADO → PUBLICADO`, espelho dos codenames que já
+  existiam em `apps/contas/rbac.py` (`trilhas.create`, `submit_review`,
+  `review`, `publish`). A API só mostra `PUBLICADO`. `APROVADO` ainda não é
+  público, porque publicar é um ato separado.
+- **`pre_requisito` passa por validação em `clean()`**: tem de pertencer à
+  mesma trilha e não pode ser a própria aula. Com `on_delete=SET_NULL`,
+  apagar uma fase não derruba a seguinte.
+- **`solucao_autor` nunca é serializado.** Nenhum serializer declara o campo,
+  e um teste percorre o módulo inteiro para impedir que algum serializer
+  futuro o inclua. O autor vai acessá-lo por uma rota própria, protegida por
   `trilhas.view_solution`, em outra entrega.
 
 ## API
 
-Leitura pública (`AllowAny` explícito, porque o projeto exige autenticação por
-padrão). Todas somente-leitura: os demais métodos devolvem 405.
+A leitura é pública, com `AllowAny` explícito, já que o projeto exige
+autenticação por padrão. As três rotas são somente-leitura, e qualquer outro
+método recebe 405.
 
 | Método | Rota | Resposta |
 |---|---|---|
@@ -49,42 +50,43 @@ padrão). Todas somente-leitura: os demais métodos devolvem 405.
 | GET | `/api/v1/trilhas/<slug>/` | Trilha com aulas aninhadas e os exercícios de cada aula |
 | GET | `/api/v1/exercicios/<trilha_slug>/<exercicio_slug>/` | Exercício com o contexto da aula e da trilha |
 
-Rascunho não vaza em nenhum nível: uma aula não publicada dentro de uma trilha
-publicada não aparece, e o mesmo vale para exercícios.
+Rascunho não vaza em nível nenhum. Aula não publicada dentro de trilha
+publicada fica de fora, e com exercícios acontece o mesmo.
 
-> **O slug do exercício é único por trilha, não por aula.** A terceira rota não
-> cita a aula, então unicidade por aula deixaria a URL ambígua. `Exercicio` tem
-> uma FK `trilha` não editável, sincronizada com a aula no `save()`, e a
-> `UniqueConstraint` cai sobre `(trilha, slug)`. Repetir um slug na mesma trilha
-> levanta `IntegrityError`, e um teste prova isso.
+> **O slug do exercício é único por trilha, e não por aula.** Como a terceira
+> rota não menciona a aula, unicidade por aula deixaria a URL ambígua. Por
+> isso `Exercicio` tem uma FK `trilha` não editável, sincronizada com a aula
+> no `save()`, e a `UniqueConstraint` recai sobre `(trilha, slug)`. Repetir um
+> slug na mesma trilha levanta `IntegrityError`, e há um teste que prova isso.
 
 ## Segurança dos endpoints públicos
 
-O catálogo é `AllowAny`, então o abuso possível é volume, não vazamento.
+Como o catálogo é `AllowAny`, o abuso possível é de volume, não de vazamento.
 
-- **Limite por IP.** As três views declaram `throttle_scope = "catalogo"` e o
-  `ScopedRateThrottle` do DRF aplica `THROTTLE_CATALOGO` (padrão `60/min`).
-  O escopo é opt-in: view que não o declara continua sem limite, então nada
-  mudou de comportamento nos outros módulos.
-- **`NUM_PROXIES = 0`.** Sem esse ajuste o DRF identifica o cliente pelo header
-  `X-Forwarded-For`, que o próprio cliente envia: trocar o header a cada
-  requisição zeraria a cota. Zero força `REMOTE_ADDR`. Se um dia entrar um
-  proxy reverso na frente, esse número precisa virar a quantidade de proxies.
-- **O contador vive no cache.** `LocMemCache` é por processo, então com vários
-  workers o limite real seria multiplicado. Produção precisa de Redis.
-- **Honeypot pronto, ainda não usado.** Não existe endpoint de escrita no
-  módulo. `apps/core/honeypot.py` traz `HoneypotSerializerMixin`, que declara o
-  campo isca `website` (write-only) e recusa o envio se ele vier preenchido. O
-  erro é genérico e não cita o campo, para não entregar a isca ao bot. Já está
-  coberto por teste, com um serializer de mentira; o primeiro endpoint de
-  escrita só precisa herdar o mixin.
+- **Limite por IP.** As três views declaram `throttle_scope = "catalogo"`, e
+  o `ScopedRateThrottle` do DRF aplica `THROTTLE_CATALOGO` (por padrão,
+  `60/min`). O escopo é opt-in: view que não o declara segue sem limite, e o
+  comportamento dos outros módulos não mudou.
+- **`NUM_PROXIES = 0`.** Sem esse ajuste, o DRF identifica o cliente pelo
+  header `X-Forwarded-For`, que é enviado pelo próprio cliente; bastaria
+  trocar o header a cada requisição para zerar a cota. Com zero, vale o
+  `REMOTE_ADDR`. Se algum dia um proxy reverso entrar na frente, esse número
+  tem de passar a ser a quantidade de proxies.
+- **O contador fica no cache.** O `LocMemCache` é por processo. Com vários
+  workers, o limite real se multiplicaria, então produção precisa de Redis.
+- **Honeypot pronto, mas ainda sem uso.** O módulo não tem endpoint de
+  escrita. Em `apps/core/honeypot.py` está o `HoneypotSerializerMixin`, que
+  declara o campo isca `website` (write-only) e recusa o envio quando ele
+  chega preenchido. O erro é genérico e não cita o campo, para não revelar a
+  isca ao bot. Um teste já cobre o mixin com um serializer de mentira, e o
+  primeiro endpoint de escrita só vai precisar herdá-lo.
 
-O `next build` pré-renderiza uma página por exercício, e cada uma consulta a
-API. Com o catálogo maior o build pode encostar em `60/min`, e por isso a taxa
-é lida de `THROTTLE_CATALOGO`.
+No `next build`, cada exercício ganha uma página pré-renderizada, e cada uma
+consulta a API. Conforme o catálogo cresce, o build pode esbarrar nos
+`60/min`; é por isso que a taxa vem de `THROTTLE_CATALOGO`.
 
-Não há CORS configurado, de propósito: todo `fetch` do frontend acontece em
-Server Component ou em `generateStaticParams`, nunca no navegador.
+CORS não foi configurado, e isso é proposital. Todo `fetch` do frontend roda
+em Server Component ou em `generateStaticParams`, nunca no navegador.
 
 ## Frontend
 
@@ -96,39 +98,41 @@ Server Component ou em `generateStaticParams`, nunca no navegador.
 
 ### O 404 de verdade
 
-Um `notFound()` disparado durante o render de uma rota dinâmica **não** devolve
-404: o Next já começou a transmitir a resposta com 200 e o status não volta
-atrás. Verificado na prática, a página de erro certa vinha com o status errado.
+Quando um `notFound()` é disparado durante o render de uma rota dinâmica, a
+resposta **não** sai como 404. O Next já começou a transmitir com 200, e o
+status não tem como voltar. Foi o que se viu na prática: a página de erro
+certa chegava com o status errado.
 
-A solução é decidir no roteador, não no render: `generateStaticParams()` lista
-os slugs publicados e `dynamicParams = false` faz o Next recusar o resto antes
-de qualquer render.
+A saída é decidir no roteador, e não no render. `generateStaticParams()`
+lista os slugs publicados, e `dynamicParams = false` faz o Next recusar
+qualquer outro antes de renderizar.
 
-Consequência aceita: **uma trilha publicada depois do build só aparece no
-próximo build** (ou numa revalidação sob demanda). Como publicar é um ato
-editorial raro e deliberado, o custo é baixo perto de ter 404 correto. Se isso
-incomodar, o caminho é disparar revalidação on-demand no momento da publicação.
+Há uma consequência, aceita de caso pensado: **uma trilha publicada depois
+do build só aparece no build seguinte** (ou após uma revalidação sob
+demanda). Publicar é um ato editorial raro e deliberado, então o custo é
+baixo perto de ter o 404 correto. Se isso incomodar, o caminho é disparar
+revalidação on-demand no momento da publicação.
 
 Pelo mesmo motivo, as rotas de detalhe **não têm `loading.tsx`**: o Suspense
-dele libera o shell antes da hora. A listagem tem, porque lá não há 404.
+dele libera o shell cedo demais. A listagem tem, porque lá não existe 404.
 
 ### Progresso do aluno
 
-Não existe autenticação ainda, então não existe a quem associar progresso no
-servidor. O MVP guarda no navegador, em `localStorage`, sob a chave
-`codequest:progresso`, no formato `{ "trilha-slug": ["fase-slug", ...] }`.
+Ainda não há autenticação, portanto não há a quem vincular progresso no
+servidor. No MVP ele fica no navegador, em `localStorage`, sob a chave
+`codequest:progresso` e no formato `{ "trilha-slug": ["fase-slug", ...] }`.
 
-A leitura passa por `useSyncExternalStore`, como a sidebar. O detalhe que
-importa: o instantâneo fica em cache no módulo. Ler o storage a cada render
-devolveria um objeto novo toda vez, e o React compara por identidade, o que
-entraria em laço infinito. Um evento `storage` invalida o cache quando outra
-aba grava.
+A leitura usa `useSyncExternalStore`, assim como a sidebar. O ponto que
+importa é o instantâneo ficar em cache no módulo. Lido a cada render, o
+storage devolveria um objeto novo toda vez; como o React compara por
+identidade, o resultado seria um laço infinito. Quando outra aba grava, um
+evento `storage` invalida o cache.
 
-O que o storage devolve é tratado como entrada não confiável, porque o usuário
-pode editá-lo: chave que não aponta para lista de strings é descartada, e JSON
-corrompido começa vazio em vez de quebrar a página.
+O conteúdo do storage é tratado como entrada não confiável, porque o usuário
+pode editá-lo. Chave que não aponte para uma lista de strings é descartada, e
+JSON corrompido faz o progresso começar vazio, em vez de quebrar a página.
 
-Três consumidores, todos derivados do mesmo instantâneo:
+São três consumidores, todos derivados do mesmo instantâneo:
 
 | Onde | O que mostra |
 |---|---|
@@ -136,50 +140,55 @@ Três consumidores, todos derivados do mesmo instantâneo:
 | Cartão de destaque | "Continuar de onde parou", o módulo e a fase onde parou, e o botão apontando direto para ela |
 | Página da fase | Botão que alterna entre "Marcar como concluído" e "Concluído" |
 
-A retomada é a **primeira** fase não concluída na ordem da trilha, não a
-seguinte à última marcada: quem pula uma fase volta para o buraco que deixou.
+A retomada leva à **primeira** fase não concluída na ordem da trilha, e não à
+que vem depois da última marcada. Quem pula uma fase volta para o buraco que
+deixou.
 
-O percentual tem teto de 100 de propósito. Uma fase despublicada continua
-marcada no navegador de quem já a fez, e sem o teto a barra passaria do fim.
+O percentual tem teto de 100, de propósito. Uma fase despublicada continua
+marcada no navegador de quem já a fez; sem o teto, a barra passaria do fim.
 
-Nada disso chega ao servidor: a API continua somente-leitura e não sabe que o
-progresso existe. Em compensação, limpar os dados do site zera tudo, e o
-progresso não acompanha quem trocar de navegador ou de máquina.
+O servidor não fica sabendo de nada disso. A API segue somente-leitura e
+ignora que o progresso existe. O preço é que limpar os dados do site zera
+tudo, e o progresso não vai junto quando alguém troca de navegador ou de
+máquina.
 
-Na coluna estreita do card, `Em andamento` não cabe. O percentual faz o papel
-dela na tela, com `aria-hidden`, e a palavra inteira vai em `sr-only`, para o
-leitor de tela ouvir a situação e não só o número.
+`Em andamento` não cabe na coluna estreita do card. Na tela, o percentual
+cumpre esse papel, com `aria-hidden`, enquanto a palavra completa vai em
+`sr-only`: assim o leitor de tela anuncia a situação, e não só o número.
 
 ### Sidebar recolhível
 
-Quem manda no estado é o atributo `data-sidebar` no `<html>`, não o React. Um
-script inline no layout lê o `localStorage` antes da primeira pintura, e o CSS
-esconde a sidebar a partir do atributo. Guardar isso só em estado React faria a
-sidebar recolhida piscar aberta em cada carregamento.
+O estado é controlado pelo atributo `data-sidebar` no `<html>`, não pelo
+React. Antes da primeira pintura, um script inline no layout lê o
+`localStorage`, e o CSS esconde a sidebar a partir do atributo. Se isso
+ficasse só em estado React, a sidebar recolhida piscaria aberta a cada
+carregamento.
 
-Os dois botões (recolher, dentro da sidebar; abrir, na barra superior que só
-aparece com ela recolhida) leem o mesmo atributo por `useSyncExternalStore`,
-então nunca discordam. Ao recolher, o foco vai para o botão que assume o lugar,
-senão o teclado voltaria ao topo do documento.
+Há dois botões: o de recolher, dentro da sidebar, e o de abrir, na barra
+superior que só aparece com ela recolhida. Ambos leem o mesmo atributo por
+`useSyncExternalStore`, então nunca discordam. Ao recolher, o foco passa para
+o botão que assume o lugar; do contrário, o teclado voltaria ao topo do
+documento.
 
 ### CSP e o editor de código
 
-`frontend/next.config.ts` manda uma `Content-Security-Policy` em toda rota,
-via `headers()`. O que pede exceção é o Monaco da página do exercício: o
-`@monaco-editor/loader` busca `loader.js` e o CSS em `cdn.jsdelivr.net` em
-runtime, a fonte dos ícones vem como `data:` dentro do CSS e o worker nasce de
-um `blob:`. Daí `cdn.jsdelivr.net` em `script-src` e `style-src`, `data:` em
-`font-src` e `blob:` em `worker-src`. O resto fica em `'self'`: a API passa
-pelo rewrite de `/api/*` e os sprites seguem `SPRITE_BASE_URL` (`/criaturas/`).
-Se os sprites forem para outra origem, ela precisa entrar em `img-src`.
+Em toda rota, `frontend/next.config.ts` envia uma `Content-Security-Policy`
+via `headers()`. Quem exige exceção é o Monaco da página do exercício. Em
+runtime, o `@monaco-editor/loader` busca `loader.js` e o CSS em
+`cdn.jsdelivr.net`, a fonte dos ícones chega como `data:` dentro do CSS e o
+worker nasce de um `blob:`. Daí vêm `cdn.jsdelivr.net` em `script-src` e
+`style-src`, `data:` em `font-src` e `blob:` em `worker-src`. Todo o resto
+fica em `'self'`: a API passa pelo rewrite de `/api/*`, e os sprites seguem
+`SPRITE_BASE_URL` (`/criaturas/`). Caso os sprites mudem de origem, a nova
+origem precisa entrar em `img-src`.
 
 `script-src` leva `'unsafe-inline'` porque o Next injeta script inline e as
 páginas estáticas não têm nonce. A política barra script de outra origem, mas
-não script inline injetado. Tirar isso exige nonce no `proxy.ts`, e o nonce
-força render dinâmico em toda página, abrindo mão do HTML estático de hoje.
-Quando isso acontecer, vale fixar a CDN no caminho do `monaco-editor`, porque
-o jsdelivr serve qualquer pacote do npm. `'unsafe-eval'` só entra no
-`next dev`.
+não script inline injetado. Para tirar isso é preciso nonce no `proxy.ts`, e
+o nonce obriga render dinâmico em toda página, abrindo mão do HTML estático
+de hoje. Quando chegar esse momento, vale fixar a CDN no caminho do
+`monaco-editor`, já que o jsdelivr serve qualquer pacote do npm.
+`'unsafe-eval'` entra apenas no `next dev`.
 
 ## Como rodar
 
@@ -197,14 +206,15 @@ cd backend && cp .env.example .env && .venv/Scripts/python manage.py migrate && 
 cd backend && .venv/Scripts/python manage.py runserver
 ```
 
-O `seed_trilhas` é idempotente (`update_or_create`, chaveado por
-`(trilha, slug)` tanto para aula quanto para exercício): pode rodar quantas
-vezes precisar. Ele cria as cinco trilhas previstas, e só "Lógica de
-Programação" sai publicada, com 6 módulos e 26 fases; as outras quatro ficam em
-rascunho.
+O `seed_trilhas` é idempotente (`update_or_create` com chave
+`(trilha, slug)`, tanto para aula quanto para exercício), então pode rodar
+quantas vezes for preciso. Ele cria as cinco trilhas previstas, mas só
+"Lógica de Programação" sai publicada, com 6 módulos e 26 fases. As outras
+quatro ficam em rascunho.
 
-Os módulos são Variáveis e tipos, Condicionais, Repetição, Listas e coleções,
-Funções, e Depuração e boas práticas, encadeados por pré-requisito nessa ordem.
+Os módulos, encadeados por pré-requisito nesta ordem, são: Variáveis e tipos,
+Condicionais, Repetição, Listas e coleções, Funções, e Depuração e boas
+práticas.
 
 Frontend (com o backend no ar):
 
@@ -212,22 +222,22 @@ Frontend (com o backend no ar):
 cd frontend && npm install && npm run dev
 ```
 
-Aponte para outra API com a variável `NEXT_PUBLIC_API_URL`
-(padrão `http://localhost:8000/api/v1`).
-Afrouxe o limite do catálogo com `THROTTLE_CATALOGO` no `.env` do backend
-(padrão `60/min`) se um build grande esbarrar nele.
+Para apontar para outra API, use a variável `NEXT_PUBLIC_API_URL` (padrão
+`http://localhost:8000/api/v1`). Se um build grande esbarrar no limite do
+catálogo, afrouxe-o com `THROTTLE_CATALOGO` no `.env` do backend (padrão
+`60/min`).
 
 ## Ambiente de desenvolvimento
 
-O `npm run dev` do frontend passa por `frontend/scripts/dev.mjs` em vez de
-chamar o `next dev` direto. É transparente para quem desenvolve: o comando
-continua o mesmo, sem flag nem passo extra. O que o wrapper faz é impedir que
-o Next regenere `AGENTS.md` e `CLAUDE.md` na raiz do frontend a cada
-inicialização, arquivos de instrução de ferramenta que não fazem parte do
-projeto. É uma decisão de higiene do ambiente, não de ocultar uso de IA: o
-uso de IA no desenvolvimento do CodeQuest é reconhecido e documentado neste
-diretório quando aplicável. O mecanismo por trás está explicado no
-comentário de cabeçalho do próprio script.
+Em vez de chamar o `next dev` direto, o `npm run dev` do frontend passa por
+`frontend/scripts/dev.mjs`. Para quem desenvolve, nada muda: o comando é o
+mesmo, sem flag nem passo extra. O wrapper existe para impedir que o Next
+regenere `AGENTS.md` e `CLAUDE.md` na raiz do frontend a cada inicialização,
+arquivos de instrução de ferramenta que não fazem parte do projeto. É uma
+decisão de higiene do ambiente, não de ocultar uso de IA: o uso de IA no
+desenvolvimento do CodeQuest é reconhecido e documentado neste diretório
+quando aplicável. O comentário de cabeçalho do próprio script explica o
+mecanismo por trás.
 
 ## Validação
 
@@ -239,25 +249,28 @@ cd backend && .venv/Scripts/python -m pytest --cov && .venv/Scripts/python -m ru
 cd frontend && npm test && npx tsc --noEmit && npm run build
 ```
 
-Os testes do app ficam em `backend/apps/trilhas/tests/`, separados por camada
-(`test_models`, `test_serializers`, `test_views`, `test_seed`,
-`test_throttling`). No frontend ficam em `__tests__/` ao lado do que testam.
+No backend, os testes do app ficam em `backend/apps/trilhas/tests/`,
+divididos por camada (`test_models`, `test_serializers`, `test_views`,
+`test_seed`, `test_throttling`). No frontend, ficam em `__tests__/`, ao lado
+do que testam.
 
-O `npm run dev` passa por `frontend/scripts/dev.mjs`, e não direto pelo
-`next dev`. O motivo está no comentário de cabeçalho do arquivo: o Next inspeciona
-o ambiente na inicialização e, conforme o que encontra, escreve arquivos de
-instrução na raiz do frontend, que voltam a cada `next dev` mesmo depois de
-apagados. O wrapper limpa essas variáveis antes de repassar o processo. A
-alternativa seria editar `node_modules`, que some no próximo `npm install`.
+O `npm run dev` não chama o `next dev` direto: passa antes por
+`frontend/scripts/dev.mjs`. O comentário de cabeçalho do arquivo explica o
+porquê. Na inicialização, o Next inspeciona o ambiente e, dependendo do que
+encontra, escreve arquivos de instrução na raiz do frontend, que reaparecem a
+cada `next dev` mesmo depois de apagados. O wrapper limpa essas variáveis e só
+então repassa o processo. A alternativa seria editar `node_modules`, e essa
+edição sumiria no próximo `npm install`.
 
 ## O que ficou de fora
 
-- Progresso no servidor: o que existe é local e anônimo, preso ao navegador.
-  Sem autenticação não há a quem associá-lo.
-- XP e streak: aparecem nos modelos de tela e continuam sem implementação. A
-  sidebar mostra o perfil neutro em vez de número inventado.
+- Progresso no servidor. O que existe é local e anônimo, preso ao navegador,
+  e sem autenticação não há a quem associá-lo.
+- XP e streak, que aparecem nos modelos de tela mas seguem sem
+  implementação. Em vez de número inventado, a sidebar mostra o perfil
+  neutro.
 - Terminal integrado e submissão de exercício.
-- Endpoint de autor para `solucao_autor` (o codename `trilhas.view_solution` já
-  existe no RBAC, esperando).
-- Telas de "Desafio do dia", "Conquistas" e "Configurações": aparecem no menu
-  como itens explicitamente inativos, não como links quebrados.
+- Endpoint de autor para `solucao_autor` (o codename `trilhas.view_solution`
+  já existe no RBAC, à espera).
+- Telas de "Desafio do dia", "Conquistas" e "Configurações", que aparecem no
+  menu como itens explicitamente inativos, e não como links quebrados.

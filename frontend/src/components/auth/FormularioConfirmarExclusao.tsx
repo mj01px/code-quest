@@ -61,7 +61,7 @@ export function FormularioConfirmarExclusao({
     <form noValidate onSubmit={aoEnviar} className="flex flex-col gap-6">
       <p className="m-0 font-body text-lg leading-[1.8] tracking-[1px] text-ink-body">
         Confirme com a sua senha para excluir a conta de vez. Seus dados são
-        anonimizados na hora — não tem como desfazer.
+        anonimizados na hora, e não tem como desfazer.
       </p>
 
       <PixelField

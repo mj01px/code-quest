@@ -4,7 +4,7 @@ permissão do Django.
 `auth_permission` e `auth_group` não são usados. Quem decide é o `has_perm`:
 todo usuário tem exatamente as permissões do seu `nivel_de_acesso` (tabela
 dinâmica semeada a partir do catálogo estático em `apps/contas/rbac.py`). Não há
-curto-circuito por papel — um admin tem tudo porque o nível "Admin" concede o
+curto-circuito por papel: um admin tem tudo porque o nível "Admin" concede o
 catálogo inteiro. Mantemos `has_perm` como interface do Django para que as views
 perguntem pela capacidade e não pelo cargo.
 
@@ -101,7 +101,7 @@ class HasPermPorPapelTest(TestCase):
         self.assertTrue(self.admin.has_perm("trilhas.publish"))
         self.assertTrue(self.admin.has_perm("auditoria.view"))
         # Sem curto-circuito por papel: o admin tem tudo porque o nível "Admin"
-        # concede o catálogo inteiro — mas não uma permissão fora dele.
+        # concede o catálogo inteiro, mas não uma permissão fora dele.
         self.assertFalse(self.admin.has_perm("codename.inexistente"))
 
 

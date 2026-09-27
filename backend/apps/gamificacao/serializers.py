@@ -134,7 +134,7 @@ class MinhaCriaturaSerializer(serializers.ModelSerializer):
         """O nível desta criatura. Sem linha de progresso, ela está no nível 1.
 
         A linha só nasce no primeiro crédito de XP, então criatura recém-
-        adquirida não tem nenhuma — e isso não é erro, é o começo.
+        adquirida não tem nenhuma, e isso não é erro, é o começo.
         """
         progresso = getattr(obj, "progresso", None)
         return progresso.nivel_id if progresso is not None else 1

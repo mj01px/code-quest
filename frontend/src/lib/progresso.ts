@@ -12,7 +12,7 @@ export function chaveDaFase(trilhaSlug: string, faseSlug: string): string {
   return `${trilhaSlug}/${faseSlug}`;
 }
 
-/** Descarta linhas sem slugs válidos — a API é fronteira, não fonte confiável de tipo. */
+/** Descarta linhas sem slugs válidos, porque a API é fronteira, não fonte confiável de tipo. */
 export function normalizar(bruto: unknown): readonly ExercicioConcluido[] {
   if (!Array.isArray(bruto)) return VAZIO;
 

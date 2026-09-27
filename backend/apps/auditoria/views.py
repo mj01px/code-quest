@@ -80,7 +80,7 @@ class AuditoriaListView(generics.ListAPIView):
 
 @extend_schema(tags=["auditoria"])
 class MinhaAtividadeView(generics.ListAPIView):
-    """Histórico do próprio titular — só as ações do usuário autenticado.
+    """Histórico do próprio titular, só com as ações do usuário autenticado.
 
     Endpoint distinto do de auditoria (que é de ADMIN): aqui cada um vê apenas
     as suas linhas, filtradas às ações relevantes ao titular. É o direito de

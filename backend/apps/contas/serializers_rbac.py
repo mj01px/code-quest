@@ -60,7 +60,7 @@ class NivelDeAcessoSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         # Um nível de sistema pode ter descrição/permissões ajustadas, mas não
-        # ser renomeado nem ter o acesso ao painel alterado — o "Admin" é a
+        # ser renomeado nem ter o acesso ao painel alterado, porque o "Admin" é a
         # âncora de recuperação (createsuperuser sempre cai nele).
         if instance.sistema:
             validated_data.pop("nome", None)

@@ -26,7 +26,7 @@ describe("normalizar", () => {
 
   it("descarta linha sem os dois slugs", () => {
     // Sem os dois slugs a chave viraria "undefined/undefined" e casaria com
-    // qualquer outra linha quebrada — marca de concluído no exercício errado.
+    // qualquer outra linha quebrada, gerando marca de concluído no exercício errado.
     const bruto = [
       concluido(),
       { ...concluido(), trilha_slug: "" },

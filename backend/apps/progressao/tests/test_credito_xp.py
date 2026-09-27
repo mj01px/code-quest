@@ -167,7 +167,7 @@ class IncrementoDeXPTest(TestCase):
 
     Sem thread e sem transação concorrente de propósito: concorrência real
     seria flaky e não reproduzível de forma determinística. O que dá para provar
-    aqui é o invariante que interessa — a soma acontece no banco, então uma
+    aqui é o invariante que interessa: a soma acontece no banco, então uma
     gravação alheia entre a leitura e a escrita não é sobrescrita.
     """
 
@@ -242,7 +242,7 @@ class IncrementoDeXPTest(TestCase):
     def test_credito_sem_subir_de_nivel_atualiza_o_carimbo(self):
         # `atualizado_em` é auto_now e não dispara em update(); é passado à mão
         # no serviço. Sem este teste, remover essa linha ficaria verde e o campo
-        # congelaria — e ele é serializado para o front.
+        # congelaria, e ele é serializado para o front.
         progresso = services.obter_progresso(services.criatura_ativa(self.user))
         # Carimbo jogado para trás em vez de medido agora: comparar dois
         # timezone.now() seguidos depende da resolução do relógio e daria teste

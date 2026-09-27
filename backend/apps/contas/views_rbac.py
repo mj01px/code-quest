@@ -1,7 +1,7 @@
 """Endpoints do painel de RBAC do admin (restritos a administradores).
 
 Catálogo de permissões (leitura), CRUD de níveis de acesso e atribuição de um
-nível a um usuário. Tudo protegido por `IsAdmin` — o painel inteiro é do admin.
+nível a um usuário. Tudo protegido por `IsAdmin`, já que o painel inteiro é do admin.
 """
 
 from django.db import transaction
