@@ -1,8 +1,9 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 
 import { FormularioCadastro } from "@/components/auth/FormularioCadastro";
 import { ErroApi } from "@/lib/api";
+
+import { CADASTRO, criarUsuario, preencherCadastro } from "./cadastro";
 
 const empurrar = jest.fn();
 
@@ -43,37 +44,12 @@ const DOCUMENTOS = {
   },
 };
 
-const SENHA = "Trilha-de-python-8";
-
 beforeEach(() => {
   empurrar.mockReset();
   registrar.mockReset();
   aoCadastrar.mockReset();
   documentosLegais.mockReset().mockResolvedValue(DOCUMENTOS);
 });
-
-async function preencher(usuario: ReturnType<typeof userEvent.setup>) {
-  await usuario.type(screen.getByLabelText("E-MAIL"), "novato@exemplo.com");
-  await usuario.type(screen.getByLabelText("NICKNAME"), "novato");
-  await usuario.type(screen.getByLabelText("SENHA"), SENHA);
-  await escolherNascimento(usuario, 2000);
-}
-
-/** Dirige o date picker próprio até um dia do ano dado (16+). */
-async function escolherNascimento(
-  usuario: ReturnType<typeof userEvent.setup>,
-  ano: number,
-) {
-  await usuario.click(screen.getByLabelText("DATA DE NASCIMENTO"));
-  await usuario.click(screen.getByRole("button", { name: "Escolher ano" }));
-  while (!screen.queryByRole("button", { name: String(ano) })) {
-    await usuario.click(screen.getByRole("button", { name: "Anos anteriores" }));
-  }
-  await usuario.click(screen.getByRole("button", { name: String(ano) }));
-  await usuario.click(
-    screen.getByRole("button", { name: new RegExp(`^15/\\d{2}/${ano}$`) }),
-  );
-}
 
 function caixaDeAceite() {
   return screen.getByRole("checkbox");
@@ -100,11 +76,11 @@ describe("FormularioCadastro", () => {
   });
 
   it("não cria conta sem o aceite", async () => {
-    const usuario = userEvent.setup();
+    const usuario = criarUsuario();
     render(<FormularioCadastro aoCadastrar={aoCadastrar} />);
     await waitFor(() => expect(caixaDeAceite()).toBeEnabled());
 
-    await preencher(usuario);
+    await preencherCadastro(usuario);
     await usuario.click(screen.getByRole("button", { name: "CRIAR CONTA" }));
 
     expect(registrar).not.toHaveBeenCalled();
@@ -116,14 +92,11 @@ describe("FormularioCadastro", () => {
   });
 
   it("não cria conta para menor de 16 anos", async () => {
-    const usuario = userEvent.setup();
+    const usuario = criarUsuario();
     render(<FormularioCadastro aoCadastrar={aoCadastrar} />);
     await waitFor(() => expect(caixaDeAceite()).toBeEnabled());
 
-    await usuario.type(screen.getByLabelText("E-MAIL"), "novato@exemplo.com");
-    await usuario.type(screen.getByLabelText("NICKNAME"), "novato");
-    await usuario.type(screen.getByLabelText("SENHA"), SENHA);
-    await escolherNascimento(usuario, new Date().getFullYear() - 10);
+    await preencherCadastro(usuario, { ano: new Date().getFullYear() - 10 });
     await usuario.click(caixaDeAceite());
     await usuario.click(screen.getByRole("button", { name: "CRIAR CONTA" }));
 
@@ -136,12 +109,12 @@ describe("FormularioCadastro", () => {
   });
 
   it("envia as versões que a tela exibiu quando o aceite é dado", async () => {
-    const usuario = userEvent.setup();
+    const usuario = criarUsuario();
     registrar.mockResolvedValue({ usuario: {}, email_enviado: true });
     render(<FormularioCadastro aoCadastrar={aoCadastrar} />);
     await waitFor(() => expect(caixaDeAceite()).toBeEnabled());
 
-    await preencher(usuario);
+    await preencherCadastro(usuario);
     await usuario.click(caixaDeAceite());
     await usuario.click(screen.getByRole("button", { name: "CRIAR CONTA" }));
 
@@ -156,18 +129,18 @@ describe("FormularioCadastro", () => {
   });
 
   it("não libera sessão: avisa o pai que a conta nasceu pendente", async () => {
-    const usuario = userEvent.setup();
+    const usuario = criarUsuario();
     registrar.mockResolvedValue({ usuario: {}, email_enviado: true });
     render(<FormularioCadastro aoCadastrar={aoCadastrar} />);
     await waitFor(() => expect(caixaDeAceite()).toBeEnabled());
 
-    await preencher(usuario);
+    await preencherCadastro(usuario);
     await usuario.click(caixaDeAceite());
     await usuario.click(screen.getByRole("button", { name: "CRIAR CONTA" }));
 
     await waitFor(() =>
       expect(aoCadastrar).toHaveBeenCalledWith({
-        email: "novato@exemplo.com",
+        email: CADASTRO.email,
         emailEnviado: true,
       }),
     );
@@ -175,12 +148,12 @@ describe("FormularioCadastro", () => {
   });
 
   it("repassa a falha de envio para o pai", async () => {
-    const usuario = userEvent.setup();
+    const usuario = criarUsuario();
     registrar.mockResolvedValue({ usuario: {}, email_enviado: false });
     render(<FormularioCadastro aoCadastrar={aoCadastrar} />);
     await waitFor(() => expect(caixaDeAceite()).toBeEnabled());
 
-    await preencher(usuario);
+    await preencherCadastro(usuario);
     await usuario.click(caixaDeAceite());
     await usuario.click(screen.getByRole("button", { name: "CRIAR CONTA" }));
 
@@ -209,7 +182,7 @@ describe("FormularioCadastro", () => {
   });
 
   it("mostra o erro de aceite que vem do servidor", async () => {
-    const usuario = userEvent.setup();
+    const usuario = criarUsuario();
     registrar.mockRejectedValue(
       new ErroApi(400, "validacao", "Requisição inválida.", [
         {
@@ -222,7 +195,7 @@ describe("FormularioCadastro", () => {
     render(<FormularioCadastro aoCadastrar={aoCadastrar} />);
     await waitFor(() => expect(caixaDeAceite()).toBeEnabled());
 
-    await preencher(usuario);
+    await preencherCadastro(usuario);
     await usuario.click(caixaDeAceite());
     await usuario.click(screen.getByRole("button", { name: "CRIAR CONTA" }));
 
@@ -234,7 +207,7 @@ describe("FormularioCadastro", () => {
   });
 
   it("cai no aviso geral quando o erro é de um campo que a tela não mostra", async () => {
-    const usuario = userEvent.setup();
+    const usuario = criarUsuario();
     registrar.mockRejectedValue(
       new ErroApi(400, "validacao", "Os documentos foram atualizados.", [
         {
@@ -247,7 +220,7 @@ describe("FormularioCadastro", () => {
     render(<FormularioCadastro aoCadastrar={aoCadastrar} />);
     await waitFor(() => expect(caixaDeAceite()).toBeEnabled());
 
-    await preencher(usuario);
+    await preencherCadastro(usuario);
     await usuario.click(caixaDeAceite());
     await usuario.click(screen.getByRole("button", { name: "CRIAR CONTA" }));
 

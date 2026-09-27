@@ -1,7 +1,9 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import type { UserEvent } from "@testing-library/user-event";
 
 import { PainelCadastro } from "@/components/auth/PainelCadastro";
+
+import { CADASTRO, criarUsuario, preencherCadastro } from "./cadastro";
 
 const documentosLegais = jest.fn();
 const registrar = jest.fn();
@@ -39,28 +41,14 @@ const DOCUMENTOS = {
   },
 };
 
-const SENHA = "Trilha-de-python-8";
-
 beforeEach(() => {
   jest.clearAllMocks();
   documentosLegais.mockResolvedValue(DOCUMENTOS);
   registrar.mockResolvedValue({ usuario: {}, email_enviado: true });
 });
 
-async function cadastrar(usuario: ReturnType<typeof userEvent.setup>) {
-  await usuario.type(screen.getByLabelText("E-MAIL"), "novato@exemplo.com");
-  await usuario.type(screen.getByLabelText("NICKNAME"), "novato");
-  await usuario.type(screen.getByLabelText("SENHA"), SENHA);
-  // date picker próprio: abre, vai para a seleção de anos, chega a 2000 e escolhe o dia 15.
-  await usuario.click(screen.getByLabelText("DATA DE NASCIMENTO"));
-  await usuario.click(screen.getByRole("button", { name: "Escolher ano" }));
-  while (!screen.queryByRole("button", { name: "2000" })) {
-    await usuario.click(screen.getByRole("button", { name: "Anos anteriores" }));
-  }
-  await usuario.click(screen.getByRole("button", { name: "2000" }));
-  await usuario.click(
-    screen.getByRole("button", { name: /^15\/\d{2}\/2000$/ }),
-  );
+async function cadastrar(usuario: UserEvent) {
+  await preencherCadastro(usuario);
   await usuario.click(screen.getByRole("checkbox"));
   await usuario.click(screen.getByRole("button", { name: "CRIAR CONTA" }));
 }
@@ -77,7 +65,7 @@ describe("PainelCadastro", () => {
   });
 
   it("troca o formulário pelo aviso de e-mail depois de cadastrar", async () => {
-    const usuario = userEvent.setup();
+    const usuario = criarUsuario();
     render(<PainelCadastro />);
     await waitFor(() => expect(screen.getByRole("checkbox")).toBeEnabled());
 
@@ -86,12 +74,12 @@ describe("PainelCadastro", () => {
     expect(
       await screen.findByRole("heading", { name: "CONFIRME SEU E-MAIL" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("novato@exemplo.com")).toBeInTheDocument();
+    expect(screen.getByText(CADASTRO.email)).toBeInTheDocument();
     expect(screen.queryByLabelText("NICKNAME")).not.toBeInTheDocument();
   });
 
   it("some com o convite de criar conta, que já não faz sentido", async () => {
-    const usuario = userEvent.setup();
+    const usuario = criarUsuario();
     render(<PainelCadastro />);
     await waitFor(() => expect(screen.getByRole("checkbox")).toBeEnabled());
 
@@ -107,7 +95,7 @@ describe("PainelCadastro", () => {
   });
 
   it("o aviso ocupa o card inteiro: nem o sprite sobra", async () => {
-    const usuario = userEvent.setup();
+    const usuario = criarUsuario();
     render(<PainelCadastro />);
     await waitFor(() => expect(screen.getByRole("checkbox")).toBeEnabled());
     expect(
@@ -123,7 +111,7 @@ describe("PainelCadastro", () => {
   });
 
   it("avisa quando a conta nasceu mas o e-mail não saiu", async () => {
-    const usuario = userEvent.setup();
+    const usuario = criarUsuario();
     registrar.mockResolvedValue({ usuario: {}, email_enviado: false });
     render(<PainelCadastro />);
     await waitFor(() => expect(screen.getByRole("checkbox")).toBeEnabled());
