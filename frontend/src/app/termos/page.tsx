@@ -171,8 +171,8 @@ export default async function PaginaTermos() {
       <Secao numero={9} titulo="Mudanças nestes Termos">
         <Paragrafo>
           Estes Termos têm versão e data de vigência, mostradas no topo desta
-          página. Quando publicarmos uma versão nova, avisamos na plataforma e
-          pedimos um novo aceite antes de você continuar usando.
+          página. Uma versão nova passa a valer na data de vigência dela, e o
+          seu aceite fica registrado quando você confirmar a versão nova.
         </Paragrafo>
         <Paragrafo>
           O aceite que você deu fica registrado com a versão que estava no ar
