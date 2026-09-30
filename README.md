@@ -276,6 +276,8 @@ python manage.py runserver 8000       # → http://localhost:8000
 
 ## `~/como-funciona`
 
+Diagrama BPMN 2.0 dos processos de negócio implementados: `Docs/Processos_Negocio_CodeQuest.bpmn`.
+
 <details>
 <summary><b>Trilhas, o fluxo editorial que protege o conteúdo</b></summary>
 <br/>
