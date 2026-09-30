@@ -1,0 +1,794 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Defs_CodeQuest_Processos" targetNamespace="https://github.com/mj01px/code-quest/bpmn">
+
+  <bpmn:documentation>Modelagem BPMN baseada em fluxos efetivamente implementados no backend Django/DRF, frontend Next.js e integrações (e-mail/Judge0). Fluxos públicos não expõem solucao_autor.</bpmn:documentation>
+
+  <bpmn:collaboration id="Collab_CodeQuest">
+    <bpmn:participant id="Part_Aluno" name="Aluno/Usuário" processRef="Proc_Aluno"/>
+    <bpmn:participant id="Part_AutorAdmin" name="Autor/Revisor/Admin" processRef="Proc_AutorAdmin"/>
+    <bpmn:participant id="Part_Frontend" name="Frontend Next.js" processRef="Proc_Frontend"/>
+    <bpmn:participant id="Part_API" name="API Django/DRF" processRef="Proc_API_Orquestracao"/>
+    <bpmn:participant id="Part_DB" name="Banco PostgreSQL" processRef="Proc_DB"/>
+    <bpmn:participant id="Part_Email" name="Serviço de E-mail" processRef="Proc_Email"/>
+    <bpmn:participant id="Part_Judge0" name="Judge0" processRef="Proc_Judge0"/>
+
+    <bpmn:messageFlow id="MF_FE_API" sourceRef="Task_FE_Enviar" targetRef="Task_API_Receber" name="Requisição /api/v1/"/>
+    <bpmn:messageFlow id="MF_API_FE" sourceRef="Task_API_Responder" targetRef="Task_FE_Renderizar" name="Resposta JSON (sucesso/erro)"/>
+    <bpmn:messageFlow id="MF_API_DB" sourceRef="Task_API_Persistir" targetRef="Task_DB_Persistir" name="CRUD transacional"/>
+    <bpmn:messageFlow id="MF_DB_API" sourceRef="Task_DB_Persistir" targetRef="Task_API_Responder" name="Dados persistidos/consultados"/>
+    <bpmn:messageFlow id="MF_API_EMAIL" sourceRef="Task_API_Email" targetRef="Task_Email_Enviar" name="Verificação, MFA, recuperação, exclusão"/>
+    <bpmn:messageFlow id="MF_EMAIL_API" sourceRef="Task_Email_Enviar" targetRef="Task_API_Responder" name="Status de envio"/>
+    <bpmn:messageFlow id="MF_API_JUDGE" sourceRef="Task_API_Judge0" targetRef="Task_Judge_Executar" name="Submissão de código"/>
+    <bpmn:messageFlow id="MF_JUDGE_API" sourceRef="Task_Judge_Executar" targetRef="Task_API_Responder" name="Resultado de execução"/>
+    <bpmn:textAnnotation id="TA_Collab_1">
+      <bpmn:text>Colaboração macro: frontend orquestra chamadas para a API; regras e exceções são detalhadas nos processos lógicos abaixo.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Collab_1" sourceRef="Task_API_Receber" targetRef="TA_Collab_1"/>
+  </bpmn:collaboration>
+
+  <bpmn:process id="Proc_Aluno" name="Interação do Aluno" isExecutable="false">
+    <bpmn:startEvent id="Start_Aluno" name="Acessa plataforma">
+      <bpmn:outgoing>Flow_Aluno_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_Aluno_Usar" name="Cadastrar, estudar, concluir exercícios e gerir conta">
+      <bpmn:incoming>Flow_Aluno_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Aluno_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="End_Aluno" name="Sessão concluída">
+      <bpmn:incoming>Flow_Aluno_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Aluno_1" sourceRef="Start_Aluno" targetRef="Task_Aluno_Usar"/>
+    <bpmn:sequenceFlow id="Flow_Aluno_2" sourceRef="Task_Aluno_Usar" targetRef="End_Aluno"/>
+  </bpmn:process>
+
+  <bpmn:process id="Proc_AutorAdmin" name="Interação Autor/Revisor/Admin" isExecutable="false">
+    <bpmn:startEvent id="Start_Autor" name="Demanda editorial ou administrativa">
+      <bpmn:outgoing>Flow_Autor_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_Autor_Operar" name="Criar/revisar conteúdo, administrar RBAC e auditoria">
+      <bpmn:incoming>Flow_Autor_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Autor_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="End_Autor" name="Ação finalizada">
+      <bpmn:incoming>Flow_Autor_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Autor_1" sourceRef="Start_Autor" targetRef="Task_Autor_Operar"/>
+    <bpmn:sequenceFlow id="Flow_Autor_2" sourceRef="Task_Autor_Operar" targetRef="End_Autor"/>
+  </bpmn:process>
+
+  <bpmn:process id="Proc_Frontend" name="Frontend Next.js" isExecutable="false">
+    <bpmn:startEvent id="Start_FE" name="Ação de UI">
+      <bpmn:outgoing>Flow_FE_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:sendTask id="Task_FE_Enviar" name="Enviar requisição HTTP para API">
+      <bpmn:incoming>Flow_FE_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_FE_2</bpmn:outgoing>
+    </bpmn:sendTask>
+    <bpmn:receiveTask id="Task_FE_Renderizar" name="Renderizar retorno e exceções">
+      <bpmn:incoming>Flow_FE_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_FE_3</bpmn:outgoing>
+    </bpmn:receiveTask>
+    <bpmn:endEvent id="End_FE" name="Tela atualizada">
+      <bpmn:incoming>Flow_FE_3</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_FE_1" sourceRef="Start_FE" targetRef="Task_FE_Enviar"/>
+    <bpmn:sequenceFlow id="Flow_FE_2" sourceRef="Task_FE_Enviar" targetRef="Task_FE_Renderizar"/>
+    <bpmn:sequenceFlow id="Flow_FE_3" sourceRef="Task_FE_Renderizar" targetRef="End_FE"/>
+  </bpmn:process>
+
+  <bpmn:process id="Proc_API_Orquestracao" name="API Django/DRF (orquestração macro)" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_API">
+      <bpmn:lane id="Lane_API_Entrada" name="Entrada e resposta">
+        <bpmn:flowNodeRef>Start_API</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_API_Receber</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_API_Dominio</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_API_Responder</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_API_Regras" name="Processos lógicos">
+        <bpmn:flowNodeRef>Call_Cadastro</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Call_Editorial</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Call_Jornada</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Call_Correcao</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Call_Criaturas</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Call_LGPD</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Call_RBAC</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_API_Integracoes" name="Persistência e integrações">
+        <bpmn:flowNodeRef>Task_API_Persistir</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_API_Email</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_API_Judge0</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_API</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_API" name="Recebe chamada REST">
+      <bpmn:outgoing>Flow_API_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Task_API_Receber" name="Autenticar, autorizar e rotear endpoint">
+      <bpmn:incoming>Flow_API_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_API_2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_API_Dominio" name="Domínio da requisição">
+      <bpmn:incoming>Flow_API_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_API_3</bpmn:outgoing>
+      <bpmn:outgoing>Flow_API_4</bpmn:outgoing>
+      <bpmn:outgoing>Flow_API_5</bpmn:outgoing>
+      <bpmn:outgoing>Flow_API_6</bpmn:outgoing>
+      <bpmn:outgoing>Flow_API_7</bpmn:outgoing>
+      <bpmn:outgoing>Flow_API_8</bpmn:outgoing>
+      <bpmn:outgoing>Flow_API_9</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:callActivity id="Call_Cadastro" name="Cadastro, verificação, login e MFA" calledElement="Proc_Detalhe_CadastroLogin">
+      <bpmn:incoming>Flow_API_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_API_10</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:callActivity id="Call_Editorial" name="Fluxo editorial (trilhas/aulas/exercícios)" calledElement="Proc_Detalhe_Editorial">
+      <bpmn:incoming>Flow_API_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_API_10a</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:callActivity id="Call_Jornada" name="Jornada de aprendizagem e XP" calledElement="Proc_Detalhe_Jornada">
+      <bpmn:incoming>Flow_API_5</bpmn:incoming>
+      <bpmn:outgoing>Flow_API_10b</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:callActivity id="Call_Correcao" name="Correção automática com Judge0" calledElement="Proc_Detalhe_Correcao">
+      <bpmn:incoming>Flow_API_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_API_10c</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:callActivity id="Call_Criaturas" name="Gestão de criaturas" calledElement="Proc_Detalhe_Criaturas">
+      <bpmn:incoming>Flow_API_7</bpmn:incoming>
+      <bpmn:outgoing>Flow_API_10d</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:callActivity id="Call_LGPD" name="Direitos LGPD" calledElement="Proc_Detalhe_LGPD">
+      <bpmn:incoming>Flow_API_8</bpmn:incoming>
+      <bpmn:outgoing>Flow_API_10e</bpmn:outgoing>
+    </bpmn:callActivity>
+    <bpmn:callActivity id="Call_RBAC" name="Administração RBAC e auditoria" calledElement="Proc_Detalhe_RBACAuditoria">
+      <bpmn:incoming>Flow_API_9</bpmn:incoming>
+      <bpmn:outgoing>Flow_API_10f</bpmn:outgoing>
+    </bpmn:callActivity>
+
+    <bpmn:parallelGateway id="Gateway_API_Join" name="Consolidar resposta">
+      <bpmn:incoming>Flow_API_10</bpmn:incoming>
+      <bpmn:incoming>Flow_API_10a</bpmn:incoming>
+      <bpmn:incoming>Flow_API_10b</bpmn:incoming>
+      <bpmn:incoming>Flow_API_10c</bpmn:incoming>
+      <bpmn:incoming>Flow_API_10d</bpmn:incoming>
+      <bpmn:incoming>Flow_API_10e</bpmn:incoming>
+      <bpmn:incoming>Flow_API_10f</bpmn:incoming>
+      <bpmn:outgoing>Flow_API_11</bpmn:outgoing>
+    </bpmn:parallelGateway>
+
+    <bpmn:serviceTask id="Task_API_Persistir" name="Persistir/consultar estado no PostgreSQL">
+      <bpmn:incoming>Flow_API_11</bpmn:incoming>
+      <bpmn:outgoing>Flow_API_12</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_API_Email" name="Disparar e-mails quando aplicável">
+      <bpmn:incoming>Flow_API_12</bpmn:incoming>
+      <bpmn:outgoing>Flow_API_13</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_API_Judge0" name="Acionar Judge0 quando aplicável">
+      <bpmn:incoming>Flow_API_13</bpmn:incoming>
+      <bpmn:outgoing>Flow_API_14</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_API_Responder" name="Montar envelope de resposta e retornar">
+      <bpmn:incoming>Flow_API_14</bpmn:incoming>
+      <bpmn:outgoing>Flow_API_15</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_API" name="Resposta enviada">
+      <bpmn:incoming>Flow_API_15</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_API_1" sourceRef="Start_API" targetRef="Task_API_Receber"/>
+    <bpmn:sequenceFlow id="Flow_API_2" sourceRef="Task_API_Receber" targetRef="Gateway_API_Dominio"/>
+    <bpmn:sequenceFlow id="Flow_API_3" sourceRef="Gateway_API_Dominio" targetRef="Call_Cadastro"/>
+    <bpmn:sequenceFlow id="Flow_API_4" sourceRef="Gateway_API_Dominio" targetRef="Call_Editorial"/>
+    <bpmn:sequenceFlow id="Flow_API_5" sourceRef="Gateway_API_Dominio" targetRef="Call_Jornada"/>
+    <bpmn:sequenceFlow id="Flow_API_6" sourceRef="Gateway_API_Dominio" targetRef="Call_Correcao"/>
+    <bpmn:sequenceFlow id="Flow_API_7" sourceRef="Gateway_API_Dominio" targetRef="Call_Criaturas"/>
+    <bpmn:sequenceFlow id="Flow_API_8" sourceRef="Gateway_API_Dominio" targetRef="Call_LGPD"/>
+    <bpmn:sequenceFlow id="Flow_API_9" sourceRef="Gateway_API_Dominio" targetRef="Call_RBAC"/>
+    <bpmn:sequenceFlow id="Flow_API_10" sourceRef="Call_Cadastro" targetRef="Gateway_API_Join"/>
+    <bpmn:sequenceFlow id="Flow_API_10a" sourceRef="Call_Editorial" targetRef="Gateway_API_Join"/>
+    <bpmn:sequenceFlow id="Flow_API_10b" sourceRef="Call_Jornada" targetRef="Gateway_API_Join"/>
+    <bpmn:sequenceFlow id="Flow_API_10c" sourceRef="Call_Correcao" targetRef="Gateway_API_Join"/>
+    <bpmn:sequenceFlow id="Flow_API_10d" sourceRef="Call_Criaturas" targetRef="Gateway_API_Join"/>
+    <bpmn:sequenceFlow id="Flow_API_10e" sourceRef="Call_LGPD" targetRef="Gateway_API_Join"/>
+    <bpmn:sequenceFlow id="Flow_API_10f" sourceRef="Call_RBAC" targetRef="Gateway_API_Join"/>
+    <bpmn:sequenceFlow id="Flow_API_11" sourceRef="Gateway_API_Join" targetRef="Task_API_Persistir"/>
+    <bpmn:sequenceFlow id="Flow_API_12" sourceRef="Task_API_Persistir" targetRef="Task_API_Email"/>
+    <bpmn:sequenceFlow id="Flow_API_13" sourceRef="Task_API_Email" targetRef="Task_API_Judge0"/>
+    <bpmn:sequenceFlow id="Flow_API_14" sourceRef="Task_API_Judge0" targetRef="Task_API_Responder"/>
+    <bpmn:sequenceFlow id="Flow_API_15" sourceRef="Task_API_Responder" targetRef="End_API"/>
+  </bpmn:process>
+
+  <bpmn:process id="Proc_DB" name="Banco PostgreSQL" isExecutable="false">
+    <bpmn:startEvent id="Start_DB" name="Solicitação de persistência">
+      <bpmn:outgoing>Flow_DB_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Task_DB_Persistir" name="Ler/escrever dados transacionais">
+      <bpmn:incoming>Flow_DB_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_DB_2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_DB" name="Operação concluída">
+      <bpmn:incoming>Flow_DB_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_DB_1" sourceRef="Start_DB" targetRef="Task_DB_Persistir"/>
+    <bpmn:sequenceFlow id="Flow_DB_2" sourceRef="Task_DB_Persistir" targetRef="End_DB"/>
+  </bpmn:process>
+
+  <bpmn:process id="Proc_Email" name="Serviço de E-mail" isExecutable="false">
+    <bpmn:startEvent id="Start_Email" name="Mensagem recebida">
+      <bpmn:outgoing>Flow_Email_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Task_Email_Enviar" name="Enviar e-mail transacional">
+      <bpmn:incoming>Flow_Email_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Email_2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_Email" name="Status de envio">
+      <bpmn:incoming>Flow_Email_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Email_1" sourceRef="Start_Email" targetRef="Task_Email_Enviar"/>
+    <bpmn:sequenceFlow id="Flow_Email_2" sourceRef="Task_Email_Enviar" targetRef="End_Email"/>
+  </bpmn:process>
+
+  <bpmn:process id="Proc_Judge0" name="Judge0" isExecutable="false">
+    <bpmn:startEvent id="Start_Judge" name="Submissão recebida">
+      <bpmn:outgoing>Flow_Judge_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Task_Judge_Executar" name="Executar harness e testes">
+      <bpmn:incoming>Flow_Judge_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Judge_2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_Judge" name="Resultado disponível">
+      <bpmn:incoming>Flow_Judge_2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Judge_1" sourceRef="Start_Judge" targetRef="Task_Judge_Executar"/>
+    <bpmn:sequenceFlow id="Flow_Judge_2" sourceRef="Task_Judge_Executar" targetRef="End_Judge"/>
+  </bpmn:process>
+
+  <bpmn:process id="Proc_Detalhe_CadastroLogin" name="Detalhe: Cadastro, verificação e login/MFA" isExecutable="false">
+    <bpmn:startEvent id="Start_Cad" name="Cadastro solicitado">
+      <bpmn:outgoing>Flow_Cad_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Task_Cad_Validar" name="Validar idade mínima (16+) e aceite legal">
+      <bpmn:incoming>Flow_Cad_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cad_2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gw_Cad_EmailExiste" name="E-mail já cadastrado?">
+      <bpmn:incoming>Flow_Cad_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cad_3</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Cad_4</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_Cad_AvisoTentativa" name="Avisar tentativa de cadastro por e-mail">
+      <bpmn:incoming>Flow_Cad_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cad_5</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_Cad_EmailExiste" name="Cadastro não criado (e-mail existente)">
+      <bpmn:incoming>Flow_Cad_5</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:serviceTask id="Task_Cad_CriarConta" name="Criar conta pendente e enviar verificação">
+      <bpmn:incoming>Flow_Cad_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cad_6</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:intermediateCatchEvent id="Evt_Cad_AguardarClique" name="Aguardar link de verificação">
+      <bpmn:incoming>Flow_Cad_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cad_7</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="Msg_Cad_Verificacao"/>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:exclusiveGateway id="Gw_Cad_TokenVerifValido" name="Token de verificação válido?">
+      <bpmn:incoming>Flow_Cad_7</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cad_8</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Cad_9</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_Cad_Reenviar" name="Reenviar verificação">
+      <bpmn:incoming>Flow_Cad_9</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cad_10</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:intermediateCatchEvent id="Evt_Cad_TimerReenvio" name="Verificação expirada / reenvio">
+      <bpmn:incoming>Flow_Cad_10</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cad_6a</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="Timer_Cad_Reenvio"/>
+    </bpmn:intermediateCatchEvent>
+
+    <bpmn:userTask id="Task_Login" name="Login com e-mail e senha">
+      <bpmn:incoming>Flow_Cad_8</bpmn:incoming>
+      <bpmn:incoming>Flow_Cad_6a</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cad_11</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gw_Login_Bloqueado" name="Conta bloqueada por tentativas?">
+      <bpmn:incoming>Flow_Cad_11</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cad_12</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Cad_13</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_Login_Bloqueado" name="Falha: bloqueio temporário">
+      <bpmn:incoming>Flow_Cad_12</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:exclusiveGateway id="Gw_Login_MFAAtivo" name="MFA ativo?">
+      <bpmn:incoming>Flow_Cad_13</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cad_14</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Cad_15</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_Login_EmitirJWT" name="Emitir JWT em cookies HttpOnly">
+      <bpmn:incoming>Flow_Cad_14</bpmn:incoming>
+      <bpmn:incoming>Flow_Cad_18</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cad_19</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_Login_OK" name="Sessão autenticada">
+      <bpmn:incoming>Flow_Cad_19</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:serviceTask id="Task_Login_DesafioMFA" name="Gerar desafio MFA (TOTP/e-mail)">
+      <bpmn:incoming>Flow_Cad_15</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cad_16</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="Task_Login_ValidarMFA" name="Validar código MFA/recuperação">
+      <bpmn:incoming>Flow_Cad_16</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cad_17</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gw_Login_MFAValido" name="Código MFA válido?">
+      <bpmn:incoming>Flow_Cad_17</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cad_18</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Cad_20</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_Login_MFAInvalido" name="Falha: MFA inválido/expirado">
+      <bpmn:incoming>Flow_Cad_20</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_Cad_1" sourceRef="Start_Cad" targetRef="Task_Cad_Validar"/>
+    <bpmn:sequenceFlow id="Flow_Cad_2" sourceRef="Task_Cad_Validar" targetRef="Gw_Cad_EmailExiste"/>
+    <bpmn:sequenceFlow id="Flow_Cad_3" sourceRef="Gw_Cad_EmailExiste" targetRef="Task_Cad_AvisoTentativa" name="Sim"/>
+    <bpmn:sequenceFlow id="Flow_Cad_4" sourceRef="Gw_Cad_EmailExiste" targetRef="Task_Cad_CriarConta" name="Não"/>
+    <bpmn:sequenceFlow id="Flow_Cad_5" sourceRef="Task_Cad_AvisoTentativa" targetRef="End_Cad_EmailExiste"/>
+    <bpmn:sequenceFlow id="Flow_Cad_6" sourceRef="Task_Cad_CriarConta" targetRef="Evt_Cad_AguardarClique"/>
+    <bpmn:sequenceFlow id="Flow_Cad_7" sourceRef="Evt_Cad_AguardarClique" targetRef="Gw_Cad_TokenVerifValido"/>
+    <bpmn:sequenceFlow id="Flow_Cad_8" sourceRef="Gw_Cad_TokenVerifValido" targetRef="Task_Login" name="Válido"/>
+    <bpmn:sequenceFlow id="Flow_Cad_9" sourceRef="Gw_Cad_TokenVerifValido" targetRef="Task_Cad_Reenviar" name="Expirado/Inválido"/>
+    <bpmn:sequenceFlow id="Flow_Cad_10" sourceRef="Task_Cad_Reenviar" targetRef="Evt_Cad_TimerReenvio"/>
+    <bpmn:sequenceFlow id="Flow_Cad_6a" sourceRef="Evt_Cad_TimerReenvio" targetRef="Task_Login"/>
+    <bpmn:sequenceFlow id="Flow_Cad_11" sourceRef="Task_Login" targetRef="Gw_Login_Bloqueado"/>
+    <bpmn:sequenceFlow id="Flow_Cad_12" sourceRef="Gw_Login_Bloqueado" targetRef="End_Login_Bloqueado" name="Sim"/>
+    <bpmn:sequenceFlow id="Flow_Cad_13" sourceRef="Gw_Login_Bloqueado" targetRef="Gw_Login_MFAAtivo" name="Não"/>
+    <bpmn:sequenceFlow id="Flow_Cad_14" sourceRef="Gw_Login_MFAAtivo" targetRef="Task_Login_EmitirJWT" name="Não"/>
+    <bpmn:sequenceFlow id="Flow_Cad_15" sourceRef="Gw_Login_MFAAtivo" targetRef="Task_Login_DesafioMFA" name="Sim"/>
+    <bpmn:sequenceFlow id="Flow_Cad_16" sourceRef="Task_Login_DesafioMFA" targetRef="Task_Login_ValidarMFA"/>
+    <bpmn:sequenceFlow id="Flow_Cad_17" sourceRef="Task_Login_ValidarMFA" targetRef="Gw_Login_MFAValido"/>
+    <bpmn:sequenceFlow id="Flow_Cad_18" sourceRef="Gw_Login_MFAValido" targetRef="Task_Login_EmitirJWT" name="Sim"/>
+    <bpmn:sequenceFlow id="Flow_Cad_19" sourceRef="Task_Login_EmitirJWT" targetRef="End_Login_OK"/>
+    <bpmn:sequenceFlow id="Flow_Cad_20" sourceRef="Gw_Login_MFAValido" targetRef="End_Login_MFAInvalido" name="Não"/>
+  </bpmn:process>
+
+  <bpmn:process id="Proc_Detalhe_Editorial" name="Detalhe: Fluxo editorial e publicação" isExecutable="false">
+    <bpmn:startEvent id="Start_Edit" name="Criar/editar conteúdo">
+      <bpmn:outgoing>Flow_Edit_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_Edit_Rascunho" name="Salvar rascunho (trilha/aula/exercício)">
+      <bpmn:incoming>Flow_Edit_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Edit_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_Edit_EnviarRev" name="Enviar para revisão">
+      <bpmn:incoming>Flow_Edit_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Edit_3</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_Edit_Revisar" name="Revisor avalia conteúdo e solução do autor (rota restrita)">
+      <bpmn:incoming>Flow_Edit_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_Edit_4</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gw_Edit_Aprovado" name="Aprovado?">
+      <bpmn:incoming>Flow_Edit_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_Edit_5</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Edit_6</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="Task_Edit_Devolver" name="Devolver para ajustes">
+      <bpmn:incoming>Flow_Edit_5</bpmn:incoming>
+      <bpmn:outgoing>Flow_Edit_7</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="End_Edit_Devolvido" name="Conteúdo devolvido">
+      <bpmn:incoming>Flow_Edit_7</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:userTask id="Task_Edit_Publicar" name="Aprovar e publicar">
+      <bpmn:incoming>Flow_Edit_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_Edit_8</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="Task_Edit_Catalogo" name="Expor somente itens PUBLICADOS no catálogo">
+      <bpmn:incoming>Flow_Edit_8</bpmn:incoming>
+      <bpmn:outgoing>Flow_Edit_9</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_Edit_Publicado" name="Conteúdo visível publicamente">
+      <bpmn:incoming>Flow_Edit_9</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_Edit_1" sourceRef="Start_Edit" targetRef="Task_Edit_Rascunho"/>
+    <bpmn:sequenceFlow id="Flow_Edit_2" sourceRef="Task_Edit_Rascunho" targetRef="Task_Edit_EnviarRev"/>
+    <bpmn:sequenceFlow id="Flow_Edit_3" sourceRef="Task_Edit_EnviarRev" targetRef="Task_Edit_Revisar"/>
+    <bpmn:sequenceFlow id="Flow_Edit_4" sourceRef="Task_Edit_Revisar" targetRef="Gw_Edit_Aprovado"/>
+    <bpmn:sequenceFlow id="Flow_Edit_5" sourceRef="Gw_Edit_Aprovado" targetRef="Task_Edit_Devolver" name="Não"/>
+    <bpmn:sequenceFlow id="Flow_Edit_6" sourceRef="Gw_Edit_Aprovado" targetRef="Task_Edit_Publicar" name="Sim"/>
+    <bpmn:sequenceFlow id="Flow_Edit_7" sourceRef="Task_Edit_Devolver" targetRef="End_Edit_Devolvido"/>
+    <bpmn:sequenceFlow id="Flow_Edit_8" sourceRef="Task_Edit_Publicar" targetRef="Task_Edit_Catalogo"/>
+    <bpmn:sequenceFlow id="Flow_Edit_9" sourceRef="Task_Edit_Catalogo" targetRef="End_Edit_Publicado"/>
+  </bpmn:process>
+
+  <bpmn:process id="Proc_Detalhe_Jornada" name="Detalhe: Jornada de aprendizagem e crédito de XP" isExecutable="false">
+    <bpmn:startEvent id="Start_Jor" name="Usuário navega no catálogo">
+      <bpmn:outgoing>Flow_Jor_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_Jor_Consultar" name="Consultar catálogo público (somente publicados)">
+      <bpmn:incoming>Flow_Jor_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Jor_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_Jor_Iniciar" name="Iniciar trilha (idempotente)">
+      <bpmn:incoming>Flow_Jor_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Jor_3</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_Jor_Abrir" name="Abrir aula/exercício">
+      <bpmn:incoming>Flow_Jor_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_Jor_4</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gw_Jor_TipoEx" name="Exercício de código?">
+      <bpmn:incoming>Flow_Jor_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_Jor_5</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Jor_6</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:userTask id="Task_Jor_Executar" name="Executar código (sem XP)">
+      <bpmn:incoming>Flow_Jor_5</bpmn:incoming>
+      <bpmn:outgoing>Flow_Jor_7</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_Jor_Enviar" name="Enviar código para correção">
+      <bpmn:incoming>Flow_Jor_7</bpmn:incoming>
+      <bpmn:outgoing>Flow_Jor_8</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gw_Jor_Aprovado" name="Envio aprovado?">
+      <bpmn:incoming>Flow_Jor_8</bpmn:incoming>
+      <bpmn:outgoing>Flow_Jor_9</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Jor_10</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_Jor_Reprovado" name="Reprovado: não credita XP">
+      <bpmn:incoming>Flow_Jor_9</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:userTask id="Task_Jor_ConcluirTeorico" name="Concluir exercício teórico">
+      <bpmn:incoming>Flow_Jor_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_Jor_11</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_Jor_ConcluirCodigo" name="Concluir exercício de código aprovado">
+      <bpmn:incoming>Flow_Jor_10</bpmn:incoming>
+      <bpmn:outgoing>Flow_Jor_11a</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gw_Jor_PreCond" name="Exercício publicado + conta ativa + criatura ativa?">
+      <bpmn:incoming>Flow_Jor_11</bpmn:incoming>
+      <bpmn:incoming>Flow_Jor_11a</bpmn:incoming>
+      <bpmn:outgoing>Flow_Jor_12</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Jor_13</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_Jor_PreCondErro" name="Falha: sem criatura ativa/conta inativa/não publicado">
+      <bpmn:incoming>Flow_Jor_13</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:serviceTask id="Task_Jor_Creditar" name="Creditar XP (50/100/200 * multiplicador)">
+      <bpmn:incoming>Flow_Jor_12</bpmn:incoming>
+      <bpmn:outgoing>Flow_Jor_14</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gw_Jor_JaConcluido" name="EventoXP já existe para usuário/exercício?">
+      <bpmn:incoming>Flow_Jor_14</bpmn:incoming>
+      <bpmn:outgoing>Flow_Jor_15</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Jor_16</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_Jor_SemDuplicar" name="Já concluído: sem duplicar XP">
+      <bpmn:incoming>Flow_Jor_15</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:serviceTask id="Task_Jor_Sinalizar" name="Atualizar progresso e sinalizar pode_evoluir">
+      <bpmn:incoming>Flow_Jor_16</bpmn:incoming>
+      <bpmn:outgoing>Flow_Jor_17</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_Jor_XP" name="XP creditado (sem evolução automática)">
+      <bpmn:incoming>Flow_Jor_17</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_Jor_1" sourceRef="Start_Jor" targetRef="Task_Jor_Consultar"/>
+    <bpmn:sequenceFlow id="Flow_Jor_2" sourceRef="Task_Jor_Consultar" targetRef="Task_Jor_Iniciar"/>
+    <bpmn:sequenceFlow id="Flow_Jor_3" sourceRef="Task_Jor_Iniciar" targetRef="Task_Jor_Abrir"/>
+    <bpmn:sequenceFlow id="Flow_Jor_4" sourceRef="Task_Jor_Abrir" targetRef="Gw_Jor_TipoEx"/>
+    <bpmn:sequenceFlow id="Flow_Jor_5" sourceRef="Gw_Jor_TipoEx" targetRef="Task_Jor_Executar" name="Sim"/>
+    <bpmn:sequenceFlow id="Flow_Jor_6" sourceRef="Gw_Jor_TipoEx" targetRef="Task_Jor_ConcluirTeorico" name="Não"/>
+    <bpmn:sequenceFlow id="Flow_Jor_7" sourceRef="Task_Jor_Executar" targetRef="Task_Jor_Enviar"/>
+    <bpmn:sequenceFlow id="Flow_Jor_8" sourceRef="Task_Jor_Enviar" targetRef="Gw_Jor_Aprovado"/>
+    <bpmn:sequenceFlow id="Flow_Jor_9" sourceRef="Gw_Jor_Aprovado" targetRef="End_Jor_Reprovado" name="Não"/>
+    <bpmn:sequenceFlow id="Flow_Jor_10" sourceRef="Gw_Jor_Aprovado" targetRef="Task_Jor_ConcluirCodigo" name="Sim"/>
+    <bpmn:sequenceFlow id="Flow_Jor_11" sourceRef="Task_Jor_ConcluirTeorico" targetRef="Gw_Jor_PreCond"/>
+    <bpmn:sequenceFlow id="Flow_Jor_11a" sourceRef="Task_Jor_ConcluirCodigo" targetRef="Gw_Jor_PreCond"/>
+    <bpmn:sequenceFlow id="Flow_Jor_12" sourceRef="Gw_Jor_PreCond" targetRef="Task_Jor_Creditar" name="Sim"/>
+    <bpmn:sequenceFlow id="Flow_Jor_13" sourceRef="Gw_Jor_PreCond" targetRef="End_Jor_PreCondErro" name="Não"/>
+    <bpmn:sequenceFlow id="Flow_Jor_14" sourceRef="Task_Jor_Creditar" targetRef="Gw_Jor_JaConcluido"/>
+    <bpmn:sequenceFlow id="Flow_Jor_15" sourceRef="Gw_Jor_JaConcluido" targetRef="End_Jor_SemDuplicar" name="Sim"/>
+    <bpmn:sequenceFlow id="Flow_Jor_16" sourceRef="Gw_Jor_JaConcluido" targetRef="Task_Jor_Sinalizar" name="Não"/>
+    <bpmn:sequenceFlow id="Flow_Jor_17" sourceRef="Task_Jor_Sinalizar" targetRef="End_Jor_XP"/>
+  </bpmn:process>
+
+  <bpmn:process id="Proc_Detalhe_Correcao" name="Detalhe: Correção automática com AST, cache, cotas e Judge0" isExecutable="false">
+    <bpmn:startEvent id="Start_Cor" name="Executar/Enviar código">
+      <bpmn:outgoing>Flow_Cor_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Task_Cor_Validar" name="Validar conta, exercício, especificação e código">
+      <bpmn:incoming>Flow_Cor_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cor_2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_Cor_AST" name="Análise AST (sintaxe, função, exigências/proibições)">
+      <bpmn:incoming>Flow_Cor_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cor_3</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gw_Cor_ASTValida" name="AST válida?">
+      <bpmn:incoming>Flow_Cor_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cor_4</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Cor_5</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_Cor_ASTInvalida" name="Falha: AST inválida">
+      <bpmn:incoming>Flow_Cor_5</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:exclusiveGateway id="Gw_Cor_Cache" name="Submissão idêntica em cache (&lt;10 min)?">
+      <bpmn:incoming>Flow_Cor_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cor_6</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Cor_7</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_Cor_Cache" name="Retorna resultado em cache">
+      <bpmn:incoming>Flow_Cor_6</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:serviceTask id="Task_Cor_Cota" name="Verificar cota por usuário/global">
+      <bpmn:incoming>Flow_Cor_7</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cor_8</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gw_Cor_CotaOK" name="Cota disponível?">
+      <bpmn:incoming>Flow_Cor_8</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cor_9</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Cor_10</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_Cor_Cota" name="Falha: cota esgotada (429/503)">
+      <bpmn:incoming>Flow_Cor_10</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:serviceTask id="Task_Cor_Judge" name="Enviar para Judge0">
+      <bpmn:incoming>Flow_Cor_9</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cor_11</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gw_Cor_JudgeDisponivel" name="Judge0 disponível?">
+      <bpmn:incoming>Flow_Cor_11</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cor_12</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Cor_13</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_Cor_Indisp" name="Falha: corretor indisponível">
+      <bpmn:incoming>Flow_Cor_13</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:exclusiveGateway id="Gw_Cor_Modo" name="Modo EXECUTAR ou ENVIAR?">
+      <bpmn:incoming>Flow_Cor_12</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cor_14</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Cor_15</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_Cor_ExecutarVisiveis" name="EXECUTAR: rodar só casos visíveis">
+      <bpmn:incoming>Flow_Cor_14</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cor_16</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_Cor_Executar" name="Retorno de depuração (sem XP)">
+      <bpmn:incoming>Flow_Cor_16</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:serviceTask id="Task_Cor_EnviarTodos" name="ENVIAR: rodar todos casos (ocultos sem detalhes)">
+      <bpmn:incoming>Flow_Cor_15</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cor_17</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gw_Cor_Aprovado" name="Todos os casos passaram?">
+      <bpmn:incoming>Flow_Cor_17</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cor_18</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Cor_19</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_Cor_Reprovado" name="Envio reprovado (não conclui)">
+      <bpmn:incoming>Flow_Cor_18</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Cor_Aprovado" name="Envio aprovado para conclusão">
+      <bpmn:incoming>Flow_Cor_19</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_Cor_1" sourceRef="Start_Cor" targetRef="Task_Cor_Validar"/>
+    <bpmn:sequenceFlow id="Flow_Cor_2" sourceRef="Task_Cor_Validar" targetRef="Task_Cor_AST"/>
+    <bpmn:sequenceFlow id="Flow_Cor_3" sourceRef="Task_Cor_AST" targetRef="Gw_Cor_ASTValida"/>
+    <bpmn:sequenceFlow id="Flow_Cor_4" sourceRef="Gw_Cor_ASTValida" targetRef="Gw_Cor_Cache" name="Sim"/>
+    <bpmn:sequenceFlow id="Flow_Cor_5" sourceRef="Gw_Cor_ASTValida" targetRef="End_Cor_ASTInvalida" name="Não"/>
+    <bpmn:sequenceFlow id="Flow_Cor_6" sourceRef="Gw_Cor_Cache" targetRef="End_Cor_Cache" name="Sim"/>
+    <bpmn:sequenceFlow id="Flow_Cor_7" sourceRef="Gw_Cor_Cache" targetRef="Task_Cor_Cota" name="Não"/>
+    <bpmn:sequenceFlow id="Flow_Cor_8" sourceRef="Task_Cor_Cota" targetRef="Gw_Cor_CotaOK"/>
+    <bpmn:sequenceFlow id="Flow_Cor_9" sourceRef="Gw_Cor_CotaOK" targetRef="Task_Cor_Judge" name="Sim"/>
+    <bpmn:sequenceFlow id="Flow_Cor_10" sourceRef="Gw_Cor_CotaOK" targetRef="End_Cor_Cota" name="Não"/>
+    <bpmn:sequenceFlow id="Flow_Cor_11" sourceRef="Task_Cor_Judge" targetRef="Gw_Cor_JudgeDisponivel"/>
+    <bpmn:sequenceFlow id="Flow_Cor_12" sourceRef="Gw_Cor_JudgeDisponivel" targetRef="Gw_Cor_Modo" name="Sim"/>
+    <bpmn:sequenceFlow id="Flow_Cor_13" sourceRef="Gw_Cor_JudgeDisponivel" targetRef="End_Cor_Indisp" name="Não"/>
+    <bpmn:sequenceFlow id="Flow_Cor_14" sourceRef="Gw_Cor_Modo" targetRef="Task_Cor_ExecutarVisiveis" name="EXECUTAR"/>
+    <bpmn:sequenceFlow id="Flow_Cor_15" sourceRef="Gw_Cor_Modo" targetRef="Task_Cor_EnviarTodos" name="ENVIAR"/>
+    <bpmn:sequenceFlow id="Flow_Cor_16" sourceRef="Task_Cor_ExecutarVisiveis" targetRef="End_Cor_Executar"/>
+    <bpmn:sequenceFlow id="Flow_Cor_17" sourceRef="Task_Cor_EnviarTodos" targetRef="Gw_Cor_Aprovado"/>
+    <bpmn:sequenceFlow id="Flow_Cor_18" sourceRef="Gw_Cor_Aprovado" targetRef="End_Cor_Reprovado" name="Não"/>
+    <bpmn:sequenceFlow id="Flow_Cor_19" sourceRef="Gw_Cor_Aprovado" targetRef="End_Cor_Aprovado" name="Sim"/>
+  </bpmn:process>
+
+  <bpmn:process id="Proc_Detalhe_Criaturas" name="Detalhe: Gestão de criaturas" isExecutable="false">
+    <bpmn:startEvent id="Start_Cri" name="Abrir área de criaturas">
+      <bpmn:outgoing>Flow_Cri_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_Cri_Catalogo" name="Consultar catálogo público de criaturas">
+      <bpmn:incoming>Flow_Cri_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cri_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gw_Cri_TemInicial" name="Já escolheu criatura inicial?">
+      <bpmn:incoming>Flow_Cri_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cri_3</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Cri_4</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="Task_Cri_EscolherInicial" name="Escolher inicial (uma única vez)">
+      <bpmn:incoming>Flow_Cri_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cri_5</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_Cri_Adquirir" name="Adquirir outra criatura">
+      <bpmn:incoming>Flow_Cri_4</bpmn:incoming>
+      <bpmn:incoming>Flow_Cri_5</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cri_6</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_Cri_Ativar" name="Definir criatura ativa (uma por usuário)">
+      <bpmn:incoming>Flow_Cri_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cri_7</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_Cri_Evoluir" name="Solicitar evolução manual">
+      <bpmn:incoming>Flow_Cri_7</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cri_8</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gw_Cri_FormaFinal" name="Já está na forma final?">
+      <bpmn:incoming>Flow_Cri_8</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cri_9</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Cri_10</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_Cri_Final" name="Falha: forma final">
+      <bpmn:incoming>Flow_Cri_9</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:exclusiveGateway id="Gw_Cri_Nivel" name="Nível suficiente para próximo estágio?">
+      <bpmn:incoming>Flow_Cri_10</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cri_11</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Cri_12</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_Cri_Nivel" name="Falha: nível insuficiente">
+      <bpmn:incoming>Flow_Cri_12</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:serviceTask id="Task_Cri_Evoluir1" name="Evoluir um estágio e registrar auditoria">
+      <bpmn:incoming>Flow_Cri_11</bpmn:incoming>
+      <bpmn:outgoing>Flow_Cri_13</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_Cri_OK" name="Criatura evoluída">
+      <bpmn:incoming>Flow_Cri_13</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_Cri_1" sourceRef="Start_Cri" targetRef="Task_Cri_Catalogo"/>
+    <bpmn:sequenceFlow id="Flow_Cri_2" sourceRef="Task_Cri_Catalogo" targetRef="Gw_Cri_TemInicial"/>
+    <bpmn:sequenceFlow id="Flow_Cri_3" sourceRef="Gw_Cri_TemInicial" targetRef="Task_Cri_EscolherInicial" name="Não"/>
+    <bpmn:sequenceFlow id="Flow_Cri_4" sourceRef="Gw_Cri_TemInicial" targetRef="Task_Cri_Adquirir" name="Sim"/>
+    <bpmn:sequenceFlow id="Flow_Cri_5" sourceRef="Task_Cri_EscolherInicial" targetRef="Task_Cri_Adquirir"/>
+    <bpmn:sequenceFlow id="Flow_Cri_6" sourceRef="Task_Cri_Adquirir" targetRef="Task_Cri_Ativar"/>
+    <bpmn:sequenceFlow id="Flow_Cri_7" sourceRef="Task_Cri_Ativar" targetRef="Task_Cri_Evoluir"/>
+    <bpmn:sequenceFlow id="Flow_Cri_8" sourceRef="Task_Cri_Evoluir" targetRef="Gw_Cri_FormaFinal"/>
+    <bpmn:sequenceFlow id="Flow_Cri_9" sourceRef="Gw_Cri_FormaFinal" targetRef="End_Cri_Final" name="Sim"/>
+    <bpmn:sequenceFlow id="Flow_Cri_10" sourceRef="Gw_Cri_FormaFinal" targetRef="Gw_Cri_Nivel" name="Não"/>
+    <bpmn:sequenceFlow id="Flow_Cri_11" sourceRef="Gw_Cri_Nivel" targetRef="Task_Cri_Evoluir1" name="Sim"/>
+    <bpmn:sequenceFlow id="Flow_Cri_12" sourceRef="Gw_Cri_Nivel" targetRef="End_Cri_Nivel" name="Não"/>
+    <bpmn:sequenceFlow id="Flow_Cri_13" sourceRef="Task_Cri_Evoluir1" targetRef="End_Cri_OK"/>
+  </bpmn:process>
+
+  <bpmn:process id="Proc_Detalhe_LGPD" name="Detalhe: Direitos LGPD (atividade, exportação, aceite, exclusão)" isExecutable="false">
+    <bpmn:startEvent id="Start_LGPD" name="Abrir área de conta">
+      <bpmn:outgoing>Flow_LGPD_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_LGPD_Atividade" name="Consultar atividade da conta">
+      <bpmn:incoming>Flow_LGPD_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_LGPD_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gw_LGPD_Acao" name="Qual direito exercer?">
+      <bpmn:incoming>Flow_LGPD_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_LGPD_3</bpmn:outgoing>
+      <bpmn:outgoing>Flow_LGPD_4</bpmn:outgoing>
+      <bpmn:outgoing>Flow_LGPD_5</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <bpmn:serviceTask id="Task_LGPD_Exportar" name="Exportar dados pessoais em JSON">
+      <bpmn:incoming>Flow_LGPD_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_LGPD_6</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_LGPD_Exportado" name="Exportação concluída">
+      <bpmn:incoming>Flow_LGPD_6</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:userTask id="Task_LGPD_Aceitar" name="Aceitar termos/privacidade pendentes">
+      <bpmn:incoming>Flow_LGPD_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_LGPD_7</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="End_LGPD_Aceite" name="Novo aceite registrado">
+      <bpmn:incoming>Flow_LGPD_7</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:userTask id="Task_LGPD_SolicitarExc" name="Solicitar exclusão (e-mail + senha)">
+      <bpmn:incoming>Flow_LGPD_5</bpmn:incoming>
+      <bpmn:outgoing>Flow_LGPD_8</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="Task_LGPD_EmailExc" name="Enviar link de confirmação de exclusão">
+      <bpmn:incoming>Flow_LGPD_8</bpmn:incoming>
+      <bpmn:outgoing>Flow_LGPD_9</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:intermediateCatchEvent id="Evt_LGPD_Confirma" name="Receber token de confirmação">
+      <bpmn:incoming>Flow_LGPD_9</bpmn:incoming>
+      <bpmn:outgoing>Flow_LGPD_10</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="Msg_LGPD_Confirmacao"/>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:userTask id="Task_LGPD_Validar" name="Validar token e senha">
+      <bpmn:incoming>Flow_LGPD_10</bpmn:incoming>
+      <bpmn:outgoing>Flow_LGPD_11</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gw_LGPD_Valido" name="Token e senha válidos?">
+      <bpmn:incoming>Flow_LGPD_11</bpmn:incoming>
+      <bpmn:outgoing>Flow_LGPD_12</bpmn:outgoing>
+      <bpmn:outgoing>Flow_LGPD_13</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_LGPD_Invalido" name="Falha: token/senha inválidos">
+      <bpmn:incoming>Flow_LGPD_13</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:serviceTask id="Task_LGPD_Anonimizar" name="Anonimizar conta e encerrar sessão">
+      <bpmn:incoming>Flow_LGPD_12</bpmn:incoming>
+      <bpmn:outgoing>Flow_LGPD_14</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_LGPD_Anonimizada" name="Conta anonimizada">
+      <bpmn:incoming>Flow_LGPD_14</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_LGPD_1" sourceRef="Start_LGPD" targetRef="Task_LGPD_Atividade"/>
+    <bpmn:sequenceFlow id="Flow_LGPD_2" sourceRef="Task_LGPD_Atividade" targetRef="Gw_LGPD_Acao"/>
+    <bpmn:sequenceFlow id="Flow_LGPD_3" sourceRef="Gw_LGPD_Acao" targetRef="Task_LGPD_Exportar" name="Exportar"/>
+    <bpmn:sequenceFlow id="Flow_LGPD_4" sourceRef="Gw_LGPD_Acao" targetRef="Task_LGPD_Aceitar" name="Aceitar pendentes"/>
+    <bpmn:sequenceFlow id="Flow_LGPD_5" sourceRef="Gw_LGPD_Acao" targetRef="Task_LGPD_SolicitarExc" name="Excluir conta"/>
+    <bpmn:sequenceFlow id="Flow_LGPD_6" sourceRef="Task_LGPD_Exportar" targetRef="End_LGPD_Exportado"/>
+    <bpmn:sequenceFlow id="Flow_LGPD_7" sourceRef="Task_LGPD_Aceitar" targetRef="End_LGPD_Aceite"/>
+    <bpmn:sequenceFlow id="Flow_LGPD_8" sourceRef="Task_LGPD_SolicitarExc" targetRef="Task_LGPD_EmailExc"/>
+    <bpmn:sequenceFlow id="Flow_LGPD_9" sourceRef="Task_LGPD_EmailExc" targetRef="Evt_LGPD_Confirma"/>
+    <bpmn:sequenceFlow id="Flow_LGPD_10" sourceRef="Evt_LGPD_Confirma" targetRef="Task_LGPD_Validar"/>
+    <bpmn:sequenceFlow id="Flow_LGPD_11" sourceRef="Task_LGPD_Validar" targetRef="Gw_LGPD_Valido"/>
+    <bpmn:sequenceFlow id="Flow_LGPD_12" sourceRef="Gw_LGPD_Valido" targetRef="Task_LGPD_Anonimizar" name="Sim"/>
+    <bpmn:sequenceFlow id="Flow_LGPD_13" sourceRef="Gw_LGPD_Valido" targetRef="End_LGPD_Invalido" name="Não"/>
+    <bpmn:sequenceFlow id="Flow_LGPD_14" sourceRef="Task_LGPD_Anonimizar" targetRef="End_LGPD_Anonimizada"/>
+  </bpmn:process>
+
+  <bpmn:process id="Proc_Detalhe_RBACAuditoria" name="Detalhe: Administração RBAC e auditoria" isExecutable="false">
+    <bpmn:startEvent id="Start_RBAC" name="Ação administrativa">
+      <bpmn:outgoing>Flow_RBAC_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_RBAC_Gerir" name="Gerenciar níveis e permissões RBAC">
+      <bpmn:incoming>Flow_RBAC_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_RBAC_2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_RBAC_Atribuir" name="Atribuir nível a usuário">
+      <bpmn:incoming>Flow_RBAC_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_RBAC_3</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="Task_RBAC_Auditar" name="Registrar evento append-only de auditoria">
+      <bpmn:incoming>Flow_RBAC_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_RBAC_4</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="Task_RBAC_Consultar" name="Consultar trilha de auditoria (com permissão)">
+      <bpmn:incoming>Flow_RBAC_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_RBAC_5</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="End_RBAC" name="Administração concluída">
+      <bpmn:incoming>Flow_RBAC_5</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_RBAC_1" sourceRef="Start_RBAC" targetRef="Task_RBAC_Gerir"/>
+    <bpmn:sequenceFlow id="Flow_RBAC_2" sourceRef="Task_RBAC_Gerir" targetRef="Task_RBAC_Atribuir"/>
+    <bpmn:sequenceFlow id="Flow_RBAC_3" sourceRef="Task_RBAC_Atribuir" targetRef="Task_RBAC_Auditar"/>
+    <bpmn:sequenceFlow id="Flow_RBAC_4" sourceRef="Task_RBAC_Auditar" targetRef="Task_RBAC_Consultar"/>
+    <bpmn:sequenceFlow id="Flow_RBAC_5" sourceRef="Task_RBAC_Consultar" targetRef="End_RBAC"/>
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="Diag_Collab" name="Visão geral do sistema"><bpmndi:BPMNPlane id="Plane_Collab" bpmnElement="Collab_CodeQuest"><bpmndi:BPMNShape id="Shape_Part_Aluno" bpmnElement="Part_Aluno" isHorizontal="true"><dc:Bounds x="40" y="40" width="1880" height="105"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Part_AutorAdmin" bpmnElement="Part_AutorAdmin" isHorizontal="true"><dc:Bounds x="40" y="165" width="1880" height="105"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Part_Frontend" bpmnElement="Part_Frontend" isHorizontal="true"><dc:Bounds x="40" y="290" width="1880" height="120"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Part_API" bpmnElement="Part_API" isHorizontal="true"><dc:Bounds x="40" y="430" width="1880" height="500"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Part_DB" bpmnElement="Part_DB" isHorizontal="true"><dc:Bounds x="40" y="950" width="1880" height="105"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Part_Email" bpmnElement="Part_Email" isHorizontal="true"><dc:Bounds x="40" y="1075" width="1880" height="105"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Part_Judge0" bpmnElement="Part_Judge0" isHorizontal="true"><dc:Bounds x="40" y="1200" width="1880" height="105"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Start_Aluno" bpmnElement="Start_Aluno"><dc:Bounds x="105" y="74" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Aluno_Usar" bpmnElement="Task_Aluno_Usar"><dc:Bounds x="220" y="54" width="340" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Aluno" bpmnElement="End_Aluno"><dc:Bounds x="610" y="74" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Start_Autor" bpmnElement="Start_Autor"><dc:Bounds x="105" y="199" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Autor_Operar" bpmnElement="Task_Autor_Operar"><dc:Bounds x="220" y="179" width="340" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Autor" bpmnElement="End_Autor"><dc:Bounds x="610" y="199" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Start_FE" bpmnElement="Start_FE"><dc:Bounds x="105" y="332" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_FE_Enviar" bpmnElement="Task_FE_Enviar"><dc:Bounds x="180" y="312" width="220" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_FE_Renderizar" bpmnElement="Task_FE_Renderizar"><dc:Bounds x="500" y="312" width="220" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_FE" bpmnElement="End_FE"><dc:Bounds x="790" y="332" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Start_API" bpmnElement="Start_API"><dc:Bounds x="90" y="660" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_API_Receber" bpmnElement="Task_API_Receber"><dc:Bounds x="150" y="640" width="210" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gateway_API_Dominio" bpmnElement="Gateway_API_Dominio"><dc:Bounds x="390" y="652" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Call_Cadastro" bpmnElement="Call_Cadastro"><dc:Bounds x="485" y="452" width="210" height="54"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Call_Editorial" bpmnElement="Call_Editorial"><dc:Bounds x="485" y="514" width="210" height="54"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Call_Jornada" bpmnElement="Call_Jornada"><dc:Bounds x="485" y="576" width="210" height="54"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Call_Correcao" bpmnElement="Call_Correcao"><dc:Bounds x="485" y="638" width="210" height="54"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Call_Criaturas" bpmnElement="Call_Criaturas"><dc:Bounds x="485" y="700" width="210" height="54"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Call_LGPD" bpmnElement="Call_LGPD"><dc:Bounds x="485" y="762" width="210" height="54"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Call_RBAC" bpmnElement="Call_RBAC"><dc:Bounds x="485" y="824" width="210" height="54"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gateway_API_Join" bpmnElement="Gateway_API_Join"><dc:Bounds x="735" y="652" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_API_Persistir" bpmnElement="Task_API_Persistir"><dc:Bounds x="805" y="640" width="170" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_API_Email" bpmnElement="Task_API_Email"><dc:Bounds x="1000" y="640" width="160" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_API_Judge0" bpmnElement="Task_API_Judge0"><dc:Bounds x="1185" y="640" width="160" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_API_Responder" bpmnElement="Task_API_Responder"><dc:Bounds x="1370" y="640" width="200" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_API" bpmnElement="End_API"><dc:Bounds x="1610" y="660" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Start_DB" bpmnElement="Start_DB"><dc:Bounds x="105" y="984" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_DB_Persistir" bpmnElement="Task_DB_Persistir"><dc:Bounds x="190" y="964" width="230" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_DB" bpmnElement="End_DB"><dc:Bounds x="465" y="984" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Start_Email" bpmnElement="Start_Email"><dc:Bounds x="105" y="1109" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Email_Enviar" bpmnElement="Task_Email_Enviar"><dc:Bounds x="190" y="1089" width="230" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Email" bpmnElement="End_Email"><dc:Bounds x="465" y="1109" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Start_Judge" bpmnElement="Start_Judge"><dc:Bounds x="105" y="1234" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Judge_Executar" bpmnElement="Task_Judge_Executar"><dc:Bounds x="190" y="1214" width="230" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Judge" bpmnElement="End_Judge"><dc:Bounds x="465" y="1234" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNEdge id="Edge_Flow_Aluno_1" bpmnElement="Flow_Aluno_1"><di:waypoint x="141" y="92.0"/><di:waypoint x="180.5" y="92.0"/><di:waypoint x="180.5" y="92.0"/><di:waypoint x="220" y="92.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Aluno_2" bpmnElement="Flow_Aluno_2"><di:waypoint x="560" y="92.0"/><di:waypoint x="585.0" y="92.0"/><di:waypoint x="585.0" y="92.0"/><di:waypoint x="610" y="92.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Autor_1" bpmnElement="Flow_Autor_1"><di:waypoint x="141" y="217.0"/><di:waypoint x="180.5" y="217.0"/><di:waypoint x="180.5" y="217.0"/><di:waypoint x="220" y="217.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Autor_2" bpmnElement="Flow_Autor_2"><di:waypoint x="560" y="217.0"/><di:waypoint x="585.0" y="217.0"/><di:waypoint x="585.0" y="217.0"/><di:waypoint x="610" y="217.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_FE_1" bpmnElement="Flow_FE_1"><di:waypoint x="141" y="350.0"/><di:waypoint x="160.5" y="350.0"/><di:waypoint x="160.5" y="350.0"/><di:waypoint x="180" y="350.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_FE_2" bpmnElement="Flow_FE_2"><di:waypoint x="400" y="350.0"/><di:waypoint x="450.0" y="350.0"/><di:waypoint x="450.0" y="350.0"/><di:waypoint x="500" y="350.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_FE_3" bpmnElement="Flow_FE_3"><di:waypoint x="720" y="350.0"/><di:waypoint x="755.0" y="350.0"/><di:waypoint x="755.0" y="350.0"/><di:waypoint x="790" y="350.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_1" bpmnElement="Flow_API_1"><di:waypoint x="126" y="678.0"/><di:waypoint x="138.0" y="678.0"/><di:waypoint x="138.0" y="678.0"/><di:waypoint x="150" y="678.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_2" bpmnElement="Flow_API_2"><di:waypoint x="360" y="678.0"/><di:waypoint x="375.0" y="678.0"/><di:waypoint x="375.0" y="678.0"/><di:waypoint x="390" y="678.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_3" bpmnElement="Flow_API_3"><di:waypoint x="442" y="678.0"/><di:waypoint x="470" y="678.0"/><di:waypoint x="470" y="479.0"/><di:waypoint x="485" y="479.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_4" bpmnElement="Flow_API_4"><di:waypoint x="442" y="678.0"/><di:waypoint x="470" y="678.0"/><di:waypoint x="470" y="541.0"/><di:waypoint x="485" y="541.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_5" bpmnElement="Flow_API_5"><di:waypoint x="442" y="678.0"/><di:waypoint x="470" y="678.0"/><di:waypoint x="470" y="603.0"/><di:waypoint x="485" y="603.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_6" bpmnElement="Flow_API_6"><di:waypoint x="442" y="678.0"/><di:waypoint x="470" y="678.0"/><di:waypoint x="470" y="665.0"/><di:waypoint x="485" y="665.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_7" bpmnElement="Flow_API_7"><di:waypoint x="442" y="678.0"/><di:waypoint x="470" y="678.0"/><di:waypoint x="470" y="727.0"/><di:waypoint x="485" y="727.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_8" bpmnElement="Flow_API_8"><di:waypoint x="442" y="678.0"/><di:waypoint x="470" y="678.0"/><di:waypoint x="470" y="789.0"/><di:waypoint x="485" y="789.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_9" bpmnElement="Flow_API_9"><di:waypoint x="442" y="678.0"/><di:waypoint x="470" y="678.0"/><di:waypoint x="470" y="851.0"/><di:waypoint x="485" y="851.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_10" bpmnElement="Flow_API_10"><di:waypoint x="695" y="479.0"/><di:waypoint x="711" y="479.0"/><di:waypoint x="711" y="678.0"/><di:waypoint x="735" y="678.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_10a" bpmnElement="Flow_API_10a"><di:waypoint x="695" y="541.0"/><di:waypoint x="711" y="541.0"/><di:waypoint x="711" y="678.0"/><di:waypoint x="735" y="678.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_10b" bpmnElement="Flow_API_10b"><di:waypoint x="695" y="603.0"/><di:waypoint x="711" y="603.0"/><di:waypoint x="711" y="678.0"/><di:waypoint x="735" y="678.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_10c" bpmnElement="Flow_API_10c"><di:waypoint x="695" y="665.0"/><di:waypoint x="711" y="665.0"/><di:waypoint x="711" y="678.0"/><di:waypoint x="735" y="678.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_10d" bpmnElement="Flow_API_10d"><di:waypoint x="695" y="727.0"/><di:waypoint x="711" y="727.0"/><di:waypoint x="711" y="678.0"/><di:waypoint x="735" y="678.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_10e" bpmnElement="Flow_API_10e"><di:waypoint x="695" y="789.0"/><di:waypoint x="711" y="789.0"/><di:waypoint x="711" y="678.0"/><di:waypoint x="735" y="678.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_10f" bpmnElement="Flow_API_10f"><di:waypoint x="695" y="851.0"/><di:waypoint x="711" y="851.0"/><di:waypoint x="711" y="678.0"/><di:waypoint x="735" y="678.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_11" bpmnElement="Flow_API_11"><di:waypoint x="787" y="678.0"/><di:waypoint x="796.0" y="678.0"/><di:waypoint x="796.0" y="678.0"/><di:waypoint x="805" y="678.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_12" bpmnElement="Flow_API_12"><di:waypoint x="975" y="678.0"/><di:waypoint x="987.5" y="678.0"/><di:waypoint x="987.5" y="678.0"/><di:waypoint x="1000" y="678.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_13" bpmnElement="Flow_API_13"><di:waypoint x="1160" y="678.0"/><di:waypoint x="1172.5" y="678.0"/><di:waypoint x="1172.5" y="678.0"/><di:waypoint x="1185" y="678.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_14" bpmnElement="Flow_API_14"><di:waypoint x="1345" y="678.0"/><di:waypoint x="1357.5" y="678.0"/><di:waypoint x="1357.5" y="678.0"/><di:waypoint x="1370" y="678.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_15" bpmnElement="Flow_API_15"><di:waypoint x="1570" y="678.0"/><di:waypoint x="1590.0" y="678.0"/><di:waypoint x="1590.0" y="678.0"/><di:waypoint x="1610" y="678.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_DB_1" bpmnElement="Flow_DB_1"><di:waypoint x="141" y="1002.0"/><di:waypoint x="165.5" y="1002.0"/><di:waypoint x="165.5" y="1002.0"/><di:waypoint x="190" y="1002.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_DB_2" bpmnElement="Flow_DB_2"><di:waypoint x="420" y="1002.0"/><di:waypoint x="442.5" y="1002.0"/><di:waypoint x="442.5" y="1002.0"/><di:waypoint x="465" y="1002.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Email_1" bpmnElement="Flow_Email_1"><di:waypoint x="141" y="1127.0"/><di:waypoint x="165.5" y="1127.0"/><di:waypoint x="165.5" y="1127.0"/><di:waypoint x="190" y="1127.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Email_2" bpmnElement="Flow_Email_2"><di:waypoint x="420" y="1127.0"/><di:waypoint x="442.5" y="1127.0"/><di:waypoint x="442.5" y="1127.0"/><di:waypoint x="465" y="1127.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Judge_1" bpmnElement="Flow_Judge_1"><di:waypoint x="141" y="1252.0"/><di:waypoint x="165.5" y="1252.0"/><di:waypoint x="165.5" y="1252.0"/><di:waypoint x="190" y="1252.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Judge_2" bpmnElement="Flow_Judge_2"><di:waypoint x="420" y="1252.0"/><di:waypoint x="442.5" y="1252.0"/><di:waypoint x="442.5" y="1252.0"/><di:waypoint x="465" y="1252.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_MF_FE_API" bpmnElement="MF_FE_API"><di:waypoint x="290.0" y="350.0"/><di:waypoint x="290.0" y="514.0"/><di:waypoint x="255.0" y="514.0"/><di:waypoint x="255.0" y="678.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_MF_API_FE" bpmnElement="MF_API_FE"><di:waypoint x="1470.0" y="678.0"/><di:waypoint x="1470.0" y="514.0"/><di:waypoint x="610.0" y="514.0"/><di:waypoint x="610.0" y="350.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_MF_API_DB" bpmnElement="MF_API_DB"><di:waypoint x="890.0" y="678.0"/><di:waypoint x="890.0" y="840.0"/><di:waypoint x="305.0" y="840.0"/><di:waypoint x="305.0" y="1002.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_MF_DB_API" bpmnElement="MF_DB_API"><di:waypoint x="305.0" y="1002.0"/><di:waypoint x="305.0" y="840.0"/><di:waypoint x="1470.0" y="840.0"/><di:waypoint x="1470.0" y="678.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_MF_API_EMAIL" bpmnElement="MF_API_EMAIL"><di:waypoint x="1080.0" y="678.0"/><di:waypoint x="1080.0" y="902.5"/><di:waypoint x="305.0" y="902.5"/><di:waypoint x="305.0" y="1127.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_MF_EMAIL_API" bpmnElement="MF_EMAIL_API"><di:waypoint x="305.0" y="1127.0"/><di:waypoint x="305.0" y="902.5"/><di:waypoint x="1470.0" y="902.5"/><di:waypoint x="1470.0" y="678.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_MF_API_JUDGE" bpmnElement="MF_API_JUDGE"><di:waypoint x="1265.0" y="678.0"/><di:waypoint x="1265.0" y="965.0"/><di:waypoint x="305.0" y="965.0"/><di:waypoint x="305.0" y="1252.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_MF_JUDGE_API" bpmnElement="MF_JUDGE_API"><di:waypoint x="305.0" y="1252.0"/><di:waypoint x="305.0" y="965.0"/><di:waypoint x="1470.0" y="965.0"/><di:waypoint x="1470.0" y="678.0"/></bpmndi:BPMNEdge></bpmndi:BPMNPlane></bpmndi:BPMNDiagram><bpmndi:BPMNDiagram id="Diag_Proc_Aluno" name="Interação do Aluno"><bpmndi:BPMNPlane id="Plane_Proc_Aluno" bpmnElement="Proc_Aluno"><bpmndi:BPMNShape id="Shape_Start_Aluno_Proc_Aluno" bpmnElement="Start_Aluno"><dc:Bounds x="140.0" y="140.8" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Aluno_Usar_Proc_Aluno" bpmnElement="Task_Aluno_Usar"><dc:Bounds x="262.2" y="120.0" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Aluno_Proc_Aluno" bpmnElement="End_Aluno"><dc:Bounds x="544.2" y="140.8" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNEdge id="Edge_Flow_Aluno_1_Proc_Aluno" bpmnElement="Flow_Aluno_1"><di:waypoint x="176.0" y="158.8"/><di:waypoint x="219.1" y="158.8"/><di:waypoint x="262.2" y="158.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Aluno_2_Proc_Aluno" bpmnElement="Flow_Aluno_2"><di:waypoint x="452.2" y="158.0"/><di:waypoint x="498.2" y="158.0"/><di:waypoint x="544.2" y="158.8"/></bpmndi:BPMNEdge></bpmndi:BPMNPlane></bpmndi:BPMNDiagram><bpmndi:BPMNDiagram id="Diag_Proc_AutorAdmin" name="Interação Autor/Revisor/Admin"><bpmndi:BPMNPlane id="Plane_Proc_AutorAdmin" bpmnElement="Proc_AutorAdmin"><bpmndi:BPMNShape id="Shape_Start_Autor_Proc_AutorAdmin" bpmnElement="Start_Autor"><dc:Bounds x="140.0" y="140.8" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Autor_Operar_Proc_AutorAdmin" bpmnElement="Task_Autor_Operar"><dc:Bounds x="262.2" y="120.0" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Autor_Proc_AutorAdmin" bpmnElement="End_Autor"><dc:Bounds x="544.2" y="140.8" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNEdge id="Edge_Flow_Autor_1_Proc_AutorAdmin" bpmnElement="Flow_Autor_1"><di:waypoint x="176.0" y="158.8"/><di:waypoint x="219.1" y="158.8"/><di:waypoint x="262.2" y="158.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Autor_2_Proc_AutorAdmin" bpmnElement="Flow_Autor_2"><di:waypoint x="452.2" y="158.0"/><di:waypoint x="498.2" y="158.0"/><di:waypoint x="544.2" y="158.8"/></bpmndi:BPMNEdge></bpmndi:BPMNPlane></bpmndi:BPMNDiagram><bpmndi:BPMNDiagram id="Diag_Proc_Frontend" name="Frontend Next.js"><bpmndi:BPMNPlane id="Plane_Proc_Frontend" bpmnElement="Proc_Frontend"><bpmndi:BPMNShape id="Shape_Start_FE_Proc_Frontend" bpmnElement="Start_FE"><dc:Bounds x="140.0" y="140.8" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_FE_Enviar_Proc_Frontend" bpmnElement="Task_FE_Enviar"><dc:Bounds x="262.2" y="120.0" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_FE_Renderizar_Proc_Frontend" bpmnElement="Task_FE_Renderizar"><dc:Bounds x="544.2" y="120.0" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_FE_Proc_Frontend" bpmnElement="End_FE"><dc:Bounds x="826.1" y="140.8" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNEdge id="Edge_Flow_FE_1_Proc_Frontend" bpmnElement="Flow_FE_1"><di:waypoint x="176.0" y="158.8"/><di:waypoint x="219.1" y="158.8"/><di:waypoint x="262.2" y="158.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_FE_2_Proc_Frontend" bpmnElement="Flow_FE_2"><di:waypoint x="452.2" y="158.0"/><di:waypoint x="498.2" y="158.0"/><di:waypoint x="544.2" y="158.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_FE_3_Proc_Frontend" bpmnElement="Flow_FE_3"><di:waypoint x="734.2" y="158.0"/><di:waypoint x="780.1" y="158.0"/><di:waypoint x="826.1" y="158.8"/></bpmndi:BPMNEdge></bpmndi:BPMNPlane></bpmndi:BPMNDiagram><bpmndi:BPMNDiagram id="Diag_Proc_API_Orquestracao" name="API Django/DRF (orquestração macro)"><bpmndi:BPMNPlane id="Plane_Proc_API_Orquestracao" bpmnElement="Proc_API_Orquestracao"><bpmndi:BPMNShape id="Shape_Start_API_Proc_API_Orquestracao" bpmnElement="Start_API"><dc:Bounds x="140.0" y="480.4" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_API_Receber_Proc_API_Orquestracao" bpmnElement="Task_API_Receber"><dc:Bounds x="262.2" y="459.6" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gateway_API_Dominio_Proc_API_Orquestracao" bpmnElement="Gateway_API_Dominio"><dc:Bounds x="544.2" y="472.1" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Call_Cadastro_Proc_API_Orquestracao" bpmnElement="Call_Cadastro"><dc:Bounds x="683.1" y="120.0" width="200" height="64"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Call_Editorial_Proc_API_Orquestracao" bpmnElement="Call_Editorial"><dc:Bounds x="683.1" y="235.3" width="200" height="64"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Call_Jornada_Proc_API_Orquestracao" bpmnElement="Call_Jornada"><dc:Bounds x="683.1" y="350.6" width="200" height="64"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Call_Correcao_Proc_API_Orquestracao" bpmnElement="Call_Correcao"><dc:Bounds x="683.1" y="465.8" width="200" height="64"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Call_Criaturas_Proc_API_Orquestracao" bpmnElement="Call_Criaturas"><dc:Bounds x="683.1" y="581.1" width="200" height="64"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Call_LGPD_Proc_API_Orquestracao" bpmnElement="Call_LGPD"><dc:Bounds x="683.1" y="696.4" width="200" height="64"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Call_RBAC_Proc_API_Orquestracao" bpmnElement="Call_RBAC"><dc:Bounds x="683.1" y="811.7" width="200" height="64"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gateway_API_Join_Proc_API_Orquestracao" bpmnElement="Gateway_API_Join"><dc:Bounds x="976.1" y="472.1" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_API_Persistir_Proc_API_Orquestracao" bpmnElement="Task_API_Persistir"><dc:Bounds x="1115.0" y="459.6" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_API_Email_Proc_API_Orquestracao" bpmnElement="Task_API_Email"><dc:Bounds x="1397.0" y="459.6" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_API_Judge0_Proc_API_Orquestracao" bpmnElement="Task_API_Judge0"><dc:Bounds x="1678.9" y="459.6" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_API_Responder_Proc_API_Orquestracao" bpmnElement="Task_API_Responder"><dc:Bounds x="1960.8" y="459.6" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_API_Proc_API_Orquestracao" bpmnElement="End_API"><dc:Bounds x="2242.8" y="480.4" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNEdge id="Edge_Flow_API_1_Proc_API_Orquestracao" bpmnElement="Flow_API_1"><di:waypoint x="176.0" y="498.4"/><di:waypoint x="219.1" y="498.4"/><di:waypoint x="262.2" y="497.6"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_2_Proc_API_Orquestracao" bpmnElement="Flow_API_2"><di:waypoint x="452.2" y="497.6"/><di:waypoint x="498.2" y="497.6"/><di:waypoint x="544.2" y="498.1"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_3_Proc_API_Orquestracao" bpmnElement="Flow_API_3"><di:waypoint x="596.2" y="498.1"/><di:waypoint x="639.6" y="498.1"/><di:waypoint x="639.6" y="152.0"/><di:waypoint x="683.1" y="152.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_4_Proc_API_Orquestracao" bpmnElement="Flow_API_4"><di:waypoint x="596.2" y="498.1"/><di:waypoint x="639.6" y="498.1"/><di:waypoint x="639.6" y="267.3"/><di:waypoint x="683.1" y="267.3"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_5_Proc_API_Orquestracao" bpmnElement="Flow_API_5"><di:waypoint x="596.2" y="498.1"/><di:waypoint x="639.6" y="498.1"/><di:waypoint x="639.6" y="382.6"/><di:waypoint x="683.1" y="382.6"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_6_Proc_API_Orquestracao" bpmnElement="Flow_API_6"><di:waypoint x="596.2" y="498.1"/><di:waypoint x="639.6" y="498.1"/><di:waypoint x="683.1" y="497.8"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_7_Proc_API_Orquestracao" bpmnElement="Flow_API_7"><di:waypoint x="596.2" y="498.1"/><di:waypoint x="639.6" y="498.1"/><di:waypoint x="639.6" y="613.1"/><di:waypoint x="683.1" y="613.1"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_8_Proc_API_Orquestracao" bpmnElement="Flow_API_8"><di:waypoint x="596.2" y="498.1"/><di:waypoint x="639.6" y="498.1"/><di:waypoint x="639.6" y="728.4"/><di:waypoint x="683.1" y="728.4"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_9_Proc_API_Orquestracao" bpmnElement="Flow_API_9"><di:waypoint x="596.2" y="498.1"/><di:waypoint x="639.6" y="498.1"/><di:waypoint x="639.6" y="843.7"/><di:waypoint x="683.1" y="843.7"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_10_Proc_API_Orquestracao" bpmnElement="Flow_API_10"><di:waypoint x="883.1" y="152.0"/><di:waypoint x="929.6" y="152.0"/><di:waypoint x="929.6" y="498.1"/><di:waypoint x="976.1" y="498.1"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_10a_Proc_API_Orquestracao" bpmnElement="Flow_API_10a"><di:waypoint x="883.1" y="267.3"/><di:waypoint x="929.6" y="267.3"/><di:waypoint x="929.6" y="498.1"/><di:waypoint x="976.1" y="498.1"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_10b_Proc_API_Orquestracao" bpmnElement="Flow_API_10b"><di:waypoint x="883.1" y="382.6"/><di:waypoint x="929.6" y="382.6"/><di:waypoint x="929.6" y="498.1"/><di:waypoint x="976.1" y="498.1"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_10c_Proc_API_Orquestracao" bpmnElement="Flow_API_10c"><di:waypoint x="883.1" y="497.8"/><di:waypoint x="929.6" y="497.8"/><di:waypoint x="976.1" y="498.1"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_10d_Proc_API_Orquestracao" bpmnElement="Flow_API_10d"><di:waypoint x="883.1" y="613.1"/><di:waypoint x="929.6" y="613.1"/><di:waypoint x="929.6" y="498.1"/><di:waypoint x="976.1" y="498.1"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_10e_Proc_API_Orquestracao" bpmnElement="Flow_API_10e"><di:waypoint x="883.1" y="728.4"/><di:waypoint x="929.6" y="728.4"/><di:waypoint x="929.6" y="498.1"/><di:waypoint x="976.1" y="498.1"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_10f_Proc_API_Orquestracao" bpmnElement="Flow_API_10f"><di:waypoint x="883.1" y="843.7"/><di:waypoint x="929.6" y="843.7"/><di:waypoint x="929.6" y="498.1"/><di:waypoint x="976.1" y="498.1"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_11_Proc_API_Orquestracao" bpmnElement="Flow_API_11"><di:waypoint x="1028.1" y="498.1"/><di:waypoint x="1071.5" y="498.1"/><di:waypoint x="1115.0" y="497.6"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_12_Proc_API_Orquestracao" bpmnElement="Flow_API_12"><di:waypoint x="1305.0" y="497.6"/><di:waypoint x="1351.0" y="497.6"/><di:waypoint x="1397.0" y="497.6"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_13_Proc_API_Orquestracao" bpmnElement="Flow_API_13"><di:waypoint x="1587.0" y="497.6"/><di:waypoint x="1632.9" y="497.6"/><di:waypoint x="1678.9" y="497.6"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_14_Proc_API_Orquestracao" bpmnElement="Flow_API_14"><di:waypoint x="1868.9" y="497.6"/><di:waypoint x="1914.8" y="497.6"/><di:waypoint x="1960.8" y="497.6"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_API_15_Proc_API_Orquestracao" bpmnElement="Flow_API_15"><di:waypoint x="2150.8" y="497.6"/><di:waypoint x="2196.8" y="497.6"/><di:waypoint x="2242.8" y="498.4"/></bpmndi:BPMNEdge></bpmndi:BPMNPlane></bpmndi:BPMNDiagram><bpmndi:BPMNDiagram id="Diag_Proc_DB" name="Banco PostgreSQL"><bpmndi:BPMNPlane id="Plane_Proc_DB" bpmnElement="Proc_DB"><bpmndi:BPMNShape id="Shape_Start_DB_Proc_DB" bpmnElement="Start_DB"><dc:Bounds x="140.0" y="140.8" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_DB_Persistir_Proc_DB" bpmnElement="Task_DB_Persistir"><dc:Bounds x="262.2" y="120.0" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_DB_Proc_DB" bpmnElement="End_DB"><dc:Bounds x="544.2" y="140.8" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNEdge id="Edge_Flow_DB_1_Proc_DB" bpmnElement="Flow_DB_1"><di:waypoint x="176.0" y="158.8"/><di:waypoint x="219.1" y="158.8"/><di:waypoint x="262.2" y="158.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_DB_2_Proc_DB" bpmnElement="Flow_DB_2"><di:waypoint x="452.2" y="158.0"/><di:waypoint x="498.2" y="158.0"/><di:waypoint x="544.2" y="158.8"/></bpmndi:BPMNEdge></bpmndi:BPMNPlane></bpmndi:BPMNDiagram><bpmndi:BPMNDiagram id="Diag_Proc_Email" name="Serviço de E-mail"><bpmndi:BPMNPlane id="Plane_Proc_Email" bpmnElement="Proc_Email"><bpmndi:BPMNShape id="Shape_Start_Email_Proc_Email" bpmnElement="Start_Email"><dc:Bounds x="140.0" y="140.8" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Email_Enviar_Proc_Email" bpmnElement="Task_Email_Enviar"><dc:Bounds x="262.2" y="120.0" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Email_Proc_Email" bpmnElement="End_Email"><dc:Bounds x="544.2" y="140.8" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNEdge id="Edge_Flow_Email_1_Proc_Email" bpmnElement="Flow_Email_1"><di:waypoint x="176.0" y="158.8"/><di:waypoint x="219.1" y="158.8"/><di:waypoint x="262.2" y="158.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Email_2_Proc_Email" bpmnElement="Flow_Email_2"><di:waypoint x="452.2" y="158.0"/><di:waypoint x="498.2" y="158.0"/><di:waypoint x="544.2" y="158.8"/></bpmndi:BPMNEdge></bpmndi:BPMNPlane></bpmndi:BPMNDiagram><bpmndi:BPMNDiagram id="Diag_Proc_Judge0" name="Judge0"><bpmndi:BPMNPlane id="Plane_Proc_Judge0" bpmnElement="Proc_Judge0"><bpmndi:BPMNShape id="Shape_Start_Judge_Proc_Judge0" bpmnElement="Start_Judge"><dc:Bounds x="140.0" y="140.8" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Judge_Executar_Proc_Judge0" bpmnElement="Task_Judge_Executar"><dc:Bounds x="262.2" y="120.0" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Judge_Proc_Judge0" bpmnElement="End_Judge"><dc:Bounds x="544.2" y="140.8" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNEdge id="Edge_Flow_Judge_1_Proc_Judge0" bpmnElement="Flow_Judge_1"><di:waypoint x="176.0" y="158.8"/><di:waypoint x="219.1" y="158.8"/><di:waypoint x="262.2" y="158.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Judge_2_Proc_Judge0" bpmnElement="Flow_Judge_2"><di:waypoint x="452.2" y="158.0"/><di:waypoint x="498.2" y="158.0"/><di:waypoint x="544.2" y="158.8"/></bpmndi:BPMNEdge></bpmndi:BPMNPlane></bpmndi:BPMNDiagram><bpmndi:BPMNDiagram id="Diag_Proc_Detalhe_CadastroLogin" name="Detalhe: Cadastro, verificação e login/MFA"><bpmndi:BPMNPlane id="Plane_Proc_Detalhe_CadastroLogin" bpmnElement="Proc_Detalhe_CadastroLogin"><bpmndi:BPMNShape id="Shape_Start_Cad_Proc_Detalhe_CadastroLogin" bpmnElement="Start_Cad"><dc:Bounds x="140.0" y="204.7" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Cad_Validar_Proc_Detalhe_CadastroLogin" bpmnElement="Task_Cad_Validar"><dc:Bounds x="262.2" y="183.9" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gw_Cad_EmailExiste_Proc_Detalhe_CadastroLogin" bpmnElement="Gw_Cad_EmailExiste"><dc:Bounds x="544.2" y="196.4" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Cad_AvisoTentativa_Proc_Detalhe_CadastroLogin" bpmnElement="Task_Cad_AvisoTentativa"><dc:Bounds x="683.1" y="120.0" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Cad_EmailExiste_Proc_Detalhe_CadastroLogin" bpmnElement="End_Cad_EmailExiste"><dc:Bounds x="965.0" y="140.8" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Cad_CriarConta_Proc_Detalhe_CadastroLogin" bpmnElement="Task_Cad_CriarConta"><dc:Bounds x="683.1" y="247.8" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Evt_Cad_AguardarClique_Proc_Detalhe_CadastroLogin" bpmnElement="Evt_Cad_AguardarClique"><dc:Bounds x="965.0" y="268.6" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gw_Cad_TokenVerifValido_Proc_Detalhe_CadastroLogin" bpmnElement="Gw_Cad_TokenVerifValido"><dc:Bounds x="1087.2" y="260.3" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Cad_Reenviar_Proc_Detalhe_CadastroLogin" bpmnElement="Task_Cad_Reenviar"><dc:Bounds x="1226.1" y="190.8" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Evt_Cad_TimerReenvio_Proc_Detalhe_CadastroLogin" bpmnElement="Evt_Cad_TimerReenvio"><dc:Bounds x="1508.0" y="222.8" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Login_Proc_Detalhe_CadastroLogin" bpmnElement="Task_Login"><dc:Bounds x="1630.3" y="258.9" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gw_Login_Bloqueado_Proc_Detalhe_CadastroLogin" bpmnElement="Gw_Login_Bloqueado"><dc:Bounds x="1912.2" y="271.4" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Login_Bloqueado_Proc_Detalhe_CadastroLogin" bpmnElement="End_Login_Bloqueado"><dc:Bounds x="2059.4" y="232.5" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gw_Login_MFAAtivo_Proc_Detalhe_CadastroLogin" bpmnElement="Gw_Login_MFAAtivo"><dc:Bounds x="2051.1" y="318.6" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Login_EmitirJWT_Proc_Detalhe_CadastroLogin" bpmnElement="Task_Login_EmitirJWT"><dc:Bounds x="2892.8" y="250.6" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Login_OK_Proc_Detalhe_CadastroLogin" bpmnElement="End_Login_OK"><dc:Bounds x="3174.8" y="271.4" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Login_DesafioMFA_Proc_Detalhe_CadastroLogin" bpmnElement="Task_Login_DesafioMFA"><dc:Bounds x="2190.0" y="363.1" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Login_ValidarMFA_Proc_Detalhe_CadastroLogin" bpmnElement="Task_Login_ValidarMFA"><dc:Bounds x="2472.0" y="363.1" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gw_Login_MFAValido_Proc_Detalhe_CadastroLogin" bpmnElement="Gw_Login_MFAValido"><dc:Bounds x="2753.9" y="372.8" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Login_MFAInvalido_Proc_Detalhe_CadastroLogin" bpmnElement="End_Login_MFAInvalido"><dc:Bounds x="2972.7" y="381.1" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNEdge id="Edge_Flow_Cad_1_Proc_Detalhe_CadastroLogin" bpmnElement="Flow_Cad_1"><di:waypoint x="176.0" y="222.7"/><di:waypoint x="219.1" y="222.7"/><di:waypoint x="262.2" y="221.9"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cad_2_Proc_Detalhe_CadastroLogin" bpmnElement="Flow_Cad_2"><di:waypoint x="452.2" y="221.9"/><di:waypoint x="498.2" y="221.9"/><di:waypoint x="544.2" y="222.4"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cad_3_Proc_Detalhe_CadastroLogin" bpmnElement="Flow_Cad_3"><di:waypoint x="596.2" y="222.4"/><di:waypoint x="639.6" y="222.4"/><di:waypoint x="639.6" y="158.0"/><di:waypoint x="683.1" y="158.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cad_4_Proc_Detalhe_CadastroLogin" bpmnElement="Flow_Cad_4"><di:waypoint x="596.2" y="222.4"/><di:waypoint x="639.6" y="222.4"/><di:waypoint x="639.6" y="285.8"/><di:waypoint x="683.1" y="285.8"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cad_5_Proc_Detalhe_CadastroLogin" bpmnElement="Flow_Cad_5"><di:waypoint x="873.1" y="158.0"/><di:waypoint x="919.0" y="158.0"/><di:waypoint x="965.0" y="158.8"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cad_6_Proc_Detalhe_CadastroLogin" bpmnElement="Flow_Cad_6"><di:waypoint x="873.1" y="285.8"/><di:waypoint x="919.0" y="285.8"/><di:waypoint x="965.0" y="286.6"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cad_7_Proc_Detalhe_CadastroLogin" bpmnElement="Flow_Cad_7"><di:waypoint x="1001.0" y="286.6"/><di:waypoint x="1044.1" y="286.6"/><di:waypoint x="1087.2" y="286.3"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cad_8_Proc_Detalhe_CadastroLogin" bpmnElement="Flow_Cad_8"><di:waypoint x="1139.2" y="286.3"/><di:waypoint x="1384.8" y="286.3"/><di:waypoint x="1384.8" y="296.9"/><di:waypoint x="1630.3" y="296.9"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cad_9_Proc_Detalhe_CadastroLogin" bpmnElement="Flow_Cad_9"><di:waypoint x="1139.2" y="286.3"/><di:waypoint x="1182.7" y="286.3"/><di:waypoint x="1182.7" y="228.8"/><di:waypoint x="1226.1" y="228.8"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cad_10_Proc_Detalhe_CadastroLogin" bpmnElement="Flow_Cad_10"><di:waypoint x="1416.1" y="228.8"/><di:waypoint x="1462.1" y="228.8"/><di:waypoint x="1462.1" y="240.8"/><di:waypoint x="1508.0" y="240.8"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cad_6a_Proc_Detalhe_CadastroLogin" bpmnElement="Flow_Cad_6a"><di:waypoint x="1544.0" y="240.8"/><di:waypoint x="1587.2" y="240.8"/><di:waypoint x="1587.2" y="296.9"/><di:waypoint x="1630.3" y="296.9"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cad_11_Proc_Detalhe_CadastroLogin" bpmnElement="Flow_Cad_11"><di:waypoint x="1820.3" y="296.9"/><di:waypoint x="1866.3" y="296.9"/><di:waypoint x="1912.2" y="297.4"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cad_12_Proc_Detalhe_CadastroLogin" bpmnElement="Flow_Cad_12"><di:waypoint x="1964.2" y="297.4"/><di:waypoint x="2011.8" y="297.4"/><di:waypoint x="2011.8" y="250.5"/><di:waypoint x="2059.4" y="250.5"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cad_13_Proc_Detalhe_CadastroLogin" bpmnElement="Flow_Cad_13"><di:waypoint x="1964.2" y="297.4"/><di:waypoint x="2007.7" y="297.4"/><di:waypoint x="2007.7" y="344.6"/><di:waypoint x="2051.1" y="344.6"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cad_14_Proc_Detalhe_CadastroLogin" bpmnElement="Flow_Cad_14"><di:waypoint x="2103.1" y="344.6"/><di:waypoint x="2498.0" y="344.6"/><di:waypoint x="2498.0" y="288.6"/><di:waypoint x="2892.8" y="288.6"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cad_15_Proc_Detalhe_CadastroLogin" bpmnElement="Flow_Cad_15"><di:waypoint x="2103.1" y="344.6"/><di:waypoint x="2146.6" y="344.6"/><di:waypoint x="2146.6" y="401.1"/><di:waypoint x="2190.0" y="401.1"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cad_16_Proc_Detalhe_CadastroLogin" bpmnElement="Flow_Cad_16"><di:waypoint x="2380.0" y="401.1"/><di:waypoint x="2426.0" y="401.1"/><di:waypoint x="2472.0" y="401.1"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cad_17_Proc_Detalhe_CadastroLogin" bpmnElement="Flow_Cad_17"><di:waypoint x="2662.0" y="401.1"/><di:waypoint x="2708.0" y="401.1"/><di:waypoint x="2708.0" y="398.8"/><di:waypoint x="2753.9" y="398.8"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cad_18_Proc_Detalhe_CadastroLogin" bpmnElement="Flow_Cad_18"><di:waypoint x="2805.9" y="398.8"/><di:waypoint x="2849.4" y="398.8"/><di:waypoint x="2849.4" y="288.6"/><di:waypoint x="2892.8" y="288.6"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cad_19_Proc_Detalhe_CadastroLogin" bpmnElement="Flow_Cad_19"><di:waypoint x="3082.8" y="288.6"/><di:waypoint x="3128.8" y="288.6"/><di:waypoint x="3174.8" y="289.4"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cad_20_Proc_Detalhe_CadastroLogin" bpmnElement="Flow_Cad_20"><di:waypoint x="2805.9" y="398.8"/><di:waypoint x="2889.3" y="398.8"/><di:waypoint x="2972.7" y="399.1"/></bpmndi:BPMNEdge></bpmndi:BPMNPlane></bpmndi:BPMNDiagram><bpmndi:BPMNDiagram id="Diag_Proc_Detalhe_Editorial" name="Detalhe: Fluxo editorial e publicação"><bpmndi:BPMNPlane id="Plane_Proc_Detalhe_Editorial" bpmnElement="Proc_Detalhe_Editorial"><bpmndi:BPMNShape id="Shape_Start_Edit_Proc_Detalhe_Editorial" bpmnElement="Start_Edit"><dc:Bounds x="140.0" y="204.7" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Edit_Rascunho_Proc_Detalhe_Editorial" bpmnElement="Task_Edit_Rascunho"><dc:Bounds x="262.2" y="183.9" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Edit_EnviarRev_Proc_Detalhe_Editorial" bpmnElement="Task_Edit_EnviarRev"><dc:Bounds x="544.2" y="183.9" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Edit_Revisar_Proc_Detalhe_Editorial" bpmnElement="Task_Edit_Revisar"><dc:Bounds x="826.1" y="183.9" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gw_Edit_Aprovado_Proc_Detalhe_Editorial" bpmnElement="Gw_Edit_Aprovado"><dc:Bounds x="1108.1" y="196.4" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Edit_Devolver_Proc_Detalhe_Editorial" bpmnElement="Task_Edit_Devolver"><dc:Bounds x="1247.0" y="120.0" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Edit_Devolvido_Proc_Detalhe_Editorial" bpmnElement="End_Edit_Devolvido"><dc:Bounds x="1608.8" y="140.8" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Edit_Publicar_Proc_Detalhe_Editorial" bpmnElement="Task_Edit_Publicar"><dc:Bounds x="1247.0" y="247.8" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Edit_Catalogo_Proc_Detalhe_Editorial" bpmnElement="Task_Edit_Catalogo"><dc:Bounds x="1528.9" y="247.8" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Edit_Publicado_Proc_Detalhe_Editorial" bpmnElement="End_Edit_Publicado"><dc:Bounds x="1810.9" y="268.6" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNEdge id="Edge_Flow_Edit_1_Proc_Detalhe_Editorial" bpmnElement="Flow_Edit_1"><di:waypoint x="176.0" y="222.7"/><di:waypoint x="219.1" y="222.7"/><di:waypoint x="262.2" y="221.9"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Edit_2_Proc_Detalhe_Editorial" bpmnElement="Flow_Edit_2"><di:waypoint x="452.2" y="221.9"/><di:waypoint x="498.2" y="221.9"/><di:waypoint x="544.2" y="221.9"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Edit_3_Proc_Detalhe_Editorial" bpmnElement="Flow_Edit_3"><di:waypoint x="734.2" y="221.9"/><di:waypoint x="780.1" y="221.9"/><di:waypoint x="826.1" y="221.9"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Edit_4_Proc_Detalhe_Editorial" bpmnElement="Flow_Edit_4"><di:waypoint x="1016.1" y="221.9"/><di:waypoint x="1062.1" y="221.9"/><di:waypoint x="1108.1" y="222.4"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Edit_5_Proc_Detalhe_Editorial" bpmnElement="Flow_Edit_5"><di:waypoint x="1160.1" y="222.4"/><di:waypoint x="1203.5" y="222.4"/><di:waypoint x="1203.5" y="158.0"/><di:waypoint x="1247.0" y="158.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Edit_6_Proc_Detalhe_Editorial" bpmnElement="Flow_Edit_6"><di:waypoint x="1160.1" y="222.4"/><di:waypoint x="1203.5" y="222.4"/><di:waypoint x="1203.5" y="285.8"/><di:waypoint x="1247.0" y="285.8"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Edit_7_Proc_Detalhe_Editorial" bpmnElement="Flow_Edit_7"><di:waypoint x="1437.0" y="158.0"/><di:waypoint x="1522.9" y="158.0"/><di:waypoint x="1608.8" y="158.8"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Edit_8_Proc_Detalhe_Editorial" bpmnElement="Flow_Edit_8"><di:waypoint x="1437.0" y="285.8"/><di:waypoint x="1482.9" y="285.8"/><di:waypoint x="1528.9" y="285.8"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Edit_9_Proc_Detalhe_Editorial" bpmnElement="Flow_Edit_9"><di:waypoint x="1718.9" y="285.8"/><di:waypoint x="1764.9" y="285.8"/><di:waypoint x="1810.9" y="286.6"/></bpmndi:BPMNEdge></bpmndi:BPMNPlane></bpmndi:BPMNDiagram><bpmndi:BPMNDiagram id="Diag_Proc_Detalhe_Jornada" name="Detalhe: Jornada de aprendizagem e crédito de XP"><bpmndi:BPMNPlane id="Plane_Proc_Detalhe_Jornada" bpmnElement="Proc_Detalhe_Jornada"><bpmndi:BPMNShape id="Shape_Start_Jor_Proc_Detalhe_Jornada" bpmnElement="Start_Jor"><dc:Bounds x="140.0" y="277.0" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Jor_Consultar_Proc_Detalhe_Jornada" bpmnElement="Task_Jor_Consultar"><dc:Bounds x="262.2" y="256.1" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Jor_Iniciar_Proc_Detalhe_Jornada" bpmnElement="Task_Jor_Iniciar"><dc:Bounds x="544.2" y="256.1" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Jor_Abrir_Proc_Detalhe_Jornada" bpmnElement="Task_Jor_Abrir"><dc:Bounds x="826.1" y="256.1" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gw_Jor_TipoEx_Proc_Detalhe_Jornada" bpmnElement="Gw_Jor_TipoEx"><dc:Bounds x="1108.1" y="268.6" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Jor_Executar_Proc_Detalhe_Jornada" bpmnElement="Task_Jor_Executar"><dc:Bounds x="1247.0" y="196.4" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Jor_Enviar_Proc_Detalhe_Jornada" bpmnElement="Task_Jor_Enviar"><dc:Bounds x="1528.9" y="192.2" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gw_Jor_Aprovado_Proc_Detalhe_Jornada" bpmnElement="Gw_Jor_Aprovado"><dc:Bounds x="1810.8" y="204.7" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Jor_Reprovado_Proc_Detalhe_Jornada" bpmnElement="End_Jor_Reprovado"><dc:Bounds x="2029.5" y="120.0" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Jor_ConcluirTeorico_Proc_Detalhe_Jornada" bpmnElement="Task_Jor_ConcluirTeorico"><dc:Bounds x="1528.9" y="320.0" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Jor_ConcluirCodigo_Proc_Detalhe_Jornada" bpmnElement="Task_Jor_ConcluirCodigo"><dc:Bounds x="1949.7" y="206.1" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gw_Jor_PreCond_Proc_Detalhe_Jornada" bpmnElement="Gw_Jor_PreCond"><dc:Bounds x="2231.7" y="275.6" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Jor_PreCondErro_Proc_Detalhe_Jornada" bpmnElement="End_Jor_PreCondErro"><dc:Bounds x="2450.5" y="229.7" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Jor_Creditar_Proc_Detalhe_Jornada" bpmnElement="Task_Jor_Creditar"><dc:Bounds x="2370.6" y="315.8" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gw_Jor_JaConcluido_Proc_Detalhe_Jornada" bpmnElement="Gw_Jor_JaConcluido"><dc:Bounds x="2652.5" y="328.3" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Jor_SemDuplicar_Proc_Detalhe_Jornada" bpmnElement="End_Jor_SemDuplicar"><dc:Bounds x="2871.2" y="282.5" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Jor_Sinalizar_Proc_Detalhe_Jornada" bpmnElement="Task_Jor_Sinalizar"><dc:Bounds x="2791.4" y="368.6" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Jor_XP_Proc_Detalhe_Jornada" bpmnElement="End_Jor_XP"><dc:Bounds x="3073.3" y="389.4" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNEdge id="Edge_Flow_Jor_1_Proc_Detalhe_Jornada" bpmnElement="Flow_Jor_1"><di:waypoint x="176.0" y="295.0"/><di:waypoint x="219.1" y="295.0"/><di:waypoint x="262.2" y="294.1"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Jor_2_Proc_Detalhe_Jornada" bpmnElement="Flow_Jor_2"><di:waypoint x="452.2" y="294.1"/><di:waypoint x="498.2" y="294.1"/><di:waypoint x="544.2" y="294.1"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Jor_3_Proc_Detalhe_Jornada" bpmnElement="Flow_Jor_3"><di:waypoint x="734.2" y="294.1"/><di:waypoint x="780.1" y="294.1"/><di:waypoint x="826.1" y="294.1"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Jor_4_Proc_Detalhe_Jornada" bpmnElement="Flow_Jor_4"><di:waypoint x="1016.1" y="294.1"/><di:waypoint x="1062.1" y="294.1"/><di:waypoint x="1108.1" y="294.6"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Jor_5_Proc_Detalhe_Jornada" bpmnElement="Flow_Jor_5"><di:waypoint x="1160.1" y="294.6"/><di:waypoint x="1203.5" y="294.6"/><di:waypoint x="1203.5" y="234.4"/><di:waypoint x="1247.0" y="234.4"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Jor_6_Proc_Detalhe_Jornada" bpmnElement="Flow_Jor_6"><di:waypoint x="1160.1" y="294.6"/><di:waypoint x="1344.5" y="294.6"/><di:waypoint x="1344.5" y="358.0"/><di:waypoint x="1528.9" y="358.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Jor_7_Proc_Detalhe_Jornada" bpmnElement="Flow_Jor_7"><di:waypoint x="1437.0" y="234.4"/><di:waypoint x="1482.9" y="234.4"/><di:waypoint x="1482.9" y="230.2"/><di:waypoint x="1528.9" y="230.2"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Jor_8_Proc_Detalhe_Jornada" bpmnElement="Flow_Jor_8"><di:waypoint x="1718.9" y="230.2"/><di:waypoint x="1764.9" y="230.2"/><di:waypoint x="1810.8" y="230.7"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Jor_9_Proc_Detalhe_Jornada" bpmnElement="Flow_Jor_9"><di:waypoint x="1862.8" y="230.7"/><di:waypoint x="1946.2" y="230.7"/><di:waypoint x="1946.2" y="138.0"/><di:waypoint x="2029.5" y="138.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Jor_10_Proc_Detalhe_Jornada" bpmnElement="Flow_Jor_10"><di:waypoint x="1862.8" y="230.7"/><di:waypoint x="1906.3" y="230.7"/><di:waypoint x="1906.3" y="244.1"/><di:waypoint x="1949.7" y="244.1"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Jor_11_Proc_Detalhe_Jornada" bpmnElement="Flow_Jor_11"><di:waypoint x="1718.9" y="358.0"/><di:waypoint x="1975.3" y="358.0"/><di:waypoint x="1975.3" y="301.6"/><di:waypoint x="2231.7" y="301.6"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Jor_11a_Proc_Detalhe_Jornada" bpmnElement="Flow_Jor_11a"><di:waypoint x="2139.7" y="244.1"/><di:waypoint x="2185.7" y="244.1"/><di:waypoint x="2185.7" y="301.6"/><di:waypoint x="2231.7" y="301.6"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Jor_12_Proc_Detalhe_Jornada" bpmnElement="Flow_Jor_12"><di:waypoint x="2283.7" y="301.6"/><di:waypoint x="2327.2" y="301.6"/><di:waypoint x="2327.2" y="353.8"/><di:waypoint x="2370.6" y="353.8"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Jor_13_Proc_Detalhe_Jornada" bpmnElement="Flow_Jor_13"><di:waypoint x="2283.7" y="301.6"/><di:waypoint x="2367.1" y="301.6"/><di:waypoint x="2367.1" y="247.7"/><di:waypoint x="2450.5" y="247.7"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Jor_14_Proc_Detalhe_Jornada" bpmnElement="Flow_Jor_14"><di:waypoint x="2560.6" y="353.8"/><di:waypoint x="2606.6" y="353.8"/><di:waypoint x="2652.5" y="354.3"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Jor_15_Proc_Detalhe_Jornada" bpmnElement="Flow_Jor_15"><di:waypoint x="2704.5" y="354.3"/><di:waypoint x="2787.9" y="354.3"/><di:waypoint x="2787.9" y="300.5"/><di:waypoint x="2871.2" y="300.5"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Jor_16_Proc_Detalhe_Jornada" bpmnElement="Flow_Jor_16"><di:waypoint x="2704.5" y="354.3"/><di:waypoint x="2748.0" y="354.3"/><di:waypoint x="2748.0" y="406.6"/><di:waypoint x="2791.4" y="406.6"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Jor_17_Proc_Detalhe_Jornada" bpmnElement="Flow_Jor_17"><di:waypoint x="2981.4" y="406.6"/><di:waypoint x="3027.4" y="406.6"/><di:waypoint x="3073.3" y="407.4"/></bpmndi:BPMNEdge></bpmndi:BPMNPlane></bpmndi:BPMNDiagram><bpmndi:BPMNDiagram id="Diag_Proc_Detalhe_Correcao" name="Detalhe: Correção automática com AST, cache, cotas e Judge0"><bpmndi:BPMNPlane id="Plane_Proc_Detalhe_Correcao" bpmnElement="Proc_Detalhe_Correcao"><bpmndi:BPMNShape id="Shape_Start_Cor_Proc_Detalhe_Correcao" bpmnElement="Start_Cor"><dc:Bounds x="140.0" y="167.2" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Cor_Validar_Proc_Detalhe_Correcao" bpmnElement="Task_Cor_Validar"><dc:Bounds x="262.2" y="146.4" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Cor_AST_Proc_Detalhe_Correcao" bpmnElement="Task_Cor_AST"><dc:Bounds x="544.2" y="146.4" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gw_Cor_ASTValida_Proc_Detalhe_Correcao" bpmnElement="Gw_Cor_ASTValida"><dc:Bounds x="826.1" y="158.9" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Cor_ASTInvalida_Proc_Detalhe_Correcao" bpmnElement="End_Cor_ASTInvalida"><dc:Bounds x="973.3" y="120.0" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gw_Cor_Cache_Proc_Detalhe_Correcao" bpmnElement="Gw_Cor_Cache"><dc:Bounds x="965.0" y="206.1" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Cor_Cache_Proc_Detalhe_Correcao" bpmnElement="End_Cor_Cache"><dc:Bounds x="1183.8" y="160.3" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Cor_Cota_Proc_Detalhe_Correcao" bpmnElement="Task_Cor_Cota"><dc:Bounds x="1103.9" y="246.4" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gw_Cor_CotaOK_Proc_Detalhe_Correcao" bpmnElement="Gw_Cor_CotaOK"><dc:Bounds x="1385.8" y="258.9" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Cor_Cota_Proc_Detalhe_Correcao" bpmnElement="End_Cor_Cota"><dc:Bounds x="1604.5" y="213.1" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Cor_Judge_Proc_Detalhe_Correcao" bpmnElement="Task_Cor_Judge"><dc:Bounds x="1524.7" y="299.2" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gw_Cor_JudgeDisponivel_Proc_Detalhe_Correcao" bpmnElement="Gw_Cor_JudgeDisponivel"><dc:Bounds x="1806.7" y="311.7" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Cor_Indisp_Proc_Detalhe_Correcao" bpmnElement="End_Cor_Indisp"><dc:Bounds x="1953.9" y="272.8" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gw_Cor_Modo_Proc_Detalhe_Correcao" bpmnElement="Gw_Cor_Modo"><dc:Bounds x="1945.5" y="358.9" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Cor_ExecutarVisiveis_Proc_Detalhe_Correcao" bpmnElement="Task_Cor_ExecutarVisiveis"><dc:Bounds x="2084.5" y="282.5" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Cor_Executar_Proc_Detalhe_Correcao" bpmnElement="End_Cor_Executar"><dc:Bounds x="2374.8" y="303.3" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Cor_EnviarTodos_Proc_Detalhe_Correcao" bpmnElement="Task_Cor_EnviarTodos"><dc:Bounds x="2084.5" y="410.3" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gw_Cor_Aprovado_Proc_Detalhe_Correcao" bpmnElement="Gw_Cor_Aprovado"><dc:Bounds x="2366.4" y="422.8" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Cor_Reprovado_Proc_Detalhe_Correcao" bpmnElement="End_Cor_Reprovado"><dc:Bounds x="2505.2" y="388.1" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Cor_Aprovado_Proc_Detalhe_Correcao" bpmnElement="End_Cor_Aprovado"><dc:Bounds x="2505.2" y="474.2" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNEdge id="Edge_Flow_Cor_1_Proc_Detalhe_Correcao" bpmnElement="Flow_Cor_1"><di:waypoint x="176.0" y="185.2"/><di:waypoint x="219.1" y="185.2"/><di:waypoint x="262.2" y="184.4"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cor_2_Proc_Detalhe_Correcao" bpmnElement="Flow_Cor_2"><di:waypoint x="452.2" y="184.4"/><di:waypoint x="498.2" y="184.4"/><di:waypoint x="544.2" y="184.4"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cor_3_Proc_Detalhe_Correcao" bpmnElement="Flow_Cor_3"><di:waypoint x="734.2" y="184.4"/><di:waypoint x="780.1" y="184.4"/><di:waypoint x="826.1" y="184.9"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cor_4_Proc_Detalhe_Correcao" bpmnElement="Flow_Cor_4"><di:waypoint x="878.1" y="184.9"/><di:waypoint x="921.6" y="184.9"/><di:waypoint x="921.6" y="232.1"/><di:waypoint x="965.0" y="232.1"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cor_5_Proc_Detalhe_Correcao" bpmnElement="Flow_Cor_5"><di:waypoint x="878.1" y="184.9"/><di:waypoint x="925.7" y="184.9"/><di:waypoint x="925.7" y="138.0"/><di:waypoint x="973.3" y="138.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cor_6_Proc_Detalhe_Correcao" bpmnElement="Flow_Cor_6"><di:waypoint x="1017.0" y="232.1"/><di:waypoint x="1100.4" y="232.1"/><di:waypoint x="1100.4" y="178.3"/><di:waypoint x="1183.8" y="178.3"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cor_7_Proc_Detalhe_Correcao" bpmnElement="Flow_Cor_7"><di:waypoint x="1017.0" y="232.1"/><di:waypoint x="1060.4" y="232.1"/><di:waypoint x="1060.4" y="284.4"/><di:waypoint x="1103.9" y="284.4"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cor_8_Proc_Detalhe_Correcao" bpmnElement="Flow_Cor_8"><di:waypoint x="1293.9" y="284.4"/><di:waypoint x="1339.9" y="284.4"/><di:waypoint x="1385.8" y="284.9"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cor_9_Proc_Detalhe_Correcao" bpmnElement="Flow_Cor_9"><di:waypoint x="1437.8" y="284.9"/><di:waypoint x="1481.3" y="284.9"/><di:waypoint x="1481.3" y="337.2"/><di:waypoint x="1524.7" y="337.2"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cor_10_Proc_Detalhe_Correcao" bpmnElement="Flow_Cor_10"><di:waypoint x="1437.8" y="284.9"/><di:waypoint x="1521.2" y="284.9"/><di:waypoint x="1521.2" y="231.1"/><di:waypoint x="1604.5" y="231.1"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cor_11_Proc_Detalhe_Correcao" bpmnElement="Flow_Cor_11"><di:waypoint x="1714.7" y="337.2"/><di:waypoint x="1760.7" y="337.2"/><di:waypoint x="1806.7" y="337.7"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cor_12_Proc_Detalhe_Correcao" bpmnElement="Flow_Cor_12"><di:waypoint x="1858.7" y="337.7"/><di:waypoint x="1902.1" y="337.7"/><di:waypoint x="1902.1" y="384.9"/><di:waypoint x="1945.5" y="384.9"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cor_13_Proc_Detalhe_Correcao" bpmnElement="Flow_Cor_13"><di:waypoint x="1858.7" y="337.7"/><di:waypoint x="1906.3" y="337.7"/><di:waypoint x="1906.3" y="290.8"/><di:waypoint x="1953.9" y="290.8"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cor_14_Proc_Detalhe_Correcao" bpmnElement="Flow_Cor_14"><di:waypoint x="1997.5" y="384.9"/><di:waypoint x="2041.0" y="384.9"/><di:waypoint x="2041.0" y="320.5"/><di:waypoint x="2084.5" y="320.5"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cor_15_Proc_Detalhe_Correcao" bpmnElement="Flow_Cor_15"><di:waypoint x="1997.5" y="384.9"/><di:waypoint x="2041.0" y="384.9"/><di:waypoint x="2041.0" y="448.3"/><di:waypoint x="2084.5" y="448.3"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cor_16_Proc_Detalhe_Correcao" bpmnElement="Flow_Cor_16"><di:waypoint x="2274.5" y="320.5"/><di:waypoint x="2324.6" y="320.5"/><di:waypoint x="2374.8" y="321.3"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cor_17_Proc_Detalhe_Correcao" bpmnElement="Flow_Cor_17"><di:waypoint x="2274.5" y="448.3"/><di:waypoint x="2320.5" y="448.3"/><di:waypoint x="2366.4" y="448.8"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cor_18_Proc_Detalhe_Correcao" bpmnElement="Flow_Cor_18"><di:waypoint x="2418.4" y="448.8"/><di:waypoint x="2461.8" y="448.8"/><di:waypoint x="2461.8" y="406.1"/><di:waypoint x="2505.2" y="406.1"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cor_19_Proc_Detalhe_Correcao" bpmnElement="Flow_Cor_19"><di:waypoint x="2418.4" y="448.8"/><di:waypoint x="2461.8" y="448.8"/><di:waypoint x="2461.8" y="492.2"/><di:waypoint x="2505.2" y="492.2"/></bpmndi:BPMNEdge></bpmndi:BPMNPlane></bpmndi:BPMNDiagram><bpmndi:BPMNDiagram id="Diag_Proc_Detalhe_Criaturas" name="Detalhe: Gestão de criaturas"><bpmndi:BPMNPlane id="Plane_Proc_Detalhe_Criaturas" bpmnElement="Proc_Detalhe_Criaturas"><bpmndi:BPMNShape id="Shape_Start_Cri_Proc_Detalhe_Criaturas" bpmnElement="Start_Cri"><dc:Bounds x="140.0" y="197.8" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Cri_Catalogo_Proc_Detalhe_Criaturas" bpmnElement="Task_Cri_Catalogo"><dc:Bounds x="262.2" y="177.0" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gw_Cri_TemInicial_Proc_Detalhe_Criaturas" bpmnElement="Gw_Cri_TemInicial"><dc:Bounds x="544.2" y="189.5" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Cri_EscolherInicial_Proc_Detalhe_Criaturas" bpmnElement="Task_Cri_EscolherInicial"><dc:Bounds x="683.1" y="120.0" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Cri_Adquirir_Proc_Detalhe_Criaturas" bpmnElement="Task_Cri_Adquirir"><dc:Bounds x="965.0" y="177.0" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Cri_Ativar_Proc_Detalhe_Criaturas" bpmnElement="Task_Cri_Ativar"><dc:Bounds x="1247.0" y="177.0" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Cri_Evoluir_Proc_Detalhe_Criaturas" bpmnElement="Task_Cri_Evoluir"><dc:Bounds x="1528.9" y="177.0" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gw_Cri_FormaFinal_Proc_Detalhe_Criaturas" bpmnElement="Gw_Cri_FormaFinal"><dc:Bounds x="1810.8" y="189.5" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Cri_Final_Proc_Detalhe_Criaturas" bpmnElement="End_Cri_Final"><dc:Bounds x="1958.0" y="150.6" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gw_Cri_Nivel_Proc_Detalhe_Criaturas" bpmnElement="Gw_Cri_Nivel"><dc:Bounds x="1949.7" y="236.7" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Cri_Nivel_Proc_Detalhe_Criaturas" bpmnElement="End_Cri_Nivel"><dc:Bounds x="2168.4" y="190.8" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_Cri_Evoluir1_Proc_Detalhe_Criaturas" bpmnElement="Task_Cri_Evoluir1"><dc:Bounds x="2088.6" y="276.9" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_Cri_OK_Proc_Detalhe_Criaturas" bpmnElement="End_Cri_OK"><dc:Bounds x="2370.5" y="297.8" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNEdge id="Edge_Flow_Cri_1_Proc_Detalhe_Criaturas" bpmnElement="Flow_Cri_1"><di:waypoint x="176.0" y="215.8"/><di:waypoint x="219.1" y="215.8"/><di:waypoint x="262.2" y="215.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cri_2_Proc_Detalhe_Criaturas" bpmnElement="Flow_Cri_2"><di:waypoint x="452.2" y="215.0"/><di:waypoint x="498.2" y="215.0"/><di:waypoint x="544.2" y="215.5"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cri_3_Proc_Detalhe_Criaturas" bpmnElement="Flow_Cri_3"><di:waypoint x="596.2" y="215.5"/><di:waypoint x="639.6" y="215.5"/><di:waypoint x="639.6" y="158.0"/><di:waypoint x="683.1" y="158.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cri_4_Proc_Detalhe_Criaturas" bpmnElement="Flow_Cri_4"><di:waypoint x="596.2" y="215.5"/><di:waypoint x="780.6" y="215.5"/><di:waypoint x="965.0" y="215.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cri_5_Proc_Detalhe_Criaturas" bpmnElement="Flow_Cri_5"><di:waypoint x="873.1" y="158.0"/><di:waypoint x="919.0" y="158.0"/><di:waypoint x="919.0" y="215.0"/><di:waypoint x="965.0" y="215.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cri_6_Proc_Detalhe_Criaturas" bpmnElement="Flow_Cri_6"><di:waypoint x="1155.0" y="215.0"/><di:waypoint x="1201.0" y="215.0"/><di:waypoint x="1247.0" y="215.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cri_7_Proc_Detalhe_Criaturas" bpmnElement="Flow_Cri_7"><di:waypoint x="1437.0" y="215.0"/><di:waypoint x="1482.9" y="215.0"/><di:waypoint x="1528.9" y="215.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cri_8_Proc_Detalhe_Criaturas" bpmnElement="Flow_Cri_8"><di:waypoint x="1718.9" y="215.0"/><di:waypoint x="1764.9" y="215.0"/><di:waypoint x="1810.8" y="215.5"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cri_9_Proc_Detalhe_Criaturas" bpmnElement="Flow_Cri_9"><di:waypoint x="1862.8" y="215.5"/><di:waypoint x="1910.4" y="215.5"/><di:waypoint x="1910.4" y="168.6"/><di:waypoint x="1958.0" y="168.6"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cri_10_Proc_Detalhe_Criaturas" bpmnElement="Flow_Cri_10"><di:waypoint x="1862.8" y="215.5"/><di:waypoint x="1906.3" y="215.5"/><di:waypoint x="1906.3" y="262.7"/><di:waypoint x="1949.7" y="262.7"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cri_11_Proc_Detalhe_Criaturas" bpmnElement="Flow_Cri_11"><di:waypoint x="2001.7" y="262.7"/><di:waypoint x="2045.2" y="262.7"/><di:waypoint x="2045.2" y="314.9"/><di:waypoint x="2088.6" y="314.9"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cri_12_Proc_Detalhe_Criaturas" bpmnElement="Flow_Cri_12"><di:waypoint x="2001.7" y="262.7"/><di:waypoint x="2085.1" y="262.7"/><di:waypoint x="2085.1" y="208.8"/><di:waypoint x="2168.4" y="208.8"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_Cri_13_Proc_Detalhe_Criaturas" bpmnElement="Flow_Cri_13"><di:waypoint x="2278.6" y="314.9"/><di:waypoint x="2324.6" y="314.9"/><di:waypoint x="2370.5" y="315.8"/></bpmndi:BPMNEdge></bpmndi:BPMNPlane></bpmndi:BPMNDiagram><bpmndi:BPMNDiagram id="Diag_Proc_Detalhe_LGPD" name="Detalhe: Direitos LGPD (atividade, exportação, aceite, exclusão)"><bpmndi:BPMNPlane id="Plane_Proc_Detalhe_LGPD" bpmnElement="Proc_Detalhe_LGPD"><bpmndi:BPMNShape id="Shape_Start_LGPD_Proc_Detalhe_LGPD" bpmnElement="Start_LGPD"><dc:Bounds x="140.0" y="268.6" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_LGPD_Atividade_Proc_Detalhe_LGPD" bpmnElement="Task_LGPD_Atividade"><dc:Bounds x="262.2" y="247.8" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gw_LGPD_Acao_Proc_Detalhe_LGPD" bpmnElement="Gw_LGPD_Acao"><dc:Bounds x="544.2" y="260.3" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_LGPD_Exportar_Proc_Detalhe_LGPD" bpmnElement="Task_LGPD_Exportar"><dc:Bounds x="683.1" y="120.0" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_LGPD_Exportado_Proc_Detalhe_LGPD" bpmnElement="End_LGPD_Exportado"><dc:Bounds x="1044.9" y="140.8" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_LGPD_Aceitar_Proc_Detalhe_LGPD" bpmnElement="Task_LGPD_Aceitar"><dc:Bounds x="683.1" y="247.8" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_LGPD_Aceite_Proc_Detalhe_LGPD" bpmnElement="End_LGPD_Aceite"><dc:Bounds x="1044.9" y="268.6" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_LGPD_SolicitarExc_Proc_Detalhe_LGPD" bpmnElement="Task_LGPD_SolicitarExc"><dc:Bounds x="683.1" y="375.6" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_LGPD_EmailExc_Proc_Detalhe_LGPD" bpmnElement="Task_LGPD_EmailExc"><dc:Bounds x="965.0" y="375.6" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Evt_LGPD_Confirma_Proc_Detalhe_LGPD" bpmnElement="Evt_LGPD_Confirma"><dc:Bounds x="1247.0" y="396.4" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_LGPD_Validar_Proc_Detalhe_LGPD" bpmnElement="Task_LGPD_Validar"><dc:Bounds x="1369.2" y="375.6" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Gw_LGPD_Valido_Proc_Detalhe_LGPD" bpmnElement="Gw_LGPD_Valido"><dc:Bounds x="1651.1" y="388.1" width="52" height="52"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_LGPD_Invalido_Proc_Detalhe_LGPD" bpmnElement="End_LGPD_Invalido"><dc:Bounds x="1869.9" y="342.2" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_LGPD_Anonimizar_Proc_Detalhe_LGPD" bpmnElement="Task_LGPD_Anonimizar"><dc:Bounds x="1790.0" y="428.3" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_LGPD_Anonimizada_Proc_Detalhe_LGPD" bpmnElement="End_LGPD_Anonimizada"><dc:Bounds x="2071.9" y="449.2" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNEdge id="Edge_Flow_LGPD_1_Proc_Detalhe_LGPD" bpmnElement="Flow_LGPD_1"><di:waypoint x="176.0" y="286.6"/><di:waypoint x="219.1" y="286.6"/><di:waypoint x="262.2" y="285.8"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_LGPD_2_Proc_Detalhe_LGPD" bpmnElement="Flow_LGPD_2"><di:waypoint x="452.2" y="285.8"/><di:waypoint x="498.2" y="285.8"/><di:waypoint x="544.2" y="286.3"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_LGPD_3_Proc_Detalhe_LGPD" bpmnElement="Flow_LGPD_3"><di:waypoint x="596.2" y="286.3"/><di:waypoint x="639.6" y="286.3"/><di:waypoint x="639.6" y="158.0"/><di:waypoint x="683.1" y="158.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_LGPD_4_Proc_Detalhe_LGPD" bpmnElement="Flow_LGPD_4"><di:waypoint x="596.2" y="286.3"/><di:waypoint x="639.6" y="286.3"/><di:waypoint x="683.1" y="285.8"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_LGPD_5_Proc_Detalhe_LGPD" bpmnElement="Flow_LGPD_5"><di:waypoint x="596.2" y="286.3"/><di:waypoint x="639.6" y="286.3"/><di:waypoint x="639.6" y="413.6"/><di:waypoint x="683.1" y="413.6"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_LGPD_6_Proc_Detalhe_LGPD" bpmnElement="Flow_LGPD_6"><di:waypoint x="873.1" y="158.0"/><di:waypoint x="959.0" y="158.0"/><di:waypoint x="1044.9" y="158.8"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_LGPD_7_Proc_Detalhe_LGPD" bpmnElement="Flow_LGPD_7"><di:waypoint x="873.1" y="285.8"/><di:waypoint x="959.0" y="285.8"/><di:waypoint x="1044.9" y="286.6"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_LGPD_8_Proc_Detalhe_LGPD" bpmnElement="Flow_LGPD_8"><di:waypoint x="873.1" y="413.6"/><di:waypoint x="919.0" y="413.6"/><di:waypoint x="965.0" y="413.6"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_LGPD_9_Proc_Detalhe_LGPD" bpmnElement="Flow_LGPD_9"><di:waypoint x="1155.0" y="413.6"/><di:waypoint x="1201.0" y="413.6"/><di:waypoint x="1247.0" y="414.4"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_LGPD_10_Proc_Detalhe_LGPD" bpmnElement="Flow_LGPD_10"><di:waypoint x="1283.0" y="414.4"/><di:waypoint x="1326.1" y="414.4"/><di:waypoint x="1369.2" y="413.6"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_LGPD_11_Proc_Detalhe_LGPD" bpmnElement="Flow_LGPD_11"><di:waypoint x="1559.2" y="413.6"/><di:waypoint x="1605.2" y="413.6"/><di:waypoint x="1651.1" y="414.1"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_LGPD_12_Proc_Detalhe_LGPD" bpmnElement="Flow_LGPD_12"><di:waypoint x="1703.1" y="414.1"/><di:waypoint x="1746.6" y="414.1"/><di:waypoint x="1746.6" y="466.3"/><di:waypoint x="1790.0" y="466.3"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_LGPD_13_Proc_Detalhe_LGPD" bpmnElement="Flow_LGPD_13"><di:waypoint x="1703.1" y="414.1"/><di:waypoint x="1786.5" y="414.1"/><di:waypoint x="1786.5" y="360.2"/><di:waypoint x="1869.9" y="360.2"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_LGPD_14_Proc_Detalhe_LGPD" bpmnElement="Flow_LGPD_14"><di:waypoint x="1980.0" y="466.3"/><di:waypoint x="2026.0" y="466.3"/><di:waypoint x="2071.9" y="467.2"/></bpmndi:BPMNEdge></bpmndi:BPMNPlane></bpmndi:BPMNDiagram><bpmndi:BPMNDiagram id="Diag_Proc_Detalhe_RBACAuditoria" name="Detalhe: Administração RBAC e auditoria"><bpmndi:BPMNPlane id="Plane_Proc_Detalhe_RBACAuditoria" bpmnElement="Proc_Detalhe_RBACAuditoria"><bpmndi:BPMNShape id="Shape_Start_RBAC_Proc_Detalhe_RBACAuditoria" bpmnElement="Start_RBAC"><dc:Bounds x="140.0" y="140.8" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_RBAC_Gerir_Proc_Detalhe_RBACAuditoria" bpmnElement="Task_RBAC_Gerir"><dc:Bounds x="262.2" y="120.0" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_RBAC_Atribuir_Proc_Detalhe_RBACAuditoria" bpmnElement="Task_RBAC_Atribuir"><dc:Bounds x="544.2" y="120.0" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_RBAC_Auditar_Proc_Detalhe_RBACAuditoria" bpmnElement="Task_RBAC_Auditar"><dc:Bounds x="826.1" y="120.0" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_Task_RBAC_Consultar_Proc_Detalhe_RBACAuditoria" bpmnElement="Task_RBAC_Consultar"><dc:Bounds x="1108.1" y="120.0" width="190" height="76"/></bpmndi:BPMNShape><bpmndi:BPMNShape id="Shape_End_RBAC_Proc_Detalhe_RBACAuditoria" bpmnElement="End_RBAC"><dc:Bounds x="1390.0" y="140.8" width="36" height="36"/></bpmndi:BPMNShape><bpmndi:BPMNEdge id="Edge_Flow_RBAC_1_Proc_Detalhe_RBACAuditoria" bpmnElement="Flow_RBAC_1"><di:waypoint x="176.0" y="158.8"/><di:waypoint x="219.1" y="158.8"/><di:waypoint x="262.2" y="158.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_RBAC_2_Proc_Detalhe_RBACAuditoria" bpmnElement="Flow_RBAC_2"><di:waypoint x="452.2" y="158.0"/><di:waypoint x="498.2" y="158.0"/><di:waypoint x="544.2" y="158.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_RBAC_3_Proc_Detalhe_RBACAuditoria" bpmnElement="Flow_RBAC_3"><di:waypoint x="734.2" y="158.0"/><di:waypoint x="780.1" y="158.0"/><di:waypoint x="826.1" y="158.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_RBAC_4_Proc_Detalhe_RBACAuditoria" bpmnElement="Flow_RBAC_4"><di:waypoint x="1016.1" y="158.0"/><di:waypoint x="1062.1" y="158.0"/><di:waypoint x="1108.1" y="158.0"/></bpmndi:BPMNEdge><bpmndi:BPMNEdge id="Edge_Flow_RBAC_5_Proc_Detalhe_RBACAuditoria" bpmnElement="Flow_RBAC_5"><di:waypoint x="1298.1" y="158.0"/><di:waypoint x="1344.1" y="158.0"/><di:waypoint x="1390.0" y="158.8"/></bpmndi:BPMNEdge></bpmndi:BPMNPlane></bpmndi:BPMNDiagram></bpmn:definitions>
