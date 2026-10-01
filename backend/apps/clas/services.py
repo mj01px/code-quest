@@ -3,7 +3,7 @@ import re
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Max, Q
+from django.db.models import Case, Count, Max, Q, Value, When
 from django.http import Http404
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -241,3 +241,81 @@ def sair_do_cla(*, user):
     membro.delete()
     if not cla.membros.exists():
         cla.delete()
+
+
+def listar_membros(*, user, tag):
+    cla = obter_cla_visivel(user=user, tag=tag)
+    ordem_do_cargo = Case(
+        When(cargo=Cargo.LIDER, then=Value(0)),
+        When(cargo=Cargo.COLIDER, then=Value(1)),
+        default=Value(2),
+    )
+    return (
+        cla.membros.select_related("user")
+        .annotate(ordem_do_cargo=ordem_do_cargo)
+        .order_by("ordem_do_cargo", "entrou_em")
+    )
+
+
+def _preparar_gestao(*, user, tag, membro_id):
+    """Trava o clã e devolve (quem age, quem sofre a ação)."""
+    cla = obter_cla_visivel(user=user, tag=tag)
+    cla = _travar_cla(cla.pk)
+
+    ator = cla.membros.filter(user=user).first()
+    if ator is None or ator.cargo not in CARGOS_DE_GESTAO:
+        raise _cargo_insuficiente()
+
+    alvo = cla.membros.select_related("user").filter(pk=membro_id).first()
+    if alvo is None:
+        raise Http404(_("Membro não encontrado neste clã."))
+    if alvo.pk == ator.pk:
+        raise ValidationError(
+            _("Você não pode fazer isso com você mesmo."), code="acao_em_si_mesmo"
+        )
+    return ator, alvo
+
+
+@transaction.atomic
+def mudar_cargo(*, user, tag, membro_id, cargo):
+    """Promove membro a co-líder ou rebaixa co-líder a membro."""
+    ator, alvo = _preparar_gestao(user=user, tag=tag, membro_id=membro_id)
+
+    if alvo.cargo == Cargo.LIDER:
+        raise _cargo_insuficiente()
+    if alvo.cargo == Cargo.COLIDER and cargo == Cargo.MEMBRO:
+        # só o líder rebaixa co-líder
+        if ator.cargo != Cargo.LIDER:
+            raise _cargo_insuficiente()
+
+    if alvo.cargo != cargo:
+        alvo.cargo = cargo
+        alvo.save(update_fields=["cargo"])
+    return alvo
+
+
+@transaction.atomic
+def expulsar(*, user, tag, membro_id):
+    ator, alvo = _preparar_gestao(user=user, tag=tag, membro_id=membro_id)
+
+    if alvo.cargo == Cargo.LIDER:
+        raise _cargo_insuficiente()
+    if alvo.cargo == Cargo.COLIDER and ator.cargo != Cargo.LIDER:
+        raise _cargo_insuficiente()
+
+    alvo.delete()
+
+
+@transaction.atomic
+def transferir_lideranca(*, user, tag, membro_id):
+    """O líder passa a liderança e vira co-líder."""
+    ator, alvo = _preparar_gestao(user=user, tag=tag, membro_id=membro_id)
+    if ator.cargo != Cargo.LIDER:
+        raise _cargo_insuficiente()
+
+    # rebaixa antes de promover por causa da constraint de um líder por clã
+    ator.cargo = Cargo.COLIDER
+    ator.save(update_fields=["cargo"])
+    alvo.cargo = Cargo.LIDER
+    alvo.save(update_fields=["cargo"])
+    return alvo

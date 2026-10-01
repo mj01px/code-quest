@@ -11,16 +11,23 @@ from .serializers import (
     ClaSerializer,
     CriarClaSerializer,
     EditarClaSerializer,
+    MembroSerializer,
     MeuClaSerializer,
+    MudarCargoSerializer,
+    TransferirLiderancaSerializer,
 )
 from .services import (
     buscar_clas,
     criar_cla,
     editar_cla,
     entrar_no_cla,
+    expulsar,
+    listar_membros,
     meu_cla,
+    mudar_cargo,
     obter_cla_visivel,
     sair_do_cla,
+    transferir_lideranca,
 )
 
 PODE_CRIAR_CLA = HasPerm("comunidades.create")
@@ -119,3 +126,57 @@ class SairDoClaView(generics.GenericAPIView):
     def post(self, request, *args, **kwargs):
         sair_do_cla(user=request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@extend_schema(tags=["clas"])
+class MembrosView(generics.ListAPIView):
+    serializer_class = MembroSerializer
+    permission_classes = [IsAuthenticated]
+    # limite de 50 por clã, não precisa paginar
+    pagination_class = None
+
+    def get_queryset(self):
+        return listar_membros(user=self.request.user, tag=self.kwargs["tag"])
+
+
+@extend_schema(tags=["clas"], responses=MembroSerializer)
+class MembroView(generics.GenericAPIView):
+    serializer_class = MembroSerializer
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(request=MudarCargoSerializer)
+    def patch(self, request, tag, membro_id, *args, **kwargs):
+        entrada = MudarCargoSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+
+        membro = mudar_cargo(
+            user=request.user,
+            tag=tag,
+            membro_id=membro_id,
+            cargo=entrada.validated_data["cargo"],
+        )
+        return Response(self.get_serializer(membro).data)
+
+    @extend_schema(responses={204: None})
+    def delete(self, request, tag, membro_id, *args, **kwargs):
+        expulsar(user=request.user, tag=tag, membro_id=membro_id)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@extend_schema(
+    tags=["clas"], request=TransferirLiderancaSerializer, responses=MembroSerializer
+)
+class LiderancaView(generics.GenericAPIView):
+    serializer_class = MembroSerializer
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, tag, *args, **kwargs):
+        entrada = TransferirLiderancaSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+
+        novo_lider = transferir_lideranca(
+            user=request.user,
+            tag=tag,
+            membro_id=entrada.validated_data["membro_id"],
+        )
+        return Response(self.get_serializer(novo_lider).data)

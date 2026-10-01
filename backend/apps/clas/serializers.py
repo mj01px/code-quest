@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import NIVEL_MINIMO_GLOBAL, Bandeira, Cla, MembroDoCla, TipoDeCla
+from .models import NIVEL_MINIMO_GLOBAL, Bandeira, Cargo, Cla, MembroDoCla, TipoDeCla
 from .validators import DESCRICAO_MAX_LENGTH, NOME_MAX_LENGTH, normalizar_nome
 
 
@@ -75,3 +75,24 @@ class EditarClaSerializer(serializers.Serializer):
         if "descricao" in dados:
             dados["descricao"] = dados["descricao"].strip()
         return dados
+
+
+class MembroSerializer(serializers.ModelSerializer):
+    nickname = serializers.CharField(source="user.nickname", read_only=True)
+    cargo_rotulo = serializers.CharField(source="get_cargo_display", read_only=True)
+
+    class Meta:
+        model = MembroDoCla
+        fields = ("id", "nickname", "cargo", "cargo_rotulo", "entrou_em")
+        read_only_fields = fields
+
+
+class MudarCargoSerializer(serializers.Serializer):
+    # líder só muda por transferência
+    cargo = serializers.ChoiceField(
+        choices=[(Cargo.COLIDER, Cargo.COLIDER.label), (Cargo.MEMBRO, Cargo.MEMBRO.label)]
+    )
+
+
+class TransferirLiderancaSerializer(serializers.Serializer):
+    membro_id = serializers.UUIDField()
