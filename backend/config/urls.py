@@ -11,6 +11,7 @@ api = [
     path("", include("apps.trilhas.urls")),
     path("", include("apps.progressao.urls")),
     path("", include("apps.correcao.urls")),
+    path("", include("apps.clas.urls")),
 ]
 
 urlpatterns = [

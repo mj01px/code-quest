@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import F
+from django.db.models import F, Max
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -151,6 +151,17 @@ def nivel_da_posse(posse):
     pode vir da ativa quando a pergunta é sobre outra criatura.
     """
     return obter_progresso(posse).nivel_id
+
+
+def maior_nivel_do_usuario(user) -> int:
+    """Nível da criatura mais forte do usuário. Sem criatura nenhuma, 0."""
+    maior = ProgressoCriatura.objects.filter(user_creature__user=user).aggregate(
+        maior=Max("nivel_id")
+    )["maior"]
+    if maior is not None:
+        return maior
+    # criatura sem progresso ainda está no nível 1
+    return 1 if UserCreature.objects.filter(user=user).exists() else 0
 
 
 def _ja_na_forma_final():
