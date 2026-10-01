@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'apps.trilhas',
     'apps.progressao',
     'apps.correcao',
+    'apps.clas',
 
 ]
 
@@ -251,6 +252,10 @@ TROCA_EMAIL_MAX_AGE = env.int('TROCA_EMAIL_MAX_AGE', default=60 * 30)
 
 LOGIN_MAX_TENTATIVAS = env.int('LOGIN_MAX_TENTATIVAS', default=5)
 LOGIN_BLOQUEIO_SEGUNDOS = env.int('LOGIN_BLOQUEIO_SEGUNDOS', default=60 * 15)
+
+# Clas
+CLA_LIMITE_MEMBROS = env.int('CLA_LIMITE_MEMBROS', default=50)
+CLA_CONVITE_VALIDADE_DIAS = env.int('CLA_CONVITE_VALIDADE_DIAS', default=7)
 
 # Exclusao de conta: o link de confirmacao enviado por e-mail vive pouco (uso
 # unico). Confirmar com a senha anonimiza a conta na hora, sem prazo.
