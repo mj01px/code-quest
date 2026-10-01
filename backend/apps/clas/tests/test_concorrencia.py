@@ -7,6 +7,7 @@ from django.db import connection
 from django.test import TransactionTestCase, override_settings
 from rest_framework.exceptions import PermissionDenied
 
+from apps.auditoria.models import RegistroDeAuditoria
 from apps.clas.models import Cargo, Cla, MembroDoCla
 from apps.clas.services import entrar_no_cla, transferir_lideranca
 from apps.clas.tests.helpers import dar_nivel, montar_cla
@@ -44,6 +45,7 @@ class ConcorrenciaTest(TransactionTestCase):
         # sem flush: ele apagaria níveis, criaturas e RBAC semeados no banco
         # de teste, que é reaproveitado entre execuções (--reuse-db)
         Cla.objects.all().delete()
+        RegistroDeAuditoria.objects.all().delete()
         User.objects.filter(email__endswith="@example.com").delete()
 
     def _aluno(self, nickname, nivel=5):

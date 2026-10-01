@@ -4,6 +4,7 @@ from rest_framework import generics, status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 
 from apps.core.permissions import HasPerm
 
@@ -42,6 +43,22 @@ PODE_ENTRAR_EM_CLA = HasPerm("comunidades.join")
 
 BUSCA_MAX_LENGTH = 50
 
+ESCRITA = "clas_escrita"
+BUSCA = "clas_busca"
+CONVITE = "convite"
+
+
+class LimitePorMetodoMixin:
+    # método fora do mapa fica com os limites padrão
+    escopos: dict[str, str] = {}
+
+    def get_throttles(self):
+        escopo = self.escopos.get(self.request.method)
+        if escopo is None:
+            return super().get_throttles()
+        self.throttle_scope = escopo
+        return [ScopedRateThrottle()]
+
 
 class ClaPagination(PageNumberPagination):
     page_size = 20
@@ -50,7 +67,8 @@ class ClaPagination(PageNumberPagination):
 
 
 @extend_schema(tags=["clas"])
-class ClasView(generics.ListAPIView):
+class ClasView(LimitePorMetodoMixin, generics.ListAPIView):
+    escopos = {"GET": BUSCA, "POST": ESCRITA}
     serializer_class = ClaSerializer
     pagination_class = ClaPagination
 
@@ -80,13 +98,16 @@ class ClasView(generics.ListAPIView):
         entrada = CriarClaSerializer(data=request.data)
         entrada.is_valid(raise_exception=True)
 
-        cla = criar_cla(user=request.user, **entrada.validated_data)
+        cla = criar_cla(
+            user=request.user, request=request, **entrada.validated_data
+        )
         saida = ClaSerializer(cla, context=self.get_serializer_context())
         return Response(saida.data, status=status.HTTP_201_CREATED)
 
 
 @extend_schema(tags=["clas"], responses=ClaSerializer)
-class ClaDetalheView(generics.GenericAPIView):
+class ClaDetalheView(LimitePorMetodoMixin, generics.GenericAPIView):
+    escopos = {"PATCH": ESCRITA}
     serializer_class = ClaSerializer
     permission_classes = [IsAuthenticated]
 
@@ -99,17 +120,23 @@ class ClaDetalheView(generics.GenericAPIView):
         entrada = EditarClaSerializer(data=request.data)
         entrada.is_valid(raise_exception=True)
 
-        cla = editar_cla(user=request.user, tag=tag, dados=entrada.validated_data)
+        cla = editar_cla(
+            user=request.user,
+            tag=tag,
+            dados=entrada.validated_data,
+            request=request,
+        )
         return Response(self.get_serializer(cla).data)
 
 
 @extend_schema(tags=["clas"], request=None, responses={201: MeuClaSerializer})
-class EntrarNoClaView(generics.GenericAPIView):
+class EntrarNoClaView(LimitePorMetodoMixin, generics.GenericAPIView):
+    escopos = {"POST": ESCRITA}
     serializer_class = MeuClaSerializer
     permission_classes = [IsAuthenticated, PODE_ENTRAR_EM_CLA]
 
     def post(self, request, tag, *args, **kwargs):
-        entrar_no_cla(user=request.user, tag=tag)
+        entrar_no_cla(user=request.user, tag=tag, request=request)
         saida = self.get_serializer(meu_cla(request.user))
         return Response(saida.data, status=status.HTTP_201_CREATED)
 
@@ -127,11 +154,12 @@ class MeuClaView(generics.GenericAPIView):
 
 
 @extend_schema(tags=["clas"], request=None, responses={204: None})
-class SairDoClaView(generics.GenericAPIView):
+class SairDoClaView(LimitePorMetodoMixin, generics.GenericAPIView):
+    escopos = {"POST": ESCRITA}
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
-        sair_do_cla(user=request.user)
+        sair_do_cla(user=request.user, request=request)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -147,7 +175,8 @@ class MembrosView(generics.ListAPIView):
 
 
 @extend_schema(tags=["clas"], responses=MembroSerializer)
-class MembroView(generics.GenericAPIView):
+class MembroView(LimitePorMetodoMixin, generics.GenericAPIView):
+    escopos = {"PATCH": ESCRITA, "DELETE": ESCRITA}
     serializer_class = MembroSerializer
     permission_classes = [IsAuthenticated]
 
@@ -161,19 +190,21 @@ class MembroView(generics.GenericAPIView):
             tag=tag,
             membro_id=membro_id,
             cargo=entrada.validated_data["cargo"],
+            request=request,
         )
         return Response(self.get_serializer(membro).data)
 
     @extend_schema(responses={204: None})
     def delete(self, request, tag, membro_id, *args, **kwargs):
-        expulsar(user=request.user, tag=tag, membro_id=membro_id)
+        expulsar(user=request.user, tag=tag, membro_id=membro_id, request=request)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @extend_schema(
     tags=["clas"], request=TransferirLiderancaSerializer, responses=MembroSerializer
 )
-class LiderancaView(generics.GenericAPIView):
+class LiderancaView(LimitePorMetodoMixin, generics.GenericAPIView):
+    escopos = {"POST": ESCRITA}
     serializer_class = MembroSerializer
     permission_classes = [IsAuthenticated]
 
@@ -185,18 +216,20 @@ class LiderancaView(generics.GenericAPIView):
             user=request.user,
             tag=tag,
             membro_id=entrada.validated_data["membro_id"],
+            request=request,
         )
         return Response(self.get_serializer(novo_lider).data)
 
 
 @extend_schema(tags=["clas"])
-class ConviteView(generics.GenericAPIView):
+class ConviteView(LimitePorMetodoMixin, generics.GenericAPIView):
+    escopos = {"POST": ESCRITA, "DELETE": ESCRITA}
     serializer_class = ConviteGeradoSerializer
     permission_classes = [IsAuthenticated]
 
     @extend_schema(request=None, responses={201: ConviteGeradoSerializer})
     def post(self, request, tag, *args, **kwargs):
-        convite, token = gerar_convite(user=request.user, tag=tag)
+        convite, token = gerar_convite(user=request.user, tag=tag, request=request)
         saida = self.get_serializer(
             {
                 "token": token,
@@ -208,12 +241,13 @@ class ConviteView(generics.GenericAPIView):
 
     @extend_schema(responses={204: None})
     def delete(self, request, tag, *args, **kwargs):
-        revogar_convite(user=request.user, tag=tag)
+        revogar_convite(user=request.user, tag=tag, request=request)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @extend_schema(tags=["clas"], responses=PreviaDoConviteSerializer)
-class PreviaDoConviteView(generics.GenericAPIView):
+class PreviaDoConviteView(LimitePorMetodoMixin, generics.GenericAPIView):
+    escopos = {"GET": CONVITE}
     serializer_class = PreviaDoConviteSerializer
     permission_classes = [IsAuthenticated]
 
@@ -222,11 +256,12 @@ class PreviaDoConviteView(generics.GenericAPIView):
 
 
 @extend_schema(tags=["clas"], request=None, responses={201: MeuClaSerializer})
-class AceitarConviteView(generics.GenericAPIView):
+class AceitarConviteView(LimitePorMetodoMixin, generics.GenericAPIView):
+    escopos = {"POST": CONVITE}
     serializer_class = MeuClaSerializer
     permission_classes = [IsAuthenticated, PODE_ENTRAR_EM_CLA]
 
     def post(self, request, token, *args, **kwargs):
-        aceitar_convite(user=request.user, token=token)
+        aceitar_convite(user=request.user, token=token, request=request)
         saida = self.get_serializer(meu_cla(request.user))
         return Response(saida.data, status=status.HTTP_201_CREATED)

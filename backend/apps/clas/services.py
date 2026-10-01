@@ -12,6 +12,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from rest_framework.exceptions import PermissionDenied
 
+from apps.auditoria.services import AcaoAuditoria, registrar
 from apps.progressao.models import Nivel
 from apps.progressao.services import maior_nivel_do_usuario
 
@@ -32,6 +33,11 @@ CARGOS_DE_GESTAO = (Cargo.LIDER, Cargo.COLIDER)
 
 _TENTATIVAS_DE_TAG = 5
 _FORMATO_TAG = re.compile(rf"^[{TAG_ALFABETO}]{{{TAG_TAMANHO}}}$")
+
+
+def _log(acao, *, cla, actor, request=None, **metadata):
+    # nada de token aqui, só ids
+    registrar(acao, request=request, actor=actor, alvo=cla, tag=cla.tag, **metadata)
 
 
 def _ja_em_cla():
@@ -115,6 +121,7 @@ def criar_cla(
     descricao="",
     tipo=TipoDeCla.PUBLICO,
     nivel_minimo=NIVEL_MINIMO_GLOBAL,
+    request=None,
 ):
     if user.email_verified_at is None:
         raise ValidationError(
@@ -152,12 +159,13 @@ def criar_cla(
     except IntegrityError:
         raise _ja_em_cla() from None
 
+    _log(AcaoAuditoria.CLA_CRIADO, cla=cla, actor=user, request=request, tipo=tipo)
     cla.total_membros = 1
     return cla
 
 
 @transaction.atomic
-def editar_cla(*, user, tag, dados):
+def editar_cla(*, user, tag, dados, request=None):
     cla = obter_cla_visivel(user=user, tag=tag)
     # trava a linha pra duas edições não se atropelarem
     cla = Cla.objects.select_for_update().get(pk=cla.pk)
@@ -173,15 +181,31 @@ def editar_cla(*, user, tag, dados):
         cla.tipo == TipoDeCla.PRIVADO and dados.get("tipo") == TipoDeCla.PUBLICO
     )
 
-    for campo in CAMPOS_EDITAVEIS:
-        if campo in dados:
-            setattr(cla, campo, dados[campo])
+    alterados = [
+        campo
+        for campo in CAMPOS_EDITAVEIS
+        if campo in dados and getattr(cla, campo) != dados[campo]
+    ]
+    for campo in alterados:
+        setattr(cla, campo, dados[campo])
     cla.full_clean(exclude=["tag", "nome"])
     cla.save()
 
-    if virou_publico:
-        ConviteDoCla.objects.filter(cla=cla, revogado_em__isnull=True).update(
-            revogado_em=timezone.now()
+    if alterados:
+        _log(
+            AcaoAuditoria.CLA_EDITADO,
+            cla=cla,
+            actor=user,
+            request=request,
+            campos=alterados,
+        )
+    if virou_publico and _revogar_convite_ativo(cla):
+        _log(
+            AcaoAuditoria.CLA_CONVITE_REVOGADO,
+            cla=cla,
+            actor=user,
+            request=request,
+            motivo="virou_publico",
         )
 
     return com_total_de_membros(Cla.objects.filter(pk=cla.pk)).get()
@@ -196,7 +220,7 @@ def _travar_cla(cla_id):
     return cla
 
 
-def _adicionar_membro(*, user, cla):
+def _adicionar_membro(*, user, cla, via, request=None):
     if MembroDoCla.objects.filter(user=user).exists():
         raise _ja_em_cla()
     _exigir_nivel(user, max(cla.nivel_minimo, NIVEL_MINIMO_GLOBAL))
@@ -205,23 +229,26 @@ def _adicionar_membro(*, user, cla):
 
     try:
         with transaction.atomic():
-            return MembroDoCla.objects.create(cla=cla, user=user, cargo=Cargo.MEMBRO)
+            membro = MembroDoCla.objects.create(cla=cla, user=user, cargo=Cargo.MEMBRO)
     except IntegrityError:
         raise _ja_em_cla() from None
 
+    _log(AcaoAuditoria.CLA_ENTROU, cla=cla, actor=user, request=request, via=via)
+    return membro
+
 
 @transaction.atomic
-def entrar_no_cla(*, user, tag):
+def entrar_no_cla(*, user, tag, request=None):
     cla = obter_cla_visivel(user=user, tag=tag)
     if cla.tipo != TipoDeCla.PUBLICO:
         # membro de clã privado chegando aqui já está em clã
         raise _ja_em_cla()
     cla = _travar_cla(cla.pk)
-    return _adicionar_membro(user=user, cla=cla)
+    return _adicionar_membro(user=user, cla=cla, via="direta", request=request)
 
 
 @transaction.atomic
-def sair_do_cla(*, user):
+def sair_do_cla(*, user, request=None):
     """Sai do clã. Se era o último membro, o clã é apagado."""
     cla_id = (
         MembroDoCla.objects.filter(user=user).values_list("cla_id", flat=True).first()
@@ -242,7 +269,15 @@ def sair_do_cla(*, user):
         )
 
     membro.delete()
+    _log(AcaoAuditoria.CLA_SAIU, cla=cla, actor=user, request=request)
     if not cla.membros.exists():
+        _log(
+            AcaoAuditoria.CLA_APAGADO,
+            cla=cla,
+            actor=user,
+            request=request,
+            motivo="ultimo_membro_saiu",
+        )
         cla.delete()
 
 
@@ -280,7 +315,7 @@ def _preparar_gestao(*, user, tag, membro_id):
 
 
 @transaction.atomic
-def mudar_cargo(*, user, tag, membro_id, cargo):
+def mudar_cargo(*, user, tag, membro_id, cargo, request=None):
     """Promove membro a co-líder ou rebaixa co-líder a membro."""
     ator, alvo = _preparar_gestao(user=user, tag=tag, membro_id=membro_id)
 
@@ -292,13 +327,26 @@ def mudar_cargo(*, user, tag, membro_id, cargo):
             raise _cargo_insuficiente()
 
     if alvo.cargo != cargo:
+        acao = (
+            AcaoAuditoria.CLA_MEMBRO_PROMOVIDO
+            if cargo == Cargo.COLIDER
+            else AcaoAuditoria.CLA_MEMBRO_REBAIXADO
+        )
         alvo.cargo = cargo
         alvo.save(update_fields=["cargo"])
+        _log(
+            acao,
+            cla=alvo.cla,
+            actor=user,
+            request=request,
+            usuario_id=str(alvo.user_id),
+            cargo=cargo,
+        )
     return alvo
 
 
 @transaction.atomic
-def expulsar(*, user, tag, membro_id):
+def expulsar(*, user, tag, membro_id, request=None):
     ator, alvo = _preparar_gestao(user=user, tag=tag, membro_id=membro_id)
 
     if alvo.cargo == Cargo.LIDER:
@@ -307,10 +355,18 @@ def expulsar(*, user, tag, membro_id):
         raise _cargo_insuficiente()
 
     alvo.delete()
+    _log(
+        AcaoAuditoria.CLA_MEMBRO_EXPULSO,
+        cla=ator.cla,
+        actor=user,
+        request=request,
+        usuario_id=str(alvo.user_id),
+        cargo=alvo.cargo,
+    )
 
 
 @transaction.atomic
-def transferir_lideranca(*, user, tag, membro_id):
+def transferir_lideranca(*, user, tag, membro_id, request=None):
     """O líder passa a liderança e vira co-líder."""
     ator, alvo = _preparar_gestao(user=user, tag=tag, membro_id=membro_id)
     if ator.cargo != Cargo.LIDER:
@@ -321,6 +377,14 @@ def transferir_lideranca(*, user, tag, membro_id):
     ator.save(update_fields=["cargo"])
     alvo.cargo = Cargo.LIDER
     alvo.save(update_fields=["cargo"])
+    _log(
+        AcaoAuditoria.CLA_LIDERANCA_TRANSFERIDA,
+        cla=ator.cla,
+        actor=user,
+        request=request,
+        motivo="manual",
+        para_usuario_id=str(alvo.user_id),
+    )
     return alvo
 
 
@@ -346,13 +410,14 @@ def _gestor_do_cla(*, user, tag):
 
 
 def _revogar_convite_ativo(cla):
-    ConviteDoCla.objects.filter(cla=cla, revogado_em__isnull=True).update(
+    # devolve quantos revogou, 0 ou 1
+    return ConviteDoCla.objects.filter(cla=cla, revogado_em__isnull=True).update(
         revogado_em=timezone.now()
     )
 
 
 @transaction.atomic
-def gerar_convite(*, user, tag):
+def gerar_convite(*, user, tag, request=None):
     """Gera um link novo e derruba o anterior. Devolve (convite, token)."""
     cla = _gestor_do_cla(user=user, tag=tag)
     if cla.tipo != TipoDeCla.PRIVADO:
@@ -360,7 +425,7 @@ def gerar_convite(*, user, tag):
             _("Clã público não precisa de convite."), code="cla_publico"
         )
 
-    _revogar_convite_ativo(cla)
+    substituiu = bool(_revogar_convite_ativo(cla))
     token = secrets.token_urlsafe(32)
     agora = timezone.now()
     convite = ConviteDoCla.objects.create(
@@ -370,13 +435,28 @@ def gerar_convite(*, user, tag):
         criado_em=agora,
         expira_em=agora + timedelta(days=settings.CLA_CONVITE_VALIDADE_DIAS),
     )
+    _log(
+        AcaoAuditoria.CLA_CONVITE_GERADO,
+        cla=cla,
+        actor=user,
+        request=request,
+        convite_id=str(convite.pk),
+        substituiu_anterior=substituiu,
+    )
     return convite, token
 
 
 @transaction.atomic
-def revogar_convite(*, user, tag):
+def revogar_convite(*, user, tag, request=None):
     cla = _gestor_do_cla(user=user, tag=tag)
-    _revogar_convite_ativo(cla)
+    if _revogar_convite_ativo(cla):
+        _log(
+            AcaoAuditoria.CLA_CONVITE_REVOGADO,
+            cla=cla,
+            actor=user,
+            request=request,
+            motivo="manual",
+        )
 
 
 def _convite_ativo(token):
@@ -402,7 +482,7 @@ def ver_convite(token):
 
 
 @transaction.atomic
-def aceitar_convite(*, user, token):
+def aceitar_convite(*, user, token, request=None):
     convite = _convite_ativo(token)
     if convite is None:
         raise _convite_invalido()
@@ -411,7 +491,7 @@ def aceitar_convite(*, user, token):
     # confere de novo com o clã travado, pode ter sido revogado no meio
     if _convite_ativo(token) is None or cla.tipo != TipoDeCla.PRIVADO:
         raise _convite_invalido()
-    return _adicionar_membro(user=user, cla=cla)
+    return _adicionar_membro(user=user, cla=cla, via="convite", request=request)
 
 
 @transaction.atomic
@@ -427,9 +507,11 @@ def remover_conta_excluida(user):
     membro = cla.membros.get(user=user)
     era_lider = membro.cargo == Cargo.LIDER
     membro.delete()
+    _log(AcaoAuditoria.CLA_SAIU, cla=cla, actor=user, motivo="conta_excluida")
 
     restantes = cla.membros.all()
     if not restantes.exists():
+        _log(AcaoAuditoria.CLA_APAGADO, cla=cla, actor=user, motivo="conta_excluida")
         cla.delete()
         return
 
@@ -441,3 +523,10 @@ def remover_conta_excluida(user):
         )
         sucessor.cargo = Cargo.LIDER
         sucessor.save(update_fields=["cargo"])
+        _log(
+            AcaoAuditoria.CLA_LIDERANCA_TRANSFERIDA,
+            cla=cla,
+            actor=user,
+            motivo="conta_excluida",
+            para_usuario_id=str(sucessor.user_id),
+        )

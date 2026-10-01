@@ -12,6 +12,7 @@ from django.utils import timezone
 def exportar_dados(user) -> dict:
     """Monta o pacote de dados pessoais do titular (portabilidade)."""
     from apps.auditoria.models import RegistroDeAuditoria
+    from apps.clas.models import MembroDoCla
     from apps.gamificacao.models import UserCreature
     from apps.progressao.models import EventoXP, TrilhaIniciada
 
@@ -39,6 +40,18 @@ def exportar_dados(user) -> dict:
                 "evoluida_em": iso(c.evolved_at),
             }
         )
+
+    membro = MembroDoCla.objects.select_related("cla").filter(user=user).first()
+    cla = (
+        {
+            "tag": membro.cla.tag,
+            "nome": membro.cla.nome,
+            "cargo": membro.cargo,
+            "entrou_em": iso(membro.entrou_em),
+        }
+        if membro
+        else None
+    )
 
     return {
         "gerado_em": timezone.now().isoformat(),
@@ -82,6 +95,7 @@ def exportar_dados(user) -> dict:
             .order_by("criado_em")
         ],
         "criaturas": criaturas,
+        "cla": cla,
         "atividade": [
             {"acao": r.acao, "criado_em": iso(r.created_at), "ip": r.ip}
             for r in RegistroDeAuditoria.objects.filter(actor=user).order_by(

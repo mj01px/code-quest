@@ -180,6 +180,10 @@ REST_FRAMEWORK = {
         # Rajada por usuario em tudo que chama o Judge0 (executar/ e o envio de
         # concluir/). O teto do dia fica em JUDGE0_LIMITE_POR_USUARIO.
         'judge0': '5/min',
+        'clas_escrita': '30/min',
+        'clas_busca': '60/min',
+        # previa e aceite de convite
+        'convite': '10/min',
     },
     # Sem NUM_PROXIES o DRF identifica o cliente por X-Forwarded-For, que o
     # proprio cliente manda. Zero forca REMOTE_ADDR e fecha a burla do limite.
