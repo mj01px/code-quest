@@ -1,6 +1,9 @@
+import re
+
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Max
+from django.db.models import Count, Max, Q
 from django.http import Http404
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -11,6 +14,8 @@ from apps.progressao.services import maior_nivel_do_usuario
 
 from .models import (
     NIVEL_MINIMO_GLOBAL,
+    TAG_ALFABETO,
+    TAG_TAMANHO,
     Cargo,
     Cla,
     ConviteDoCla,
@@ -23,6 +28,7 @@ CAMPOS_EDITAVEIS = ("descricao", "bandeira", "tipo", "nivel_minimo")
 CARGOS_DE_GESTAO = (Cargo.LIDER, Cargo.COLIDER)
 
 _TENTATIVAS_DE_TAG = 5
+_FORMATO_TAG = re.compile(rf"^[{TAG_ALFABETO}]{{{TAG_TAMANHO}}}$")
 
 
 def _ja_em_cla():
@@ -82,6 +88,19 @@ def meu_cla(user):
         .annotate(total_membros=Count("cla__membros"))
         .first()
     )
+
+
+def buscar_clas(busca=""):
+    """Só clãs públicos. Busca pelo nome ou pela tag exata, com ou sem #."""
+    clas = com_total_de_membros(Cla.objects.filter(tipo=TipoDeCla.PUBLICO))
+    busca = busca.strip()
+    if busca:
+        filtro = Q(nome__icontains=busca)
+        tag = busca.removeprefix("#").upper()
+        if _FORMATO_TAG.match(tag):
+            filtro |= Q(tag=tag)
+        clas = clas.filter(filtro)
+    return clas.order_by("-total_membros", "nome", "tag")
 
 
 @transaction.atomic
@@ -163,3 +182,62 @@ def editar_cla(*, user, tag, dados):
         )
 
     return com_total_de_membros(Cla.objects.filter(pk=cla.pk)).get()
+
+
+def _travar_cla(cla_id):
+    # sempre trava o clã antes de mexer nos membros, assim limite e liderança
+    # não furam com requisições ao mesmo tempo
+    cla = Cla.objects.select_for_update().filter(pk=cla_id).first()
+    if cla is None:
+        raise _nao_encontrado()
+    return cla
+
+
+def _adicionar_membro(*, user, cla):
+    if MembroDoCla.objects.filter(user=user).exists():
+        raise _ja_em_cla()
+    _exigir_nivel(user, max(cla.nivel_minimo, NIVEL_MINIMO_GLOBAL))
+    if cla.membros.count() >= settings.CLA_LIMITE_MEMBROS:
+        raise ValidationError(_("Este clã está cheio."), code="cla_cheio")
+
+    try:
+        with transaction.atomic():
+            return MembroDoCla.objects.create(cla=cla, user=user, cargo=Cargo.MEMBRO)
+    except IntegrityError:
+        raise _ja_em_cla() from None
+
+
+@transaction.atomic
+def entrar_no_cla(*, user, tag):
+    cla = obter_cla_visivel(user=user, tag=tag)
+    if cla.tipo != TipoDeCla.PUBLICO:
+        # membro de clã privado chegando aqui já está em clã
+        raise _ja_em_cla()
+    cla = _travar_cla(cla.pk)
+    return _adicionar_membro(user=user, cla=cla)
+
+
+@transaction.atomic
+def sair_do_cla(*, user):
+    """Sai do clã. Se era o último membro, o clã é apagado."""
+    cla_id = (
+        MembroDoCla.objects.filter(user=user).values_list("cla_id", flat=True).first()
+    )
+    if cla_id is None:
+        raise ValidationError(_("Você não faz parte de um clã."), code="sem_cla")
+
+    cla = _travar_cla(cla_id)
+    membro = cla.membros.filter(user=user).first()
+    if membro is None:
+        # foi expulso enquanto saía
+        raise ValidationError(_("Você não faz parte de um clã."), code="sem_cla")
+
+    if membro.cargo == Cargo.LIDER and cla.membros.exclude(pk=membro.pk).exists():
+        raise ValidationError(
+            _("Passe a liderança para outro membro antes de sair."),
+            code="lider_precisa_transferir",
+        )
+
+    membro.delete()
+    if not cla.membros.exists():
+        cla.delete()
