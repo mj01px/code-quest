@@ -1,7 +1,10 @@
 from django.db.models.signals import post_save
-from django.dispatch import receiver
+from django.dispatch import Signal, receiver
 
 from .models import NivelDeAcesso, User
+
+# avisa as outras apps (clãs etc.), roda dentro do atomic da anonimização
+conta_anonimizada = Signal()
 
 # Cada papel embutido tem um nível de sistema homônimo (semeado na migração).
 _NIVEL_POR_PAPEL = {

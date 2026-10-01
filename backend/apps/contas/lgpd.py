@@ -102,13 +102,15 @@ def anonimizar_conta(user) -> bool:
     """
     from apps.auditoria.models import AcaoAuditoria, RegistroDeAuditoria
 
-    from .models import AceiteDeTermos
+    from .models import AceiteDeTermos, User
+    from .signals import conta_anonimizada
 
     if user.is_anonymized:
         return False
 
     with transaction.atomic():
         user.anonimizar()
+        conta_anonimizada.send(sender=User, user=user)
         # Registra o evento antes do scrub, para que o update abaixo limpe o
         # snapshot desta própria linha também: nada de e-mail sobra na trilha.
         RegistroDeAuditoria.objects.create(

@@ -412,3 +412,32 @@ def aceitar_convite(*, user, token):
     if _convite_ativo(token) is None or cla.tipo != TipoDeCla.PRIVADO:
         raise _convite_invalido()
     return _adicionar_membro(user=user, cla=cla)
+
+
+@transaction.atomic
+def remover_conta_excluida(user):
+    """Tira do clã quem teve a conta excluída. Se era líder, passa a liderança."""
+    cla_id = (
+        MembroDoCla.objects.filter(user=user).values_list("cla_id", flat=True).first()
+    )
+    if cla_id is None:
+        return
+
+    cla = _travar_cla(cla_id)
+    membro = cla.membros.get(user=user)
+    era_lider = membro.cargo == Cargo.LIDER
+    membro.delete()
+
+    restantes = cla.membros.all()
+    if not restantes.exists():
+        cla.delete()
+        return
+
+    if era_lider:
+        # co-líder mais antigo; sem co-líder, um membro qualquer
+        sucessor = (
+            restantes.filter(cargo=Cargo.COLIDER).order_by("entrou_em", "pk").first()
+            or restantes.order_by("?").first()
+        )
+        sucessor.cargo = Cargo.LIDER
+        sucessor.save(update_fields=["cargo"])

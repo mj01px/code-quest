@@ -8,3 +8,6 @@ class ClasConfig(AppConfig):
     name = "apps.clas"
     label = "clas"
     verbose_name = _("Clãs")
+
+    def ready(self):
+        from . import signals  # noqa: F401
