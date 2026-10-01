@@ -1,4 +1,4 @@
-"""Validação de nome e descrição. A lista real ainda não existe, uso "bobo" no lugar."""
+"""Validação de nome e descrição. Os testes de regra usam "bobo" no lugar da lista real."""
 
 from unittest import mock
 
@@ -75,6 +75,13 @@ class PalavrasProibidasTest(SimpleTestCase):
             with self.subTest(texto=texto):
                 self.assertIsNone(_codigo(validar_sem_palavras_proibidas, texto))
 
+    def test_letra_repetida_e_plural(self):
+        for texto in ("boboooo", "bbobbo", "os bobos"):
+            with self.subTest(texto=texto):
+                self.assertEqual(
+                    _codigo(validar_sem_palavras_proibidas, texto), "termo_proibido"
+                )
+
     def test_nome_tambem_passa_pelo_filtro(self):
         self.assertEqual(_codigo(validar_nome, "Clã Bobo"), "termo_proibido")
 
@@ -85,7 +92,80 @@ class PalavrasProibidasTest(SimpleTestCase):
         self.assertIn("descricao", contexto.exception.error_dict)
 
 
-class ListaVaziaTest(SimpleTestCase):
-    def test_sem_lista_nada_e_barrado(self):
-        self.assertEqual(palavras_proibidas.PALAVRAS_PROIBIDAS, frozenset())
-        self.assertIsNone(_codigo(validar_sem_palavras_proibidas, "qualquer coisa"))
+@mock.patch.object(
+    palavras_proibidas, "PALAVRAS_PROIBIDAS", frozenset({"filho da bobo", "bobo"})
+)
+class FrasesTest(SimpleTestCase):
+    def test_barra_a_frase_em_qualquer_forma(self):
+        for texto in (
+            "filho da bobo",
+            "Clã Filho da Bobo",
+            "filhodabobo",
+            "filho.da.bobo",
+            "f1lh0 d4 b0b0",
+        ):
+            with self.subTest(texto=texto):
+                self.assertEqual(
+                    _codigo(validar_sem_palavras_proibidas, texto), "termo_proibido"
+                )
+
+    def test_pedaco_da_frase_sozinho_passa(self):
+        self.assertIsNone(_codigo(validar_sem_palavras_proibidas, "Filho do Sol"))
+
+
+class ListaRealTest(SimpleTestCase):
+    def test_lista_carregada(self):
+        self.assertGreaterEqual(len(palavras_proibidas.PALAVRAS_PROIBIDAS), 80)
+
+    def test_barra_variacoes_da_lista(self):
+        for texto in (
+            "P0RR4",
+            "p.u.t.a",
+            "FDP Team",
+            "filho da puta",
+            "filhodaputa",
+            "vai tomar no cu",
+            "foda-se",
+            "MERDAAAA",
+            "cla filho da putaaaaaaaa",
+            "seu merda",
+            "Sapatões",
+            "Os Cuzões",
+            "b1ch4",
+            "Clã Nazista",
+            "supremacia branca",
+            "Macacos do Código",
+            "Piranhas",
+            "Mongóis",
+            "m4c4c0",
+        ):
+            with self.subTest(texto=texto):
+                self.assertEqual(
+                    _codigo(validar_sem_palavras_proibidas, texto), "termo_proibido"
+                )
+
+    def test_nomes_comuns_passam(self):
+        for texto in (
+            "Os Bugados",
+            "Clã do Café",
+            "Computaria",
+            "Pauliceia",
+            "Cururu",
+            "Cuscuz",
+            "Bichanos",
+            "Veadeiros",
+            "Lixeiras",
+            "Escorpiões",
+            "Dragões",
+            "Time 2024",
+            # risada, não a sigla
+            "kkkkkkk",
+            # sentido comum, ficaram fora da lista de propósito
+            "Pica-Pau",
+            "Os Veados",
+            "Legião do Inferno",
+            "Pau Brasil",
+            "Os Otários",
+        ):
+            with self.subTest(texto=texto):
+                self.assertIsNone(_codigo(validar_sem_palavras_proibidas, texto))
