@@ -1,4 +1,7 @@
+import hashlib
 import re
+import secrets
+from datetime import timedelta
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -319,3 +322,93 @@ def transferir_lideranca(*, user, tag, membro_id):
     alvo.cargo = Cargo.LIDER
     alvo.save(update_fields=["cargo"])
     return alvo
+
+
+def _hash_do_token(token):
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def montar_link_de_convite(token):
+    return f"{settings.FRONTEND_URL}/clas/convite/{token}"
+
+
+def _convite_invalido():
+    return Http404(_("Convite inválido ou expirado."))
+
+
+def _gestor_do_cla(*, user, tag):
+    cla = obter_cla_visivel(user=user, tag=tag)
+    cla = _travar_cla(cla.pk)
+    membro = cla.membros.filter(user=user).first()
+    if membro is None or membro.cargo not in CARGOS_DE_GESTAO:
+        raise _cargo_insuficiente()
+    return cla
+
+
+def _revogar_convite_ativo(cla):
+    ConviteDoCla.objects.filter(cla=cla, revogado_em__isnull=True).update(
+        revogado_em=timezone.now()
+    )
+
+
+@transaction.atomic
+def gerar_convite(*, user, tag):
+    """Gera um link novo e derruba o anterior. Devolve (convite, token)."""
+    cla = _gestor_do_cla(user=user, tag=tag)
+    if cla.tipo != TipoDeCla.PRIVADO:
+        raise ValidationError(
+            _("Clã público não precisa de convite."), code="cla_publico"
+        )
+
+    _revogar_convite_ativo(cla)
+    token = secrets.token_urlsafe(32)
+    agora = timezone.now()
+    convite = ConviteDoCla.objects.create(
+        cla=cla,
+        token_hash=_hash_do_token(token),
+        criado_por=user,
+        criado_em=agora,
+        expira_em=agora + timedelta(days=settings.CLA_CONVITE_VALIDADE_DIAS),
+    )
+    return convite, token
+
+
+@transaction.atomic
+def revogar_convite(*, user, tag):
+    cla = _gestor_do_cla(user=user, tag=tag)
+    _revogar_convite_ativo(cla)
+
+
+def _convite_ativo(token):
+    # token vazio ou gigante nem vai pro banco
+    if not token or len(token) > 100:
+        return None
+    return (
+        ConviteDoCla.objects.select_related("cla")
+        .filter(
+            token_hash=_hash_do_token(token),
+            revogado_em__isnull=True,
+            expira_em__gt=timezone.now(),
+        )
+        .first()
+    )
+
+
+def ver_convite(token):
+    convite = _convite_ativo(token)
+    if convite is None:
+        raise _convite_invalido()
+    return com_total_de_membros(Cla.objects.filter(pk=convite.cla_id)).get()
+
+
+@transaction.atomic
+def aceitar_convite(*, user, token):
+    convite = _convite_ativo(token)
+    if convite is None:
+        raise _convite_invalido()
+
+    cla = _travar_cla(convite.cla_id)
+    # confere de novo com o clã travado, pode ter sido revogado no meio
+    if _convite_ativo(token) is None or cla.tipo != TipoDeCla.PRIVADO:
+        raise _convite_invalido()
+    return _adicionar_membro(user=user, cla=cla)

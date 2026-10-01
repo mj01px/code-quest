@@ -96,3 +96,18 @@ class MudarCargoSerializer(serializers.Serializer):
 
 class TransferirLiderancaSerializer(serializers.Serializer):
     membro_id = serializers.UUIDField()
+
+
+class ConviteGeradoSerializer(serializers.Serializer):
+    token = serializers.CharField(read_only=True)
+    link = serializers.CharField(read_only=True)
+    expira_em = serializers.DateTimeField(read_only=True)
+
+
+class PreviaDoConviteSerializer(serializers.ModelSerializer):
+    total_membros = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Cla
+        fields = ("nome", "bandeira", "total_membros")
+        read_only_fields = fields

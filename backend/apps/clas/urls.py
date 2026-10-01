@@ -1,13 +1,16 @@
 from django.urls import path
 
 from .views import (
+    AceitarConviteView,
     ClaDetalheView,
     ClasView,
+    ConviteView,
     EntrarNoClaView,
     LiderancaView,
     MembrosView,
     MembroView,
     MeuClaView,
+    PreviaDoConviteView,
     SairDoClaView,
 )
 
@@ -24,6 +27,13 @@ urlpatterns = [
         name="membro",
     ),
     path("clas/<str:tag>/lideranca/", LiderancaView.as_view(), name="lideranca"),
+    path("clas/<str:tag>/convite/", ConviteView.as_view(), name="convite"),
+    path("convites/<str:token>/", PreviaDoConviteView.as_view(), name="previa-convite"),
+    path(
+        "convites/<str:token>/aceitar/",
+        AceitarConviteView.as_view(),
+        name="aceitar-convite",
+    ),
     path("eu/cla/", MeuClaView.as_view(), name="meu-cla"),
     path("eu/cla/sair/", SairDoClaView.as_view(), name="sair"),
 ]
