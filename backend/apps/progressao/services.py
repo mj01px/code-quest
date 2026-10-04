@@ -43,14 +43,34 @@ class ResultadoXP:
     ja_concluido: bool
 
 
-def _nao_publicado():
+# Os `code` são contrato da API e valem para todos os contextos; o que muda de
+# um helper para outro é só o texto que o aluno lê.
+def _exercicio_nao_publicado():
     return ValidationError(
         _("Este exercício não está publicado."), code="exercicio_nao_publicado"
     )
 
 
-def _conta_inativa():
+def _trilha_nao_publicada():
+    return ValidationError(
+        _("Esta trilha não está publicada."), code="exercicio_nao_publicado"
+    )
+
+
+def _conta_inativa_xp():
     return ValidationError(_("Esta conta não pode receber XP."), code="conta_inativa")
+
+
+def _conta_inativa_trilha():
+    return ValidationError(
+        _("Esta conta não pode iniciar trilhas."), code="conta_inativa"
+    )
+
+
+def _conta_inativa_evolucao():
+    return ValidationError(
+        _("Esta conta não pode evoluir criaturas."), code="conta_inativa"
+    )
 
 
 def _sem_criatura_ativa():
@@ -178,7 +198,7 @@ def evoluir_criatura(*, user, posse):
     pedido não sobrescreve com um estágio atrasado.
     """
     if not user.is_active or user.is_anonymized:
-        raise ValidationError({"usuario": _conta_inativa()})
+        raise ValidationError({"usuario": _conta_inativa_evolucao()})
 
     seguinte = _proximo_estagio(posse)
     if seguinte is None:
@@ -210,10 +230,10 @@ def iniciar_trilha(*, user, trilha):
     retorno diz se a linha nasceu agora, para a rota escolher entre 201 e 200.
     """
     if not user.is_active or user.is_anonymized:
-        raise ValidationError({"usuario": _conta_inativa()})
+        raise ValidationError({"usuario": _conta_inativa_trilha()})
 
     if not trilha.publicada:
-        raise ValidationError({"trilha": _nao_publicado()})
+        raise ValidationError({"trilha": _trilha_nao_publicada()})
 
     _, criada = TrilhaIniciada.objects.get_or_create(user=user, trilha=trilha)
     return criada
@@ -253,10 +273,10 @@ def montar_progresso(progresso):
 @transaction.atomic
 def creditar_exercicio(*, user, exercicio):
     if not user.is_active or user.is_anonymized:
-        raise ValidationError({"usuario": _conta_inativa()})
+        raise ValidationError({"usuario": _conta_inativa_xp()})
 
     if not exercicio.publicado:
-        raise ValidationError({"exercicio": _nao_publicado()})
+        raise ValidationError({"exercicio": _exercicio_nao_publicado()})
 
     ativa = criatura_ativa(user)
     if ativa is None:
