@@ -36,6 +36,20 @@ def test_xp_de_dificuldade_desconhecida_cai_no_padrao():
     assert xp_do_exercicio(exercicio) == 50
 
 
+@patch("apps.progressao.services.TrilhaIniciada")
+def test_iniciar_trilha_registra_a_marca_no_caminho_feliz(trilha_iniciada):
+    trilha_iniciada.objects.get_or_create.return_value = (MagicMock(), True)
+    usuario = _aluno_ativo()
+    trilha = _trilha()
+
+    criada = iniciar_trilha(user=usuario, trilha=trilha)
+
+    assert criada is True
+    trilha_iniciada.objects.get_or_create.assert_called_once_with(
+        user=usuario, trilha=trilha
+    )
+
+
 @pytest.mark.parametrize(
     "usuario",
     [
@@ -50,6 +64,7 @@ def test_conta_inativa_nao_pode_iniciar_trilha_nem_grava(trilha_iniciada, usuari
         iniciar_trilha(user=usuario, trilha=_trilha())
 
     assert exc.value.error_dict["usuario"][0].code == "conta_inativa"
+    assert exc.value.messages == ["Esta conta não pode iniciar trilhas."]
     trilha_iniciada.objects.get_or_create.assert_not_called()
 
 
@@ -59,4 +74,5 @@ def test_trilha_nao_publicada_bloqueia_e_nao_grava(trilha_iniciada):
         iniciar_trilha(user=_aluno_ativo(), trilha=_trilha(publicada=False))
 
     assert exc.value.error_dict["trilha"][0].code == "exercicio_nao_publicado"
+    assert exc.value.messages == ["Esta trilha não está publicada."]
     trilha_iniciada.objects.get_or_create.assert_not_called()

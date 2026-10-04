@@ -32,7 +32,7 @@ def test_senha_completa_passa_sem_erro():
     assert validador.validate("Trilha-de-python-8") is None
 
 
-def test_senha_sem_complexidade_lanca_erro_com_os_codigos_faltantes():
+def test_senha_sem_complexidade_lanca_erro_com_codigos_e_mensagens():
     validador = PasswordComplexityValidator()
 
     with pytest.raises(ValidationError) as exc:
@@ -40,6 +40,11 @@ def test_senha_sem_complexidade_lanca_erro_com_os_codigos_faltantes():
 
     codigos = {erro.code for erro in exc.value.error_list}
     assert codigos == {"senha_sem_maiuscula", "senha_sem_numero", "senha_sem_especial"}
+    assert exc.value.messages == [
+        "A senha deve conter pelo menos uma letra maiúscula.",
+        "A senha deve conter pelo menos um número.",
+        "A senha deve conter pelo menos um caractere especial.",
+    ]
 
 
 @pytest.mark.parametrize(
