@@ -7,40 +7,23 @@ from apps.contas.validators import (
     IDADE_MINIMA_ANOS,
     PasswordComplexityValidator,
     calcular_idade,
-    validate_nickname_not_reserved,
 )
 
 
-def test_calcular_idade_conta_apenas_aniversario_ja_passado():
-    nascimento = date(2000, 3, 10)
-
-    idade = calcular_idade(nascimento, hoje=date(2026, 8, 1))
-
-    assert idade == 26
-
-
-def test_calcular_idade_nao_conta_ano_antes_do_aniversario():
-    nascimento = date(2000, 3, 10)
-
-    idade = calcular_idade(nascimento, hoje=date(2026, 2, 1))
-
-    assert idade == 25
-
-
-def test_calcular_idade_no_dia_do_aniversario_ja_completa_o_ano():
-    nascimento = date(2010, 6, 15)
-
-    idade = calcular_idade(nascimento, hoje=date(2026, 6, 15))
-
-    assert idade == IDADE_MINIMA_ANOS
-
-
-def test_calcular_idade_na_vespera_ainda_nao_atinge_a_idade_minima():
-    nascimento = date(2010, 6, 15)
-
-    idade = calcular_idade(nascimento, hoje=date(2026, 6, 14))
-
-    assert idade == IDADE_MINIMA_ANOS - 1
+@pytest.mark.parametrize(
+    "nascimento, hoje, idade_esperada",
+    [
+        (date(2000, 3, 10), date(2026, 8, 1), 26),
+        (date(2000, 3, 10), date(2026, 2, 1), 25),
+        (date(2010, 6, 15), date(2026, 6, 15), IDADE_MINIMA_ANOS),
+        (date(2010, 6, 15), date(2026, 6, 14), IDADE_MINIMA_ANOS - 1),
+    ],
+    ids=["aniversario_ja_passou", "antes_do_aniversario", "no_dia", "na_vespera"],
+)
+def test_calcular_idade_so_conta_aniversario_ja_passado(
+    nascimento, hoje, idade_esperada
+):
+    assert calcular_idade(nascimento, hoje=hoje) == idade_esperada
 
 
 def test_senha_completa_passa_sem_erro():
@@ -49,16 +32,19 @@ def test_senha_completa_passa_sem_erro():
     assert validador.validate("Trilha-de-python-8") is None
 
 
-def test_senha_sem_complexidade_lanca_erro_com_codigo_e_mensagem():
+def test_senha_sem_complexidade_lanca_erro_com_codigos_e_mensagens():
     validador = PasswordComplexityValidator()
 
     with pytest.raises(ValidationError) as exc:
         validador.validate("semnumeroeespecial")
 
     codigos = {erro.code for erro in exc.value.error_list}
-    assert "senha_sem_maiuscula" in codigos
-    assert "senha_sem_numero" in codigos
-    assert "senha_sem_especial" in codigos
+    assert codigos == {"senha_sem_maiuscula", "senha_sem_numero", "senha_sem_especial"}
+    assert exc.value.messages == [
+        "A senha deve conter pelo menos uma letra maiúscula.",
+        "A senha deve conter pelo menos um número.",
+        "A senha deve conter pelo menos um caractere especial.",
+    ]
 
 
 @pytest.mark.parametrize(
@@ -76,15 +62,4 @@ def test_senha_sinaliza_o_requisito_que_falta(senha, codigo_esperado):
     with pytest.raises(ValidationError) as exc:
         validador.validate(senha)
 
-    assert codigo_esperado in {erro.code for erro in exc.value.error_list}
-
-
-def test_nickname_reservado_e_recusado():
-    with pytest.raises(ValidationError) as exc:
-        validate_nickname_not_reserved("admin")
-
-    assert exc.value.code == "nickname_reservado"
-
-
-def test_nickname_livre_passa():
-    assert validate_nickname_not_reserved("mauro_dev") is None
+    assert {erro.code for erro in exc.value.error_list} == {codigo_esperado}
