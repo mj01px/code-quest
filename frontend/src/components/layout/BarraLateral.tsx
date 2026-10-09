@@ -13,6 +13,7 @@ export const ITENS = [
   { rotulo: "TRILHAS", href: "/trilhas", perm: "trilhas.view" },
   { rotulo: "DESAFIO DO DIA", href: "/desafios", perm: "trilhas.view" },
   { rotulo: "CRIATURA", href: "/criatura", perm: "criaturas.view" },
+  { rotulo: "CLÃS", href: "/clas", perm: null },
   { rotulo: "CONFIGURAÇÕES", href: "/configuracoes", perm: null },
 ] as const;
 
