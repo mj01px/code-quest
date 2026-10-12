@@ -38,6 +38,21 @@ class AcaoAuditoria(models.TextChoices):
     NIVEL_EDITADO = "NIVEL_EDITADO", _("Nível de acesso editado")
     NIVEL_REMOVIDO = "NIVEL_REMOVIDO", _("Nível de acesso removido")
     NIVEL_ATRIBUIDO = "NIVEL_ATRIBUIDO", _("Nível de acesso atribuído a usuário")
+    # Clãs
+    CLA_CRIADO = "CLA_CRIADO", _("Clã criado")
+    CLA_EDITADO = "CLA_EDITADO", _("Clã editado")
+    CLA_APAGADO = "CLA_APAGADO", _("Clã apagado")
+    CLA_ENTROU = "CLA_ENTROU", _("Entrou em clã")
+    CLA_SAIU = "CLA_SAIU", _("Saiu de clã")
+    CLA_MEMBRO_PROMOVIDO = "CLA_MEMBRO_PROMOVIDO", _("Membro de clã promovido")
+    CLA_MEMBRO_REBAIXADO = "CLA_MEMBRO_REBAIXADO", _("Membro de clã rebaixado")
+    CLA_MEMBRO_EXPULSO = "CLA_MEMBRO_EXPULSO", _("Membro expulso de clã")
+    CLA_LIDERANCA_TRANSFERIDA = (
+        "CLA_LIDERANCA_TRANSFERIDA",
+        _("Liderança de clã transferida"),
+    )
+    CLA_CONVITE_GERADO = "CLA_CONVITE_GERADO", _("Convite de clã gerado")
+    CLA_CONVITE_REVOGADO = "CLA_CONVITE_REVOGADO", _("Convite de clã revogado")
     # Definidos para uso futuro (administração):
     PAPEL_CONCEDIDO = "PAPEL_CONCEDIDO", _("Papel concedido")
     PAPEL_REMOVIDO = "PAPEL_REMOVIDO", _("Papel removido")

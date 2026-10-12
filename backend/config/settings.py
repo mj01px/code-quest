@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'apps.trilhas',
     'apps.progressao',
     'apps.correcao',
+    'apps.clas',
 
 ]
 
@@ -179,6 +180,10 @@ REST_FRAMEWORK = {
         # Rajada por usuario em tudo que chama o Judge0 (executar/ e o envio de
         # concluir/). O teto do dia fica em JUDGE0_LIMITE_POR_USUARIO.
         'judge0': '5/min',
+        'clas_escrita': '30/min',
+        'clas_busca': '60/min',
+        # previa e aceite de convite
+        'convite': '10/min',
     },
     # Sem NUM_PROXIES o DRF identifica o cliente por X-Forwarded-For, que o
     # proprio cliente manda. Zero forca REMOTE_ADDR e fecha a burla do limite.
@@ -251,6 +256,10 @@ TROCA_EMAIL_MAX_AGE = env.int('TROCA_EMAIL_MAX_AGE', default=60 * 30)
 
 LOGIN_MAX_TENTATIVAS = env.int('LOGIN_MAX_TENTATIVAS', default=5)
 LOGIN_BLOQUEIO_SEGUNDOS = env.int('LOGIN_BLOQUEIO_SEGUNDOS', default=60 * 15)
+
+# Clas
+CLA_LIMITE_MEMBROS = env.int('CLA_LIMITE_MEMBROS', default=50)
+CLA_CONVITE_VALIDADE_DIAS = env.int('CLA_CONVITE_VALIDADE_DIAS', default=7)
 
 # Exclusao de conta: o link de confirmacao enviado por e-mail vive pouco (uso
 # unico). Confirmar com a senha anonimiza a conta na hora, sem prazo.
