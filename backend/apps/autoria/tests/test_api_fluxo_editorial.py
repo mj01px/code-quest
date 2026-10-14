@@ -211,3 +211,44 @@ def test_fluxo_completo_do_rascunho_ao_publicado():
     conteudo.refresh_from_db()
     assert conteudo.status == PUBLICADO
     assert RegistroDeAuditoria.objects.count() == 5
+
+
+def _publicar_e_ler_erro(pai):
+    tipo = "trilhas" if hasattr(pai, "aulas") else "aulas"
+    resposta = cliente(criar_admin()).post(url("publicar", tipo, pai.pk))
+    assert resposta.status_code == 400
+    pai.refresh_from_db()
+    assert pai.status == APROVADO
+    assert not RegistroDeAuditoria.objects.filter(
+        acao=AcaoAuditoria.CONTEUDO_PUBLICADO
+    ).exists()
+    return resposta.json()["error"]["details"][0]["code"]
+
+
+@pytest.mark.parametrize("status_filho", [RASCUNHO, REVISAO])
+def test_publicar_trilha_com_aula_incompleta_recebe_400(status_filho):
+    trilha = criar_trilha("logica", status=APROVADO)
+    criar_aula(trilha, "pronta", status=APROVADO)
+    criar_aula(trilha, "pendente", status=status_filho)
+
+    assert _publicar_e_ler_erro(trilha) == "conteudo_incompleto"
+
+
+@pytest.mark.parametrize("status_filho", [RASCUNHO, REVISAO])
+def test_publicar_aula_com_exercicio_incompleto_recebe_400(status_filho):
+    aula = criar_aula(criar_trilha("logica", status=PUBLICADO), "vars", status=APROVADO)
+    criar_exercicio(aula, "pronto", status=PUBLICADO)
+    criar_exercicio(aula, "pendente", status=status_filho)
+
+    assert _publicar_e_ler_erro(aula) == "conteudo_incompleto"
+
+
+def test_publicar_pai_com_filhos_aprovados_ou_publicados_passa():
+    trilha = criar_trilha("logica", status=APROVADO)
+    aula = criar_aula(trilha, "vars", status=APROVADO)
+    criar_exercicio(aula, "a", status=APROVADO)
+    criar_exercicio(aula, "b", status=PUBLICADO)
+    admin = cliente(criar_admin())
+
+    assert admin.post(url("publicar", "aulas", aula.pk)).status_code == 200
+    assert admin.post(url("publicar", "trilhas", trilha.pk)).status_code == 200

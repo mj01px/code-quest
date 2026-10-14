@@ -55,6 +55,27 @@ def exercicios_para_autoria() -> QuerySet[Exercicio]:
     return Exercicio.objects.select_related("trilha").all()
 
 
+PRONTOS = (StatusEditorial.APROVADO, StatusEditorial.PUBLICADO)
+
+
+def _exigir_filhos_prontos(conteudo: Conteudo) -> None:
+    """Recusa publicar pai com filho ainda em rascunho ou revisão.
+
+    Exercício não tem filhos. Roda sob o lock do pai; um filho que mude de
+    estado logo depois não é coberto (sem lock nos filhos).
+    """
+    if isinstance(conteudo, Trilha):
+        incompleto = conteudo.aulas.exclude(status__in=PRONTOS).exists()
+        mensagem = "Trilha contem aulas nao aprovadas ou em rascunho."
+    elif isinstance(conteudo, Aula):
+        incompleto = conteudo.exercicios.exclude(status__in=PRONTOS).exists()
+        mensagem = "Aula contem exercicios nao aprovados ou em rascunho."
+    else:
+        return
+    if incompleto:
+        raise ValidationError(mensagem, code="conteudo_incompleto")
+
+
 def transicionar(
     modelo: type[Conteudo], pk: int, acao: Acao, request: Request
 ) -> Conteudo:
@@ -80,6 +101,9 @@ def transicionar(
                 f"o status atual é {StatusEditorial(conteudo.status).label}.",
                 code="transicao_invalida",
             )
+
+        if acao == "publicar":
+            _exigir_filhos_prontos(conteudo)
 
         conteudo.status = destino
         # `auto_now` só grava o carimbo se o campo entrar em update_fields, e

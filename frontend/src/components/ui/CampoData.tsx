@@ -250,7 +250,7 @@ export function CampoData({ rotulo, value, onChange, erro, name }: Props) {
                     ‹
                   </button>
                   <span className="flex-1 text-center font-label text-[11px] tracking-[1px] text-ink">
-                    {paginaAno} – {paginaAno + ANOS_POR_PAGINA - 1}
+                    {paginaAno} a {paginaAno + ANOS_POR_PAGINA - 1}
                   </span>
                   <button
                     type="button"

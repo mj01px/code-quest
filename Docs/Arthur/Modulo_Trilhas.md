@@ -78,8 +78,9 @@ transação, com as ações `CONTEUDO_SUBMETIDO`, `CONTEUDO_APROVADO`,
 `CONTEUDO_DEVOLVIDO` e `CONTEUDO_PUBLICADO`, o autor da ação, o alvo e os
 estados de origem e destino. A auditoria nunca quebra o fluxo: se a gravação
 do registro falhar, o erro é logado e a transição continua confirmada, sem
-rastro. Ainda não há dono no conteúdo, e a hierarquia não é validada na
-publicação (uma trilha pode ser publicada com aulas ainda em rascunho).
+rastro. Publicar trilha com aula (ou aula com exercício) fora de `APROVADO`
+ou `PUBLICADO` devolve 400 com `details[0].code == "conteudo_incompleto"`.
+Ainda não há dono no conteúdo.
 
 > **O slug do exercício é único por trilha, e não por aula.** Como a terceira
 > rota não menciona a aula, unicidade por aula deixaria a URL ambígua. Por
