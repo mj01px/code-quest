@@ -16,6 +16,16 @@ from rest_framework.throttling import ScopedRateThrottle
 
 PREFIXO = "apps.autoria"
 
+# Permissão exigida por rota. Rota nova sem entrada aqui reprova a varredura:
+# a falta de mapeamento é tratada como falta de permissão.
+PERMISSAO_POR_ROTA = {
+    "solucao-autor": "HasPerm[trilhas.view_solution]",
+    "submeter": "HasPerm[trilhas.submit_review]",
+    "aprovar": "HasPerm[trilhas.review]",
+    "devolver": "HasPerm[trilhas.review]",
+    "publicar": "HasPerm[trilhas.publish]",
+}
+
 
 def views_de_autoria():
     """Toda view de `apps.autoria`, registrada onde quer que seja.
@@ -48,14 +58,15 @@ class TodaViewDeAutoriaExigePermissaoTest(TestCase):
         # Se a varredura parar de achar views, os testes abaixo passam vazios.
         self.assertGreaterEqual(len(self.views), 1)
 
-    def test_toda_view_exige_autenticacao_e_permissao_de_solucao(self):
+    def test_toda_view_exige_autenticacao_e_a_permissao_da_rota(self):
         for nome, cls in self.views:
             with self.subTest(rota=nome):
                 classes = [type(p) for p in cls().get_permissions()]
                 nomes = [c.__name__ for c in classes]
 
+                self.assertIn(nome, PERMISSAO_POR_ROTA)
                 self.assertIn(IsAuthenticated, classes)
-                self.assertIn("HasPerm[trilhas.view_solution]", nomes)
+                self.assertIn(PERMISSAO_POR_ROTA[nome], nomes)
 
     def test_nenhuma_view_e_publica(self):
         for nome, cls in self.views:

@@ -12,6 +12,7 @@ Regra de ouro: NUNCA passe senha, token ou conteúdo sensível em `metadata`.
 """
 
 import logging
+from typing import Any
 
 from django.db import transaction
 
@@ -46,7 +47,14 @@ def _resolver_ator(request, actor):
     return None
 
 
-def registrar(acao, *, request=None, actor=None, alvo=None, **metadata):
+def registrar(
+    acao: str,
+    *,
+    request: Any = None,
+    actor: Any = None,
+    alvo: Any = None,
+    **metadata: Any,
+) -> RegistroDeAuditoria | None:
     """Grava um evento de auditoria e devolve o registro (ou None se falhar).
 
     - `actor`: usuário responsável. Se omitido, usa `request.user` quando

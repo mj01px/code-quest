@@ -28,6 +28,15 @@ Segue o formato do [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
   "Continuar de onde parou" do destaque, que leva à primeira fase ainda não
   concluída. O servidor não recebe nada disso, e a API continua
   somente-leitura.
+- **Fluxo editorial na API** (`apps/autoria`): quatro rotas `POST
+  /api/v1/autoria/<tipo>/<pk>/{submeter,aprovar,devolver,publicar}/` para
+  trilhas, aulas e exercícios, cada uma sob a sua permissão RBAC
+  (`trilhas.submit_review`, `trilhas.review`, `trilhas.publish`). Transição
+  inválida devolve 400 no envelope padrão. Cada transição bem-sucedida grava
+  `CONTEUDO_SUBMETIDO`, `CONTEUDO_APROVADO`, `CONTEUDO_DEVOLVIDO` ou
+  `CONTEUDO_PUBLICADO` em `apps/auditoria` (migration `0008`), e o `save`
+  usa `update_fields`. Falha ao gravar a auditoria é logada e não desfaz a
+  transição.
 - **Testes**: 84 no backend, em `apps/trilhas/tests/` e separados por camada,
   e 98 no frontend, com Jest + React Testing Library.
 - **Documentação para a orientação** (`Docs/Termos_de_Aceite/` e

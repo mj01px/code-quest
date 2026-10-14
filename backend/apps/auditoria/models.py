@@ -53,6 +53,11 @@ class AcaoAuditoria(models.TextChoices):
     )
     CLA_CONVITE_GERADO = "CLA_CONVITE_GERADO", _("Convite de clã gerado")
     CLA_CONVITE_REVOGADO = "CLA_CONVITE_REVOGADO", _("Convite de clã revogado")
+    # Fluxo editorial de trilhas, aulas e exercícios (apps.autoria).
+    CONTEUDO_SUBMETIDO = "CONTEUDO_SUBMETIDO", _("Conteúdo enviado para revisão")
+    CONTEUDO_APROVADO = "CONTEUDO_APROVADO", _("Conteúdo aprovado")
+    CONTEUDO_DEVOLVIDO = "CONTEUDO_DEVOLVIDO", _("Conteúdo devolvido ao rascunho")
+    CONTEUDO_PUBLICADO = "CONTEUDO_PUBLICADO", _("Conteúdo publicado")
     # Definidos para uso futuro (administração):
     PAPEL_CONCEDIDO = "PAPEL_CONCEDIDO", _("Papel concedido")
     PAPEL_REMOVIDO = "PAPEL_REMOVIDO", _("Papel removido")
