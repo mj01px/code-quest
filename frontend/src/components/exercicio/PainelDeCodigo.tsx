@@ -1,6 +1,7 @@
 "use client";
 
-import {useEffect, useRef, useState} from "react";
+import {useRef, useState} from "react";
+import dynamic from "next/dynamic";
 
 import {EditorDeCodigo} from "@/components/exercicio/EditorDeCodigo";
 import {ResultadoDosCasos, comoTexto} from "@/components/exercicio/ResultadoDosCasos";
@@ -13,6 +14,11 @@ import type {
     ExemploDeCaso,
     RequisitoEstrutural,
 } from "@/lib/types";
+
+const TerminalDeSaida = dynamic(
+    () => import("@/components/exercicio/TerminalDeSaida").then((modulo) => modulo.TerminalDeSaida),
+    {ssr: false},
+);
 
 const CONSTRUCOES: Record<string, string> = {
     for: "um laço for",
@@ -135,6 +141,9 @@ export function PainelDeCodigo({
     const feito = concluido || estaConcluida(chaves, trilhaSlug, exercicioSlug);
     const ocupado = executando || enviando;
 
+    const mostrarTerminal = correcao?.modo === "EXECUTAR" &&
+        (Boolean(correcao.saida || correcao.erro) ||
+            correcao.veredito === "TEMPO_ESGOTADO" || correcao.veredito === "ERRO_DE_EXECUCAO");
 
     return (
         <section className="mt-6 space-y-4">
@@ -223,6 +232,14 @@ export function PainelDeCodigo({
                                 : "")}
                 </p>
             </div>
+
+            {mostrarTerminal && correcao && (
+                <TerminalDeSaida
+                    saida={correcao.saida}
+                    erro={correcao.erro}
+                    veredito={correcao.veredito}
+                />
+            )}
 
             {correcao && (
                 <ResultadoDosCasos correcao={correcao} funcao={especificacao.funcao}/>
