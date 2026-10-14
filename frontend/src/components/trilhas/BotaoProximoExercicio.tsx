@@ -25,14 +25,15 @@ export function BotaoProximoExercicio({
 
   if (!estaConcluida(chaves, trilhaSlug, exercicioSlug)) {
     return (
-      // Sem href: não há para onde ir ainda. aria-disabled avisa o leitor de tela.
-      <span
-        role="link"
+      // Sem destino ainda. button com aria-disabled segue focável por teclado,
+      // então quem não usa mouse descobre por que o avanço está bloqueado.
+      <button
+        type="button"
         aria-disabled="true"
         className={`${BASE} cursor-default border-edge-soft text-ink-dim`}
       >
         Conclua para avançar
-      </span>
+      </button>
     );
   }
 

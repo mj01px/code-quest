@@ -66,7 +66,7 @@ function montar(proximoSlug: string | null = "trocar") {
 }
 
 const bloqueado = () =>
-  screen.getByRole("link", { name: "Conclua para avançar" });
+  screen.getByRole("button", { name: "Conclua para avançar" });
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -155,7 +155,9 @@ describe("BotaoProximoExercicio", () => {
         />
       </ProvedorProgresso>,
     );
-    const concluir = screen.getByRole("button");
+    const concluir = screen.getByRole("button", {
+      name: "Marcar como concluído",
+    });
     await waitFor(() =>
       expect(concluir).toHaveAttribute("aria-busy", "false"),
     );

@@ -123,7 +123,7 @@ function montar(proximoSlug: string | null = "media") {
 }
 
 const bloqueado = () =>
-  screen.getByRole("link", { name: "Conclua para avançar" });
+  screen.getByRole("button", { name: "Conclua para avançar" });
 
 beforeEach(() => {
   jest.clearAllMocks();
