@@ -62,10 +62,10 @@ def normalizar(texto: str) -> list[str]:
 
 
 @lru_cache(maxsize=4)
-def _preparar(proibidas: frozenset[str]) -> tuple[frozenset[str], tuple]:
+def _preparar(proibidas: frozenset[str]) -> tuple[frozenset[str], tuple[tuple[str, ...], ...]]:
     """Separa palavras soltas de frases. Frase também vale toda junta ("filhodaputa")."""
     palavras: set[str] = set()
-    frases = []
+    frases: list[tuple[str, ...]] = []
     for termo in proibidas:
         partes = normalizar(termo)
         if len(partes) > 1:
