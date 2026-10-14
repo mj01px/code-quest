@@ -75,7 +75,7 @@ export default async function ExercicioPage({
 }: PageProps<"/trilhas/[trilhaSlug]/exercicios/[exercicioSlug]">) {
   const { trilhaSlug, exercicioSlug } = await params;
   const exercicio = await carregar(trilhaSlug, exercicioSlug);
-  // Mesma URL do generateStaticParams: o fetch é memoizado, não gera GET novo.
+  // A ordem das fases da trilha define qual exercício vem depois deste.
   const trilha = await buscarTrilha(exercicio.trilha_slug);
   const proximo = faseSeguinte(fasesEmOrdem(trilha), exercicio.slug);
 

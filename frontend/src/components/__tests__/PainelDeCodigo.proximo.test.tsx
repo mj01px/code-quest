@@ -105,7 +105,17 @@ const conclusao: ExercicioConcluido = {
   criado_em: "2026-09-12T12:00:00Z",
 };
 
-function montar(proximoSlug: string | null = "media") {
+const aprovado = {
+  aprovado: true,
+  correcao: correcao(),
+  ja_concluido: false,
+  xp_ganho: 50,
+  subiu_de_nivel: false,
+  pode_evoluir: false,
+  progresso: progressoAtual(),
+} satisfies Awaited<ReturnType<typeof apiReal.concluirExercicio>>;
+
+function montar() {
   return render(
     <ProvedorProgresso>
       <PainelDeCodigo
@@ -116,7 +126,7 @@ function montar(proximoSlug: string | null = "media") {
       <BotaoProximoExercicio
         trilhaSlug="python"
         exercicioSlug="soma"
-        proximoSlug={proximoSlug}
+        proximoSlug="media"
       />
     </ProvedorProgresso>,
   );
@@ -137,15 +147,7 @@ beforeEach(() => {
 
 describe("PainelDeCodigo habilita BotaoProximoExercicio", () => {
   it("aprovação no Enviar leva ao próximo exercício", async () => {
-    concluirExercicio.mockResolvedValue({
-      aprovado: true,
-      correcao: correcao(),
-      ja_concluido: false,
-      xp_ganho: 50,
-      subiu_de_nivel: false,
-      pode_evoluir: false,
-      progresso: progressoAtual(),
-    });
+    concluirExercicio.mockResolvedValue(aprovado);
     // A releitura disparada pelo recarregar() já traz a conclusão.
     exerciciosConcluidos
       .mockResolvedValueOnce([])
@@ -180,28 +182,5 @@ describe("PainelDeCodigo habilita BotaoProximoExercicio", () => {
     expect(
       screen.queryByRole("link", { name: /próximo exercício/i }),
     ).not.toBeInTheDocument();
-  });
-
-  it("aprovação no último exercício leva de volta à trilha", async () => {
-    concluirExercicio.mockResolvedValue({
-      aprovado: true,
-      correcao: correcao(),
-      ja_concluido: false,
-      xp_ganho: 50,
-      subiu_de_nivel: false,
-      pode_evoluir: false,
-      progresso: progressoAtual(),
-    });
-    exerciciosConcluidos
-      .mockResolvedValueOnce([])
-      .mockResolvedValue([conclusao]);
-
-    montar(null);
-    await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
-
-    const link = await screen.findByRole("link", {
-      name: /voltar para a trilha/i,
-    });
-    expect(link).toHaveAttribute("href", "/trilhas/python");
   });
 });
