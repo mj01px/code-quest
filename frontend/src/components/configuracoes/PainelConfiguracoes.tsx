@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 import { ErroApi, api, temSessao } from "@/lib/api";
 import type { Usuario } from "@/lib/types";
 import { validarEmail, validarNickname } from "@/lib/validacao";
@@ -19,6 +20,7 @@ interface ErrosPerfil {
 
 export function PainelConfiguracoes() {
   const router = useRouter();
+  const { sequencia } = useProgresso();
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -195,6 +197,7 @@ export function PainelConfiguracoes() {
       </div>
 
       <SecaoPerfil
+        recorde={sequencia?.recorde ?? 0}
         nickname={nickname}
         email={email}
         pedirSenha={emailSujo}

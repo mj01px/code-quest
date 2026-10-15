@@ -37,7 +37,7 @@ export function BarraLateral() {
   const [erroAoSair, setErroAoSair] = useState(false);
   // Os dados vêm do Context, não de busca própria: sem isso o bloco piscaria
   // a cada troca de rota. O provedor vive no layout do route group.
-  const { usuario, criatura, progresso, carregando } = useProgresso();
+  const { usuario, criatura, progresso, sequencia, carregando } = useProgresso();
 
   // Enquanto o usuário não carrega, mostra os itens sem filtrar (evita flicker);
   // carregado, esconde o que o nível de acesso não permite.
@@ -149,13 +149,25 @@ export function BarraLateral() {
           ))}
         </div>
 
-        <span className="font-label text-[10px] tracking-[2px] text-ink-muted">
-          {progresso === null
-            ? "0 / 0 XP"
-            : noTopo
-              ? `${progresso.xp_total} XP`
-              : `${progresso.xp_no_nivel} / ${faixa} XP`}
-        </span>
+        <div className="flex flex-wrap items-center gap-3 font-label text-[10px] tracking-[2px] text-ink-muted">
+          <span>
+            {progresso === null
+              ? "0 / 0 XP"
+              : noTopo
+                ? `${progresso.xp_total} XP`
+                : `${progresso.xp_no_nivel} / ${faixa} XP`}
+          </span>
+          {usuario && sequencia && (
+            <span className="text-brand-light">
+              SEQUÊNCIA {sequencia.atual} {sequencia.atual === 1 ? "DIA" : "DIAS"}
+            </span>
+          )}
+        </div>
+        {sequencia && sequencia.atual > 0 && !sequencia.feito_hoje && (
+          <span className="font-body text-sm text-danger">
+            Sequência em risco. Conclua um exercício hoje.
+          </span>
+        )}
       </div>
 
       <nav aria-label="Navegação principal">

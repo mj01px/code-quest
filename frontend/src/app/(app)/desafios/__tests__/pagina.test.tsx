@@ -32,6 +32,7 @@ jest.mock("@/lib/api", () => {
       eu: jest.fn(),
       minhasCriaturas: jest.fn(),
       meuProgresso: jest.fn(),
+      minhaSequencia: jest.fn(),
     },
   };
 });
@@ -47,6 +48,7 @@ const api = jest.requireMock<{
     eu: jest.Mock;
     minhasCriaturas: jest.Mock;
     meuProgresso: jest.Mock;
+    minhaSequencia: jest.Mock;
   };
 }>("@/lib/api");
 
@@ -110,6 +112,12 @@ beforeEach(() => {
   api.api.eu.mockResolvedValue(usuario());
   api.api.minhasCriaturas.mockResolvedValue([minhaCriatura({ ativa: true })]);
   api.api.meuProgresso.mockResolvedValue(progressoAtual());
+  api.api.minhaSequencia.mockResolvedValue({
+    atual: 0,
+    recorde: 0,
+    feito_hoje: false,
+    ultimo_dia: null,
+  });
   concluiu("nenhuma");
   api.listarTrilhas.mockResolvedValue([trilhaResumo()]);
   api.buscarTrilha.mockResolvedValue(TRILHA);

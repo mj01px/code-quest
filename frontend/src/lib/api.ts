@@ -22,6 +22,7 @@ import type {
   PreviaConvite,
   ProgressoAtual,
   RespostaConclusao,
+  Sequencia,
   TipoDeCla,
   TrilhaDetalhe,
   TrilhaResumo,
@@ -624,6 +625,10 @@ export const api = {
     return requisicao<ProgressoAtual | null>("/eu/progresso/", {
       autenticado: true,
     });
+  },
+
+  minhaSequencia() {
+    return requisicao<Sequencia>("/eu/sequencia/", { autenticado: true });
   },
 
   // Marca a trilha como iniciada. Idempotente no servidor: clicar duas vezes

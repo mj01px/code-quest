@@ -21,6 +21,7 @@ jest.mock("@/lib/api", () => {
       eu: jest.fn(),
       minhasCriaturas: jest.fn(),
       meuProgresso: jest.fn(),
+      minhaSequencia: jest.fn(),
     },
   };
 });
@@ -39,6 +40,9 @@ const minhasCriaturas = apiReal.minhasCriaturas as jest.MockedFunction<
 >;
 const meuProgresso = apiReal.meuProgresso as jest.MockedFunction<
   typeof apiReal.meuProgresso
+>;
+const minhaSequencia = apiReal.minhaSequencia as jest.MockedFunction<
+  typeof apiReal.minhaSequencia
 >;
 const trilhasIniciadas = apiReal.trilhasIniciadas as jest.MockedFunction<
   typeof apiReal.trilhasIniciadas
@@ -76,6 +80,12 @@ beforeEach(() => {
   eu.mockResolvedValue(usuario());
   minhasCriaturas.mockResolvedValue([minhaCriatura({ ativa: true })]);
   meuProgresso.mockResolvedValue(progressoAtual());
+  minhaSequencia.mockResolvedValue({
+    atual: 0,
+    recorde: 0,
+    feito_hoje: false,
+    ultimo_dia: null,
+  });
 });
 
 describe("BotaoProximoExercicio", () => {
@@ -139,6 +149,7 @@ describe("BotaoProximoExercicio", () => {
       subiu_de_nivel: false,
       pode_evoluir: false,
       progresso: progressoAtual(),
+      sequencia: { atual: 1, recorde: 1, aumentou: true },
     });
     // Primeira leitura: nada feito. A releitura do recarregar() já traz a fase.
     exerciciosConcluidos
