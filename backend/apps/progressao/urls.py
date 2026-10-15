@@ -5,6 +5,7 @@ from .views import (
     IniciarTrilhaView,
     MeuProgressoView,
     MeusExerciciosConcluidosView,
+    MinhaSequenciaView,
     MinhasTrilhasIniciadasView,
 )
 
@@ -12,6 +13,7 @@ app_name = "progressao"
 
 urlpatterns = [
     path("eu/progresso/", MeuProgressoView.as_view(), name="meu-progresso"),
+    path("eu/sequencia/", MinhaSequenciaView.as_view(), name="minha-sequencia"),
     path(
         "eu/trilhas/",
         MinhasTrilhasIniciadasView.as_view(),

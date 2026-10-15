@@ -32,6 +32,19 @@ class ProgressoSerializer(serializers.ModelSerializer):
         )
 
 
+class SequenciaSerializer(serializers.Serializer):
+    atual = serializers.IntegerField(read_only=True)
+    recorde = serializers.IntegerField(read_only=True)
+    feito_hoje = serializers.BooleanField(read_only=True)
+    ultimo_dia = serializers.DateField(read_only=True, allow_null=True)
+
+
+class SequenciaConclusaoSerializer(serializers.Serializer):
+    atual = serializers.IntegerField(read_only=True)
+    recorde = serializers.IntegerField(read_only=True)
+    aumentou = serializers.BooleanField(read_only=True)
+
+
 class ResultadoXPSerializer(serializers.Serializer):
     xp_ganho = serializers.IntegerField(read_only=True)
     ja_concluido = serializers.BooleanField(read_only=True)
@@ -40,6 +53,8 @@ class ResultadoXPSerializer(serializers.Serializer):
     # tela de configurações, um estágio por vez.
     pode_evoluir = serializers.BooleanField(read_only=True)
     progresso = ProgressoSerializer(read_only=True)
+    sequencia = SequenciaConclusaoSerializer(read_only=True)
+
 
 class ConclusaoSerializer(ResultadoXPSerializer):
     aprovado = serializers.BooleanField(read_only=True)

@@ -20,6 +20,7 @@ from .serializers import (
     ExercicioConcluidoSerializer,
     ProgressoSerializer,
     ResultadoXPSerializer,
+    SequenciaSerializer,
     TrilhaIniciadaSerializer,
 )
 from .services import (
@@ -27,6 +28,7 @@ from .services import (
     criatura_ativa,
     exercicios_concluidos,
     iniciar_trilha,
+    ler_sequencia,
     montar_progresso,
     obter_progresso,
     trilhas_iniciadas,
@@ -52,6 +54,16 @@ class MeuProgressoView(generics.GenericAPIView):
 
         progresso = montar_progresso(obter_progresso(ativa))
         return Response(self.get_serializer(progresso).data)
+
+
+@extend_schema(tags=["progressao"], responses=SequenciaSerializer)
+class MinhaSequenciaView(APIView):
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "eu_progresso"
+
+    def get(self, request):
+        return Response(SequenciaSerializer(ler_sequencia(user=request.user)).data)
 
 
 @extend_schema(tags=["progressao"], responses=TrilhaIniciadaSerializer)

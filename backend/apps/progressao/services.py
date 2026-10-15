@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import timedelta
 from decimal import Decimal
 
 from django.core.exceptions import ImproperlyConfigured, ValidationError
@@ -10,7 +11,14 @@ from django.utils.translation import gettext_lazy as _
 from apps.gamificacao.models import UserCreature, XpBonus
 from apps.trilhas.models import Dificuldade
 
-from .models import EventoXP, Nivel, Origem, ProgressoCriatura, TrilhaIniciada
+from .models import (
+    EventoXP,
+    Nivel,
+    Origem,
+    ProgressoCriatura,
+    Sequencia,
+    TrilhaIniciada,
+)
 
 # O valor do XP vem diretamente do back
 # Nenhum endpoint pode aceitar input de xp vinda do usuario.
@@ -41,6 +49,7 @@ class ResultadoXP:
     """
     pode_evoluir: bool
     ja_concluido: bool
+    sequencia: dict
 
 
 # Os `code` são contrato da API e valem para todos os contextos; o que muda de
@@ -281,6 +290,47 @@ def montar_progresso(progresso):
     return progresso
 
 
+def ler_sequencia(*, user):
+    hoje = timezone.localdate()
+    sequencia = Sequencia.objects.filter(user=user).first()
+    if sequencia is None:
+        return {"atual": 0, "recorde": 0, "feito_hoje": False, "ultimo_dia": None}
+
+    feito_hoje = sequencia.ultimo_dia == hoje
+    ativa = feito_hoje or sequencia.ultimo_dia == hoje - timedelta(days=1)
+    return {
+        "atual": sequencia.atual if ativa else 0,
+        "recorde": sequencia.recorde,
+        "feito_hoje": feito_hoje,
+        "ultimo_dia": sequencia.ultimo_dia,
+    }
+
+
+def registrar_dia(*, user):
+    hoje = timezone.localdate()
+    type(user).objects.select_for_update().get(pk=user.pk)
+    sequencia, _criada = Sequencia.objects.select_for_update().get_or_create(user=user)
+
+    aumentou = sequencia.ultimo_dia != hoje
+    if aumentou:
+        sequencia.atual = (
+            sequencia.atual + 1
+            if sequencia.ultimo_dia == hoje - timedelta(days=1)
+            else 1
+        )
+        sequencia.recorde = max(sequencia.recorde, sequencia.atual)
+        sequencia.ultimo_dia = hoje
+        sequencia.save(
+            update_fields=["atual", "recorde", "ultimo_dia", "atualizado_em"]
+        )
+
+    return {
+        "atual": sequencia.atual,
+        "recorde": sequencia.recorde,
+        "aumentou": aumentou,
+    }
+
+
 @transaction.atomic
 def creditar_exercicio(*, user, exercicio):
     if not user.is_active or user.is_anonymized:
@@ -315,13 +365,21 @@ def creditar_exercicio(*, user, exercicio):
             # e vai direto ao exercício ficaria como "não iniciada" na lista.
             TrilhaIniciada.objects.get_or_create(user=user, trilha=exercicio.trilha)
     except IntegrityError:
+        sequencia = ler_sequencia(user=user)
         return ResultadoXP(
             progresso=progresso,
             xp_ganho=0,
             subiu_de_nivel=False,
             pode_evoluir=pode_evoluir(posse=ativa, nivel=progresso.nivel_id),
             ja_concluido=True,
+            sequencia={
+                "atual": sequencia["atual"],
+                "recorde": sequencia["recorde"],
+                "aumentou": False,
+            },
         )
+
+    sequencia = registrar_dia(user=user)
 
     # A soma vai no banco, não em Python: o UPDATE com F() é atômico e, com o
     # select_for_update acima segurando a linha no Postgres, dois pedidos
@@ -376,4 +434,5 @@ def creditar_exercicio(*, user, exercicio):
         subiu_de_nivel=subiu,
         pode_evoluir=pode_evoluir(posse=ativa, nivel=progresso.nivel_id),
         ja_concluido=False,
+        sequencia=sequencia,
     )
