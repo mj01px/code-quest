@@ -306,3 +306,47 @@ export interface Consentimento {
   caminho: string;
   pendente: boolean;
 }
+
+export type Cargo = "LIDER" | "COLIDER" | "MEMBRO";
+export type TipoDeCla = "PUBLICO" | "PRIVADO";
+export type Bandeira = "guilda_1" | "guilda_2" | "guilda_3" | "guilda_4";
+
+export interface Cla {
+  tag: string;
+  nome: string;
+  descricao: string;
+  bandeira: Bandeira;
+  bandeira_rotulo: string;
+  tipo: TipoDeCla;
+  tipo_rotulo: string;
+  nivel_minimo: number;
+  total_membros: number;
+  criado_em: string;
+}
+
+export interface MembroDoCla {
+  id: string;
+  nickname: string;
+  cargo: Cargo;
+  cargo_rotulo: string;
+  entrou_em: string;
+}
+
+export interface MeuCla {
+  cla: Cla;
+  cargo: Cargo;
+  cargo_rotulo: string;
+  entrou_em: string;
+}
+
+export interface PreviaConvite {
+  nome: string;
+  bandeira: Bandeira;
+  total_membros: number;
+}
+
+export interface ConviteGerado {
+  token: string;
+  link: string;
+  expira_em: string;
+}

@@ -521,7 +521,7 @@ class ConfiguracaoMFA(models.Model):
 
     def __str__(self) -> str:
         estado = "ativo" if self.ativo else "inativo"
-        return f"MFA {self.metodo or '—'} ({estado}) de {self.user_id}"
+        return f"MFA {self.metodo or '-'} ({estado}) de {self.user_id}"
 
     def limpar_desafio_email(self) -> None:
         self.email_codigo_hash = ""

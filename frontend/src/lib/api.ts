@@ -1,20 +1,28 @@
 import type {
   AtividadeItem,
+  Bandeira,
   BonusXp,
-  Correcao,
+  Cargo,
+  Cla,
   Consentimento,
+  ConviteGerado,
+  Correcao,
   Criatura,
   DocumentosLegais,
   EspecificacaoDeCodigo,
   Evolucao,
   ExercicioConcluido,
   ExercicioDetalhe,
+  MembroDoCla,
+  MeuCla,
   MinhaCriatura,
   NivelDeAcesso,
   Pagina,
   PermissaoCatalogo,
+  PreviaConvite,
   ProgressoAtual,
   RespostaConclusao,
+  TipoDeCla,
   TrilhaDetalhe,
   TrilhaResumo,
   Usuario,
@@ -675,6 +683,125 @@ export const api = {
     return requisicao<RespostaConclusao>(caminho, {
       metodo: "POST",
       corpo: codigo === undefined ? undefined : { codigo },
+      autenticado: true,
+    });
+  },
+
+  listarClas(params: { busca?: string; pagina?: number } = {}) {
+    const q = new URLSearchParams();
+    const busca = params.busca?.trim();
+    if (busca) q.set("busca", busca);
+    if (params.pagina && params.pagina > 1) q.set("page", String(params.pagina));
+    const sufixo = q.toString() ? `?${q}` : "";
+    return requisicao<Pagina<Cla>>(`/clas/${sufixo}`, { autenticado: true });
+  },
+
+  criarCla(dados: {
+    nome: string;
+    descricao?: string;
+    bandeira: Bandeira;
+    tipo: TipoDeCla;
+    nivel_minimo: number;
+  }) {
+    return requisicao<Cla>("/clas/", {
+      metodo: "POST",
+      corpo: dados,
+      autenticado: true,
+    });
+  },
+
+  obterCla(tag: string) {
+    return requisicao<Cla>(`/clas/${encodeURIComponent(tag)}/`, {
+      autenticado: true,
+    });
+  },
+
+  editarCla(
+    tag: string,
+    dados: {
+      descricao?: string;
+      bandeira?: Bandeira;
+      tipo?: TipoDeCla;
+      nivel_minimo?: number;
+    },
+  ) {
+    return requisicao<Cla>(`/clas/${encodeURIComponent(tag)}/`, {
+      metodo: "PATCH",
+      corpo: dados,
+      autenticado: true,
+    });
+  },
+
+  entrarNoCla(tag: string) {
+    return requisicao<MeuCla>(`/clas/${encodeURIComponent(tag)}/entrar/`, {
+      metodo: "POST",
+      autenticado: true,
+    });
+  },
+
+  membrosDoCla(tag: string) {
+    return requisicao<MembroDoCla[]>(
+      `/clas/${encodeURIComponent(tag)}/membros/`,
+      { autenticado: true },
+    );
+  },
+
+  mudarCargo(tag: string, membroId: string, cargo: Cargo) {
+    return requisicao<MembroDoCla>(
+      `/clas/${encodeURIComponent(tag)}/membros/${membroId}/`,
+      { metodo: "PATCH", corpo: { cargo }, autenticado: true },
+    );
+  },
+
+  expulsarMembro(tag: string, membroId: string) {
+    return requisicao<void>(
+      `/clas/${encodeURIComponent(tag)}/membros/${membroId}/`,
+      { metodo: "DELETE", autenticado: true },
+    );
+  },
+
+  transferirLideranca(tag: string, membroId: string) {
+    return requisicao<MembroDoCla>(
+      `/clas/${encodeURIComponent(tag)}/lideranca/`,
+      { metodo: "POST", corpo: { membro_id: membroId }, autenticado: true },
+    );
+  },
+
+  gerarConvite(tag: string) {
+    return requisicao<ConviteGerado>(
+      `/clas/${encodeURIComponent(tag)}/convite/`,
+      { metodo: "POST", autenticado: true },
+    );
+  },
+
+  revogarConvite(tag: string) {
+    return requisicao<void>(`/clas/${encodeURIComponent(tag)}/convite/`, {
+      metodo: "DELETE",
+      autenticado: true,
+    });
+  },
+
+  previaConvite(token: string) {
+    return requisicao<PreviaConvite>(
+      `/convites/${encodeURIComponent(token)}/`,
+      { autenticado: true },
+    );
+  },
+
+  aceitarConvite(token: string) {
+    return requisicao<MeuCla>(
+      `/convites/${encodeURIComponent(token)}/aceitar/`,
+      { metodo: "POST", autenticado: true },
+    );
+  },
+
+  meuCla() {
+    return requisicao<MeuCla | null>("/eu/cla/", { autenticado: true });
+  },
+
+  sairDoCla() {
+    return requisicao<void>("/eu/cla/sair/", {
+      metodo: "POST",
       autenticado: true,
     });
   },

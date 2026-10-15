@@ -75,6 +75,7 @@ describe("BarraLateral: navegação", () => {
       "/trilhas",
       "/desafios",
       "/criatura",
+      "/clas",
       "/configuracoes",
     ]);
   });

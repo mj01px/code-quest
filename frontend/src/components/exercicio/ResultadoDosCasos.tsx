@@ -80,24 +80,6 @@ export function ResultadoDosCasos({
           ))}
         </ul>
       )}
-
-      {correcao.saida && (
-        <div className="space-y-1">
-          <p className="font-label text-[0.65rem] text-ink-dim">saída</p>
-          <pre className="overflow-x-auto bg-field p-3 font-body text-sm text-ink-body">
-            {correcao.saida}
-          </pre>
-        </div>
-      )}
-
-      {correcao.erro && (
-        <div className="space-y-1">
-          <p className="font-label text-[0.65rem] text-ink-dim">erro</p>
-          <pre className="overflow-x-auto bg-field p-3 font-body text-sm text-danger">
-            {correcao.erro}
-          </pre>
-        </div>
-      )}
     </section>
   );
 }

@@ -2,16 +2,19 @@ from django.db.models import QuerySet
 from django.http import Http404
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_control
-from drf_spectacular.utils import extend_schema
-from rest_framework import generics
+from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
+from rest_framework import generics, serializers
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
+from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.views import APIView
 
 from apps.core.permissions import HasPerm
-from apps.trilhas.models import Exercicio
+from apps.trilhas.models import Exercicio, StatusEditorial
 
 from .serializers import SolucaoAutorSerializer
-from .services import exercicios_para_autoria
+from .services import MODELOS, Acao, exercicios_para_autoria, transicionar
 
 # Escopo próprio: conteúdo sensível não divide balde com `catalogo` nem com
 # `eu_progresso`, senão navegar no catálogo afrouxa o limite daqui.
@@ -45,3 +48,57 @@ class SolucaoAutorView(generics.RetrieveAPIView[Exercicio]):
         # nasceria inerte, e o teste estrutural continuaria verde.
         self.check_object_permissions(self.request, exercicio)
         return exercicio
+
+
+# Base das quatro ações do fluxo editorial, sem rota própria. Comentário e não
+# docstring: docstring de view vira a descrição pública no OpenAPI.
+# Cada subclasse fixa ação e permissão como atributo de classe, e não por
+# `as_view(...)`: a varredura estrutural lê `get_permissions()` da classe.
+# A resposta é um dict de dois escalares, sem serializer em `serializers.py`:
+# `status` é campo proibido na varredura de serializers públicos.
+@extend_schema(
+    tags=["autoria"],
+    request=None,
+    parameters=[
+        # Sem isto o schema herda a regex da rota sem parênteses, e a
+        # alternância vira `^trilhas` OU `aulas` OU `exercicios$`.
+        OpenApiParameter("tipo", str, OpenApiParameter.PATH, enum=list(MODELOS)),
+        OpenApiParameter("pk", int, OpenApiParameter.PATH),
+    ],
+    responses=inline_serializer(
+        "TransicaoEditorial",
+        {
+            "id": serializers.IntegerField(),
+            "status_editorial": serializers.ChoiceField(StatusEditorial.choices),
+        },
+    ),
+)
+class TransicaoEditorialView(APIView):
+    acao: Acao
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = ESCOPO
+
+    def post(self, request: Request, tipo: str, pk: str) -> Response:
+        # `re_path` entrega texto; a regex da rota já garante só dígitos.
+        conteudo = transicionar(MODELOS[tipo], int(pk), self.acao, request)
+        return Response({"id": conteudo.pk, "status_editorial": conteudo.status})
+
+
+class SubmeterRevisaoView(TransicaoEditorialView):
+    acao = "submeter"
+    permission_classes = [IsAuthenticated, HasPerm("trilhas.submit_review")]
+
+
+class AprovarView(TransicaoEditorialView):
+    acao = "aprovar"
+    permission_classes = [IsAuthenticated, HasPerm("trilhas.review")]
+
+
+class DevolverView(TransicaoEditorialView):
+    acao = "devolver"
+    permission_classes = [IsAuthenticated, HasPerm("trilhas.review")]
+
+
+class PublicarView(TransicaoEditorialView):
+    acao = "publicar"
+    permission_classes = [IsAuthenticated, HasPerm("trilhas.publish")]

@@ -73,7 +73,7 @@ export function concluidasDaTrilha(
     .map((item) => item.exercicio_slug);
 }
 
-/** Percentual 0–100. Limitado a 100 pra fase despublicada não estourar a barra. */
+/** Percentual de 0 a 100. Limitado a 100 pra fase despublicada não estourar a barra. */
 export function percentual(feitas: number, total: number): number {
   if (total <= 0) return 0;
   return Math.min(100, (feitas / total) * 100);

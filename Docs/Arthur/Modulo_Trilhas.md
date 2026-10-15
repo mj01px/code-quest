@@ -53,6 +53,35 @@ método recebe 405.
 Rascunho não vaza em nível nenhum. Aula não publicada dentro de trilha
 publicada fica de fora, e com exercícios acontece o mesmo.
 
+### Fluxo editorial
+
+As transições moram em `apps/autoria` (`services.transicionar`), fora do
+namespace público. Todas são `POST` sem corpo, exigem login e a permissão
+RBAC da ação, e usam o balde de throttle `autoria`. `<tipo>` é `trilhas`,
+`aulas` ou `exercicios`; `<pk>` é o id do conteúdo.
+
+| Rota `POST /api/v1/autoria/<tipo>/<pk>/...` | Permissão | Transição |
+|---|---|---|
+| `submeter/` | `trilhas.submit_review` | `RASCUNHO` para `REVISAO` |
+| `aprovar/` | `trilhas.review` | `REVISAO` para `APROVADO` |
+| `devolver/` | `trilhas.review` | `REVISAO` para `RASCUNHO` |
+| `publicar/` | `trilhas.publish` | `APROVADO` para `PUBLICADO` |
+
+A resposta é `{ "id", "status_editorial" }`. Anônimo recebe 401, sem a
+permissão 403 (antes de qualquer consulta, então pk inexistente também dá
+403), e estado de origem errado devolve 400 no envelope padrão, com
+`details[0].code == "transicao_invalida"`. A linha fica travada com
+`select_for_update` entre a leitura e a gravação, e a gravação usa
+`save(update_fields=...)` (`status` mais o carimbo `auto_now` do model).
+Cada transição bem-sucedida, e só ela, entra em `apps/auditoria` na mesma
+transação, com as ações `CONTEUDO_SUBMETIDO`, `CONTEUDO_APROVADO`,
+`CONTEUDO_DEVOLVIDO` e `CONTEUDO_PUBLICADO`, o autor da ação, o alvo e os
+estados de origem e destino. A auditoria nunca quebra o fluxo: se a gravação
+do registro falhar, o erro é logado e a transição continua confirmada, sem
+rastro. Publicar trilha com aula (ou aula com exercício) fora de `APROVADO`
+ou `PUBLICADO` devolve 400 com `details[0].code == "conteudo_incompleto"`.
+Ainda não há dono no conteúdo.
+
 > **O slug do exercício é único por trilha, e não por aula.** Como a terceira
 > rota não menciona a aula, unicidade por aula deixaria a URL ambígua. Por
 > isso `Exercicio` tem uma FK `trilha` não editável, sincronizada com a aula
@@ -270,7 +299,5 @@ edição sumiria no próximo `npm install`.
   implementação. Em vez de número inventado, a sidebar mostra o perfil
   neutro.
 - Terminal integrado e submissão de exercício.
-- Endpoint de autor para `solucao_autor` (o codename `trilhas.view_solution`
-  já existe no RBAC, à espera).
 - Telas de "Desafio do dia", "Conquistas" e "Configurações", que aparecem no
   menu como itens explicitamente inativos, e não como links quebrados.
