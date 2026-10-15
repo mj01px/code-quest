@@ -1,11 +1,15 @@
+from typing import cast
+
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
+from apps.contas.models import User
 from apps.core.permissions import HasPerm
 from apps.trilhas.models import Exercicio
 
@@ -33,12 +37,12 @@ class Judge0PorMinuto(UserRateThrottle):
     scope = "judge0"
 
 
-def codigo_enviado(request):
+def codigo_enviado(request: Request) -> object:
     dados = request.data
     return dados.get("codigo") if isinstance(dados, dict) else None
 
 
-def _exercicio(trilha_slug, exercicio_slug):
+def _exercicio(trilha_slug: str, exercicio_slug: str) -> Exercicio:
     return get_object_or_404(
         Exercicio.objects.publicados(),
         trilha__slug=trilha_slug,
@@ -52,7 +56,7 @@ class EspecificacaoView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "eu_progresso"
 
-    def get(self, request, trilha_slug, exercicio_slug):
+    def get(self, request: Request, trilha_slug: str, exercicio_slug: str) -> Response:
         especificacao = especificacao_de(_exercicio(trilha_slug, exercicio_slug))
         if especificacao is None:
             raise Http404
@@ -68,11 +72,14 @@ class ExecutarCodigoView(APIView):
     permission_classes = [IsAuthenticated, PODE_SUBMETER_CODIGO]
     throttle_classes = [Judge0PorMinuto]
 
-    def post(self, request, trilha_slug, exercicio_slug):
+    def post(
+        self, request: Request, trilha_slug: str, exercicio_slug: str
+    ) -> Response:
         exercicio = _exercicio(trilha_slug, exercicio_slug)
         try:
             correcao = executar_codigo(
-                user=request.user,
+                # IsAuthenticated barra o AnonymousUser antes de chegar aqui.
+                user=cast(User, request.user),
                 exercicio=exercicio,
                 codigo=codigo_enviado(request),
             )

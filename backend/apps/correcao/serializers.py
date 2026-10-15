@@ -1,19 +1,22 @@
+from typing import Any, cast
+
 from rest_framework import serializers
 
 from .models import CasoDeTeste, EspecificacaoDeCodigo
-from .services import LIMITE_DE_CARACTERES, codigo_aprovado
+from .services import LIMITE_DE_CARACTERES, CasoJulgado, Correcao, codigo_aprovado
 
 
-class EnvioDeCodigoSerializer(serializers.Serializer):
+# Só valida a entrada; nunca serializa uma instância.
+class EnvioDeCodigoSerializer(serializers.Serializer[None]):
     codigo = serializers.CharField(trim_whitespace=False, allow_blank=True)
 
-class ExemploSerializer(serializers.ModelSerializer):
+class ExemploSerializer(serializers.ModelSerializer[CasoDeTeste]):
     class Meta:
         model = CasoDeTeste
         fields = ("ordem", "argumentos", "esperado", "erro_esperado")
         read_only_fields = fields
 
-class EspecificacaoSerializer(serializers.ModelSerializer):
+class EspecificacaoSerializer(serializers.ModelSerializer[EspecificacaoDeCodigo]):
     exemplos = serializers.SerializerMethodField()
     limite_de_caracteres = serializers.SerializerMethodField()
     codigo_aprovado = serializers.SerializerMethodField()
@@ -31,14 +34,18 @@ class EspecificacaoSerializer(serializers.ModelSerializer):
         )
         read_only_fields = fields
 
-    def get_exemplos(self, obj) -> list[dict]:
+    # Any e o valor JSON de cada campo; o drf-spectacular le esta anotacao e
+    # com `object` publicaria `exemplos` como string no schema.
+    def get_exemplos(self, obj: EspecificacaoDeCodigo) -> list[dict[str, Any]]:
         visiveis = [c for c in obj.casos.all() if c.visivel]
-        return ExemploSerializer(visiveis, many=True).data
+        # many=True devolve ReturnList em runtime; o stub tipa `.data` como
+        # ReturnDict para qualquer Serializer.
+        return cast(list[dict[str, Any]], ExemploSerializer(visiveis, many=True).data)
 
-    def get_limite_de_caracteres(self, obj) -> int:
+    def get_limite_de_caracteres(self, obj: EspecificacaoDeCodigo) -> int:
         return LIMITE_DE_CARACTERES
 
-    def get_codigo_aprovado(self, obj) -> str:
+    def get_codigo_aprovado(self, obj: EspecificacaoDeCodigo) -> str:
         request = self.context.get("request")
         if request is None or not request.user.is_authenticated:
             return ""
@@ -48,7 +55,7 @@ class EspecificacaoSerializer(serializers.ModelSerializer):
 
 
 
-class ResultadoDoCasoSerializer(serializers.Serializer):
+class ResultadoDoCasoSerializer(serializers.Serializer[CasoJulgado]):
     ordem = serializers.IntegerField(read_only=True)
     visivel = serializers.BooleanField(read_only=True)
     passou = serializers.BooleanField(read_only=True)
@@ -59,7 +66,7 @@ class ResultadoDoCasoSerializer(serializers.Serializer):
     erro = serializers.CharField(read_only=True, required=False)
 
 
-class CorrecaoSerializer(serializers.Serializer):
+class CorrecaoSerializer(serializers.Serializer[Correcao]):
     modo = serializers.CharField(read_only=True)
     veredito = serializers.CharField(read_only=True)
     aprovado = serializers.BooleanField(read_only=True)
