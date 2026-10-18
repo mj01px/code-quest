@@ -4,6 +4,7 @@ import type {
   BonusXp,
   Cargo,
   Cla,
+  Conquista,
   Consentimento,
   ConviteGerado,
   Correcao,
@@ -22,6 +23,7 @@ import type {
   PreviaConvite,
   ProgressoAtual,
   RespostaConclusao,
+  Sequencia,
   TipoDeCla,
   TrilhaDetalhe,
   TrilhaResumo,
@@ -626,6 +628,10 @@ export const api = {
     });
   },
 
+  minhaSequencia() {
+    return requisicao<Sequencia>("/eu/sequencia/", { autenticado: true });
+  },
+
   // Marca a trilha como iniciada. Idempotente no servidor: clicar duas vezes
   // devolve 200 em vez de 201, e o corpo e o mesmo.
   iniciarTrilha(trilhaSlug: string) {
@@ -801,6 +807,17 @@ export const api = {
 
   sairDoCla() {
     return requisicao<void>("/eu/cla/sair/", {
+      metodo: "POST",
+      autenticado: true,
+    });
+  },
+
+  minhasConquistas() {
+    return requisicao<Conquista[]>("/eu/conquistas/", { autenticado: true });
+  },
+
+  marcarConquistasVistas() {
+    return requisicao<void>("/eu/conquistas/vistas/", {
       metodo: "POST",
       autenticado: true,
     });

@@ -194,11 +194,25 @@ export interface ProgressoAtual {
   atualizado_em: string;
 }
 
+export interface Sequencia {
+  atual: number;
+  recorde: number;
+  feito_hoje: boolean;
+  ultimo_dia: string | null;
+}
+
+export interface SequenciaConclusao {
+  atual: number;
+  recorde: number;
+  aumentou: boolean;
+}
+
 interface ConclusaoBase {
   subiu_de_nivel: boolean;
   /** A criatura alcançou o nível do próximo estágio, mas ainda não evoluiu. */
   pode_evoluir: boolean;
   progresso: ProgressoAtual;
+  sequencia: SequenciaConclusao;
 }
 
 // Repetir a conclusão devolve 200, não 409: `ja_concluido` é o que separa
@@ -349,4 +363,18 @@ export interface ConviteGerado {
   token: string;
   link: string;
   expira_em: string;
+}
+
+export interface Conquista {
+  slug: string | null;
+  nome: string;
+  descricao: string;
+  icone: string;
+  oculta: boolean;
+  desbloqueada: boolean;
+  desbloqueada_em: string | null;
+  vista: boolean;
+  progresso: number | null;
+  meta: number | null;
+  raridade: number;
 }

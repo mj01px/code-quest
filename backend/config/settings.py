@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'apps.progressao',
     'apps.correcao',
     'apps.clas',
+    'apps.conquistas',
 
 ]
 

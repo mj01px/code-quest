@@ -8,7 +8,7 @@ from rest_framework.test import APIClient
 from apps.contas.models import NivelDeAcesso, Permissao
 from apps.contas.tests.helpers import criar_aluno
 from apps.gamificacao.services import select_starter_creature
-from apps.progressao.models import EventoXP
+from apps.progressao.models import EventoXP, Sequencia
 from apps.progressao.tests.test_credito_xp import criar_exercicio
 
 from .helpers import (
@@ -86,6 +86,7 @@ class ApiCorrecaoTest(TestCase):
     def test_executar_nunca_da_xp(self):
         self._post("correcao:executar", {"codigo": CODIGO_CERTO})
         self.assertFalse(EventoXP.objects.exists())
+        self.assertFalse(Sequencia.objects.exists())
 
     def test_executar_com_judge0_fora_do_ar_e_503(self):
         with mock.patch(CLIENTE, return_value=ClienteForaDoAr()):
@@ -109,7 +110,9 @@ class ApiCorrecaoTest(TestCase):
         self.assertIs(resposta.data["aprovado"], False)
         self.assertEqual(resposta.data["correcao"]["veredito"], "RESPOSTA_ERRADA")
         self.assertNotIn("xp_ganho", resposta.data)
+        self.assertNotIn("sequencia", resposta.data)
         self.assertFalse(EventoXP.objects.exists())
+        self.assertFalse(Sequencia.objects.exists())
 
     def test_concluir_com_codigo_certo_da_xp(self):
         resposta = self._post("progressao:concluir-exercicio", {"codigo": CODIGO_CERTO})

@@ -205,3 +205,71 @@ class StatusIntermediarioTest(TestCase):
         criar_trilha("em-revisao", status=StatusEditorial.REVISAO)
         url = reverse("trilhas:trilha-detalhe", args=["em-revisao"])
         self.assertEqual(self.client.get(url).status_code, 404)
+
+
+class NaoPublicadosNaoVazamTest(TestCase):
+    """Nenhum estado fora de PUBLICADO aparece, em nenhum nível do catálogo."""
+
+    ESTADOS = [
+        StatusEditorial.RASCUNHO,
+        StatusEditorial.REVISAO,
+        StatusEditorial.APROVADO,
+    ]
+
+    def test_trilha_nao_publicada_some_da_lista_e_do_detalhe(self) -> None:
+        for estado in self.ESTADOS:
+            with self.subTest(estado=estado):
+                criar_trilha(f"t-{estado}", status=estado)
+                self.assertEqual(
+                    self.client.get(reverse("trilhas:trilha-lista")).json(), []
+                )
+                url = reverse("trilhas:trilha-detalhe", args=[f"t-{estado}"])
+                self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_aula_e_exercicio_nao_publicados_somem_do_detalhe_da_trilha(self) -> None:
+        trilha = criar_trilha("logica")
+        aula = criar_aula(trilha, "visivel", ordem=1)
+        criar_exercicio(aula, "ex-visivel", ordem=1)
+        for i, estado in enumerate(self.ESTADOS, start=2):
+            criar_aula(trilha, f"aula-{estado}", ordem=i, status=estado)
+            criar_exercicio(aula, f"ex-{estado}", ordem=i, status=estado)
+        dados = self.client.get(
+            reverse("trilhas:trilha-detalhe", args=["logica"])
+        ).json()
+        self.assertEqual([a["slug"] for a in dados["aulas"]], ["visivel"])
+        self.assertEqual(
+            [e["slug"] for e in dados["aulas"][0]["exercicios"]], ["ex-visivel"]
+        )
+        lista = self.client.get(reverse("trilhas:trilha-lista")).json()[0]
+        self.assertEqual((lista["total_aulas"], lista["total_exercicios"]), (1, 1))
+
+    def test_exercicio_nao_publicado_devolve_404(self) -> None:
+        trilha = criar_trilha("logica")
+        aula = criar_aula(trilha, "variaveis")
+        for estado in self.ESTADOS:
+            with self.subTest(estado=estado):
+                criar_exercicio(aula, f"ex-{estado}", status=estado)
+                url = reverse(
+                    "trilhas:exercicio-detalhe", args=["logica", f"ex-{estado}"]
+                )
+                self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_exercicio_publicado_em_aula_nao_publicada_devolve_404(self) -> None:
+        trilha = criar_trilha("logica")
+        for estado in self.ESTADOS:
+            with self.subTest(estado=estado):
+                aula = criar_aula(trilha, f"a-{estado}", status=estado)
+                criar_exercicio(aula, f"ex-{estado}")
+                url = reverse(
+                    "trilhas:exercicio-detalhe", args=["logica", f"ex-{estado}"]
+                )
+                self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_exercicio_publicado_em_trilha_nao_publicada_devolve_404(self) -> None:
+        for estado in self.ESTADOS:
+            with self.subTest(estado=estado):
+                trilha = criar_trilha(f"t-{estado}", status=estado)
+                aula = criar_aula(trilha, "aula")
+                criar_exercicio(aula, "ex")
+                url = reverse("trilhas:exercicio-detalhe", args=[f"t-{estado}", "ex"])
+                self.assertEqual(self.client.get(url).status_code, 404)

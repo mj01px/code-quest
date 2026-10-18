@@ -12,6 +12,7 @@ api = [
     path("", include("apps.progressao.urls")),
     path("", include("apps.correcao.urls")),
     path("", include("apps.clas.urls")),
+    path("", include("apps.conquistas.urls")),
 ]
 
 urlpatterns = [

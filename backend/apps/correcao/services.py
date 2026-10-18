@@ -1,21 +1,51 @@
 import hashlib
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import timedelta
+from typing import NotRequired, TypedDict
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from apps.contas.models import User
+from apps.trilhas.models import Exercicio
+
 from . import analise_ast, harness
 from .excecoes import CotaDiariaEsgotada, CotaDoUsuarioEsgotada
-from .judge0 import STATUS_ACEITO, STATUS_TEMPO_ESGOTADO, obter_cliente
-from .models import EspecificacaoDeCodigo, Modo, Submissao, Veredito
+from .judge0 import STATUS_ACEITO, STATUS_TEMPO_ESGOTADO, Execucao, obter_cliente
+from .models import CasoDeTeste, EspecificacaoDeCodigo, Modo, Submissao, Veredito
 
 LIMITE_DE_CARACTERES = 10_000
 CACHE_DE_SUBMISSAO = timedelta(minutes=10)
 DISJUNTOR = 0.9  # fração da cota diária em que novas chamadas param
+
+
+# No modo ENVIAR o caso oculto chega só com ordem, visivel e passou.
+class CasoJulgado(TypedDict):
+    ordem: int
+    visivel: bool
+    passou: bool
+    argumentos: NotRequired[object]
+    esperado: NotRequired[object]
+    erro_esperado: NotRequired[str]
+    obtido: NotRequired[object]
+    erro: NotRequired[str]
+
+
+# Formato gravado em Submissao.resultado; tempo e memoria só existem quando
+# houve chamada ao Judge0.
+class Resultado(TypedDict):
+    veredito: str
+    aprovados: int
+    total: int
+    casos: list[CasoJulgado]
+    saida: str
+    erro: str
+    tempo: NotRequired[float | None]
+    memoria: NotRequired[int | None]
 
 
 @dataclass(frozen=True)
@@ -24,36 +54,36 @@ class Correcao:
     veredito: str
     aprovados: int
     total: int
-    casos: list = field(default_factory=list)
+    casos: list[CasoJulgado] = field(default_factory=list)
     saida: str = ""
     erro: str = ""
     tempo: float | None = None
     memoria: int | None = None
 
     @property
-    def aprovado(self):
+    def aprovado(self) -> bool:
         return self.veredito == Veredito.APROVADO
 
 
-def _conta_inativa():
+def _conta_inativa() -> ValidationError:
     return ValidationError(
         _("Esta conta não pode enviar código."), code="conta_inativa"
     )
 
 
-def _nao_publicado():
+def _nao_publicado() -> ValidationError:
     return ValidationError(
         _("Este exercício não está publicado."), code="exercicio_nao_publicado"
     )
 
 
-def _sem_correcao():
+def _sem_correcao() -> ValidationError:
     return ValidationError(
         _("Este exercício não tem correção automática."), code="sem_correcao_automatica"
     )
 
 
-def especificacao_de(exercicio):
+def especificacao_de(exercicio: Exercicio) -> EspecificacaoDeCodigo | None:
     return (
         EspecificacaoDeCodigo.objects.filter(exercicio=exercicio)
         .prefetch_related("casos")
@@ -61,10 +91,10 @@ def especificacao_de(exercicio):
     )
 
 
-def tem_correcao_automatica(exercicio):
+def tem_correcao_automatica(exercicio: Exercicio) -> bool:
     return EspecificacaoDeCodigo.objects.filter(exercicio=exercicio).exists()
 
-def codigo_aprovado(*, user, exercicio):
+def codigo_aprovado(*, user: User, exercicio: Exercicio | int) -> str:
     submissao = (
         Submissao.objects.filter(
             user=user,
@@ -79,7 +109,7 @@ def codigo_aprovado(*, user, exercicio):
     return submissao or ""
 
 
-def _validar(*, user, exercicio, codigo):
+def _validar(*, user: User, exercicio: Exercicio, codigo: object) -> str:
     if not user.is_active or user.is_anonymized:
         raise ValidationError({"usuario": _conta_inativa()})
 
@@ -106,8 +136,10 @@ def _validar(*, user, exercicio, codigo):
             }
         )
 
+    return codigo
 
-def _checar_cota_diaria(user):
+
+def _checar_cota_diaria(user: User) -> None:
     # Só chamadas pagas contam (acerto de cache e código barrado não). Conta
     # no banco, então vale para todos os processos (contador em LocMemCache
     # multiplicaria o teto por worker) e zera sozinho à meia-noite.
@@ -126,7 +158,7 @@ def _checar_cota_diaria(user):
         raise CotaDiariaEsgotada()
 
 
-def _normalizar(codigo):
+def _normalizar(codigo: str) -> str:
     # Só para a chave do cache: espaço no fim de linha e linhas em branco nas
     # bordas não mudam o resultado. A indentação fica como está. Quebra só em
     # \n, \r\n e \r, os fins de linha do Python (splitlines quebraria em U+2028
@@ -137,7 +169,9 @@ def _normalizar(codigo):
     return "\n".join(linha.rstrip() for linha in linhas).strip("\n")
 
 
-def _hash(*, especificacao, casos, codigo):
+def _hash(
+    *, especificacao: EspecificacaoDeCodigo, casos: Sequence[CasoDeTeste], codigo: str
+) -> str:
     base = json.dumps(
         {
             "harness": harness.VERSAO,
@@ -157,15 +191,15 @@ def _hash(*, especificacao, casos, codigo):
     return hashlib.sha256(base.encode()).hexdigest()
 
 
-def _descrever_erro(resultado):
+def _descrever_erro(resultado: object) -> str:
     if not isinstance(resultado, dict) or resultado.get("ok") is not False:
         return ""
-    nome = resultado.get("erro") or "Erro"
+    nome: str = resultado.get("erro") or "Erro"
     mensagem = resultado.get("mensagem") or ""
     return f"{nome}: {mensagem}" if mensagem else nome
 
 
-def _julgar(*, casos, execucao):
+def _julgar(*, casos: Sequence[CasoDeTeste], execucao: Execucao) -> Resultado:
     total = len(casos)
 
     if execucao.status_id == STATUS_TEMPO_ESGOTADO:
@@ -194,7 +228,7 @@ def _julgar(*, casos, execucao):
             "erro": execucao.stderr,
         }
 
-    detalhes = []
+    detalhes: list[CasoJulgado] = []
     for caso, resultado in zip(casos, resultados, strict=True):
         detalhes.append(
             {
@@ -224,7 +258,9 @@ def _julgar(*, casos, execucao):
     }
 
 
-def _correcao(*, modo, resultado, tempo, memoria):
+def _correcao(
+    *, modo: str, resultado: Resultado, tempo: float | None, memoria: int | None
+) -> Correcao:
     casos = resultado["casos"]
     saida = resultado["saida"]
     erro = resultado["erro"]
@@ -252,8 +288,10 @@ def _correcao(*, modo, resultado, tempo, memoria):
     )
 
 
-def _corrigir(*, user, exercicio, codigo, modo):
-    _validar(user=user, exercicio=exercicio, codigo=codigo)
+def _corrigir(
+    *, user: User, exercicio: Exercicio, codigo: object, modo: Modo
+) -> Correcao:
+    codigo = _validar(user=user, exercicio=exercicio, codigo=codigo)
 
     especificacao = especificacao_de(exercicio)
     if especificacao is None:
@@ -290,6 +328,8 @@ def _corrigir(*, user, exercicio, codigo, modo):
         .first()
     )
 
+    # JSONField devolve Any; a forma vem do _julgar de quem gravou o cache.
+    resultado: Resultado
     submissao = Submissao(user=user, exercicio=exercicio, modo=modo, codigo=codigo)
     if anterior is not None:
         resultado = anterior.resultado
@@ -324,9 +364,9 @@ def _corrigir(*, user, exercicio, codigo, modo):
     )
 
 
-def executar_codigo(*, user, exercicio, codigo):
+def executar_codigo(*, user: User, exercicio: Exercicio, codigo: object) -> Correcao:
     return _corrigir(user=user, exercicio=exercicio, codigo=codigo, modo=Modo.EXECUTAR)
 
 
-def corrigir_envio(*, user, exercicio, codigo):
+def corrigir_envio(*, user: User, exercicio: Exercicio, codigo: object) -> Correcao:
     return _corrigir(user=user, exercicio=exercicio, codigo=codigo, modo=Modo.ENVIAR)

@@ -15,6 +15,7 @@ jest.mock("@/lib/api", () => ({
     eu: jest.fn(),
     minhasCriaturas: jest.fn(),
     meuProgresso: jest.fn(),
+    minhaSequencia: jest.fn(),
     exerciciosConcluidos: jest.fn(),
     trilhasIniciadas: jest.fn(),
     sair: jest.fn(),
@@ -35,6 +36,7 @@ const mock = jest.requireMock<{
     eu: jest.Mock;
     minhasCriaturas: jest.Mock;
     meuProgresso: jest.Mock;
+    minhaSequencia: jest.Mock;
     exerciciosConcluidos: jest.Mock;
     trilhasIniciadas: jest.Mock;
     sair: jest.Mock;
@@ -60,6 +62,12 @@ beforeEach(() => {
   mock.api.eu.mockResolvedValue(usuario());
   mock.api.minhasCriaturas.mockResolvedValue([minhaCriatura()]);
   mock.api.meuProgresso.mockResolvedValue(progressoAtual());
+  mock.api.minhaSequencia.mockResolvedValue({
+    atual: 0,
+    recorde: 0,
+    feito_hoje: false,
+    ultimo_dia: null,
+  });
   mock.api.exerciciosConcluidos.mockResolvedValue([]);
   mock.api.trilhasIniciadas.mockResolvedValue([]);
 });
@@ -75,6 +83,7 @@ describe("BarraLateral: navegação", () => {
       "/trilhas",
       "/desafios",
       "/criatura",
+      "/conquistas",
       "/clas",
       "/configuracoes",
     ]);
@@ -142,6 +151,36 @@ describe("BarraLateral: permissões", () => {
 });
 
 describe("BarraLateral: identidade e XP", () => {
+  it("mostra a sequência e avisa quando ainda falta estudar hoje", async () => {
+    mock.api.minhaSequencia.mockResolvedValue({
+      atual: 4,
+      recorde: 7,
+      feito_hoje: false,
+      ultimo_dia: "2026-10-13",
+    });
+
+    montar();
+
+    expect(await screen.findByText("SEQUÊNCIA 4 DIAS")).toBeInTheDocument();
+    expect(
+      screen.getByText("Sequência em risco. Conclua um exercício hoje."),
+    ).toBeInTheDocument();
+  });
+
+  it("não mostra aviso de risco quando já concluiu hoje", async () => {
+    mock.api.minhaSequencia.mockResolvedValue({
+      atual: 4,
+      recorde: 7,
+      feito_hoje: true,
+      ultimo_dia: "2026-10-14",
+    });
+
+    montar();
+
+    expect(await screen.findByText("SEQUÊNCIA 4 DIAS")).toBeInTheDocument();
+    expect(screen.queryByText(/Sequência em risco/)).not.toBeInTheDocument();
+  });
+
   it("troca o estado neutro pelos dados da conta", async () => {
     montar();
 
