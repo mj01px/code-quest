@@ -9,6 +9,7 @@ import {
   ArteConfirmado,
   ArteLinkInvalido,
 } from "@/components/ui/ilustracoes";
+import { TIPO } from "@/lib/tipografia";
 import { FormularioConfirmarExclusao } from "./FormularioConfirmarExclusao";
 
 const TITULO = (
@@ -20,9 +21,9 @@ const TITULO = (
 const LINHA = "Validando link de exclusão...";
 
 const ESTILO_H2 =
-  "m-0 font-display text-[13px] leading-[1.8] tracking-[1px] text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)]";
+  `m-0 ${TIPO.tituloSecao} text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)]`;
 const ESTILO_P =
-  "m-0 font-body text-lg leading-[1.8] tracking-[1px] text-ink-body";
+  `m-0 ${TIPO.corpo} text-ink-body`;
 
 export function PainelConfirmarExclusaoCarregando() {
   return (

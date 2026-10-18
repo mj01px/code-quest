@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/ilustracoes";
 import { AvisoVerificacao } from "./AvisoVerificacao";
 import { api } from "@/lib/api";
+import { TIPO } from "@/lib/tipografia";
 import { validarEmail } from "@/lib/validacao";
 
 type Estado = "conferindo" | "confirmado" | "recusado" | "sem_token";
@@ -28,9 +29,9 @@ const LINHA = "Validando credencial de acesso...";
 const CAIXA =
   "m-0 border-2 bg-panel-soft px-4 py-3 font-body text-base leading-[1.6] tracking-wide";
 const ESTILO_H2 =
-  "m-0 font-display text-[13px] leading-[1.8] tracking-[1px] text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)]";
+  `m-0 ${TIPO.tituloSecao} text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)]`;
 const ESTILO_P =
-  "m-0 font-body text-lg leading-[1.8] tracking-[1px] text-ink-body";
+  `m-0 ${TIPO.corpo} text-ink-body`;
 
 // Enquanto o token da URL não chega, a moldura já aparece no lugar certo.
 export function PainelVerificarEmailCarregando() {

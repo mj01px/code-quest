@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { TIPO } from "@/lib/tipografia";
 
 const LINKS = [
   { href: "/termos", rotulo: "TERMOS" },
@@ -36,7 +37,7 @@ export function AppFooter() {
           ))}
         </nav>
 
-        <p className="w-fit border-b-2 border-brand-deep font-label text-[11px] tracking-[0.2em] text-[#b99bf0]">
+        <p className={`w-fit border-b-2 border-brand-deep ${TIPO.sobretitulo} text-[#b99bf0]`}>
           © 2026 CODEQUEST OS
         </p>
       </div>

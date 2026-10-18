@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { TIPO } from "@/lib/tipografia";
 import type { Criatura } from "@/lib/types";
 
 const ATRIBUTO_MAXIMO = 5;
@@ -99,7 +100,7 @@ export function CartaoCriatura({
         </p>
 
         <div className="mt-auto flex items-center gap-3 pt-2">
-          <span className="font-label text-[10px] tracking-[2px] text-ink-muted">
+          <span className={`${TIPO.etiqueta} text-ink-muted`}>
             {criatura.atributo_nome.toUpperCase()}
           </span>
           <span className="flex gap-1" aria-hidden="true">

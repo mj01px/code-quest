@@ -4,6 +4,7 @@ import { useState } from "react";
 import { PainelAuth } from "@/components/layout/PainelAuth";
 import { PixelLink } from "@/components/ui/PixelLink";
 import { ArteChave, ArteEnvelope } from "@/components/ui/ilustracoes";
+import { TIPO } from "@/lib/tipografia";
 import { FormularioSenhaEsquecida } from "./FormularioSenhaEsquecida";
 
 const TITULO = (
@@ -26,10 +27,10 @@ export function PainelSenhaEsquecida() {
         selo="VÁLIDO POR 30 MIN"
         formulario={
           <div className="flex flex-col gap-5">
-            <h2 className="m-0 font-display text-[13px] leading-[1.8] tracking-[1px] text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)]">
+            <h2 className={`m-0 ${TIPO.tituloSecao} text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)]`}>
               PEDIDO ENVIADO
             </h2>
-            <p className="m-0 font-body text-lg leading-[1.8] tracking-[1px] text-ink-body">
+            <p className={`m-0 ${TIPO.corpo} text-ink-body`}>
               Se houver uma conta com{" "}
               <strong className="text-ink-soft">{pedido}</strong>, o link de
               redefinição acabou de sair. Ele vale por 30 minutos.

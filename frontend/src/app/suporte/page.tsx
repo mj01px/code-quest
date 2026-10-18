@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { PaginaLegal } from "@/components/legal/PaginaLegal";
 import { Destaque, Paragrafo, Secao } from "@/components/legal/Prosa";
 import { DADOS_LEGAIS } from "@/lib/dadosLegais";
+import { TIPO } from "@/lib/tipografia";
 
 export const metadata: Metadata = {
   title: "Suporte",
@@ -23,7 +24,7 @@ function Pergunta({
       <h3 className="m-0 font-label text-[12px] leading-[1.7] tracking-[2px] text-ink-label">
         {titulo}
       </h3>
-      <p className="m-0 font-body text-lg leading-[1.8] tracking-[1px] text-ink-body text-pretty">
+      <p className={`m-0 ${TIPO.corpo} text-ink-body text-pretty`}>
         {children}
       </p>
     </div>
