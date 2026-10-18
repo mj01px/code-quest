@@ -33,6 +33,11 @@ const nextConfig: NextConfig = {
   // Sem isto o Next devolve 308 tirando a barra final antes de repassar, e
   // todo POST para a API morre no redirecionamento.
   skipTrailingSlashRedirect: true,
+  // ponytail: o prerender busca o catalogo na API, e o runserver aceita so 10
+  // conexoes na fila. O padrao (um worker por nucleo, 8 paginas cada) passa
+  // disso, e no Windows o excedente volta como sem_conexao. 4 x 2 = 8 paginas
+  // em voo. Se o build rodar contra um servidor de producao, pode subir.
+  experimental: { cpus: 4, staticGenerationMaxConcurrency: 2 },
   async rewrites() {
     // A barra volta no destino porque o Next normaliza o caminho de entrada e
     // toda rota do DRF termina em barra. Sem ela, o APPEND_SLASH do Django
