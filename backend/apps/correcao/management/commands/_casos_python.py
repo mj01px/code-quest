@@ -1,7 +1,17 @@
 # Casos de teste da trilha de Python, por slug do exercício.
 
+from typing import NotRequired, TypedDict
 
-CASOS_PYTHON = {
+
+# Cada caso: (argumentos, retorno esperado ou {"erro": "NomeDoErro"}, visivel).
+class EspecificacaoSeed(TypedDict):
+    funcao: str
+    codigo_inicial: str
+    requisitos: NotRequired[list[dict[str, str]]]
+    casos: list[tuple[list[object], object, bool]]
+
+
+CASOS_PYTHON: dict[str, EspecificacaoSeed] = {
     "iniciais-do-nome": {
         "funcao": "iniciais",
         "codigo_inicial": "def iniciais(nome_completo):\n    ...\n",

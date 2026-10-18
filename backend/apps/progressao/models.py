@@ -138,6 +138,23 @@ class EventoXP(models.Model):
         return f"{self.user.nickname} +{self.xp} XP"
 
 
+class Sequencia(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="sequencia",
+        verbose_name=_("aluno"),
+    )
+    atual = models.PositiveIntegerField(default=0)
+    recorde = models.PositiveIntegerField(default=0)
+    ultimo_dia = models.DateField(null=True, blank=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("sequência")
+        verbose_name_plural = _("sequências")
+
+
 class TrilhaIniciada(models.Model):
     """O aluno entrou na trilha, mesmo sem ter concluído nenhuma fase.
 

@@ -25,6 +25,7 @@ jest.mock("@/lib/api", () => ({
     eu: jest.fn(),
     minhasCriaturas: jest.fn(),
     meuProgresso: jest.fn(),
+    minhaSequencia: jest.fn(),
   },
 }));
 
@@ -35,6 +36,9 @@ const minhasCriaturas = apiReal.minhasCriaturas as jest.MockedFunction<
 >;
 const meuProgresso = apiReal.meuProgresso as jest.MockedFunction<
   typeof apiReal.meuProgresso
+>;
+const minhaSequencia = apiReal.minhaSequencia as jest.MockedFunction<
+  typeof apiReal.minhaSequencia
 >;
 const exerciciosConcluidos =
   apiReal.exerciciosConcluidos as jest.MockedFunction<
@@ -95,6 +99,12 @@ beforeEach(() => {
   eu.mockResolvedValue(usuario());
   minhasCriaturas.mockResolvedValue([minhaCriatura({ ativa: true })]);
   meuProgresso.mockResolvedValue(progressoAtual());
+  minhaSequencia.mockResolvedValue({
+    atual: 0,
+    recorde: 0,
+    feito_hoje: false,
+    ultimo_dia: null,
+  });
 });
 
 describe("PainelDeTrilhas", () => {

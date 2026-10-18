@@ -9,7 +9,7 @@ from django.conf import settings
 
 from .models import Linguagem
 
-LINGUAGENS = {
+LINGUAGENS: dict[str, int] = {
     Linguagem.PYTHON: 71,
 }
 
@@ -45,11 +45,11 @@ class Execucao:
     memoria: int | None
 
 
-def _b64(texto):
+def _b64(texto: str) -> str:
     return base64.b64encode(texto.encode()).decode()
 
 
-def _de_b64(texto):
+def _de_b64(texto: str | None) -> str:
     if not texto:
         return ""
     try:
@@ -59,7 +59,7 @@ def _de_b64(texto):
 
 
 class ClienteJudge0:
-    def __init__(self, *, url, token, timeout):
+    def __init__(self, *, url: str, token: str, timeout: float) -> None:
         self.url = url.rstrip("/")
         self.timeout = timeout
         if "rapidapi.com" in self.url:
@@ -70,7 +70,7 @@ class ClienteJudge0:
         else:
             self.cabecalhos = {"X-Auth-Token": token}
 
-    def executar(self, *, codigo, stdin, linguagem):
+    def executar(self, *, codigo: str, stdin: str, linguagem: str) -> Execucao:
         corpo = {
             "language_id": LINGUAGENS[linguagem],
             "source_code": _b64(codigo),
@@ -114,7 +114,7 @@ class ClienteJudge0:
         )
 
 
-def obter_cliente():
+def obter_cliente() -> ClienteJudge0:
     if not settings.JUDGE0_URL or not settings.JUDGE0_TOKEN:
         raise Judge0Error("JUDGE0_URL ou JUDGE0_TOKEN não configurado")
     return ClienteJudge0(

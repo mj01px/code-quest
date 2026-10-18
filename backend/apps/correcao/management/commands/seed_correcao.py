@@ -1,17 +1,19 @@
+from typing import TypeGuard
+
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from apps.correcao.models import CasoDeTeste, EspecificacaoDeCodigo, Linguagem
 from apps.trilhas.models import Exercicio
 
-from ._casos_python import CASOS_PYTHON
+from ._casos_python import CASOS_PYTHON, EspecificacaoSeed
 
-TRILHAS = {
+TRILHAS: dict[str, dict[str, EspecificacaoSeed]] = {
     "python": CASOS_PYTHON,
 }
 
 
-def _espera_erro(esperado):
+def _espera_erro(esperado: object) -> TypeGuard[dict[str, str]]:
     return isinstance(esperado, dict) and set(esperado) == {"erro"}
 
 
@@ -19,9 +21,9 @@ class Command(BaseCommand):
     help = "Cadastra as especificações e os casos de teste da correção automática."
 
     @transaction.atomic
-    def handle(self, *args, **options):
+    def handle(self, *args: object, **options: object) -> None:
         criadas = 0
-        faltando = []
+        faltando: list[str] = []
 
         for trilha_slug, especificacoes in TRILHAS.items():
             for exercicio_slug, dados in especificacoes.items():

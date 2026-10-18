@@ -19,6 +19,7 @@ jest.mock("@/lib/api", () => {
       eu: jest.fn(),
       minhasCriaturas: jest.fn(),
       meuProgresso: jest.fn(),
+      minhaSequencia: jest.fn(),
     },
   };
 });
@@ -40,6 +41,9 @@ const minhasCriaturas = apiReal.minhasCriaturas as jest.MockedFunction<
 const meuProgresso = apiReal.meuProgresso as jest.MockedFunction<
   typeof apiReal.meuProgresso
 >;
+const minhaSequencia = apiReal.minhaSequencia as jest.MockedFunction<
+  typeof apiReal.minhaSequencia
+>;
 const trilhasIniciadas = apiReal.trilhasIniciadas as jest.MockedFunction<
   typeof apiReal.trilhasIniciadas
 >;
@@ -51,6 +55,7 @@ const BASE = {
   subiu_de_nivel: false,
   pode_evoluir: false,
   progresso: progressoAtual(),
+  sequencia: { atual: 1, recorde: 1, aumentou: true },
 };
 
 function novoCredito(xp = 50): RespostaConclusao {
@@ -58,7 +63,14 @@ function novoCredito(xp = 50): RespostaConclusao {
 }
 
 function repeticao(): RespostaConclusao {
-  return { ...BASE, aprovado: true, correcao: null, ja_concluido: true, xp_ganho: 0 };
+  return {
+    ...BASE,
+    sequencia: { atual: 1, recorde: 1, aumentou: false },
+    aprovado: true,
+    correcao: null,
+    ja_concluido: true,
+    xp_ganho: 0,
+  };
 }
 
 function jaConcluido(): ExercicioConcluido {
@@ -96,6 +108,12 @@ beforeEach(() => {
   eu.mockResolvedValue(usuario());
   minhasCriaturas.mockResolvedValue([minhaCriatura({ ativa: true })]);
   meuProgresso.mockResolvedValue(progressoAtual());
+  minhaSequencia.mockResolvedValue({
+    atual: 0,
+    recorde: 0,
+    feito_hoje: false,
+    ultimo_dia: null,
+  });
 });
 
 describe("BotaoConclusao", () => {
@@ -106,7 +124,7 @@ describe("BotaoConclusao", () => {
     await userEvent.click(botao());
 
     expect(concluirExercicio).toHaveBeenCalledWith("logica", "media");
-    expect(await screen.findByText("+50 XP")).toBeInTheDocument();
+    expect(await screen.findByText("+50 XP · +1 dia")).toBeInTheDocument();
     expect(botao()).toHaveTextContent("Concluído");
     expect(botao()).toHaveAttribute("aria-pressed", "true");
   });
@@ -219,7 +237,8 @@ describe("BotaoConclusao", () => {
   it("continua focável enquanto envia, em vez de sumir do leitor de tela", async () => {
     // `disabled` tira o foco do botão, e o leitor cala justamente sobre o
     // elemento que acabou de mudar. `aria-disabled` mantém foco e anúncio.
-    let liberar: (v: RespostaConclusao) => void = () => {};    concluirExercicio.mockImplementation(
+    let liberar: (v: RespostaConclusao) => void = () => {};
+    concluirExercicio.mockImplementation(
       () => new Promise((r) => (liberar = r)),
     );
     await montarPronto();
@@ -231,13 +250,14 @@ describe("BotaoConclusao", () => {
     expect(botao()).toHaveFocus();
 
     liberar(novoCredito());
-    await screen.findByText("+50 XP");
+    await screen.findByText("+50 XP · +1 dia");
   });
 
   it("dois cliques no mesmo instante mandam um POST só", async () => {
     // O trinco é um ref: checar `estado` não bastaria, porque os dois cliques
     // leem o mesmo valor antes do re-render.
-    let liberar: (v: RespostaConclusao) => void = () => {};    concluirExercicio.mockImplementation(
+    let liberar: (v: RespostaConclusao) => void = () => {};
+    concluirExercicio.mockImplementation(
       () => new Promise((r) => (liberar = r)),
     );
     await montarPronto();
@@ -250,7 +270,7 @@ describe("BotaoConclusao", () => {
     expect(concluirExercicio).toHaveBeenCalledTimes(1);
 
     liberar(novoCredito());
-    await screen.findByText("+50 XP");
+    await screen.findByText("+50 XP · +1 dia");
   });
 
   it("anuncia por uma região viva que já existia antes da mudança", async () => {
@@ -276,7 +296,7 @@ describe("BotaoConclusao", () => {
 
     await userEvent.click(botao());
 
-    await screen.findByText("+50 XP");
+    await screen.findByText("+50 XP · +1 dia");
     expect(window.localStorage.length).toBe(0);
   });
 });

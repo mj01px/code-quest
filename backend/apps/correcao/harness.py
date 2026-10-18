@@ -1,5 +1,8 @@
 import json
 import math
+from collections.abc import Iterable
+
+from .models import CasoDeTeste
 
 MARCADOR = "@@RESULTADO@@"
 
@@ -31,17 +34,17 @@ print("{marcador}" + _cq_json.dumps(_cq_saida, ensure_ascii=False))
 """
 
 
-def montar_programa(*, codigo, funcao):
+def montar_programa(*, codigo: str, funcao: str) -> str:
     if not funcao.isidentifier():
         raise ValueError(f"nome de função inválido: {funcao!r}")
     return codigo.rstrip() + "\n" + _MODELO.format(funcao=funcao, marcador=MARCADOR)
 
 
-def montar_entrada(casos):
+def montar_entrada(casos: Iterable[CasoDeTeste]) -> str:
     return json.dumps([caso.argumentos for caso in casos], ensure_ascii=False)
 
 
-def separar_saida(stdout):
+def separar_saida(stdout: str) -> tuple[str, list[object] | None]:
     linhas = stdout.splitlines()
     for i in range(len(linhas) - 1, -1, -1):
         if linhas[i].startswith(MARCADOR):
@@ -56,7 +59,7 @@ def separar_saida(stdout):
     return stdout, None
 
 
-def iguais(obtido, esperado):
+def iguais(obtido: object, esperado: object) -> bool:
     if isinstance(esperado, bool) or isinstance(obtido, bool):
         return type(obtido) is type(esperado) and obtido == esperado
     if isinstance(esperado, (int, float)) and isinstance(obtido, (int, float)):
@@ -72,7 +75,7 @@ def iguais(obtido, esperado):
     return obtido == esperado
 
 
-def caso_passou(caso, resultado):
+def caso_passou(caso: CasoDeTeste, resultado: object) -> bool:
     if not isinstance(resultado, dict):
         return False
     if caso.erro_esperado:

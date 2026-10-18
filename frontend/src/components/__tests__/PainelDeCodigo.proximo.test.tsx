@@ -49,6 +49,7 @@ jest.mock("@/lib/api", () => {
       eu: jest.fn(),
       minhasCriaturas: jest.fn(),
       meuProgresso: jest.fn(),
+      minhaSequencia: jest.fn(),
     },
   };
 });
@@ -70,6 +71,9 @@ const minhasCriaturas = apiReal.minhasCriaturas as jest.MockedFunction<
 >;
 const meuProgresso = apiReal.meuProgresso as jest.MockedFunction<
   typeof apiReal.meuProgresso
+>;
+const minhaSequencia = apiReal.minhaSequencia as jest.MockedFunction<
+  typeof apiReal.minhaSequencia
 >;
 
 const especificacao: EspecificacaoDeCodigo = {
@@ -113,6 +117,7 @@ const aprovado = {
   subiu_de_nivel: false,
   pode_evoluir: false,
   progresso: progressoAtual(),
+  sequencia: { atual: 1, recorde: 1, aumentou: true },
 } satisfies Awaited<ReturnType<typeof apiReal.concluirExercicio>>;
 
 function montar() {
@@ -143,6 +148,12 @@ beforeEach(() => {
   eu.mockResolvedValue(usuario());
   minhasCriaturas.mockResolvedValue([minhaCriatura({ ativa: true })]);
   meuProgresso.mockResolvedValue(progressoAtual());
+  minhaSequencia.mockResolvedValue({
+    atual: 0,
+    recorde: 0,
+    feito_hoje: false,
+    ultimo_dia: null,
+  });
 });
 
 describe("PainelDeCodigo habilita BotaoProximoExercicio", () => {
@@ -158,6 +169,10 @@ describe("PainelDeCodigo habilita BotaoProximoExercicio", () => {
     expect(bloqueado()).not.toHaveAttribute("href");
 
     await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "+50 XP · +1 dia",
+    );
 
     const link = await screen.findByRole("link", {
       name: /próximo exercício/i,
@@ -179,6 +194,7 @@ describe("PainelDeCodigo habilita BotaoProximoExercicio", () => {
     // Reprovado não recarrega o Context: segue uma única leitura.
     expect(exerciciosConcluidos).toHaveBeenCalledTimes(1);
     expect(bloqueado()).not.toHaveAttribute("href");
+    expect(screen.queryByText(/\+1 dia/)).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: /próximo exercício/i }),
     ).not.toBeInTheDocument();

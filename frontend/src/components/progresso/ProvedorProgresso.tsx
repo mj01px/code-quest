@@ -16,10 +16,11 @@ import type {
   ExercicioConcluido,
   MinhaCriatura,
   ProgressoAtual,
+  Sequencia,
   Usuario,
 } from "@/lib/types";
 
-// Context único do aluno: usuário, criatura, XP e conclusões.
+// Context único do aluno: usuário, criatura, XP, sequência e conclusões.
 // Vive no layout (app) pra não desmontar entre rotas.
 // Tudo invalida junto no recarregar(), conclusões vêm sem filtro de trilha, a agregação é local.
 
@@ -32,6 +33,7 @@ export interface ValorProgresso {
   /** A criatura ativa; sem ela o sprite cai no avatar neutro. */
   criatura: MinhaCriatura | null;
   progresso: ProgressoAtual | null;
+  sequencia: Sequencia | null;
   concluidos: readonly ExercicioConcluido[];
   chaves: ReadonlySet<string>;
   /** Slugs das trilhas que o aluno iniciou, mesmo sem fase concluída. */
@@ -48,6 +50,7 @@ interface Dados {
   usuario: Usuario | null;
   criatura: MinhaCriatura | null;
   progresso: ProgressoAtual | null;
+  sequencia: Sequencia | null;
   concluidos: readonly ExercicioConcluido[];
   trilhasIniciadas: ReadonlySet<string>;
 }
@@ -56,6 +59,7 @@ const SEM_DADOS: Dados = Object.freeze({
   usuario: null,
   criatura: null,
   progresso: null,
+  sequencia: null,
   concluidos: VAZIO,
   trilhasIniciadas: SEM_TRILHAS,
 });
@@ -78,6 +82,7 @@ export function ProvedorProgresso({ children }: { children: ReactNode }) {
           api.eu(),
           api.minhasCriaturas(),
           api.meuProgresso(),
+          api.minhaSequencia(),
           api.exerciciosConcluidos(),
           api.trilhasIniciadas(),
         ])
@@ -90,11 +95,13 @@ export function ProvedorProgresso({ children }: { children: ReactNode }) {
           setDados(SEM_DADOS);
           return;
         }
-        const [usuario, criaturas, progresso, concluidos, iniciadas] = resposta;
+        const [usuario, criaturas, progresso, sequencia, concluidos, iniciadas] =
+          resposta;
         setDados({
           usuario,
           criatura: criaturas.find((c) => c.ativa) ?? criaturas[0] ?? null,
           progresso,
+          sequencia,
           concluidos: normalizar(concluidos),
           trilhasIniciadas: new Set(iniciadas),
         });
@@ -118,6 +125,7 @@ export function ProvedorProgresso({ children }: { children: ReactNode }) {
       usuario: dados.usuario,
       criatura: dados.criatura,
       progresso: dados.progresso,
+      sequencia: dados.sequencia,
       concluidos: dados.concluidos,
       chaves:
         dados.concluidos.length > 0
