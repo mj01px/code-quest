@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 
 import {
   aula,
+  exercicioDetalhe,
   exercicioResumo,
   minhaCriatura,
   progressoAtual,
@@ -24,6 +25,7 @@ jest.mock("@/lib/api", () => {
     ErroApi: real.ErroApi,
     listarTrilhas: jest.fn(),
     buscarTrilha: jest.fn(),
+    buscarExercicio: jest.fn(),
     temSessao: jest.fn(() => true),
     api: {
       meusBonus: jest.fn(),
@@ -40,6 +42,7 @@ jest.mock("@/lib/api", () => {
 const api = jest.requireMock<{
   listarTrilhas: jest.Mock;
   buscarTrilha: jest.Mock;
+  buscarExercicio: jest.Mock;
   temSessao: jest.Mock;
   api: {
     meusBonus: jest.Mock;
@@ -121,6 +124,9 @@ beforeEach(() => {
   concluiu("nenhuma");
   api.listarTrilhas.mockResolvedValue([trilhaResumo()]);
   api.buscarTrilha.mockResolvedValue(TRILHA);
+  api.buscarExercicio.mockImplementation(async (_trilha: string, slug: string) =>
+    exercicioDetalhe({ slug, enunciado: `Enunciado da fase ${slug}.` }),
+  );
 });
 
 describe("Página de desafios", () => {
@@ -139,6 +145,51 @@ describe("Página de desafios", () => {
         /^\/trilhas\/logica-de-programacao\/exercicios\//,
       );
     }
+  });
+
+  it("mostra a sequência de quem está logado, entre o resumo e a lista", async () => {
+    await montar(await DesafiosPage());
+
+    expect(
+      await screen.findByRole("heading", { name: "Sua sequência" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("timer")).toBeInTheDocument();
+  });
+
+  it("cada botão tem nome acessível próprio e área de toque de 44px", async () => {
+    await montar(await DesafiosPage());
+
+    const botoes = screen.getAllByRole("link", { name: /^Encarar desafio: / });
+    expect(botoes).toHaveLength(3);
+    expect(new Set(botoes.map((botao) => botao.getAttribute("aria-label"))).size).toBe(3);
+    for (const botao of botoes) expect(botao).toHaveClass("min-h-11");
+  });
+
+  it("mostra o começo do enunciado, com link para a fase completa", async () => {
+    await montar(await DesafiosPage());
+
+    const previews = screen.getAllByText(/^Enunciado da fase /);
+    expect(previews).toHaveLength(3);
+    for (const preview of previews) expect(preview).toHaveClass("line-clamp-3");
+
+    const verMais = screen.getAllByRole("link", { name: /^Ver enunciado completo: / });
+    expect(verMais).toHaveLength(3);
+    for (const link of verMais) {
+      expect(link.getAttribute("href")).toMatch(
+        /^\/trilhas\/logica-de-programacao\/exercicios\//,
+      );
+    }
+  });
+
+  it("sem o detalhe da fase, o cartão aparece sem preview", async () => {
+    api.buscarExercicio.mockRejectedValue(
+      new ErroApi(0, "sem_conexao", "Servidor fora do ar."),
+    );
+
+    await montar(await DesafiosPage());
+
+    expect(screen.getAllByRole("listitem")).toHaveLength(3);
+    expect(screen.queryByText(/^Enunciado da fase /)).not.toBeInTheDocument();
   });
 
   it("não pede o detalhe de trilha sem fase publicada", async () => {

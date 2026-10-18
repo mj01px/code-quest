@@ -4,6 +4,7 @@ import { SeloBonusXp } from "@/components/gamificacao/SeloBonusXp";
 import { BadgeDificuldade } from "@/components/ui/Badge";
 import { IconeCheck } from "@/components/ui/Icone";
 import type { Desafio } from "@/lib/desafios";
+import { TIPO } from "@/lib/tipografia";
 
 export function CartaoDesafio({
   desafio,
@@ -59,9 +60,25 @@ export function CartaoDesafio({
           </div>
         </div>
 
+        {desafio.enunciado ? (
+          <div className="flex flex-col gap-1">
+            <p className={`m-0 line-clamp-3 ${TIPO.corpo} text-ink-body`}>
+              {desafio.enunciado}
+            </p>
+            <Link
+              href={desafio.href}
+              aria-label={`Ver enunciado completo: ${desafio.titulo}`}
+              className="rotulo inline-flex min-h-11 w-fit items-center text-brand-light hover:text-brand-mist"
+            >
+              Ver mais
+            </Link>
+          </div>
+        ) : null}
+
         <Link
           href={desafio.href}
-          className="rotulo inline-flex w-fit items-center gap-2 border border-brand-strong bg-brand-strong px-6 py-3 text-ink-soft transition-[background-color,transform] duration-150 hover:translate-x-0.5 hover:bg-brand"
+          aria-label={`${concluido ? "Revisar fase" : "Encarar desafio"}: ${desafio.titulo}`}
+          className="rotulo inline-flex min-h-11 w-fit items-center gap-2 border border-brand-strong bg-brand-strong px-6 py-3 text-ink-soft transition-[background-color,transform] duration-150 hover:translate-x-0.5 hover:bg-brand"
         >
           {concluido ? "Revisar fase" : "Encarar desafio"}
           <span aria-hidden="true">&rsaquo;</span>
