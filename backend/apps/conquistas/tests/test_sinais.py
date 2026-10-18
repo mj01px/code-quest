@@ -1,3 +1,5 @@
+from unittest import mock
+
 from django.test import TestCase
 
 from apps.clas.tests.helpers import montar_cla
@@ -60,6 +62,23 @@ class SinaisTest(TestCase):
             submeter(self.user, criar_exercicio())
 
         self.assertIn("de-primeira", desbloqueadas(self.user))
+
+    def test_falha_ao_avaliar_e_logada_sem_propagar(self):
+        # captureOnCommitCallbacks(execute=True) roda callbacks robust pelo
+        # mesmo try/except do backend, que loga func.__qualname__. Com
+        # functools.partial (sem __qualname__) o log virava AttributeError.
+        exercicio = criar_exercicio()
+        with (
+            mock.patch(
+                "apps.conquistas.signals.avaliar_por_id",
+                side_effect=RuntimeError("falha simulada"),
+            ),
+            self.assertLogs("django.test", level="ERROR") as logs,
+            self.captureOnCommitCallbacks(execute=True),
+        ):
+            submeter(self.user, exercicio)
+
+        self.assertIn("falha simulada", logs.output[0])
 
     def test_entrar_em_cla_desbloqueia(self):
         with self.captureOnCommitCallbacks(execute=True):

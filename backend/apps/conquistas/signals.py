@@ -1,5 +1,3 @@
-from functools import partial
-
 from django.db import transaction
 from django.db.models.signals import post_save
 
@@ -33,9 +31,10 @@ def _ao_salvar(sender, instance, created, raw=False, **kwargs):
     elif not created:
         return
 
-    transaction.on_commit(
-        partial(avaliar_por_id, instance.user_id, GATILHOS[sender]), robust=True
-    )
+    # lambda, nao functools.partial: o robust=True loga func.__qualname__,
+    # que partial nao tem, e a falha viraria AttributeError.
+    user_id, criterios = instance.user_id, GATILHOS[sender]
+    transaction.on_commit(lambda: avaliar_por_id(user_id, criterios), robust=True)
 
 
 for _modelo in GATILHOS:
