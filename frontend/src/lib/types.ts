@@ -350,3 +350,17 @@ export interface ConviteGerado {
   link: string;
   expira_em: string;
 }
+
+export interface Conquista {
+  slug: string | null;
+  nome: string;
+  descricao: string;
+  icone: string;
+  oculta: boolean;
+  desbloqueada: boolean;
+  desbloqueada_em: string | null;
+  vista: boolean;
+  progresso: number | null;
+  meta: number | null;
+  raridade: number;
+}

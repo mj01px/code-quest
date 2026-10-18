@@ -8,6 +8,7 @@ import {ResultadoDosCasos, comoTexto} from "@/components/exercicio/ResultadoDosC
 import {useProgresso} from "@/components/progresso/ProvedorProgresso";
 import {estaConcluida} from "@/lib/progresso";
 import {ErroApi, api} from "@/lib/api";
+import {avisarConquistas} from "@/lib/conquistas";
 import type {
     Correcao,
     EspecificacaoDeCodigo,
@@ -93,6 +94,7 @@ export function PainelDeCodigo({
                 codigo,
             );
             setCorrecao(resultado);
+            avisarConquistas();
         } catch (erro) {
             setCorrecao(null);
             setAviso(mensagemDoErro(erro));
