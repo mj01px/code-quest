@@ -75,6 +75,7 @@ export function PainelDeCodigo({
     const [executando, setExecutando] = useState(false);
     const [enviando, setEnviando] = useState(false);
     const [xpGanho, setXpGanho] = useState<number | null>(null);
+    const [diaGanho, setDiaGanho] = useState(false);
     const [concluido, setConcluido] = useState(false);
 
     const emVoo = useRef(false);
@@ -123,6 +124,7 @@ export function PainelDeCodigo({
 
             setCorrecao(resultado.correcao);
             setXpGanho(resultado.ja_concluido ? null : resultado.xp_ganho);
+            setDiaGanho(resultado.sequencia.aumentou);
             setConcluido(true);
             // Atualiza XP, nível e conclusões de uma vez. O aviso de nível escuta o
             // contexto, então dispara sozinho daqui.
@@ -228,7 +230,7 @@ export function PainelDeCodigo({
                         (excedeu
                             ? "Código longo demais."
                             : xpGanho !== null
-                                ? `+${xpGanho} XP`
+                                ? `+${xpGanho} XP${diaGanho ? " · +1 dia" : ""}`
                                 : "")}
                 </p>
             </div>

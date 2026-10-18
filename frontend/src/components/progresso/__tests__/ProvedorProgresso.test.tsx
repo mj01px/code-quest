@@ -24,6 +24,7 @@ jest.mock("@/lib/api", () => ({
     eu: jest.fn(),
     minhasCriaturas: jest.fn(),
     meuProgresso: jest.fn(),
+    minhaSequencia: jest.fn(),
     exerciciosConcluidos: jest.fn(),
     trilhasIniciadas: jest.fn(),
     concluirExercicio: jest.fn(),
@@ -37,6 +38,9 @@ const minhasCriaturas = apiReal.minhasCriaturas as jest.MockedFunction<
 >;
 const meuProgresso = apiReal.meuProgresso as jest.MockedFunction<
   typeof apiReal.meuProgresso
+>;
+const minhaSequencia = apiReal.minhaSequencia as jest.MockedFunction<
+  typeof apiReal.minhaSequencia
 >;
 const exerciciosConcluidos = apiReal.exerciciosConcluidos as jest.MockedFunction<
   typeof apiReal.exerciciosConcluidos
@@ -62,6 +66,12 @@ beforeEach(() => {
   eu.mockResolvedValue(usuario());
   minhasCriaturas.mockResolvedValue([minhaCriatura({ ativa: true })]);
   meuProgresso.mockResolvedValue(progressoAtual());
+  minhaSequencia.mockResolvedValue({
+    atual: 0,
+    recorde: 0,
+    feito_hoje: false,
+    ultimo_dia: null,
+  });
   exerciciosConcluidos.mockResolvedValue([CONCLUIDO]);
   concluirExercicio.mockResolvedValue({
     aprovado: true,
@@ -71,6 +81,7 @@ beforeEach(() => {
     subiu_de_nivel: false,
     pode_evoluir: false,
     progresso: progressoAtual(),
+    sequencia: { atual: 1, recorde: 1, aumentou: true },
   });
 });
 
@@ -84,6 +95,12 @@ describe("ProvedorProgresso", () => {
     expect(result.current.usuario).not.toBeNull();
     expect(result.current.criatura).not.toBeNull();
     expect(result.current.progresso).not.toBeNull();
+    expect(result.current.sequencia).toEqual({
+      atual: 0,
+      recorde: 0,
+      feito_hoje: false,
+      ultimo_dia: null,
+    });
     expect(result.current.concluidos).toEqual([CONCLUIDO]);
     expect(result.current.chaves.has("logica/media")).toBe(true);
   });
@@ -122,11 +139,18 @@ describe("ProvedorProgresso", () => {
     await waitFor(() => expect(result.current.carregando).toBe(false));
     expect(exerciciosConcluidos).toHaveBeenCalledTimes(1);
     expect(meuProgresso).toHaveBeenCalledTimes(1);
+    expect(minhaSequencia).toHaveBeenCalledTimes(1);
 
     exerciciosConcluidos.mockResolvedValue([
       CONCLUIDO,
       { ...CONCLUIDO, exercicio_slug: "trocar" },
     ]);
+    minhaSequencia.mockResolvedValue({
+      atual: 2,
+      recorde: 3,
+      feito_hoje: true,
+      ultimo_dia: "2026-10-14",
+    });
     result.current.recarregar();
 
     await waitFor(() =>
@@ -135,6 +159,8 @@ describe("ProvedorProgresso", () => {
     expect(exerciciosConcluidos).toHaveBeenCalledTimes(2);
     // O XP da sidebar fica obsoleto junto: releitura é dos quatro, não só da lista.
     expect(meuProgresso).toHaveBeenCalledTimes(2);
+    expect(minhaSequencia).toHaveBeenCalledTimes(2);
+    expect(result.current.sequencia?.atual).toBe(2);
   });
 
   it("vários consumidores dividem uma busca só", async () => {

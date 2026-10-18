@@ -7,6 +7,7 @@ interface Erros {
 }
 
 interface Props {
+  recorde: number;
   nickname: string;
   email: string;
   pedirSenha: boolean;
@@ -27,6 +28,7 @@ const ROTULO = "font-label text-[12px] tracking-[2px] text-ink-label";
 const ERRO = "font-body text-base leading-[1.6] tracking-wide text-danger";
 
 export function SecaoPerfil({
+  recorde,
   nickname,
   email,
   pedirSenha,
@@ -43,6 +45,10 @@ export function SecaoPerfil({
       <h2 className="m-0 font-display text-[13px] leading-[1.7] tracking-[1px] text-ink">
         Perfil
       </h2>
+
+      <p className="m-0 font-label text-[11px] tracking-[2px] text-brand-light">
+        RECORDE DE SEQUÊNCIA: {recorde} {recorde === 1 ? "DIA" : "DIAS"}
+      </p>
 
       <div className="flex flex-col gap-5 border-2 border-edge bg-panel p-5 shadow-pixel-lg sm:p-6">
         <div className="flex flex-col gap-2">

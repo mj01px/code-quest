@@ -33,6 +33,7 @@ export function BotaoConclusao({
   const { chaves, carregando, recarregar } = useProgresso();
   const [estado, setEstado] = useState<Estado>("inicial");
   const [xpGanho, setXpGanho] = useState<number | null>(null);
+  const [diaGanho, setDiaGanho] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
 
   const emVoo = useRef(false); // ref pra evitar POST duplo no mesmo tick
@@ -57,6 +58,7 @@ export function BotaoConclusao({
       }
       // Repetição volta ja_concluido: true, e marca feito sem anunciar XP de novo.
       setXpGanho(resultado.ja_concluido ? null : resultado.xp_ganho);
+      setDiaGanho(resultado.sequencia.aumentou);
       setEstado("concluido");
       // Atualiza XP, nível e conclusões de uma vez.
       recarregar();
@@ -105,7 +107,10 @@ export function BotaoConclusao({
           aviso ? "text-ink-muted" : "text-success"
         }`}
       >
-        {aviso ?? (xpGanho !== null ? `+${xpGanho} XP` : "")}
+        {aviso ??
+          (xpGanho !== null
+            ? `+${xpGanho} XP${diaGanho ? " · +1 dia" : ""}`
+            : "")}
       </p>
     </div>
   );
