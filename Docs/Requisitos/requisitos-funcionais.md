@@ -24,7 +24,7 @@ Significado de cada estado:
 | `Planejado` | Previsto (permissão no RBAC, código de auditoria reservado ou documentação), sem implementação na `main` |
 | `Em desenvolvimento` | Em construção numa branch da equipe, ainda não integrada à `main` |
 
-Base da verificação: branch `main` no commit `9ebd18a` (2 de outubro de 2026).
+Base da verificação: branch `ArthurMain` no commit `92ae376` (20 de outubro de 2026).
 Os números de regras de negócio (RN) e critérios de aceite (CA) recomeçam a cada
 requisito.
 
@@ -557,13 +557,16 @@ publicado chegue ao aluno.
 - CA02: Dado um aluno, quando tentar publicar conteúdo, então o sistema deverá recusar.
 
 **O que existe:** os quatro estados no modelo, o filtro de publicados em todas as
-rotas públicas, as permissões no catálogo do RBAC e o comando idempotente
-`seed_trilhas`, que carrega o conteúdo e publica as trilhas Lógica de
-Programação, Python e Banco de Dados.
+rotas públicas, as permissões no catálogo do RBAC, o comando de carga
+idempotente (`seed_trilhas`) e as rotas de transição (enviar para revisão,
+aprovar, devolver ao rascunho e publicar) para trilhas, aulas e exercícios.
+Cada rota exige a permissão correspondente, recusa transição fora de ordem e
+registra a mudança na trilha de auditoria. A publicação de trilha ou aula é
+recusada enquanto houver conteúdo filho em rascunho ou em revisão.
 
-**O que falta:** não há rotas nem telas para criar, editar, enviar para revisão,
-aprovar ou publicar conteúdo. Hoje o conteúdo entra pelo comando de seed, e o
-CA02 não tem rota a ser testada.
+**O que falta:** rotas para criar e editar conteúdo, as telas de autoria e da
+fila de revisão, a comporta automática e o registro do parecer do revisor na
+devolução.
 
 **Fonte:** `backend/apps/trilhas/models.py` (`StatusEditorial`, `PublicavelQuerySet`), `backend/apps/contas/rbac.py`, `backend/apps/trilhas/management/commands/seed_trilhas.py`.
 

@@ -4,6 +4,16 @@ Segue o formato do [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
 ## [Não publicado]
 
+### Integrado em 2026-10-18
+
+- **Streak e prerender**: integração do streak do Julio (`origin/JulioMain`) e
+  correção da concorrência do prerender (`next.config.ts`).
+- **Conquistas**: integração do PR #53 (conquistas do Mauro).
+- **`on_commit` robusto**: fix em `signals.py`, com `partial`.
+- **Tipografia centralizada** em `src/lib/tipografia.ts`.
+- **Quick wins de `/desafios`**: fuso de São Paulo, sequência, contador e
+  enunciado em preview.
+
 ### Adicionado
 
 - **Módulo de Trilhas** (`backend/apps/trilhas/`): três models, `Trilha`,
@@ -15,9 +25,9 @@ Segue o formato do [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
   `GET /api/exercicios/<trilha_slug>/<exercicio_slug>/`. Os serializers
   declaram uma allowlist explícita de campos, e nenhuma das rotas expõe
   `solucao_autor`.
-- **Comando `seed_trilhas`**: cria as cinco trilhas previstas e publica
-  "Lógica de Programação", com 6 módulos e 26 fases que vão de variáveis a
-  depuração. É idempotente. Nos dois níveis o `update_or_create` usa
+- **Comando `seed_trilhas`**: cria as seis trilhas previstas e publica três
+  delas, entre elas "Lógica de Programação", com 6 módulos e 26 fases que vão
+  de variáveis a depuração. É idempotente. Nos dois níveis o `update_or_create` usa
   `(trilha, slug)` como chave, por isso uma segunda execução reaproveita as
   linhas em vez de duplicá-las.
 - **Telas de trilhas** (Next.js): listagem, detalhe da trilha com o mapa de
@@ -192,9 +202,12 @@ Segue o formato do [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
   quem associá-lo no servidor. Limpar os dados do site apaga tudo, e quem
   troca de máquina não leva o progresso junto. Quando a gamificação entrar, o
   `localStorage` vira a origem da primeira sincronização.
-- XP e streak ainda existem só nos modelos de tela. A sidebar mostra o perfil
-  neutro de propósito, porque preenchê-la com número inventado seria pior que
-  a ausência.
+- O streak diário está implementado no backend (modelo `Sequencia`, migration
+  `progressao.0004_sequencia`, rota `/eu/sequencia/`) e no frontend
+  (`BarraLateral`, `PainelDeCodigo`, `BotaoConclusao`). A sidebar passa a
+  exibir a sequência diária, o XP e o nome do usuário, refletindo o estado real
+  do progresso. O perfil neutro anterior foi removido após a integração do
+  streak em 14/10/2026 e dos ajustes de `/desafios` em 18/10/2026.
 - **Pendente: o dia do RapidAPI não coincide com o dia do CodeQuest.** O
   disjuntor conta a partir da meia-noite de `America/Sao_Paulo`. Já pela
   documentação do RapidAPI, a cota diária recomeça no horário da assinatura,
