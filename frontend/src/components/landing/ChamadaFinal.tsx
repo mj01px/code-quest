@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { TIPO } from "@/lib/tipografia";
 import { CtaLink } from "./CtaLink";
 
 export function ChamadaFinal() {
@@ -16,7 +17,7 @@ export function ChamadaFinal() {
           Insira uma ficha{" "}
           <span className="text-brand-light">e comece a jogar</span>
         </h2>
-        <p className="m-0 max-w-xl font-body text-[21px] leading-[1.5] text-ink-body text-pretty">
+        <p className={`m-0 max-w-xl ${TIPO.destaque} text-ink-body text-pretty`}>
           Conta gratuita, sem cartão. Escolha seu pet e a primeira fase já sai do
           seu próprio material.
         </p>

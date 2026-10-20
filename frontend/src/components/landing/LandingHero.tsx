@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { TIPO } from "@/lib/tipografia";
 import { CtaLink } from "./CtaLink";
 import { COMPANHEIROS, sprite } from "./dados";
 
@@ -11,7 +12,7 @@ export function LandingHero() {
           <span className="text-brand-light">como quem joga</span>
         </h1>
 
-        <p className="m-0 max-w-2xl font-body text-[21px] leading-[1.5] text-ink-body text-pretty">
+        <p className={`m-0 max-w-2xl ${TIPO.destaque} text-ink-body text-pretty`}>
           Encare quests de programação prontas para jogar, resolva código de
           verdade no navegador e evolua seu pet a cada desafio vencido. Tudo
           dentro de um terminal de verdade.

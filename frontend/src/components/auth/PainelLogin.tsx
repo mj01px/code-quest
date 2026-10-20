@@ -4,6 +4,7 @@ import { useState } from "react";
 import { PainelAuth } from "@/components/layout/PainelAuth";
 import { PixelLink } from "@/components/ui/PixelLink";
 import { ArteEnvelope } from "@/components/ui/ilustracoes";
+import { TIPO } from "@/lib/tipografia";
 import { AvisoVerificacao } from "./AvisoVerificacao";
 import { FormularioLogin } from "./FormularioLogin";
 
@@ -39,7 +40,7 @@ export function PainelLogin() {
       textoLateral="Entre para retomar de onde parou."
       acaoLateral={
         <div className="flex flex-col items-center gap-4">
-          <p className="m-0 font-label text-[10px] tracking-[2px] text-ink-muted">
+          <p className={`m-0 ${TIPO.etiqueta} text-ink-muted`}>
             AINDA NÃO TEM CONTA?
           </p>
           <PixelLink href="/cadastro">CRIAR CONTA</PixelLink>
