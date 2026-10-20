@@ -42,18 +42,18 @@ strict = true
 plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
 # Escopo limitado ao app novo: contas e gamificacao nunca passaram por
 # type check e anota-las e uma entrega propria, nao um efeito colateral desta.
-files = ["apps/trilhas", "apps/autoria", "apps/correcao"]
-exclude = "apps/(trilhas|correcao)/migrations/"
+files = ["apps/trilhas", "apps/autoria", "apps/correcao", "apps/conquistas"]
+exclude = "apps/(trilhas|correcao|conquistas)/migrations/"
 
 [[tool.mypy.overrides]]
-module = ["apps.contas.*", "apps.auditoria.*", "apps.gamificacao.*", "apps.progressao.*", "apps.core.*", "config.*"]
+module = ["apps.contas.*", "apps.auditoria.*", "apps.gamificacao.*", "apps.progressao.*", "apps.core.*", "apps.clas.*", "config.*"]
 ignore_errors = true
 
 # Os testes ficam fora do mypy. O idioma `cls.x = ...` dentro de setUpTestData
 # e invisivel para o django-stubs, que reporta attr-defined em todo atributo
 # assim. O que o strict protege e o codigo de producao.
 [[tool.mypy.overrides]]
-module = ["apps.trilhas.tests.*", "apps.autoria.tests.*", "apps.correcao.tests.*", "tests.*"]
+module = ["apps.trilhas.tests.*", "apps.autoria.tests.*", "apps.correcao.tests.*", "apps.conquistas.tests.*", "tests.*"]
 ignore_errors = true
 
 [tool.django-stubs]

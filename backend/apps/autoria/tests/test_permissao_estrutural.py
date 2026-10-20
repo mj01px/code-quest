@@ -84,4 +84,5 @@ class TodaViewDeAutoriaExigePermissaoTest(TestCase):
                 classes = [type(t) for t in cls().get_throttles()]
 
                 self.assertEqual(classes, [ScopedRateThrottle])
-                self.assertEqual(cls.throttle_scope, "autoria")
+                esperado = "autoria" if nome == "solucao-autor" else "editorial"
+                self.assertEqual(cls.throttle_scope, esperado)

@@ -143,6 +143,9 @@ THROTTLE_EU_PROGRESSO = env('THROTTLE_EU_PROGRESSO', default='120/min')
 # Rota de autoria: entrega a solucao de referencia. Limite curto de proposito,
 # e em balde proprio, para que raspar gabarito nao se esconda no trafego normal.
 THROTTLE_AUTORIA = env('THROTTLE_AUTORIA', default='30/min')
+# Fluxo editorial (submeter, aprovar, devolver, publicar). Balde separado do
+# `autoria`: ler gabaritos durante a revisao nao pode travar as acoes do fluxo.
+THROTTLE_EDITORIAL = env('THROTTLE_EDITORIAL', default='30/min')
 
 JUDGE0_URL = env('JUDGE0_URL', default='').rstrip('/')
 JUDGE0_TOKEN = env('JUDGE0_TOKEN', default='')
@@ -178,6 +181,7 @@ REST_FRAMEWORK = {
         'catalogo': THROTTLE_CATALOGO,
         'eu_progresso': THROTTLE_EU_PROGRESSO,
         'autoria': THROTTLE_AUTORIA,
+        'editorial': THROTTLE_EDITORIAL,
         # Rajada por usuario em tudo que chama o Judge0 (executar/ e o envio de
         # concluir/). O teto do dia fica em JUDGE0_LIMITE_POR_USUARIO.
         'judge0': '5/min',

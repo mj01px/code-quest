@@ -1,9 +1,12 @@
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
+
+from apps.contas.models import User
 
 from .serializers import ConquistaSerializer
 from .services import listar_conquistas, marcar_como_vistas
@@ -15,7 +18,8 @@ class MinhasConquistasView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "eu_progresso"
 
-    def get(self, request):
+    def get(self, request: Request) -> Response:
+        assert isinstance(request.user, User)
         itens = listar_conquistas(request.user)
         return Response(ConquistaSerializer(itens, many=True).data)
 
@@ -26,6 +30,7 @@ class MarcarConquistasVistasView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "eu_progresso"
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
+        assert isinstance(request.user, User)
         marcar_como_vistas(request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)

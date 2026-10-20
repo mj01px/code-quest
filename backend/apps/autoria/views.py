@@ -19,6 +19,9 @@ from .services import MODELOS, Acao, exercicios_para_autoria, transicionar
 # Escopo próprio: conteúdo sensível não divide balde com `catalogo` nem com
 # `eu_progresso`, senão navegar no catálogo afrouxa o limite daqui.
 ESCOPO = "autoria"
+# O fluxo editorial tem balde próprio também: abrir gabaritos durante a revisão
+# gasta `autoria` e não pode travar submeter, aprovar, devolver nem publicar.
+ESCOPO_EDITORIAL = "editorial"
 
 PODE_VER_SOLUCAO = HasPerm("trilhas.view_solution")
 
@@ -76,7 +79,7 @@ class SolucaoAutorView(generics.RetrieveAPIView[Exercicio]):
 class TransicaoEditorialView(APIView):
     acao: Acao
     throttle_classes = [ScopedRateThrottle]
-    throttle_scope = ESCOPO
+    throttle_scope = ESCOPO_EDITORIAL
 
     def post(self, request: Request, tipo: str, pk: str) -> Response:
         # `re_path` entrega texto; a regex da rota já garante só dígitos.

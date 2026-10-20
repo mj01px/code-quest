@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import Model
 from django.db.models.signals import post_save
 
 from apps.clas.models import MembroDoCla
@@ -22,10 +23,16 @@ GATILHOS = {
 }
 
 
-def _ao_salvar(sender, instance, created, raw=False, **kwargs):
+def _ao_salvar(
+    sender: type[Model],
+    instance: UserCreature | EventoXP | TrilhaIniciada | Submissao | MembroDoCla,
+    created: bool,
+    raw: bool = False,
+    **kwargs: object,
+) -> None:
     if raw:
         return
-    if sender is Submissao:
+    if isinstance(instance, Submissao):
         if not instance.hash:
             return
     elif not created:

@@ -12,8 +12,10 @@ export const metadata: Metadata = {
   description: "Três fases escolhidas para hoje, sorteadas pelas trilhas publicadas.",
 };
 
-// Cinco minutos: o suficiente para a página não ser remontada a cada visita e
-// pouco o bastante para a virada do dia aparecer quase na hora.
+// Na prática a página revalida a cada minuto, não a cada cinco. O Next adota o
+// menor valor entre a rota e os fetches dela, e as buscas do catálogo
+// (`CATALOGO` em lib/api.ts) usam 60 segundos, então elas têm precedência
+// sobre os 300 declarados aqui. O build confirma: "Revalidate 1m".
 export const revalidate = 300;
 
 // O enunciado só vem no detalhe da fase. As buscas saem em paralelo, e uma que

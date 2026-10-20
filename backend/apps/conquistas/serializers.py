@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 
-class ConquistaSerializer(serializers.Serializer):
+class ConquistaSerializer(serializers.Serializer[object]):
     slug = serializers.SlugField(read_only=True, allow_null=True)
     nome = serializers.CharField(read_only=True)
     descricao = serializers.CharField(read_only=True)

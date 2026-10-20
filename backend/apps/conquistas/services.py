@@ -1,9 +1,13 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
+from uuid import UUID
 
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Q
 from django.utils import timezone
+
+from apps.contas.models import User
 
 from .criterios import AVALIADORES
 from .models import Conquista, ConquistaDesbloqueada
@@ -28,17 +32,17 @@ class ItemConquista:
     raridade: float
 
 
-def _pode_desbloquear(user) -> bool:
+def _pode_desbloquear(user: User) -> bool:
     return user.is_active and not user.is_anonymized
 
 
-def _valor(user, criterio, cache):
+def _valor(user: User, criterio: str, cache: dict[str, int]) -> int:
     if criterio not in cache:
         cache[criterio] = AVALIADORES[criterio](user)
     return cache[criterio]
 
 
-def avaliar(user, criterios=None) -> list[Conquista]:
+def avaliar(user: User, criterios: Iterable[str] | None = None) -> list[Conquista]:
     if not _pode_desbloquear(user):
         return []
 
@@ -46,7 +50,7 @@ def avaliar(user, criterios=None) -> list[Conquista]:
     if criterios is not None:
         pendentes = pendentes.filter(criterio__in=criterios)
 
-    valores = {}
+    valores: dict[str, int] = {}
     novas = [c for c in pendentes if _valor(user, c.criterio, valores) >= c.meta]
 
     ConquistaDesbloqueada.objects.bulk_create(
@@ -56,18 +60,18 @@ def avaliar(user, criterios=None) -> list[Conquista]:
     return novas
 
 
-def avaliar_por_id(user_id, criterios=None) -> list[Conquista]:
+def avaliar_por_id(user_id: UUID, criterios: Iterable[str] | None = None) -> list[Conquista]:
     user = get_user_model().objects.filter(pk=user_id).first()
     if user is None:
         return []
     return avaliar(user, criterios)
 
 
-def _alunos_ativos():
+def _alunos_ativos() -> Q:
     return Q(is_active=True, anonymized_at__isnull=True)
 
 
-def listar_conquistas(user) -> list[ItemConquista]:
+def listar_conquistas(user: User) -> list[ItemConquista]:
     filtro_ativos = Q(
         desbloqueios__user__is_active=True,
         desbloqueios__user__anonymized_at__isnull=True,
@@ -80,7 +84,7 @@ def listar_conquistas(user) -> list[ItemConquista]:
     alunos = get_user_model().objects.filter(_alunos_ativos()).count()
     meus = {d.conquista_id: d for d in ConquistaDesbloqueada.objects.filter(user=user)}
 
-    valores = {}
+    valores: dict[str, int] = {}
     itens = []
     for conquista in catalogo:
         desbloqueio = meus.get(conquista.slug)
@@ -127,7 +131,7 @@ def listar_conquistas(user) -> list[ItemConquista]:
     return itens
 
 
-def marcar_como_vistas(user) -> int:
+def marcar_como_vistas(user: User) -> int:
     return ConquistaDesbloqueada.objects.filter(
         user=user, vista_em__isnull=True
     ).update(vista_em=timezone.now())
