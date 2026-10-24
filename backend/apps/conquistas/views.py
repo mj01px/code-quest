@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from apps.contas.models import User
+from apps.core.auth import usuario_atual
 
 from .serializers import ConquistaSerializer
 from .services import listar_conquistas, marcar_como_vistas
@@ -19,8 +19,7 @@ class MinhasConquistasView(APIView):
     throttle_scope = "eu_progresso"
 
     def get(self, request: Request) -> Response:
-        assert isinstance(request.user, User)
-        itens = listar_conquistas(request.user)
+        itens = listar_conquistas(usuario_atual(request))
         return Response(ConquistaSerializer(itens, many=True).data)
 
 
@@ -31,6 +30,5 @@ class MarcarConquistasVistasView(APIView):
     throttle_scope = "eu_progresso"
 
     def post(self, request: Request) -> Response:
-        assert isinstance(request.user, User)
-        marcar_como_vistas(request.user)
+        marcar_como_vistas(usuario_atual(request))
         return Response(status=status.HTTP_204_NO_CONTENT)

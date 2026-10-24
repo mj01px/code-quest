@@ -4,6 +4,20 @@ Segue o formato do [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
 ## [Não publicado]
 
+### Pendências fechadas em 2026-10-23
+
+- **Documentação de throttle**: `Docs/Integracao_API/integracao-api.md` passa a
+  listar o escopo `editorial` (30/min, `THROTTLE_EDITORIAL`) aplicado às rotas
+  `submeter`, `aprovar`, `devolver` e `publicar` em
+  `/api/v1/autoria/<tipo>/<pk>/`.
+- **Helper `usuario_atual(request)`** em `apps/core/auth.py` unifica o
+  narrowing de `request.user` em views autenticadas. Substitui o `assert`
+  inline de `apps/conquistas/views.py` e o `cast` de `apps/correcao/views.py`.
+  Padrão adotado para novos módulos.
+- **`Docs/Diagramas/Diagrama_de_classe.md` removido** (arquivo vazio desde
+  `94eea72`). A fonte do diagrama de classes passa a ser a Figura 8 da
+  monografia.
+
 ### Integrado em 2026-10-18
 
 - **Streak e prerender**: integração do streak do Julio (`origin/JulioMain`) e
