@@ -4,6 +4,15 @@ Segue o formato do [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
 ## [Não publicado]
 
+### Números finais da monografia em 2026-10-23
+
+- **Atualização dos números finais na monografia**: RNF20 com 948 testes no
+  backend e 1.293 no total (após +2 testes de throttle editorial); RNF26 com
+  44 arquivos de produção sob mypy strict e 4 apps cobertos (trilhas, autoria,
+  correcao, conquistas). O número anterior de 54 incluía 22 arquivos de teste
+  que só eram ignorados pelo override, então a produção real era 32; com
+  conquistas passou a 44.
+
 ### Pendências fechadas em 2026-10-23
 
 - **Documentação de throttle**: `Docs/Integracao_API/integracao-api.md` passa a
