@@ -1,6 +1,8 @@
 from rest_framework import serializers
 
-from apps.trilhas.models import Exercicio
+from apps.trilhas.models import Exercicio, StatusEditorial
+
+from .services import MODELOS
 
 # Única rota autorizada a serializar `solucao_autor`.
 
@@ -19,3 +21,11 @@ class SolucaoAutorSerializer(serializers.ModelSerializer[Exercicio]):
             "status_editorial",
         ]
         read_only_fields = fields
+
+
+# Item das filas editoriais; serve aos três models, por isso não é ModelSerializer.
+class ItemEditorialSerializer(serializers.Serializer[object]):
+    id = serializers.IntegerField(read_only=True)
+    tipo = serializers.ChoiceField(choices=list(MODELOS), read_only=True)
+    titulo = serializers.CharField(read_only=True)
+    status_editorial = serializers.ChoiceField(StatusEditorial.choices, read_only=True)

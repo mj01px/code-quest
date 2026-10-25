@@ -91,6 +91,23 @@ export interface UsuarioAdmin {
   nivel: { id: string; nome: string } | null;
 }
 
+// --- Fluxo editorial (autoria) ---
+export type TipoConteudo = "trilhas" | "aulas" | "exercicios";
+
+export type StatusEditorial = "RASCUNHO" | "REVISAO" | "APROVADO" | "PUBLICADO";
+
+export interface ItemEditorial {
+  id: number;
+  tipo: TipoConteudo;
+  titulo: string;
+  status_editorial: StatusEditorial;
+}
+
+export interface TransicaoEditorial {
+  id: number;
+  status_editorial: StatusEditorial;
+}
+
 export type DocumentoLegal = "TERMOS" | "PRIVACIDADE";
 
 export interface DocumentoVigente {

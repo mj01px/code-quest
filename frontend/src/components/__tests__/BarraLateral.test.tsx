@@ -137,6 +137,31 @@ describe("BarraLateral: item de admin", () => {
   });
 });
 
+describe("BarraLateral: item de autoria", () => {
+  it("não mostra AUTORIA para aluno", async () => {
+    montar();
+    await waitFor(() => expect(bloco()).toHaveClass("opacity-100"));
+
+    expect(screen.queryByRole("link", { name: /AUTORIA/ })).toBeNull();
+  });
+
+  it.each(["trilhas.submit_review", "trilhas.review"])(
+    "mostra AUTORIA para quem tem %s",
+    async (permissao) => {
+      mock.api.eu.mockResolvedValue(
+        usuario({ permissoes: [...usuario().permissoes, permissao] }),
+      );
+      montar();
+      await waitFor(() => expect(bloco()).toHaveClass("opacity-100"));
+
+      expect(screen.getByRole("link", { name: /AUTORIA/ })).toHaveAttribute(
+        "href",
+        "/autoria",
+      );
+    },
+  );
+});
+
 describe("BarraLateral: permissões", () => {
   it("esconde CRIATURA de quem não tem criaturas.view", async () => {
     mock.api.eu.mockResolvedValue(usuario({ permissoes: ["trilhas.view"] }));

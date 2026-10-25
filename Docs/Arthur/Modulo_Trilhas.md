@@ -57,7 +57,7 @@ publicada fica de fora, e com exercícios acontece o mesmo.
 
 As transições moram em `apps/autoria` (`services.transicionar`), fora do
 namespace público. Todas são `POST` sem corpo, exigem login e a permissão
-RBAC da ação, e usam o balde de throttle `autoria`. `<tipo>` é `trilhas`,
+RBAC da ação, e usam o balde de throttle `editorial`. `<tipo>` é `trilhas`,
 `aulas` ou `exercicios`; `<pk>` é o id do conteúdo.
 
 | Rota `POST /api/v1/autoria/<tipo>/<pk>/...` | Permissão | Transição |

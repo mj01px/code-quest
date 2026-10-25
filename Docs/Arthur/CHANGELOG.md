@@ -4,6 +4,20 @@ Segue o formato do [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
 ## [Não publicado]
 
+### Telas de autoria em 2026-10-25
+
+- **Filas editoriais na API** (`apps/autoria`): `GET /api/v1/autoria/rascunhos/`
+  (`trilhas.submit_review`) e `GET /api/v1/autoria/fila-revisao/`
+  (`trilhas.review`) devolvem `[{ id, tipo, titulo, status_editorial }]` com
+  trilhas, aulas e exercícios, no balde `editorial`. Sem paginação e sem dono
+  por conteúdo: o schema não guarda autor.
+- **Tela `/autoria`** (`components/autoria/`): rascunhos com "Enviar para
+  Revisão" e fila com "Aprovar" e "Devolver", cada painel só com a permissão
+  da rota que consome. Segue o padrão do `/admin` (Client Component com o
+  usuário do `ProvedorProgresso`).
+- **Correção em `Modulo_Trilhas.md`**: as transições usam o balde `editorial`,
+  não `autoria`.
+
 ### Números finais da monografia em 2026-10-23
 
 - **Atualização dos números finais na monografia**: RNF20 com 948 testes no

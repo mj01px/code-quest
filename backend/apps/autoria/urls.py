@@ -3,7 +3,9 @@ from django.urls import path, re_path
 from .views import (
     AprovarView,
     DevolverView,
+    FilaRevisaoView,
     PublicarView,
+    RascunhosView,
     SolucaoAutorView,
     SubmeterRevisaoView,
 )
@@ -18,6 +20,8 @@ app_name = "autoria"
 CONTEUDO = r"^autoria/(?P<tipo>trilhas|aulas|exercicios)/(?P<pk>[0-9]+)"
 
 urlpatterns = [
+    path("autoria/rascunhos/", RascunhosView.as_view(), name="rascunhos"),
+    path("autoria/fila-revisao/", FilaRevisaoView.as_view(), name="fila-revisao"),
     path(
         "autoria/exercicios/<slug:trilha_slug>/<slug:exercicio_slug>/solucao/",
         SolucaoAutorView.as_view(),

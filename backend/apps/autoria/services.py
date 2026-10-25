@@ -55,6 +55,23 @@ def exercicios_para_autoria() -> QuerySet[Exercicio]:
     return Exercicio.objects.select_related("trilha").all()
 
 
+def itens_no_status(status: StatusEditorial) -> list[dict[str, int | str]]:
+    """Trilhas, aulas e exercícios em `status`, num formato único para as filas.
+
+    Uma consulta por model, só com as duas colunas usadas. O schema não guarda
+    dono por conteúdo, então a lista é a mesma para todo autor.
+    """
+    # ponytail: sem paginação, o volume editorial é de dezenas; paginar quando
+    # a fila passar de algumas centenas.
+    return [
+        {"id": pk, "tipo": tipo, "titulo": titulo, "status_editorial": status}
+        for tipo, modelo in MODELOS.items()
+        for pk, titulo in modelo.objects.filter(status=status).values_list(
+            "pk", "nome" if modelo is Trilha else "titulo"
+        )
+    ]
+
+
 PRONTOS = (StatusEditorial.APROVADO, StatusEditorial.PUBLICADO)
 
 

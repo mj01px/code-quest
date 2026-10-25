@@ -562,11 +562,13 @@ idempotente (`seed_trilhas`) e as rotas de transição (enviar para revisão,
 aprovar, devolver ao rascunho e publicar) para trilhas, aulas e exercícios.
 Cada rota exige a permissão correspondente, recusa transição fora de ordem e
 registra a mudança na trilha de auditoria. A publicação de trilha ou aula é
-recusada enquanto houver conteúdo filho em rascunho ou em revisão.
+recusada enquanto houver conteúdo filho em rascunho ou em revisão. As rotas
+`GET /autoria/rascunhos/` e `GET /autoria/fila-revisao/` listam os três tipos
+de conteúdo em cada fila, e a tela `/autoria` mostra cada lista só a quem tem
+a permissão dela, com os botões de enviar para revisão, aprovar e devolver.
 
-**O que falta:** rotas para criar e editar conteúdo, as telas de autoria e da
-fila de revisão, a comporta automática e o registro do parecer do revisor na
-devolução.
+**O que falta:** rotas para criar e editar conteúdo, a publicação pela tela, a
+comporta automática e o registro do parecer do revisor na devolução.
 
 **Fonte:** `backend/apps/trilhas/models.py` (`StatusEditorial`, `PublicavelQuerySet`), `backend/apps/contas/rbac.py`, `backend/apps/trilhas/management/commands/seed_trilhas.py`.
 

@@ -14,6 +14,7 @@ import type {
   Evolucao,
   ExercicioConcluido,
   ExercicioDetalhe,
+  ItemEditorial,
   MembroDoCla,
   MeuCla,
   MinhaCriatura,
@@ -24,7 +25,9 @@ import type {
   ProgressoAtual,
   RespostaConclusao,
   Sequencia,
+  TipoConteudo,
   TipoDeCla,
+  TransicaoEditorial,
   TrilhaDetalhe,
   TrilhaResumo,
   Usuario,
@@ -818,6 +821,41 @@ export const api = {
 
   marcarConquistasVistas() {
     return requisicao<void>("/eu/conquistas/vistas/", {
+      metodo: "POST",
+      autenticado: true,
+    });
+  },
+
+  // --- Fluxo editorial ---
+  // O backend cobra a permissão de cada rota; esconder o botão é só navegação.
+  autoriaRascunhos() {
+    return requisicao<ItemEditorial[]>("/autoria/rascunhos/", {
+      autenticado: true,
+    });
+  },
+
+  autoriaFilaRevisao() {
+    return requisicao<ItemEditorial[]>("/autoria/fila-revisao/", {
+      autenticado: true,
+    });
+  },
+
+  submeterRevisao(tipo: TipoConteudo, id: number) {
+    return requisicao<TransicaoEditorial>(`/autoria/${tipo}/${id}/submeter/`, {
+      metodo: "POST",
+      autenticado: true,
+    });
+  },
+
+  aprovarConteudo(tipo: TipoConteudo, id: number) {
+    return requisicao<TransicaoEditorial>(`/autoria/${tipo}/${id}/aprovar/`, {
+      metodo: "POST",
+      autenticado: true,
+    });
+  },
+
+  devolverConteudo(tipo: TipoConteudo, id: number) {
+    return requisicao<TransicaoEditorial>(`/autoria/${tipo}/${id}/devolver/`, {
       metodo: "POST",
       autenticado: true,
     });

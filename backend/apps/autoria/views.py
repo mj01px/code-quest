@@ -13,8 +13,14 @@ from rest_framework.views import APIView
 from apps.core.permissions import HasPerm
 from apps.trilhas.models import Exercicio, StatusEditorial
 
-from .serializers import SolucaoAutorSerializer
-from .services import MODELOS, Acao, exercicios_para_autoria, transicionar
+from .serializers import ItemEditorialSerializer, SolucaoAutorSerializer
+from .services import (
+    MODELOS,
+    Acao,
+    exercicios_para_autoria,
+    itens_no_status,
+    transicionar,
+)
 
 # Escopo próprio: conteúdo sensível não divide balde com `catalogo` nem com
 # `eu_progresso`, senão navegar no catálogo afrouxa o limite daqui.
@@ -105,3 +111,26 @@ class DevolverView(TransicaoEditorialView):
 class PublicarView(TransicaoEditorialView):
     acao = "publicar"
     permission_classes = [IsAuthenticated, HasPerm("trilhas.publish")]
+
+
+# Base das duas filas, sem rota própria. Mesmo balde das ações: a tela lista e
+# age na mesma visita, e `autoria` fica reservado ao gabarito.
+@extend_schema(tags=["autoria"], responses=ItemEditorialSerializer(many=True))
+class FilaEditorialView(APIView):
+    status_listado: StatusEditorial
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = ESCOPO_EDITORIAL
+
+    def get(self, request: Request) -> Response:
+        itens = itens_no_status(self.status_listado)
+        return Response(ItemEditorialSerializer(itens, many=True).data)
+
+
+class RascunhosView(FilaEditorialView):
+    status_listado = StatusEditorial.RASCUNHO
+    permission_classes = [IsAuthenticated, HasPerm("trilhas.submit_review")]
+
+
+class FilaRevisaoView(FilaEditorialView):
+    status_listado = StatusEditorial.REVISAO
+    permission_classes = [IsAuthenticated, HasPerm("trilhas.review")]

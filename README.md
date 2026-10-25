@@ -430,6 +430,7 @@ parênteses.
 | `GET /trilhas/` · `/trilhas/{slug}/` | A lista de trilhas publicadas, e uma trilha com seu mapa de fases. **Público** |
 | `GET /exercicios/{trilha_slug}/{exercicio_slug}/` | Um único exercício publicado. **Público** |
 | `GET /autoria/exercicios/{trilha_slug}/{exercicio_slug}/solucao/` | A solução de referência do autor (`trilhas.view_solution`) |
+| `GET /autoria/rascunhos/` · `/autoria/fila-revisao/` | Trilhas, aulas e exercícios em rascunho (`trilhas.submit_review`) ou em revisão (`trilhas.review`) |
 
 **Progressão**
 

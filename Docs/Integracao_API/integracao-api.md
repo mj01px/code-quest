@@ -359,6 +359,8 @@ Caminhos relativos a `/api/v1`.
 | GET | `/trilhas/{slug}/` | pública | `catalogo` |
 | GET | `/exercicios/{trilha_slug}/{exercicio_slug}/` | pública | `catalogo` |
 | GET | `/autoria/exercicios/{trilha_slug}/{exercicio_slug}/solucao/` | permissão `trilhas.view_solution` | `autoria` |
+| GET | `/autoria/rascunhos/` | permissão `trilhas.submit_review` | `editorial` |
+| GET | `/autoria/fila-revisao/` | permissão `trilhas.review` | `editorial` |
 
 A API pública só devolve conteúdo publicado.
 
@@ -525,7 +527,7 @@ pessoa tentar depois, sem repetir a chamada em laço.
 | `eu_progresso` | 120/min (`THROTTLE_EU_PROGRESSO`) | Listas do próprio progresso e especificação do exercício |
 | `conclusao` | 30/min | Iniciar trilha, concluir exercício, evoluir criatura |
 | `autoria` | 30/min (`THROTTLE_AUTORIA`) | Solução de referência |
-| `editorial` | 30/min (`THROTTLE_EDITORIAL`) | `submeter`, `aprovar`, `devolver` e `publicar` em `/autoria/{tipo}/{pk}/`: ações editoriais de transição de estado, em balde separado de `autoria` para que leituras de gabarito não consumam a cota delas |
+| `editorial` | 30/min (`THROTTLE_EDITORIAL`) | `/autoria/rascunhos/`, `/autoria/fila-revisao/` e `submeter`, `aprovar`, `devolver` e `publicar` em `/autoria/{tipo}/{pk}/`: listas e ações editoriais de transição de estado, em balde separado de `autoria` para que leituras de gabarito não consumam a cota delas |
 | `judge0` | 5/min por usuário | `executar/` e o envio de código do `concluir/`, no mesmo balde |
 
 Além da rajada, a correção tem dois tetos diários, contados no banco e só para

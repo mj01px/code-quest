@@ -22,6 +22,10 @@ export const ITENS = [
 // o item some da barra, mas quem digitar a URL direto cai na guarda de papel.
 export const ITEM_ADMIN = { rotulo: "ADMIN", href: "/admin" } as const;
 
+// Quem envia para revisão ou revisa. Como o ADMIN, a rota se guarda sozinha.
+export const ITEM_AUTORIA = { rotulo: "AUTORIA", href: "/autoria" } as const;
+const PERMISSOES_AUTORIA = ["trilhas.submit_review", "trilhas.review"];
+
 const BLOCOS = 10;
 
 /** O item da rota aberta, incluindo as rotas filhas dela. */
@@ -45,7 +49,14 @@ export function BarraLateral() {
   const permitidos = usuario
     ? ITENS.filter((i) => i.perm === null || usuario.permissoes.includes(i.perm))
     : ITENS;
-  const itens = usuario?.is_admin ? [...permitidos, ITEM_ADMIN] : permitidos;
+  const veAutoria = PERMISSOES_AUTORIA.some((p) =>
+    usuario?.permissoes.includes(p),
+  );
+  const itens = [
+    ...permitidos,
+    ...(veAutoria ? [ITEM_AUTORIA] : []),
+    ...(usuario?.is_admin ? [ITEM_ADMIN] : []),
+  ];
 
   // Apesar do nome, `xp_para_o_proximo` NÃO é quanto falta: é o tamanho da
   // faixa do nível inteiro (xp do próximo menos xp do atual). Ou seja, ele já
