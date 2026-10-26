@@ -5,6 +5,7 @@ from apps.correcao.models import Modo, Submissao, Veredito
 from apps.gamificacao.models import UserCreature
 from apps.progressao.models import EventoXP, Origem, TrilhaIniciada
 from apps.progressao.services import maior_nivel_do_usuario
+from apps.ranking.models import PodioMensal
 
 from .models import Criterio
 
@@ -74,6 +75,14 @@ def membro_de_cla(user) -> int:
     return int(MembroDoCla.objects.filter(user=user).exists())
 
 
+def podios_mensais(user) -> int:
+    return PodioMensal.objects.filter(user=user).count()
+
+
+def vitorias_mensais(user) -> int:
+    return PodioMensal.objects.filter(user=user, posicao=1).count()
+
+
 AVALIADORES = {
     Criterio.CRIATURA_ESCOLHIDA: criatura_escolhida,
     Criterio.EXERCICIOS_CONCLUIDOS: exercicios_concluidos,
@@ -83,4 +92,6 @@ AVALIADORES = {
     Criterio.APROVADO_DE_PRIMEIRA: aprovado_de_primeira,
     Criterio.APROVADO_APOS_ERRO: aprovado_apos_erro,
     Criterio.MEMBRO_DE_CLA: membro_de_cla,
+    Criterio.PODIOS_MENSAIS: podios_mensais,
+    Criterio.VITORIAS_MENSAIS: vitorias_mensais,
 }
