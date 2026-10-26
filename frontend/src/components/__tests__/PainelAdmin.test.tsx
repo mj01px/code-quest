@@ -24,6 +24,7 @@ jest.mock("@/lib/api", () => ({
     adminPermissoes: jest.fn(),
     adminDashboard: jest.fn(),
     adminExcluirUsuario: jest.fn(),
+    mfaStatus: jest.fn(),
   },
 }));
 
@@ -46,6 +47,7 @@ const mock = jest.requireMock<{
     adminPermissoes: jest.Mock;
     adminDashboard: jest.Mock;
     adminExcluirUsuario: jest.Mock;
+    mfaStatus: jest.Mock;
   };
 }>("@/lib/api");
 
@@ -183,11 +185,14 @@ describe("PainelAdmin: aba Usuários", () => {
       { ...outroAdmin, id: usuario().id, nickname: "eu_admin" },
     ]);
     mock.api.adminExcluirUsuario.mockResolvedValue(undefined);
+    mock.api.mfaStatus.mockResolvedValue({ ativo: true, metodo: "APP" });
   });
 
   async function abrirExclusaoDaMaria() {
     montar();
     await userEvent.click(await screen.findByRole("button", { name: "Excluir maria" }));
+    // O campo só aparece depois de confirmar que o admin tem o autenticador.
+    await screen.findByLabelText(/CÓDIGO DO AUTENTICADOR/);
   }
 
   it("busca pela API depois que a digitação para", async () => {
@@ -220,6 +225,17 @@ describe("PainelAdmin: aba Usuários", () => {
       "Você não pode alterar seu próprio nível",
     );
     expect(screen.getByRole("combobox", { name: "Nível de acesso de maria" })).toBeEnabled();
+  });
+
+  it("admin só com 2FA por e-mail é avisado e não consegue confirmar", async () => {
+    mock.api.mfaStatus.mockResolvedValue({ ativo: true, metodo: "EMAIL" });
+    montar();
+    await userEvent.click(await screen.findByRole("button", { name: "Excluir maria" }));
+
+    expect(await screen.findByRole("note")).toHaveTextContent(/exigem o aplicativo autenticador/);
+    expect(screen.getByRole("link", { name: "Configurações" })).toHaveAttribute("href", "/configuracoes");
+    expect(screen.queryByLabelText(/CÓDIGO DO AUTENTICADOR/)).toBeNull();
+    expect(screen.getByRole("button", { name: "ANONIMIZAR" })).toBeDisabled();
   });
 
   it("sem código 2FA o botão de anonimizar fica desabilitado", async () => {

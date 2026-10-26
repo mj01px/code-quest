@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { IconeLixeira, IconeLupa } from "@/components/clas/icones";
@@ -34,6 +35,9 @@ export function GestaoUsuarios() {
   const [excluindo, setExcluindo] = useState(false);
   const [erroExclusao, setErroExclusao] = useState<string | null>(null);
   const [codigo2fa, setCodigo2fa] = useState("");
+  // null enquanto consulta. Lido ao abrir o modal: o admin pode ter acabado
+  // de ativar o autenticador em outra aba.
+  const [temApp, setTemApp] = useState<boolean | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
   // Linha da equipe: nível com acesso ao painel. O backend recusa excluí-la.
@@ -243,7 +247,13 @@ export function GestaoUsuarios() {
                       onClick={() => {
                         setErroExclusao(null);
                         setCodigo2fa("");
+                        setTemApp(null);
                         setExcluir(u);
+                        api
+                          .mfaStatus()
+                          .then((s) => setTemApp(s.ativo && s.metodo === "APP"))
+                          // Na dúvida mostra o campo: quem decide é o backend.
+                          .catch(() => setTemApp(true));
                       }}
                       className="flex h-11 w-11 cursor-pointer items-center justify-center border-2 border-edge-soft text-ink-muted transition-colors hover:border-danger hover:text-danger"
                     >
@@ -269,7 +279,7 @@ export function GestaoUsuarios() {
           textoConfirmar="ANONIMIZAR"
           perigo
           carregando={excluindo}
-          confirmarDesabilitado={!codigo2fa.trim()}
+          confirmarDesabilitado={!temApp || !codigo2fa.trim()}
           erro={erroExclusao}
           onConfirmar={confirmarExclusao}
           onFechar={() => {
@@ -282,23 +292,42 @@ export function GestaoUsuarios() {
             dados pessoais do usuário, mantendo apenas o histórico de progresso.
             Deseja continuar?
           </p>
-          <label className="mt-5 flex flex-col gap-2">
-            <span className="font-label text-[11px] tracking-[2px] text-ink-label">
-              CÓDIGO DO AUTENTICADOR (2FA)
-            </span>
-            <input
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              aria-invalid={Boolean(erroExclusao)}
-              value={codigo2fa}
-              // Sem maxLength: ele cortaria "123 456" colado antes de tirar o espaço.
-              onChange={(e) =>
-                setCodigo2fa(e.target.value.replace(/\D/g, "").slice(0, 6))
-              }
-              className="border-2 border-edge-soft bg-field px-3 py-2 font-body text-lg tracking-[4px] text-ink outline-none focus:border-brand-light"
-            />
-          </label>
+          {temApp === null ? (
+            <p className="m-0 mt-5 font-label text-[11px] tracking-[2px] text-ink-muted">
+              VERIFICANDO SEU 2FA...
+            </p>
+          ) : temApp ? (
+            <label className="mt-5 flex flex-col gap-2">
+              <span className="font-label text-[11px] tracking-[2px] text-ink-label">
+                CÓDIGO DO AUTENTICADOR (2FA)
+              </span>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                aria-invalid={Boolean(erroExclusao)}
+                value={codigo2fa}
+                // Sem maxLength: ele cortaria "123 456" colado antes de tirar o espaço.
+                onChange={(e) =>
+                  setCodigo2fa(e.target.value.replace(/\D/g, "").slice(0, 6))
+                }
+                className="border-2 border-edge-soft bg-field px-3 py-2 font-body text-lg tracking-[4px] text-ink outline-none focus:border-brand-light"
+              />
+            </label>
+          ) : (
+            // O backend recusa (mfa_necessario): avisar antes poupa digitar à toa.
+            <p
+              role="note"
+              className="m-0 mt-5 border-2 border-danger-deep bg-panel-soft px-4 py-3 text-danger"
+            >
+              Ações destrutivas exigem o aplicativo autenticador. Em{" "}
+              <Link href="/configuracoes" className="underline underline-offset-4">
+                Configurações
+              </Link>
+              , ative a verificação em duas etapas pelo aplicativo (se hoje ela
+              usa e-mail, desative antes e ative de novo escolhendo o app).
+            </p>
+          )}
         </ModalConfirmacao>
       ) : null}
 

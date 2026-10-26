@@ -37,7 +37,12 @@ Segue o formato do [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 - **Retenção de 180 dias mantida** (Marco Civil, art. 15, e Política de
   Privacidade v1.2). O comando `purgar_logs_antigos` foi renomeado para
   `limpar_auditoria`; README e RNF13 atualizados.
-- **Testes**: 996 no backend e 374 no frontend, sem migration
+- **Aviso no modal de exclusão**: ao abrir, o modal consulta `/auth/eu/mfa/`.
+  Admin com o aplicativo autenticador ativo vê o campo do código; admin só com
+  2FA por e-mail (ou sem 2FA) vê o aviso de que ações destrutivas exigem o
+  aplicativo, com link para Configurações, e o botão ANONIMIZAR fica
+  desabilitado. Antes ele só descobria depois de digitar (`mfa_necessario`).
+- **Testes**: 996 no backend e 375 no frontend, sem migration
   (`makemigrations --check` limpo).
 
 ### Painel do admin em 2026-10-25
