@@ -1,11 +1,10 @@
 # Integração com a API do CodeQuest
 
-> **Origem deste texto.** Montado a partir do código da branch
-> `entrega/2026-09-28-lgpd-mfa-exclusao-e-validacao-de-conta` (commit
-> `e136e72`): `backend/config/urls.py`, o `urls.py` e as views de cada app,
+> **Origem deste texto.** Montado a partir do código da branch `main` (commit
+> `f563180`): `backend/config/urls.py`, o `urls.py` e as views de cada app,
 > `backend/config/settings.py` e o schema OpenAPI gerado pelo drf-spectacular.
-> Nenhuma rota aqui foi inferida: as 55 operações da seção 7 são exatamente as
-> que o schema publica.
+> Nenhuma rota aqui foi inferida: as 84 operações da seção 7 (uma por método e
+> rota) são exatamente as que o schema publica.
 
 ## 1. Visão geral
 
@@ -364,8 +363,13 @@ Caminhos relativos a `/api/v1`.
 | GET | `/autoria/rascunhos/` | permissão `trilhas.submit_review` | `editorial` |
 | GET | `/autoria/fila-revisao/` | permissão `trilhas.review` | `editorial` |
 | GET | `/autoria/{tipo}/{pk}/detalhe/` | permissão `trilhas.submit_review` ou `trilhas.review` | `editorial` |
+| POST | `/autoria/{tipo}/{pk}/submeter/` | permissão `trilhas.submit_review` | `editorial` |
+| POST | `/autoria/{tipo}/{pk}/aprovar/` | permissão `trilhas.review` | `editorial` |
+| POST | `/autoria/{tipo}/{pk}/devolver/` | permissão `trilhas.review` | `editorial` |
+| POST | `/autoria/{tipo}/{pk}/publicar/` | permissão `trilhas.publish` | `editorial` |
 
-A API pública só devolve conteúdo publicado.
+`{tipo}` é `trilhas`, `aulas` ou `exercicios`; outro valor responde **404**. A
+API pública só devolve conteúdo publicado.
 
 ### Progressão
 
@@ -376,6 +380,7 @@ A API pública só devolve conteúdo publicado.
 | GET | `/eu/trilhas/` | sessão | `eu_progresso` |
 | POST | `/trilhas/{trilha_slug}/iniciar/` | permissão `trilhas.enroll` | `conclusao` |
 | GET | `/eu/exercicios-concluidos/` | sessão | `eu_progresso` |
+| GET | `/eu/sequencia/` | sessão | `eu_progresso` |
 | POST | `/exercicios/{trilha_slug}/{exercicio_slug}/concluir/` | permissão `exercicios.complete` | `conclusao`, e `judge0` quando há correção automática |
 
 - `/eu/progresso/` responde **204** quando o usuário ainda não tem criatura ativa.
@@ -397,6 +402,34 @@ A API pública só devolve conteúdo publicado.
 | GET, PUT | `/eu/criaturas/ativa/` | permissão `criaturas.view` | `user` |
 | POST | `/eu/criaturas/{creature_slug}/evoluir/` | permissão `criaturas.evolve` | `conclusao` |
 | GET | `/eu/bonus/` | permissão `criaturas.view` | `user` |
+
+### Conquistas e ranking
+
+| Método | Rota | Acesso | Limite |
+|---|---|---|---|
+| GET | `/eu/conquistas/` | sessão | `eu_progresso` |
+| POST | `/eu/conquistas/vistas/` | sessão | `eu_progresso` |
+| GET | `/ranking/mensal/` | sessão | `ranking` |
+
+`/ranking/mensal/` devolve o top 10 do mês corrente e a posição de quem pediu.
+
+### Clãs
+
+| Método | Rota | Acesso | Limite |
+|---|---|---|---|
+| GET | `/clas/` (busca paginada) | sessão | `clas_busca` |
+| POST | `/clas/` | permissão `comunidades.create` | `clas_escrita` |
+| GET | `/clas/{tag}/` | sessão (clã privado só para membro, senão 404) | `user` |
+| PATCH | `/clas/{tag}/` | sessão (cargo checado no serviço) | `clas_escrita` |
+| POST | `/clas/{tag}/entrar/` | permissão `comunidades.join` | `clas_escrita` |
+| GET | `/clas/{tag}/membros/` | sessão | `user` |
+| PATCH, DELETE | `/clas/{tag}/membros/{membro_id}/` | sessão (cargo checado no serviço) | `clas_escrita` |
+| POST | `/clas/{tag}/lideranca/` | sessão (só o líder) | `clas_escrita` |
+| POST, DELETE | `/clas/{tag}/convite/` | sessão (cargo checado no serviço) | `clas_escrita` |
+| GET | `/convites/{token}/` | sessão | `convite` |
+| POST | `/convites/{token}/aceitar/` | permissão `comunidades.join` | `convite` |
+| GET | `/eu/cla/` | sessão | `user` |
+| POST | `/eu/cla/sair/` | sessão | `clas_escrita` |
 
 ### Correção de código (Judge0)
 
@@ -528,10 +561,14 @@ pessoa tentar depois, sem repetir a chamada em laço.
 | `auth` | 20/min | Cadastro, login, segundo passo do login, renovação |
 | `verificacao` | 5/min | Links de e-mail, senha, troca de e-mail, exclusão, gestão do 2FA |
 | `catalogo` | 60/min (`THROTTLE_CATALOGO`) | Catálogo público de trilhas e exercícios |
-| `eu_progresso` | 120/min (`THROTTLE_EU_PROGRESSO`) | Listas do próprio progresso e especificação do exercício |
+| `eu_progresso` | 120/min (`THROTTLE_EU_PROGRESSO`) | Listas do próprio progresso, conquistas, sequência e especificação do exercício |
 | `conclusao` | 30/min | Iniciar trilha, concluir exercício, evoluir criatura |
 | `autoria` | 30/min (`THROTTLE_AUTORIA`) | Solução de referência |
 | `editorial` | 30/min (`THROTTLE_EDITORIAL`) | `/autoria/rascunhos/`, `/autoria/fila-revisao/`, `detalhe/` e `submeter`, `aprovar`, `devolver` e `publicar` em `/autoria/{tipo}/{pk}/`: listas e ações editoriais de transição de estado, em balde separado de `autoria` para que leituras de gabarito não consumam a cota delas |
+| `clas_escrita` | 30/min | Criar, editar, entrar, sair, gerir membros, transferir liderança e gerar ou revogar convite |
+| `clas_busca` | 60/min | Busca de clãs (`GET /clas/`) |
+| `convite` | 10/min | Prévia e aceite de convite |
+| `ranking` | 60/min | `/ranking/mensal/` |
 | `judge0` | 5/min por usuário | `executar/` e o envio de código do `concluir/`, no mesmo balde |
 
 Além da rajada, a correção tem dois tetos diários, contados no banco e só para

@@ -2,7 +2,7 @@
 
 O catálogo de conteúdo do CodeQuest: trilhas, aulas e exercícios. A primeira
 trilha, "Lógica de Programação", já vem preenchida com 6 módulos e 26 fases,
-e o aluno conta com progresso local.
+e o progresso do aluno vem do servidor.
 
 ## Objetivo
 
@@ -147,21 +147,18 @@ dele libera o shell cedo demais. A listagem tem, porque lá não existe 404.
 
 ### Progresso do aluno
 
-Ainda não há autenticação, portanto não há a quem vincular progresso no
-servidor. No MVP ele fica no navegador, em `localStorage`, sob a chave
-`codequest:progresso` e no formato `{ "trilha-slug": ["fase-slug", ...] }`.
+O progresso mora no servidor, vinculado ao usuário logado. O
+`ProvedorProgresso` busca `GET /api/v1/eu/exercicios-concluidos/` e
+`lib/progresso.ts` só agrega o resultado, sem `localStorage`. A chave de cada
+fase junta o slug da trilha e o do exercício (`trilha/exercicio`), porque o
+slug do exercício só é único dentro da trilha.
 
-A leitura usa `useSyncExternalStore`, assim como a sidebar. O ponto que
-importa é o instantâneo ficar em cache no módulo. Lido a cada render, o
-storage devolveria um objeto novo toda vez; como o React compara por
-identidade, o resultado seria um laço infinito. Quando outra aba grava, um
-evento `storage` invalida o cache.
+A resposta da API é tratada como fronteira, e não como fonte confiável de
+tipo: linha sem `trilha_slug` ou `exercicio_slug` válidos é descartada, e
+corpo que não seja uma lista faz o progresso começar vazio, em vez de quebrar a
+página.
 
-O conteúdo do storage é tratado como entrada não confiável, porque o usuário
-pode editá-lo. Chave que não aponte para uma lista de strings é descartada, e
-JSON corrompido faz o progresso começar vazio, em vez de quebrar a página.
-
-São três consumidores, todos derivados do mesmo instantâneo:
+São três consumidores, todos derivados da mesma lista:
 
 | Onde | O que mostra |
 |---|---|
@@ -174,12 +171,12 @@ que vem depois da última marcada. Quem pula uma fase volta para o buraco que
 deixou.
 
 O percentual tem teto de 100, de propósito. Uma fase despublicada continua
-marcada no navegador de quem já a fez; sem o teto, a barra passaria do fim.
+marcada para quem já a fez; sem o teto, a barra passaria do fim.
 
-O servidor não fica sabendo de nada disso. A API segue somente-leitura e
-ignora que o progresso existe. O preço é que limpar os dados do site zera
-tudo, e o progresso não vai junto quando alguém troca de navegador ou de
-máquina.
+As rotas de trilhas e exercícios seguem somente-leitura. Quem grava a
+conclusão é o app `progressao`, por `POST /api/v1/exercicios/<trilha_slug>/<exercicio_slug>/concluir/`,
+e o XP é decidido no servidor. Como o progresso é da conta, ele acompanha o
+aluno entre navegadores e máquinas.
 
 `Em andamento` não cabe na coluna estreita do card. Na tela, o percentual
 cumpre esse papel, com `aria-hidden`, enquanto a palavra completa vai em
@@ -293,11 +290,9 @@ edição sumiria no próximo `npm install`.
 
 ## O que ficou de fora
 
-- Progresso no servidor. O que existe é local e anônimo, preso ao navegador,
-  e sem autenticação não há a quem associá-lo.
-- XP e streak, que aparecem nos modelos de tela mas seguem sem
-  implementação. Em vez de número inventado, a sidebar mostra o perfil
-  neutro.
-- Terminal integrado e submissão de exercício.
-- Telas de "Desafio do dia", "Conquistas" e "Configurações", que aparecem no
-  menu como itens explicitamente inativos, e não como links quebrados.
+- Rotas e telas para criar e editar trilhas, aulas e exercícios. O conteúdo
+  entra pela carga `seed_trilhas`.
+- Botão de publicar na tela `/autoria`. A rota `publicar/` existe e exige
+  `trilhas.publish`, mas a tela só envia para revisão, aprova e devolve.
+- Dono no conteúdo (autor vinculado) e o parecer do revisor registrado na
+  devolução.

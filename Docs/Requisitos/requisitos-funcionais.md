@@ -540,11 +540,13 @@ publicado chegue ao aluno.
 
 **Pré-condições:** Conteúdo cadastrado.
 
-**Fluxo principal (previsto):**
-1. O autor cria o conteúdo em rascunho.
-2. O autor envia para revisão.
-3. Um revisor aprova ou devolve.
-4. Um usuário com permissão publica o conteúdo aprovado.
+**Fluxo principal:**
+1. O conteúdo nasce em rascunho (hoje pela carga `seed_trilhas`; ainda não há tela de criação).
+2. O autor abre `/autoria` e vê a lista de rascunhos, com trilhas, aulas e exercícios.
+3. Ao clicar no título, abre-se o modal com o conteúdo inteiro, sem a solução do autor.
+4. O autor envia o rascunho para revisão.
+5. O revisor abre a fila de revisão, consulta o conteúdo no modal e aprova ou devolve ao rascunho.
+6. Um usuário com `trilhas.publish` publica o conteúdo aprovado pela rota de publicação (ainda sem botão na tela).
 
 **Regras de negócio:**
 - RN01: A API pública só devolve conteúdo PUBLICADO.
