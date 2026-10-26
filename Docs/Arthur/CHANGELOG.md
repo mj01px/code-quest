@@ -4,6 +4,39 @@ Segue o formato do [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
 ## [Não publicado]
 
+### Dashboard do aluno em 2026-10-25
+
+- **Endpoint `GET /api/v1/eu/dashboard/`** (`apps/progressao`, login
+  obrigatório, balde `eu_progresso`): devolve `xp_total` (soma dos
+  `EventoXP`), `exercicios_concluidos`, `sequencia_atual`, `trilhas_iniciadas`
+  e `atividade_semanal` com os últimos 7 dias (`{ dia, data, xp }`), agrupados
+  por `TruncDate` + `Sum` no fuso de São Paulo.
+- **Exercícios concluídos vêm de `EventoXP`, não de `Submissao`**: só 14 dos
+  78 exercícios têm correção automática e geram submissão, então contar
+  submissões aprovadas ignoraria os outros 64 e contaria duas vezes o reenvio.
+  `EventoXP` de origem `EXERCICIO` é único por exercício (UniqueConstraint).
+- **Sequência via `ler_sequencia`**: zera a sequência quando o aluno perdeu o
+  dia, em vez de exibir o campo `atual` já vencido. Trilhas iniciadas reusam
+  `trilhas_iniciadas`, o mesmo número da tela de trilhas.
+- **Tela `/dashboard`** (`components/dashboard/`): 4 cards de big numbers (XP
+  total, exercícios, sequência, trilhas) com a tipografia de `TIPO`, em 1
+  coluna no celular, 2 em telas médias e 4 em telas largas. Item DASHBOARD no
+  topo da barra lateral, visível para todos.
+- **Gráfico `GraficoAtividade`** em SVG nativo, sem biblioteca: barras
+  verticais `#A855F7` proporcionais ao maior dia da semana, semana zerada sem
+  NaN, e os valores de cada dia expostos em texto para leitor de tela.
+- **Auditoria de validação de formulários**: Login, Cadastro, Redefinir Senha,
+  Esqueci a Senha e Criar Clã já validam antes do envio (`lib/validacao.ts`,
+  espelho de `apps/contas/validators.py`), com mensagens visíveis
+  (`role="alert"`). O backend valida os mesmos campos nos serializers
+  (`validate_password`, `validate_email`, `validate_nickname`,
+  `validate_data_nascimento`, `validate_nome` do clã). Nada precisou ser
+  implementado.
+- **Testes**: `test_api_dashboard.py` (4 casos: semana zerada, agregação por
+  dia com janela e isolamento por usuário, AJUSTE fora da contagem, contrato
+  da API) e `GraficoAtividade.test.tsx` (proporção e semana zerada). Suítes:
+  965 no backend e 361 no frontend, `tsc --noEmit` limpo.
+
 ### Telas de autoria em 2026-10-25
 
 - **Filas editoriais na API** (`apps/autoria`): `GET /api/v1/autoria/rascunhos/`
