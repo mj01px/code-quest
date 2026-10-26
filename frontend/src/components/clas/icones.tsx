@@ -104,3 +104,11 @@ export function IconeReticencias({ size = 18 }: Props) {
     </svg>
   );
 }
+
+export function IconeLixeira({ size = 18 }: Props) {
+  return (
+    <svg {...base(size)}>
+      <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5" />
+    </svg>
+  );
+}

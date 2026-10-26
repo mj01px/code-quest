@@ -28,9 +28,10 @@ import type { RespostaConclusao } from "@/lib/types";
 // qualquer caminho de progresso voltar a ler ou gravar chave de navegador, isto
 // falha, mesmo que a tela continue certa.
 //
-// A preferência de sidebar (`codequest:sidebar`) continua legitimamente em
-// `localStorage`, que é do dispositivo, não da conta. Por isso este arquivo monta
-// só as superfícies de progresso, e não a moldura do app.
+// Nenhum código do app usa `localStorage` hoje. A sidebar recolhível, que guardava
+// a preferência `codequest:sidebar`, saiu em 765f45b, e essa chave deixou de
+// existir. O arquivo segue montando só as superfícies de progresso: se qualquer
+// uma delas voltar a ler ou gravar o armazenamento, os espiões abaixo falham.
 //
 // O `ProvedorProgresso` entra junto porque é ele quem busca agora: sem ele os
 // consumidores nem renderizam. Ele também não toca o armazenamento, e é

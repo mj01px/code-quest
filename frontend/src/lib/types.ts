@@ -62,6 +62,7 @@ export interface Usuario {
   nickname: string;
   permissoes: string[];
   is_admin: boolean;
+  nivel_id: string | null;
   criado_em: string;
 }
 
@@ -90,6 +91,31 @@ export interface UsuarioAdmin {
   criado_em: string;
   nivel: { id: string; nome: string } | null;
 }
+
+// --- Fluxo editorial (autoria) ---
+export type TipoConteudo = "trilhas" | "aulas" | "exercicios";
+
+export type StatusEditorial = "RASCUNHO" | "REVISAO" | "APROVADO" | "PUBLICADO";
+
+export interface ItemEditorial {
+  id: number;
+  tipo: TipoConteudo;
+  titulo: string;
+  status_editorial: StatusEditorial;
+}
+
+export interface TransicaoEditorial {
+  id: number;
+  status_editorial: StatusEditorial;
+}
+
+/** Exercício na leitura editorial. `codigo_inicial` é null no teórico. */
+export interface ExercicioEditorial extends ExercicioDetalhe {
+  codigo_inicial: string | null;
+}
+
+/** Um por tipo: a trilha tem `nome`, a aula tem `conteudo`, o exercício `enunciado`. */
+export type DetalheEditorial = TrilhaDetalhe | Aula | ExercicioEditorial;
 
 export type DocumentoLegal = "TERMOS" | "PRIVACIDADE";
 
@@ -199,6 +225,42 @@ export interface Sequencia {
   recorde: number;
   feito_hoje: boolean;
   ultimo_dia: string | null;
+}
+
+export interface AtividadeDia {
+  dia: string;
+  data: string;
+  xp: number;
+}
+
+export interface Dashboard {
+  xp_total: number;
+  exercicios_concluidos: number;
+  sequencia_atual: number;
+  trilhas_iniciadas: number;
+  atividade_semanal: AtividadeDia[];
+}
+
+export interface DashboardAdmin {
+  total_usuarios: number;
+  trilhas_publicadas: number;
+  fila_revisao: number;
+  submissoes_judge: number;
+  novos_usuarios_semana: { dia: string; data: string; quantidade: number }[];
+  submissoes_semana: {
+    dia: string;
+    data: string;
+    aprovadas: number;
+    rejeitadas: number;
+  }[];
+  logs_recentes: {
+    id: string;
+    criado_em: string;
+    usuario: string;
+    acao: string;
+    acao_rotulo: string;
+    detalhes: string;
+  }[];
 }
 
 export interface SequenciaConclusao {

@@ -6,7 +6,9 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from apps.core.permissions import HasPerm
+from apps.auditoria.models import AcaoAuditoria
+from apps.auditoria.services import registrar
+from apps.core.permissions import HasPerm, IsAdmin
 from apps.correcao.excecoes import CorretorIndisponivel
 from apps.correcao.judge0 import Judge0Error
 from apps.correcao.serializers import CorrecaoSerializer, EnvioDeCodigoSerializer
@@ -17,6 +19,8 @@ from apps.trilhas.models import Exercicio, Trilha
 from .models import TrilhaIniciada
 from .serializers import (
     ConclusaoSerializer,
+    DashboardAdminSerializer,
+    DashboardSerializer,
     ExercicioConcluidoSerializer,
     ProgressoSerializer,
     ResultadoXPSerializer,
@@ -29,6 +33,8 @@ from .services import (
     exercicios_concluidos,
     iniciar_trilha,
     ler_sequencia,
+    montar_dashboard,
+    montar_dashboard_admin,
     montar_progresso,
     obter_progresso,
     trilhas_iniciadas,
@@ -64,6 +70,36 @@ class MinhaSequenciaView(APIView):
 
     def get(self, request):
         return Response(SequenciaSerializer(ler_sequencia(user=request.user)).data)
+
+
+@extend_schema(tags=["progressao"], responses=DashboardSerializer)
+class MeuDashboardView(APIView):
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "eu_progresso"
+
+    def get(self, request):
+        return Response(DashboardSerializer(montar_dashboard(user=request.user)).data)
+
+
+@extend_schema(tags=["admin"], responses=DashboardAdminSerializer)
+class AdminDashboardView(APIView):
+    """Métricas de gestão. Traz os últimos logs, então a consulta é registrada
+    como acesso à auditoria, igual à listagem completa em `apps/auditoria`."""
+
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        # Logs seguem a mesma permissão da trilha completa: painel não basta.
+        ve_auditoria = request.user.has_perm("auditoria.view")
+        dados = DashboardAdminSerializer(
+            montar_dashboard_admin(com_logs=ve_auditoria)
+        ).data
+        if ve_auditoria:
+            registrar(
+                AcaoAuditoria.ACESSO_AUDITORIA, request=request, origem="dashboard"
+            )
+        return Response(dados)
 
 
 @extend_schema(tags=["progressao"], responses=TrilhaIniciadaSerializer)

@@ -90,6 +90,14 @@ ACOES_DO_TITULAR = frozenset(
 )
 
 
+MOTIVOS_LOGIN_FALHA = {
+    "credenciais_invalidas": "Senha incorreta",
+    "bloqueado": "Conta bloqueada por excesso de tentativas",
+    "email_nao_verificado": "E-mail ainda não verificado",
+    "codigo_2fa_invalido": "Código de verificação em duas etapas incorreto",
+}
+
+
 class RegistroDeAuditoria(models.Model):
     """Um evento sensível na trilha de auditoria.
 
@@ -183,6 +191,36 @@ class RegistroDeAuditoria(models.Model):
     def __str__(self) -> str:
         quem = self.actor_email_snapshot or "anônimo"
         return f"{self.acao} · {quem} · {self.created_at:%Y-%m-%d %H:%M}"
+
+    @property
+    def detalhes(self) -> str:
+        """O `metadata` dos eventos críticos em frase para o painel do admin.
+
+        Só lê o que já está gravado: nada de PII nova entra na trilha por aqui.
+        Ações sem tradução devolvem texto vazio, e o rótulo da ação basta.
+        """
+        dados = self.metadata or {}
+        if self.acao == AcaoAuditoria.LOGIN_FALHA:
+            motivo = MOTIVOS_LOGIN_FALHA.get(dados.get("motivo", ""), "")
+            if dados.get("email_desconhecido"):
+                return "E-mail não cadastrado"
+            return motivo
+        if self.acao == AcaoAuditoria.NIVEL_ATRIBUIDO:
+            def nome(ref):
+                return ref["nome"] if ref else "sem nível"
+
+            if "nivel_novo" not in dados:
+                return ""
+            return (
+                f"Nível alterado de {nome(dados.get('nivel_anterior'))} "
+                f"para {nome(dados['nivel_novo'])}"
+            )
+        if self.acao == AcaoAuditoria.CONTA_ANONIMIZADA:
+            if dados.get("por_admin"):
+                sufixo = ", com confirmação em duas etapas" if dados.get("com_2fa") else ""
+                return f"Anonimizada pelo painel do admin{sufixo}"
+            return "Anonimizada a pedido do titular"
+        return ""
 
     def save(self, *args, **kwargs):
         # Append-only: recusa qualquer alteração de um registro já gravado.

@@ -1,5 +1,3 @@
-from typing import cast
-
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
@@ -9,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
-from apps.contas.models import User
+from apps.core.auth import usuario_atual
 from apps.core.permissions import HasPerm
 from apps.trilhas.models import Exercicio
 
@@ -78,8 +76,7 @@ class ExecutarCodigoView(APIView):
         exercicio = _exercicio(trilha_slug, exercicio_slug)
         try:
             correcao = executar_codigo(
-                # IsAuthenticated barra o AnonymousUser antes de chegar aqui.
-                user=cast(User, request.user),
+                user=usuario_atual(request),
                 exercicio=exercicio,
                 codigo=codigo_enviado(request),
             )

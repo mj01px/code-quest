@@ -35,6 +35,7 @@ from .serializers import (
     LoginMfaSerializer,
     LoginSerializer,
     MfaCodigoSerializer,
+    MfaConfirmarSerializer,
     MfaIniciarSerializer,
     RedefinirSenhaSerializer,
     ReenviarVerificacaoSerializer,
@@ -437,9 +438,8 @@ class ConfirmarExclusaoView(generics.GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        usuario = serializer.usuario
-        _encerrar_sessoes(usuario)
-        anonimizar_conta(usuario)
+        # anonimizar_conta já encerra as sessões
+        anonimizar_conta(serializer.usuario)
 
         return limpar_sessao(Response(status=status.HTTP_204_NO_CONTENT))
 
@@ -514,7 +514,7 @@ class MfaIniciarView(generics.GenericAPIView):
 class MfaConfirmarView(generics.GenericAPIView):
     """Confirma o código e ativa o 2FA, devolvendo os códigos de recuperação."""
 
-    serializer_class = MfaCodigoSerializer
+    serializer_class = MfaConfirmarSerializer
     permission_classes = [IsAuthenticated]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "verificacao"

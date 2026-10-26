@@ -252,7 +252,7 @@ MFA_LOGIN_TOKEN_MAX_AGE=300
 # Validade do link que confirma a exclusão da conta, em segundos (30min)
 EXCLUSAO_TOKEN_MAX_AGE=1800
 
-# Dias que um registro de auditoria vive antes do purgar_logs_antigos
+# Dias que um registro de auditoria vive antes do limpar_auditoria
 AUDITORIA_RETENCAO_DIAS=180
 ```
 
@@ -266,7 +266,7 @@ AUDITORIA_RETENCAO_DIAS=180
 python manage.py seed_trilhas         # carrega as trilhas (idempotente, pode rodar de novo)
 python manage.py seed_bonus_xp        # bônus de XP de cada criatura na trilha do seu domínio (idempotente)
 python manage.py seed_correcao        # especificações e casos de teste da correção (rode depois do seed_trilhas)
-python manage.py purgar_logs_antigos  # apaga auditoria além de AUDITORIA_RETENCAO_DIAS (--dry-run só conta)
+python manage.py limpar_auditoria     # apaga auditoria além de AUDITORIA_RETENCAO_DIAS (--dry-run só conta)
 python manage.py migrate              # aplica mudanças de schema
 python manage.py createsuperuser      # cria o primeiro admin
 python manage.py runserver 8000       # → http://localhost:8000
@@ -401,7 +401,7 @@ de e-mail, 2FA, exportação, exclusão, mudanças nos níveis de acesso) vão p
 gravado. Quem tem `auditoria.view` consulta tudo em `/auditoria/`, e a própria
 consulta também fica registrada. Cada titular vê só as próprias linhas, filtradas às
 ações que dizem respeito a ele, na seção de atividade da conta. O comando
-`purgar_logs_antigos` apaga o que passou de `AUDITORIA_RETENCAO_DIAS` (180 por
+`limpar_auditoria` apaga o que passou de `AUDITORIA_RETENCAO_DIAS` (180 por
 padrão) e foi feito para rodar por cron.
 
 A exportação devolve em JSON os dados pessoais do titular. A exclusão tem dois
@@ -430,6 +430,8 @@ parênteses.
 | `GET /trilhas/` · `/trilhas/{slug}/` | A lista de trilhas publicadas, e uma trilha com seu mapa de fases. **Público** |
 | `GET /exercicios/{trilha_slug}/{exercicio_slug}/` | Um único exercício publicado. **Público** |
 | `GET /autoria/exercicios/{trilha_slug}/{exercicio_slug}/solucao/` | A solução de referência do autor (`trilhas.view_solution`) |
+| `GET /autoria/rascunhos/` · `/autoria/fila-revisao/` | Trilhas, aulas e exercícios em rascunho (`trilhas.submit_review`) ou em revisão (`trilhas.review`) |
+| `GET /autoria/{tipo}/{pk}/detalhe/` | O conteúdo inteiro em qualquer status, sem a solução (`trilhas.submit_review` ou `trilhas.review`) |
 
 **Progressão**
 

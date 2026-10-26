@@ -20,7 +20,7 @@ Cada requisito traz:
 | Critério mensurável | O limite ou a condição objetiva que comprova o atendimento |
 | Fonte | Onde o requisito está no código (caminhos relativos à raiz do repositório) |
 
-Base da verificação: branch `main` no commit `9ebd18a` (2 de outubro de 2026).
+Base da verificação: branch `ArthurMain` no commit `1d82ca0` (25 de outubro de 2026).
 Os valores citados são os padrões do código; os que vêm de variável de ambiente
 estão indicados pelo nome da variável.
 
@@ -292,7 +292,7 @@ existente; metadados nunca incluem senha, token nem código do 2FA.
 retenção.
 
 **Critério mensurável:** prazo de 180 dias (`AUDITORIA_RETENCAO_DIAS`); o comando
-`purgar_logs_antigos` remove os registros mais antigos e aceita `--dry-run`.
+`limpar_auditoria` remove os registros mais antigos e aceita `--dry-run`.
 
 **Critérios de aceite:**
 - CA01: Dado um registro com 181 dias, quando o comando for executado, então o registro deverá ser removido.
@@ -301,7 +301,7 @@ retenção.
 mas o agendamento não está versionado no repositório. Sem ele, o descarte só
 acontece quando alguém executa o comando.
 
-**Fonte:** `backend/apps/auditoria/management/commands/purgar_logs_antigos.py`, `backend/config/settings.py` (`AUDITORIA_RETENCAO_DIAS`).
+**Fonte:** `backend/apps/auditoria/management/commands/limpar_auditoria.py`, `backend/config/settings.py` (`AUDITORIA_RETENCAO_DIAS`).
 
 ### RNF14. Anonimização na exclusão de conta
 
@@ -416,10 +416,11 @@ criatura por domínio e uma conclusão creditada por exercício.
 **Descrição:** O comportamento do sistema deverá ser verificado por testes
 automatizados executáveis localmente, sem depender de serviços externos.
 
-**Critério mensurável:** backend com 668 funções de teste (pytest e
-pytest-django), incluindo casos negativos de segurança; frontend com cerca de
-280 casos (Jest e React Testing Library); nos testes o Judge0 é substituído por
-um executor local; cobertura medida com `pytest-cov` e `jest --coverage`.
+**Critério mensurável:** 996 testes automatizados no backend (pytest e
+pytest-django), incluindo casos negativos de segurança, com cobertura de 97%;
+375 no frontend, em 51 suítes (Jest e React Testing Library); total de 1.371
+testes verdes; nos testes o Judge0 é substituído por um executor local;
+cobertura medida com `pytest-cov` e `jest --coverage`.
 
 **Critérios de aceite:**
 - CA01: Dado o repositório na `main`, quando `pytest` (backend) e `npm test` (frontend) forem executados, então todos os testes deverão passar.
@@ -436,7 +437,7 @@ configurado (`fail_under` ou `coverageThreshold`).
 **Descrição:** Toda mudança de esquema e os dados de referência (catálogo de
 permissões, níveis de sistema) deverão ser aplicados por migrations versionadas.
 
-**Critério mensurável:** 34 arquivos de migration versionados no repositório; o
+**Critério mensurável:** 40 arquivos de migration versionados no repositório; o
 catálogo de permissões é semeado por migração de dados.
 
 **Critérios de aceite:**
@@ -525,14 +526,16 @@ proxy na frente, `NUM_PROXIES` precisa passar a refletir o número de proxies
 tipos.
 
 **Critério mensurável:** `ruff check` sem erros no backend (regras E, F, W, I, N,
-UP); `mypy --strict` sem erros nos apps `trilhas` e `autoria`; ESLint e
-`tsc --noEmit` sem erros no frontend.
+UP); `mypy --strict` sem erros em 44 arquivos de produção, cobrindo os apps
+`trilhas`, `autoria`, `correcao` e `conquistas`; ESLint e `tsc --noEmit` sem erros no
+frontend.
 
 **Critérios de aceite:**
 - CA01: Dado o repositório na `main`, quando `ruff check .` e `mypy` forem executados no backend, então nenhum erro deverá ser reportado.
 
-**O que falta:** o modo estrito do mypy cobre 2 dos 9 apps; `contas`,
-`auditoria`, `gamificacao`, `progressao`, `core` e `config` estão com
+**O que falta:** o modo estrito do mypy cobre 4 das 10 pastas de app do backend
+(9 registradas em `INSTALLED_APPS`, todas menos `autoria`); `contas`,
+`auditoria`, `gamificacao`, `progressao`, `core`, `clas` e `config` estão com
 `ignore_errors`.
 
 **Fonte:** `backend/pyproject.toml` (`[tool.ruff]`, `[tool.mypy]`), `frontend/eslint.config.mjs`, `frontend/tsconfig.json`.

@@ -177,6 +177,7 @@ export function usuario(extra: Partial<Usuario> = {}): Usuario {
       "comunidades.join",
     ],
     is_admin: false,
+    nivel_id: null,
     criado_em: "2026-09-01T12:00:00Z",
     ...extra,
   };

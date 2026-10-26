@@ -37,6 +37,9 @@ export function SecaoSeguranca() {
   const [metodo, setMetodo] = useState<MfaMetodo>("APP");
   const [setupApp, setSetupApp] = useState<MfaSetupApp | null>(null);
   const [codigo, setCodigo] = useState("");
+  // Ativar pede a senha: só a sessão não basta para cadastrar um autenticador.
+  const [senha, setSenha] = useState("");
+  const [erroSenha, setErroSenha] = useState<string | null>(null);
   const [recuperacao, setRecuperacao] = useState<string[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -64,7 +67,9 @@ export function SecaoSeguranca() {
 
   function limpar() {
     setCodigo("");
+    setSenha("");
     setErro(null);
+    setErroSenha(null);
     setSetupApp(null);
   }
 
@@ -89,23 +94,30 @@ export function SecaoSeguranca() {
   }
 
   async function confirmar() {
-    if (!codigo.trim()) {
-      setErro("Digite o código.");
-      return;
-    }
+    const faltaSenha = senha ? null : "Digite sua senha atual.";
+    const faltaCodigo = codigo.trim() ? null : "Digite o código.";
+    setErroSenha(faltaSenha);
+    setErro(faltaCodigo);
+    if (faltaSenha || faltaCodigo) return;
     setOcupado(true);
-    setErro(null);
     try {
-      const { codigos_recuperacao } = await api.mfaConfirmar(codigo.trim());
+      const { codigos_recuperacao } = await api.mfaConfirmar(
+        codigo.trim(),
+        senha,
+      );
       setRecuperacao(codigos_recuperacao);
       limpar();
       setFase("recuperacao");
     } catch (e) {
-      setErro(
-        e instanceof ErroApi
-          ? (e.porCampo().codigo ?? e.message)
-          : "Não foi possível confirmar.",
-      );
+      // Senha nunca fica no state depois de uma tentativa.
+      setSenha("");
+      if (e instanceof ErroApi) {
+        const campos = e.porCampo();
+        setErroSenha(campos.senha_atual ?? null);
+        setErro(campos.codigo ?? (campos.senha_atual ? null : e.message));
+      } else {
+        setErro("Não foi possível confirmar.");
+      }
     } finally {
       setOcupado(false);
     }
@@ -270,6 +282,16 @@ export function SecaoSeguranca() {
                 confirmar.
               </span>
             )}
+
+            <PixelField
+              rotulo="SENHA ATUAL"
+              type="password"
+              autoComplete="current-password"
+              revelavel
+              value={senha}
+              erro={erroSenha}
+              onChange={(e) => setSenha(e.target.value)}
+            />
 
             <PixelField
               rotulo="CÓDIGO"

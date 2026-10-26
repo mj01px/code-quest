@@ -24,7 +24,7 @@ Significado de cada estado:
 | `Planejado` | Previsto (permissão no RBAC, código de auditoria reservado ou documentação), sem implementação na `main` |
 | `Em desenvolvimento` | Em construção numa branch da equipe, ainda não integrada à `main` |
 
-Base da verificação: branch `main` no commit `9ebd18a` (2 de outubro de 2026).
+Base da verificação: branch `ArthurMain` no commit `1d82ca0` (25 de outubro de 2026).
 Os números de regras de negócio (RN) e critérios de aceite (CA) recomeçam a cada
 requisito.
 
@@ -60,7 +60,7 @@ As permissões de cada ator vêm do nível de acesso da conta, não do papel
 | RF12 | Consultar catálogo de trilhas | Alta | Implementado |
 | RF13 | Consultar trilha e mapa de fases | Alta | Implementado |
 | RF14 | Consultar exercício | Alta | Implementado |
-| RF15 | Controlar fluxo editorial do conteúdo | Média | Parcial |
+| RF15 | Controlar fluxo editorial do conteúdo | Média | Implementado |
 | RF16 | Consultar solução de referência | Baixa | Parcial |
 | RF17 | Iniciar trilha | Média | Implementado |
 | RF18 | Concluir exercício e creditar XP | Alta | Implementado |
@@ -530,7 +530,7 @@ tipo (código ou teórico), dificuldade e o contexto da aula e da trilha.
 
 ### RF15. Controlar fluxo editorial do conteúdo
 
-**Prioridade:** Média · **Estado:** Parcial
+**Prioridade:** Média · **Estado:** Implementado
 
 **Descrição:** O sistema deverá conduzir trilhas, aulas e exercícios pelos estados
 RASCUNHO → REVISAO → APROVADO → PUBLICADO, de modo que somente conteúdo
@@ -557,13 +557,20 @@ publicado chegue ao aluno.
 - CA02: Dado um aluno, quando tentar publicar conteúdo, então o sistema deverá recusar.
 
 **O que existe:** os quatro estados no modelo, o filtro de publicados em todas as
-rotas públicas, as permissões no catálogo do RBAC e o comando idempotente
-`seed_trilhas`, que carrega o conteúdo e publica as trilhas Lógica de
-Programação, Python e Banco de Dados.
+rotas públicas, as permissões no catálogo do RBAC, o comando de carga
+idempotente (`seed_trilhas`) e as rotas de transição (enviar para revisão,
+aprovar, devolver ao rascunho e publicar) para trilhas, aulas e exercícios.
+Cada rota exige a permissão correspondente, recusa transição fora de ordem e
+registra a mudança na trilha de auditoria. A publicação de trilha ou aula é
+recusada enquanto houver conteúdo filho em rascunho ou em revisão. As rotas
+`GET /autoria/rascunhos/` e `GET /autoria/fila-revisao/` listam os três tipos
+de conteúdo em cada fila, e a tela `/autoria` mostra cada lista só a quem tem
+a permissão dela, com os botões de enviar para revisão, aprovar e devolver.
+Clicar no título abre o conteúdo inteiro num modal (`GET
+/autoria/<tipo>/<pk>/detalhe/`, sem a solução do autor), com as mesmas ações.
 
-**O que falta:** não há rotas nem telas para criar, editar, enviar para revisão,
-aprovar ou publicar conteúdo. Hoje o conteúdo entra pelo comando de seed, e o
-CA02 não tem rota a ser testada.
+**O que falta:** rotas para criar e editar conteúdo, a publicação pela tela, a
+comporta automática e o registro do parecer do revisor na devolução.
 
 **Fonte:** `backend/apps/trilhas/models.py` (`StatusEditorial`, `PublicavelQuerySet`), `backend/apps/contas/rbac.py`, `backend/apps/trilhas/management/commands/seed_trilhas.py`.
 
@@ -1095,7 +1102,9 @@ e período.
 - CA01: Dado um aluno, quando consultar a auditoria, então o sistema deverá responder 403.
 - CA02: Dado o filtro `acao=LOGIN_FALHA`, quando aplicado, então só deverão vir falhas de login.
 
-**O que falta:** a consulta existe só na API; o painel `/admin` não tem tela de auditoria.
+**O que existe na tela:** a aba DASHBOARD do `/admin` lista os 10 registros mais recentes (`AdminDashboard.tsx`, `montar_dashboard_admin`), com a ação em texto legível, e registra o acesso como `ACESSO_AUDITORIA`.
+
+**O que falta:** a consulta completa, paginada e com os filtros por ação, autor e período, existe só na API.
 
 **Fonte:** `backend/apps/auditoria/views.py` (`AuditoriaListView`).
 
