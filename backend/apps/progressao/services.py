@@ -4,7 +4,8 @@ from decimal import Decimal
 
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import F, Max
+from django.db.models import F, Max, Sum
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -277,6 +278,47 @@ def trilhas_iniciadas(*, user):
         .distinct()
     )
     return sorted(set(marcadas) | set(resolvidas))
+
+
+DIAS_DA_SEMANA = ("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom")
+
+
+def montar_dashboard(*, user):
+    """Os big numbers e a atividade dos últimos 7 dias, lidos do banco na hora.
+
+    Exercício concluído vem de `EventoXP` e não de `Submissao`: só exercício
+    com correção automática gera submissão, e o resto também conclui.
+    """
+    hoje = timezone.localdate()
+    inicio = hoje - timedelta(days=6)
+    eventos = EventoXP.objects.filter(user=user)
+
+    # order_by() vazio: a ordenação padrão por criado_em entraria no GROUP BY
+    # e quebraria a soma em uma linha por evento.
+    xp_por_dia = dict(
+        eventos.filter(criado_em__date__gte=inicio)
+        .annotate(dia=TruncDate("criado_em"))
+        .values("dia")
+        .annotate(total=Sum("xp"))
+        .order_by()
+        .values_list("dia", "total")
+    )
+
+    dias = [inicio + timedelta(days=i) for i in range(7)]
+    return {
+        "xp_total": eventos.aggregate(total=Sum("xp"))["total"] or 0,
+        "exercicios_concluidos": exercicios_concluidos(user=user).count(),
+        "sequencia_atual": ler_sequencia(user=user)["atual"],
+        "trilhas_iniciadas": len(trilhas_iniciadas(user=user)),
+        "atividade_semanal": [
+            {
+                "dia": DIAS_DA_SEMANA[dia.weekday()],
+                "data": dia,
+                "xp": xp_por_dia.get(dia, 0),
+            }
+            for dia in dias
+        ],
+    }
 
 
 def montar_progresso(progresso):

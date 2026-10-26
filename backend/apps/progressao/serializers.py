@@ -39,6 +39,20 @@ class SequenciaSerializer(serializers.Serializer):
     ultimo_dia = serializers.DateField(read_only=True, allow_null=True)
 
 
+class AtividadeDiaSerializer(serializers.Serializer):
+    dia = serializers.CharField(read_only=True)
+    data = serializers.DateField(read_only=True)
+    xp = serializers.IntegerField(read_only=True)
+
+
+class DashboardSerializer(serializers.Serializer):
+    xp_total = serializers.IntegerField(read_only=True)
+    exercicios_concluidos = serializers.IntegerField(read_only=True)
+    sequencia_atual = serializers.IntegerField(read_only=True)
+    trilhas_iniciadas = serializers.IntegerField(read_only=True)
+    atividade_semanal = AtividadeDiaSerializer(many=True, read_only=True)
+
+
 class SequenciaConclusaoSerializer(serializers.Serializer):
     atual = serializers.IntegerField(read_only=True)
     recorde = serializers.IntegerField(read_only=True)

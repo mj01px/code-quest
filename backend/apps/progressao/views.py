@@ -17,6 +17,7 @@ from apps.trilhas.models import Exercicio, Trilha
 from .models import TrilhaIniciada
 from .serializers import (
     ConclusaoSerializer,
+    DashboardSerializer,
     ExercicioConcluidoSerializer,
     ProgressoSerializer,
     ResultadoXPSerializer,
@@ -29,6 +30,7 @@ from .services import (
     exercicios_concluidos,
     iniciar_trilha,
     ler_sequencia,
+    montar_dashboard,
     montar_progresso,
     obter_progresso,
     trilhas_iniciadas,
@@ -64,6 +66,16 @@ class MinhaSequenciaView(APIView):
 
     def get(self, request):
         return Response(SequenciaSerializer(ler_sequencia(user=request.user)).data)
+
+
+@extend_schema(tags=["progressao"], responses=DashboardSerializer)
+class MeuDashboardView(APIView):
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "eu_progresso"
+
+    def get(self, request):
+        return Response(DashboardSerializer(montar_dashboard(user=request.user)).data)
 
 
 @extend_schema(tags=["progressao"], responses=TrilhaIniciadaSerializer)
