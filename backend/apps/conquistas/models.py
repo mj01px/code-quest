@@ -20,6 +20,8 @@ class Criterio(models.TextChoices):
     APROVADO_DE_PRIMEIRA = "APROVADO_DE_PRIMEIRA", _("Aprovado no primeiro envio")
     APROVADO_APOS_ERRO = "APROVADO_APOS_ERRO", _("Aprovado depois de errar")
     MEMBRO_DE_CLA = "MEMBRO_DE_CLA", _("Entrou em um clã")
+    PODIOS_MENSAIS = "PODIOS_MENSAIS", _("Pódios no ranking mensal")
+    VITORIAS_MENSAIS = "VITORIAS_MENSAIS", _("Vitórias no ranking mensal")
 
 
 class Conquista(models.Model):

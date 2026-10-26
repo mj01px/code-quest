@@ -95,6 +95,7 @@ class VarreduraCobreOProjetoTest(TestCase):
                 "apps.correcao.serializers",
                 "apps.gamificacao.serializers",
                 "apps.progressao.serializers",
+                "apps.ranking.serializers",
                 "apps.trilhas.serializers",
             },
         )

@@ -83,6 +83,7 @@ describe("BarraLateral: navegação", () => {
       "/dashboard",
       "/trilhas",
       "/desafios",
+      "/ranking",
       "/criatura",
       "/conquistas",
       "/clas",

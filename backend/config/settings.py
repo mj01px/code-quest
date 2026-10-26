@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'apps.correcao',
     'apps.clas',
     'apps.conquistas',
+    'apps.ranking',
 
 ]
 
@@ -189,6 +190,7 @@ REST_FRAMEWORK = {
         'clas_busca': '60/min',
         # previa e aceite de convite
         'convite': '10/min',
+        'ranking': '60/min',
     },
     # Sem NUM_PROXIES o DRF identifica o cliente por X-Forwarded-For, que o
     # proprio cliente manda. Zero forca REMOTE_ADDR e fecha a burla do limite.

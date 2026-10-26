@@ -6,6 +6,7 @@ from apps.clas.models import MembroDoCla
 from apps.correcao.models import Submissao
 from apps.gamificacao.models import UserCreature
 from apps.progressao.models import EventoXP, TrilhaIniciada
+from apps.ranking.models import PodioMensal
 
 from .models import Criterio
 from .services import avaliar_por_id
@@ -20,6 +21,7 @@ GATILHOS = {
         Criterio.APROVADO_APOS_ERRO,
     ),
     MembroDoCla: (Criterio.MEMBRO_DE_CLA,),
+    PodioMensal: (Criterio.PODIOS_MENSAIS, Criterio.VITORIAS_MENSAIS),
 }
 
 
