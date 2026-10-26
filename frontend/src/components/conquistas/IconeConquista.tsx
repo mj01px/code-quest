@@ -103,6 +103,24 @@ const DESENHOS: Record<string, ReactNode> = {
       <rect x="7" y="12" width="2" height="2" />
     </>
   ),
+  podio: (
+    <>
+      <rect x="6" y="3" width="4" height="11" />
+      <rect x="1" y="7" width="5" height="7" />
+      <rect x="10" y="9" width="5" height="5" />
+      <rect x="7" y="5" width="2" height="2" fill="var(--color-void)" />
+    </>
+  ),
+  coroa: (
+    <>
+      <rect x="2" y="4" width="2" height="2" />
+      <rect x="7" y="2" width="2" height="2" />
+      <rect x="12" y="4" width="2" height="2" />
+      <rect x="2" y="6" width="12" height="5" />
+      <rect x="2" y="12" width="12" height="2" />
+      <rect x="7" y="8" width="2" height="2" fill="var(--color-void)" />
+    </>
+  ),
   trofeu: (
     <>
       <rect x="4" y="2" width="8" height="6" />

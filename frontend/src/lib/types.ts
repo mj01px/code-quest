@@ -378,3 +378,33 @@ export interface Conquista {
   meta: number | null;
   raridade: number;
 }
+
+export interface CriaturaDoRanking {
+  nome: string;
+  sprite: string | null;
+}
+
+export interface LinhaDoRanking {
+  posicao: number;
+  nickname: string;
+  xp: number;
+  criatura: CriaturaDoRanking | null;
+  voce: boolean;
+}
+
+export interface MinhaPosicao {
+  nickname: string;
+  criatura: CriaturaDoRanking | null;
+  posicao: number | null;
+  xp: number;
+  faltam_para_subir: number | null;
+  podios: number;
+  vitorias: number;
+}
+
+export interface RankingMensal {
+  mes: { inicio: string; fim: string; fecha_em: string };
+  topo: LinhaDoRanking[];
+  voce: MinhaPosicao;
+}
+

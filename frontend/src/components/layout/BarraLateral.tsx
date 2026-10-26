@@ -12,6 +12,7 @@ import { api } from "@/lib/api";
 export const ITENS = [
   { rotulo: "TRILHAS", href: "/trilhas", perm: "trilhas.view" },
   { rotulo: "DESAFIO DO DIA", href: "/desafios", perm: "trilhas.view" },
+  { rotulo: "RANKING", href: "/ranking", perm: null },
   { rotulo: "CRIATURA", href: "/criatura", perm: "criaturas.view" },
   { rotulo: "CONQUISTAS", href: "/conquistas", perm: null },
   { rotulo: "CLÃS", href: "/clas", perm: null },
