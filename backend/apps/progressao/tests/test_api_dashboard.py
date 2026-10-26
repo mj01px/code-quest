@@ -1,4 +1,4 @@
-"""Dashboard do aluno: big numbers e XP agrupado por dia nos últimos 7 dias."""
+"""Dashboards do aluno e do admin: big numbers e XP por dia nos últimos 7 dias."""
 
 from datetime import timedelta
 
@@ -7,9 +7,15 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.contas.tests.helpers import criar_aluno
+from apps.auditoria.models import AcaoAuditoria, RegistroDeAuditoria
+from apps.conquistas.tests.helpers import submeter
+from apps.contas.models import NivelDeAcesso, User
+from apps.contas.tests.helpers import criar_admin, criar_aluno
+from apps.correcao.models import Submissao, Veredito
 from apps.progressao.models import EventoXP, Origem, TrilhaIniciada
-from apps.progressao.services import montar_dashboard
+from apps.progressao.serializers import LogRecenteSerializer
+from apps.progressao.services import montar_dashboard, montar_dashboard_admin
+from apps.trilhas.models import StatusEditorial, Trilha
 
 from .test_credito_xp import criar_exercicio
 
@@ -82,3 +88,110 @@ class DashboardTest(TestCase):
             },
         )
         self.assertEqual(set(resposta.data["atividade_semanal"][0]), {"dia", "data", "xp"})
+
+
+class DashboardAdminTest(TestCase):
+    def setUp(self):
+        self.aluno = criar_aluno()
+        self.admin = criar_admin()
+        self.url = reverse("progressao:admin-dashboard")
+
+    def test_so_admin_entra(self):
+        self.assertEqual(APIClient().get(self.url).status_code, 401)
+
+        client = APIClient()
+        client.force_authenticate(user=self.aluno)
+        self.assertEqual(client.get(self.url).status_code, 403)
+
+        client.force_authenticate(user=self.admin)
+        self.assertEqual(client.get(self.url).status_code, 200)
+
+    def test_soma_a_plataforma_inteira(self):
+        exercicio = criar_exercicio()
+        Trilha.objects.create(
+            slug="rascunho", nome="R", descricao="x", status=StatusEditorial.RASCUNHO
+        )
+        Trilha.objects.create(
+            slug="revisao", nome="V", descricao="x", status=StatusEditorial.REVISAO
+        )
+        submeter(self.aluno, exercicio)
+        submeter(self.admin, exercicio, veredito=Veredito.RESPOSTA_ERRADA)
+        antiga = submeter(self.aluno, exercicio, veredito=Veredito.TEMPO_ESGOTADO)
+        Submissao.objects.filter(pk=antiga.pk).update(
+            criado_em=timezone.now() - timedelta(days=2)
+        )
+        User.objects.filter(pk=self.aluno.pk).update(
+            created_at=timezone.now() - timedelta(days=3)
+        )
+        RegistroDeAuditoria.objects.create(acao=AcaoAuditoria.LOGIN_OK, actor=self.aluno)
+        RegistroDeAuditoria.objects.create(acao=AcaoAuditoria.LOGIN_FALHA)
+        RegistroDeAuditoria.objects.create(
+            acao=AcaoAuditoria.ACESSO_AUDITORIA, actor=self.admin
+        )
+
+        dados = montar_dashboard_admin()
+
+        self.assertEqual(dados["total_usuarios"], 2)
+        self.assertEqual(dados["trilhas_publicadas"], 1)
+        self.assertEqual(dados["fila_revisao"], 1)
+        self.assertEqual(dados["submissoes_judge"], 3)
+        self.assertEqual(
+            [d["quantidade"] for d in dados["novos_usuarios_semana"]],
+            [0, 0, 0, 1, 0, 0, 1],
+        )
+        self.assertEqual(
+            [(d["aprovadas"], d["rejeitadas"]) for d in dados["submissoes_semana"]],
+            [(0, 0)] * 4 + [(0, 1), (0, 0), (1, 1)],
+        )
+
+        logs = dados["logs_recentes"]
+        self.assertLessEqual(len(logs), 10)
+        # ACESSO_AUDITORIA fica fora; o mais recente vem primeiro
+        self.assertEqual(
+            [log.acao for log in logs[:2]],
+            [AcaoAuditoria.LOGIN_FALHA, AcaoAuditoria.LOGIN_OK],
+        )
+        # select_related: serializar o nome do autor não consulta o banco
+        with self.assertNumQueries(0):
+            linhas = LogRecenteSerializer(logs, many=True).data
+        self.assertEqual(
+            [linha["usuario"] for linha in linhas[:2]], ["Anônimo", "aluno"]
+        )
+
+    def test_logs_fora_da_retencao_nao_aparecem(self):
+        velho = RegistroDeAuditoria.objects.create(acao=AcaoAuditoria.LOGOUT)
+        RegistroDeAuditoria.objects.filter(pk=velho.pk).update(
+            created_at=timezone.now() - timedelta(days=181)
+        )
+
+        with self.settings(AUDITORIA_RETENCAO_DIAS=180):
+            logs = montar_dashboard_admin()["logs_recentes"]
+
+        self.assertNotIn(velho.pk, [log.pk for log in logs])
+
+    def test_consulta_fica_registrada_como_acesso_a_auditoria(self):
+        client = APIClient()
+        client.force_authenticate(user=self.admin)
+        client.get(self.url)
+
+        self.assertTrue(
+            RegistroDeAuditoria.objects.filter(
+                acao=AcaoAuditoria.ACESSO_AUDITORIA, actor=self.admin
+            ).exists()
+        )
+
+    def test_admin_sem_auditoria_view_nao_ve_logs(self):
+        sem_auditoria = NivelDeAcesso.objects.create(nome="painel_sem_logs", acesso_admin=True)
+        User.objects.filter(pk=self.admin.pk).update(nivel_de_acesso=sem_auditoria)
+        admin = User.objects.get(pk=self.admin.pk)
+        RegistroDeAuditoria.objects.create(acao=AcaoAuditoria.LOGIN_OK, actor=self.aluno)
+        client = APIClient()
+        client.force_authenticate(user=admin)
+
+        r = client.get(self.url)
+
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.data["logs_recentes"], [])
+        self.assertFalse(
+            RegistroDeAuditoria.objects.filter(acao=AcaoAuditoria.ACESSO_AUDITORIA).exists()
+        )

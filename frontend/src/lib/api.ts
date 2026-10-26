@@ -10,6 +10,7 @@ import type {
   Correcao,
   Criatura,
   Dashboard,
+  DashboardAdmin,
   DetalheEditorial,
   DocumentosLegais,
   EspecificacaoDeCodigo,
@@ -411,10 +412,10 @@ export const api = {
     });
   },
 
-  mfaConfirmar(codigo: string) {
+  mfaConfirmar(codigo: string, senhaAtual: string) {
     return requisicao<MfaConfirmado>("/auth/eu/mfa/confirmar/", {
       metodo: "POST",
-      corpo: { codigo },
+      corpo: { codigo, senha_atual: senhaAtual },
       autenticado: true,
     });
   },
@@ -445,6 +446,10 @@ export const api = {
     return requisicao<PermissaoCatalogo[]>("/auth/admin/permissoes/", {
       autenticado: true,
     });
+  },
+
+  adminDashboard() {
+    return requisicao<DashboardAdmin>("/admin/dashboard/", { autenticado: true });
   },
 
   adminNiveis() {
@@ -489,9 +494,20 @@ export const api = {
     });
   },
 
-  adminUsuarios() {
-    return requisicao<UsuarioAdmin[]>("/auth/admin/usuarios/", {
+  adminUsuarios(busca = "") {
+    const q = busca ? `?q=${encodeURIComponent(busca)}` : "";
+    return requisicao<UsuarioAdmin[]>(`/auth/admin/usuarios/${q}`, {
       autenticado: true,
+    });
+  },
+
+  // Anonimiza (LGPD), não apaga: 204 sem corpo.
+  // Exige o código do autenticador (2FA) do próprio admin.
+  adminExcluirUsuario(id: string, totpCode: string) {
+    return requisicao<void>(`/auth/admin/usuarios/${encodeURIComponent(id)}/`, {
+      metodo: "DELETE",
+      autenticado: true,
+      corpo: { totp_code: totpCode },
     });
   },
 

@@ -301,6 +301,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         self.email = f"anon-{marca}@anonimizado.invalid"
         self.email_pendente = ""
         self.nickname = f"anon_{marca}"
+        self.birth_date = None
         self.set_unusable_password()
         self.failed_logins = 0
         self.locked_until = None
@@ -313,6 +314,7 @@ class User(AbstractBaseUser, PermissionsMixin):
                 "email",
                 "email_pendente",
                 "nickname",
+                "birth_date",
                 "password",
                 "failed_logins",
                 "locked_until",

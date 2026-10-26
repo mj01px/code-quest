@@ -62,6 +62,7 @@ export interface Usuario {
   nickname: string;
   permissoes: string[];
   is_admin: boolean;
+  nivel_id: string | null;
   criado_em: string;
 }
 
@@ -238,6 +239,28 @@ export interface Dashboard {
   sequencia_atual: number;
   trilhas_iniciadas: number;
   atividade_semanal: AtividadeDia[];
+}
+
+export interface DashboardAdmin {
+  total_usuarios: number;
+  trilhas_publicadas: number;
+  fila_revisao: number;
+  submissoes_judge: number;
+  novos_usuarios_semana: { dia: string; data: string; quantidade: number }[];
+  submissoes_semana: {
+    dia: string;
+    data: string;
+    aprovadas: number;
+    rejeitadas: number;
+  }[];
+  logs_recentes: {
+    id: string;
+    criado_em: string;
+    usuario: string;
+    acao: string;
+    acao_rotulo: string;
+    detalhes: string;
+  }[];
 }
 
 export interface SequenciaConclusao {

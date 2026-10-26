@@ -39,9 +39,14 @@ class SequenciaSerializer(serializers.Serializer):
     ultimo_dia = serializers.DateField(read_only=True, allow_null=True)
 
 
-class AtividadeDiaSerializer(serializers.Serializer):
+class DiaSerializer(serializers.Serializer):
+    """Um dia da janela de 7 dias de `por_dia`; as subclasses somam os valores."""
+
     dia = serializers.CharField(read_only=True)
     data = serializers.DateField(read_only=True)
+
+
+class AtividadeDiaSerializer(DiaSerializer):
     xp = serializers.IntegerField(read_only=True)
 
 
@@ -51,6 +56,40 @@ class DashboardSerializer(serializers.Serializer):
     sequencia_atual = serializers.IntegerField(read_only=True)
     trilhas_iniciadas = serializers.IntegerField(read_only=True)
     atividade_semanal = AtividadeDiaSerializer(many=True, read_only=True)
+
+
+class NovosUsuariosDiaSerializer(DiaSerializer):
+    quantidade = serializers.IntegerField(read_only=True)
+
+
+class SubmissoesDiaSerializer(DiaSerializer):
+    aprovadas = serializers.IntegerField(read_only=True)
+    rejeitadas = serializers.IntegerField(read_only=True)
+
+
+class LogRecenteSerializer(serializers.Serializer):
+    """Só data, quem e o quê: IP, user agent e metadata ficam na auditoria."""
+
+    id = serializers.UUIDField(read_only=True)
+    criado_em = serializers.DateTimeField(source="created_at", read_only=True)
+    usuario = serializers.SerializerMethodField()
+    acao = serializers.CharField(read_only=True)
+    acao_rotulo = serializers.CharField(source="get_acao_display", read_only=True)
+    detalhes = serializers.CharField(read_only=True)
+
+    def get_usuario(self, obj) -> str:
+        # Sem autor = requisição anônima (ex.: login com e-mail inexistente).
+        return obj.actor.nickname if obj.actor else "Anônimo"
+
+
+class DashboardAdminSerializer(serializers.Serializer):
+    total_usuarios = serializers.IntegerField(read_only=True)
+    trilhas_publicadas = serializers.IntegerField(read_only=True)
+    fila_revisao = serializers.IntegerField(read_only=True)
+    submissoes_judge = serializers.IntegerField(read_only=True)
+    novos_usuarios_semana = NovosUsuariosDiaSerializer(many=True, read_only=True)
+    submissoes_semana = SubmissoesDiaSerializer(many=True, read_only=True)
+    logs_recentes = LogRecenteSerializer(many=True, read_only=True)
 
 
 class SequenciaConclusaoSerializer(serializers.Serializer):

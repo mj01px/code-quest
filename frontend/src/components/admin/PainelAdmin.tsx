@@ -3,11 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { GestaoNiveis } from "@/components/admin/GestaoNiveis";
 import { GestaoUsuarios } from "@/components/admin/GestaoUsuarios";
 import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 
-type Aba = "usuarios" | "niveis";
+type Aba = "usuarios" | "niveis" | "dashboard";
 
 // Guarda no cliente: sem `is_admin` (nível com acesso ao painel) ninguém
 // chega ao conteúdo. É de navegação: a proteção de verdade fica em cada
@@ -64,6 +65,7 @@ export function PainelAdmin() {
           [
             ["usuarios", "USUÁRIOS"],
             ["niveis", "NÍVEIS DE ACESSO"],
+            ["dashboard", "DASHBOARD"],
           ] as [Aba, string][]
         ).map(([chave, rotulo]) => (
           <button
@@ -82,7 +84,9 @@ export function PainelAdmin() {
         ))}
       </div>
 
-      {aba === "usuarios" ? <GestaoUsuarios /> : <GestaoNiveis />}
+      {aba === "usuarios" ? <GestaoUsuarios /> : null}
+      {aba === "niveis" ? <GestaoNiveis /> : null}
+      {aba === "dashboard" ? <AdminDashboard /> : null}
     </div>
   );
 }

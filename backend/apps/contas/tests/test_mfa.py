@@ -41,7 +41,9 @@ class MfaSetupTest(APITestCase):
         secret = r.data["secret"]
         codigo = pyotp.TOTP(secret).now()
         confirmar = self.client.post(
-            reverse("contas:mfa-confirmar"), {"codigo": codigo}, format="json"
+            reverse("contas:mfa-confirmar"),
+            {"codigo": codigo, "senha_atual": SENHA_PADRAO},
+            format="json",
         )
         return secret, confirmar
 
@@ -79,12 +81,43 @@ class MfaSetupTest(APITestCase):
             reverse("contas:mfa-iniciar"), {"metodo": "APP"}, format="json"
         )
         r = self.client.post(
-            reverse("contas:mfa-confirmar"), {"codigo": "000000"}, format="json"
+            reverse("contas:mfa-confirmar"),
+            {"codigo": "000000", "senha_atual": SENHA_PADRAO},
+            format="json",
         )
 
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(r.data["error"]["details"][0]["code"], "codigo_invalido")
         self.assertFalse(ConfiguracaoMFA.objects.get(user=self.usuario).ativo)
+
+    def test_confirmar_sem_senha_nao_ativa(self):
+        r = self.client.post(
+            reverse("contas:mfa-iniciar"), {"metodo": "APP"}, format="json"
+        )
+        codigo = pyotp.TOTP(r.data["secret"]).now()
+        r = self.client.post(
+            reverse("contas:mfa-confirmar"), {"codigo": codigo}, format="json"
+        )
+
+        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(ConfiguracaoMFA.objects.get(user=self.usuario).ativo)
+
+    def test_senha_errada_nao_ativa_e_conta_para_o_bloqueio(self):
+        r = self.client.post(
+            reverse("contas:mfa-iniciar"), {"metodo": "APP"}, format="json"
+        )
+        codigo = pyotp.TOTP(r.data["secret"]).now()
+        r = self.client.post(
+            reverse("contas:mfa-confirmar"),
+            {"codigo": codigo, "senha_atual": "Errada-123!"},
+            format="json",
+        )
+
+        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(r.data["error"]["details"][0]["code"], "senha_incorreta")
+        self.assertFalse(ConfiguracaoMFA.objects.get(user=self.usuario).ativo)
+        self.usuario.refresh_from_db()
+        self.assertEqual(self.usuario.failed_logins, 1)
 
     def test_status_reflete_o_metodo_ativo(self):
         self._ativar_app()
@@ -154,7 +187,9 @@ class MfaSetupTest(APITestCase):
         config = ConfiguracaoMFA.objects.get(user=self.usuario)
         codigo = mfa.preparar_desafio_email(config)
         self.client.post(
-            reverse("contas:mfa-confirmar"), {"codigo": codigo}, format="json"
+            reverse("contas:mfa-confirmar"),
+            {"codigo": codigo, "senha_atual": SENHA_PADRAO},
+            format="json",
         )
 
     def test_desativar_iniciar_por_email_envia_codigo_que_funciona(self):

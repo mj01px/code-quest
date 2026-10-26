@@ -4,6 +4,57 @@ Segue o formato do [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
 ## [Não publicado]
 
+### Segurança do painel do admin em 2026-10-25
+
+- **2FA obrigatório para excluir usuário**: `DELETE /api/v1/auth/admin/usuarios/<id>/`
+  exige `{"totp_code": "123456"}` do aplicativo autenticador do próprio admin
+  (`mfa_necessario` sem autenticador ativo, `totp_invalido` com código ausente,
+  errado, de recuperação ou já usado nos últimos 90 s). Balde `verificacao`
+  (5/min). No painel, o modal pede o "Código do autenticador (2FA)" e só libera
+  o botão com o campo preenchido.
+- **Exclusão entre admins bloqueada**: conta com nível de acesso ao painel
+  devolve 400 `alvo_admin`, e a lixeira some na linha de outros admins e na
+  própria (`auto_exclusao`).
+- **Bloqueio de auto-rebaixamento**: o admin não altera o próprio nível na
+  lista de usuários (400 `auto_rebaixamento`, inclusive para outro nível com
+  acesso ao painel) nem edita as permissões do próprio nível na tela de níveis
+  (400 `proprio_nivel`). No front, o seletor e o botão EDITAR ficam
+  desabilitados com o motivo visível. `/auth/eu/` passa a devolver `nivel_id`.
+- **Ativar 2FA pede a senha atual**: `POST /auth/eu/mfa/confirmar/` exige
+  `senha_atual` além do `codigo`, conferida pelo novo `exigir_senha_atual`
+  (o mesmo da troca de e-mail, que conta para o bloqueio do login). Fecha a
+  brecha em que uma sessão roubada cadastraria o próprio autenticador.
+- **2º fator do login conta para o bloqueio**: código errado chama
+  `registrar_falha_de_login` e fica na auditoria (`codigo_2fa_invalido`); conta
+  bloqueada não tenta o código.
+- **Anonimização sem sobra de PII**: além de e-mail e nickname, apaga data de
+  nascimento, IP e user agent da auditoria do titular e o MFA (segredo e
+  códigos), encerra as sessões e trava a linha contra pedidos simultâneos. O
+  registro-prova `CONTA_ANONIMIZADA` diz qual admin pediu.
+- **Auditoria legível**: `RegistroDeAuditoria.detalhes` traduz o `metadata` de
+  `LOGIN_FALHA`, `NIVEL_ATRIBUIDO` e `CONTA_ANONIMIZADA` (ex.: "Nível alterado
+  de Aluno para Monitor"), exibido nos logs recentes do dashboard.
+- **Retenção de 180 dias mantida** (Marco Civil, art. 15, e Política de
+  Privacidade v1.2). O comando `purgar_logs_antigos` foi renomeado para
+  `limpar_auditoria`; README e RNF13 atualizados.
+- **Testes**: 996 no backend e 374 no frontend, sem migration
+  (`makemigrations --check` limpo).
+
+### Painel do admin em 2026-10-25
+
+- **Dashboard de gestão** (`GET /api/v1/admin/dashboard/`, `IsAdmin`): total de
+  usuários (com novos na semana), trilhas publicadas, fila de revisão
+  (`itens_no_status`), submissões, gráfico de submissões aprovadas e rejeitadas,
+  gráfico de novos usuários e os 10 logs recentes (`select_related`, dentro da
+  retenção, só com `auditoria.view`; a consulta fica registrada como
+  `ACESSO_AUDITORIA`). Substitui o gráfico de XP, que era métrica do aluno.
+- **`por_dia`**: agregação dos últimos 7 dias reutilizada pelos três gráficos,
+  com filtro de data que usa índice. `GraficoAtividade` virou genérico
+  (`series`) e `CartoesNumeros` é compartilhado pelos dois dashboards.
+- **Lista de usuários**: busca `?q=` em nickname, e-mail ou nível (debounce de
+  300 ms no front) e exclusão por anonimização (LGPD) com o aviso no
+  `ModalConfirmacao`, que ganhou trap de foco e devolução do foco ao fechar.
+
 ### Dashboard do aluno em 2026-10-25
 
 - **Endpoint `GET /api/v1/eu/dashboard/`** (`apps/progressao`, login

@@ -4,17 +4,23 @@ Catálogo de permissões (leitura), CRUD de níveis de acesso e atribuição de 
 nível a um usuário. Tudo protegido por `IsAdmin`, já que o painel inteiro é do admin.
 """
 
+import logging
+
+from django.core.cache import cache
 from django.db import transaction
-from django.db.models import Count
-from drf_spectacular.utils import extend_schema
+from django.db.models import Count, Q
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics, status
 from rest_framework.exceptions import ErrorDetail, ValidationError
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 
 from apps.auditoria.services import AcaoAuditoria, registrar
 from apps.core.permissions import IsAdmin
 
-from .models import NivelDeAcesso, Permissao, User
+from .lgpd import anonimizar_conta
+from .mfa import mfa_ativo, verificar_codigo
+from .models import ConfiguracaoMFA, NivelDeAcesso, Permissao, User
 from .serializers_rbac import (
     AtribuirNivelSerializer,
     NivelDeAcessoSerializer,
@@ -41,6 +47,16 @@ def _retrato(nivel):
 
 def _ref_nivel(nivel):
     return None if nivel is None else {"id": str(nivel.pk), "nome": nivel.nome}
+
+
+logger = logging.getLogger(__name__)
+
+# Passo do TOTP (30 s) vezes a janela aceita (±1) em mfa.verificar_totp.
+TOTP_JANELA_S = 90
+
+
+def _recusar(mensagem, codigo):
+    raise ValidationError({"detail": ErrorDetail(mensagem, code=codigo)})
 
 
 @extend_schema(tags=["admin"])
@@ -82,6 +98,14 @@ class NivelDetailView(generics.RetrieveUpdateDestroyAPIView):
         return _niveis_com_contagem()
 
     def perform_update(self, serializer):
+        # Mesma trava do UsuarioNivelView: editar as permissões do próprio nível
+        # é se promover (ou se trancar fora) por outro caminho.
+        if serializer.instance.pk == self.request.user.nivel_de_acesso_id:
+            _recusar(
+                "Você não pode editar o seu próprio nível de acesso. Peça a outro "
+                "administrador.",
+                "proprio_nivel",
+            )
         with transaction.atomic():
             antes = _retrato(serializer.instance)
             nivel = serializer.save()
@@ -126,7 +150,14 @@ class NivelDetailView(generics.RetrieveUpdateDestroyAPIView):
             instance.delete()
 
 
-@extend_schema(tags=["admin"])
+@extend_schema(
+    tags=["admin"],
+    parameters=[
+        OpenApiParameter(
+            "q", str, description="Busca em nickname, e-mail ou nome do nível."
+        )
+    ],
+)
 class UsuarioListView(generics.ListAPIView):
     """Todos os usuários com nickname, e-mail, cadastro, papel e nível."""
 
@@ -135,7 +166,79 @@ class UsuarioListView(generics.ListAPIView):
     pagination_class = None
 
     def get_queryset(self):
-        return User.objects.select_related("nivel_de_acesso").order_by("-created_at")
+        usuarios = User.objects.select_related("nivel_de_acesso").order_by(
+            "-created_at"
+        )
+        termo = self.request.query_params.get("q", "").strip()
+        if termo:
+            usuarios = usuarios.filter(
+                Q(nickname__icontains=termo)
+                | Q(email__icontains=termo)
+                | Q(nivel_de_acesso__nome__icontains=termo)
+            )
+        return usuarios
+
+
+@extend_schema(tags=["admin"])
+class UsuarioDetailView(generics.DestroyAPIView):
+    """Exclusão de usuário pelo admin, por anonimização (LGPD), nunca DELETE.
+
+    Mesmo serviço da autoexclusão: embaralha a PII e mantém progresso e
+    agregados. 204 também para conta já anonimizada (idempotente).
+
+    Ação irreversível, então exige `{"totp_code": "123456"}` do aplicativo
+    autenticador do próprio admin. Código de recuperação não vale aqui: é de
+    uso único e serve para recuperar acesso, não para autorizar exclusão.
+    """
+
+    permission_classes = [IsAdmin]
+    # 5/min: o código tem 6 dígitos, o balde curto fecha a força bruta.
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "verificacao"
+    queryset = User.objects.select_related("nivel_de_acesso")
+
+    def perform_destroy(self, instance):
+        # Sem esta trava o admin se tranca fora do painel em um clique.
+        if instance.pk == self.request.user.pk:
+            _recusar("Você não pode excluir a própria conta pelo painel.", "auto_exclusao")
+        # Contas da equipe (nível com acesso ao painel) não se excluem por aqui:
+        # rebaixe o nível antes, o que já fica registrado na auditoria.
+        if instance.nivel_de_acesso_id and instance.nivel_de_acesso.acesso_admin:
+            _recusar(
+                "Administradores não podem ser excluídos. Rebaixe o nível antes.",
+                "alvo_admin",
+            )
+
+        admin = self.request.user
+        config = mfa_ativo(admin)
+        if config is None or config.metodo != ConfiguracaoMFA.Metodo.APP:
+            _recusar(
+                "Ative a verificação em duas etapas por aplicativo autenticador "
+                "para excluir usuários.",
+                "mfa_necessario",
+            )
+        # Corpo que não é objeto JSON (`[]`, `"x"`) vira "sem código", não 500.
+        dados = self.request.data if isinstance(self.request.data, dict) else {}
+        codigo = str(dados.get("totp_code") or "").strip()
+        if not verificar_codigo(admin, codigo, permitir_recuperacao=False):
+            logger.warning("2FA inválido na exclusão de usuário (admin=%s)", admin.pk)
+            _recusar("Código do autenticador inválido.", "totp_invalido")
+        # O TOTP vale ~90 s: sem isto o mesmo código autorizaria outras exclusões.
+        # ponytail: cache local por processo; com vários workers, use cache compartilhado.
+        if not cache.add(f"totp-exclusao:{admin.pk}:{codigo}", 1, timeout=TOTP_JANELA_S):
+            _recusar("Este código já foi usado. Aguarde o próximo.", "totp_invalido")
+
+        with transaction.atomic():
+            # A prova obrigatória já diz qual admin pediu; a linha abaixo põe o
+            # admin como autor, para aparecer na atividade dele.
+            if anonimizar_conta(instance, por_admin=str(admin.pk), com_2fa=True):
+                registrar(
+                    AcaoAuditoria.CONTA_ANONIMIZADA,
+                    request=self.request,
+                    alvo=instance,
+                    por_admin=str(admin.pk),
+                    com_2fa=True,
+                )
 
 
 @extend_schema(tags=["admin"], responses=UsuarioAdminSerializer)
@@ -153,16 +256,16 @@ class UsuarioNivelView(generics.GenericAPIView):
 
         novo_nivel = serializer.validated_data["nivel_de_acesso"]
 
-        # Trava de segurança: o admin não pode se rebaixar e ficar trancado fora
-        # do painel. Outro admin pode rebaixá-lo; a recuperação final é o
-        # createsuperuser, que sempre cai no nível "Admin".
-        rebaixaria = novo_nivel is None or not novo_nivel.acesso_admin
-        if usuario.pk == request.user.pk and rebaixaria:
+        # Trava de segurança: o admin não mexe no próprio nível, nem para outro
+        # nível com acesso ao painel (que pode ter menos permissões). Outro admin
+        # pode mudá-lo; a recuperação final é o createsuperuser, que sempre cai
+        # no nível "Admin".
+        if usuario.pk == request.user.pk:
             raise ValidationError(
                 {
                     "detail": ErrorDetail(
-                        "Você perderia o acesso ao painel. Peça a outro "
-                        "administrador para mudar o seu nível.",
+                        "Você não pode alterar seu próprio nível. Peça a outro "
+                        "administrador.",
                         code="auto_rebaixamento",
                     )
                 }

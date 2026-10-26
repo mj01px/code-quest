@@ -276,7 +276,7 @@ MFA_EMAIL_CODIGO_MAX_AGE = env.int('MFA_EMAIL_CODIGO_MAX_AGE', default=60 * 10)
 MFA_LOGIN_TOKEN_MAX_AGE = env.int('MFA_LOGIN_TOKEN_MAX_AGE', default=60 * 5)
 
 # Retencao da trilha de auditoria: dias que um registro vive antes de ser
-# purgado pelo comando purgar_logs_antigos. Fecha o ciclo de descarte exigido
+# apagado pelo comando limpar_auditoria. Fecha o ciclo de descarte exigido
 # pelo plano de retencao (o guia pede que o descarte prometido seja implementado).
 AUDITORIA_RETENCAO_DIAS = env.int('AUDITORIA_RETENCAO_DIAS', default=180)
 

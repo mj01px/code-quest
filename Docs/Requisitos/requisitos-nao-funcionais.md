@@ -292,7 +292,7 @@ existente; metadados nunca incluem senha, token nem código do 2FA.
 retenção.
 
 **Critério mensurável:** prazo de 180 dias (`AUDITORIA_RETENCAO_DIAS`); o comando
-`purgar_logs_antigos` remove os registros mais antigos e aceita `--dry-run`.
+`limpar_auditoria` remove os registros mais antigos e aceita `--dry-run`.
 
 **Critérios de aceite:**
 - CA01: Dado um registro com 181 dias, quando o comando for executado, então o registro deverá ser removido.
@@ -301,7 +301,7 @@ retenção.
 mas o agendamento não está versionado no repositório. Sem ele, o descarte só
 acontece quando alguém executa o comando.
 
-**Fonte:** `backend/apps/auditoria/management/commands/purgar_logs_antigos.py`, `backend/config/settings.py` (`AUDITORIA_RETENCAO_DIAS`).
+**Fonte:** `backend/apps/auditoria/management/commands/limpar_auditoria.py`, `backend/config/settings.py` (`AUDITORIA_RETENCAO_DIAS`).
 
 ### RNF14. Anonimização na exclusão de conta
 

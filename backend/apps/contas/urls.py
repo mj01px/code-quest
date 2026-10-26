@@ -30,6 +30,7 @@ from .views_rbac import (
     NivelDetailView,
     NivelListCreateView,
     PermissaoListView,
+    UsuarioDetailView,
     UsuarioListView,
     UsuarioNivelView,
 )
@@ -92,6 +93,11 @@ urlpatterns = [
         name="admin-nivel",
     ),
     path("auth/admin/usuarios/", UsuarioListView.as_view(), name="admin-usuarios"),
+    path(
+        "auth/admin/usuarios/<uuid:pk>/",
+        UsuarioDetailView.as_view(),
+        name="admin-usuario",
+    ),
     path(
         "auth/admin/usuarios/<uuid:pk>/nivel/",
         UsuarioNivelView.as_view(),

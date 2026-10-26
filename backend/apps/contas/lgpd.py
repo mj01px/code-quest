@@ -105,32 +105,49 @@ def exportar_dados(user) -> dict:
     }
 
 
-def anonimizar_conta(user) -> bool:
+def anonimizar_conta(user, **metadata) -> bool:
     """Executa a exclusão por anonimização: embaralha a PII do usuário e apaga a
-    PII derivada (snapshot de e-mail na auditoria, IP dos aceites), preservando
-    os agregados e a prova de aceite. Idempotente.
+    PII derivada (snapshot de e-mail, IP e user agent na auditoria, IP dos
+    aceites, segredo e códigos de MFA), preservando os agregados e a prova de
+    aceite. Encerra as sessões. Idempotente, inclusive sob pedidos simultâneos.
 
     O registro CONTA_ANONIMIZADA é prova obrigatória (decisão de 2026-09-25):
     é gravado direto, sem o `registrar()` que engole falha. Se não gravar, a
-    exceção sobe e o atomic() desfaz a anonimização inteira.
+    exceção sobe e o atomic() desfaz a anonimização inteira. `metadata` vai
+    nesse registro (ex.: qual admin pediu), então também é obrigatório.
     """
+    from rest_framework_simplejwt.token_blacklist.models import (
+        BlacklistedToken,
+        OutstandingToken,
+    )
+
     from apps.auditoria.models import AcaoAuditoria, RegistroDeAuditoria
 
-    from .models import AceiteDeTermos, User
+    from .models import AceiteDeTermos, CodigoRecuperacaoMFA, ConfiguracaoMFA, User
     from .signals import conta_anonimizada
 
-    if user.is_anonymized:
-        return False
-
     with transaction.atomic():
+        # Trava a linha e relê: dois pedidos ao mesmo tempo não anonimizam duas
+        # vezes nem duplicam o registro de auditoria.
+        list(User.objects.select_for_update().filter(pk=user.pk).only("pk"))
+        user.refresh_from_db(fields=["anonymized_at"])
+        if user.is_anonymized:
+            return False
+
+        for token in OutstandingToken.objects.filter(user=user):
+            BlacklistedToken.objects.get_or_create(token=token)
         user.anonimizar()
         conta_anonimizada.send(sender=User, user=user)
         # Registra o evento antes do scrub, para que o update abaixo limpe o
         # snapshot desta própria linha também: nada de e-mail sobra na trilha.
         RegistroDeAuditoria.objects.create(
-            acao=AcaoAuditoria.CONTA_ANONIMIZADA, actor=user
+            acao=AcaoAuditoria.CONTA_ANONIMIZADA, actor=user, metadata=metadata
         )
-        RegistroDeAuditoria.objects.filter(actor=user).update(actor_email_snapshot="")
+        RegistroDeAuditoria.objects.filter(actor=user).update(
+            actor_email_snapshot="", ip=None, user_agent=""
+        )
         AceiteDeTermos.objects.filter(user=user).update(ip=None)
+        ConfiguracaoMFA.objects.filter(user=user).delete()
+        CodigoRecuperacaoMFA.objects.filter(user=user).delete()
 
     return True

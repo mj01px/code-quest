@@ -1,16 +1,21 @@
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 
+from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import F, Max, Sum
+from django.db.models import Count, F, Max, Q, Sum
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from apps.auditoria.models import AcaoAuditoria, RegistroDeAuditoria
+from apps.autoria.services import itens_no_status
+from apps.correcao.models import Submissao, Veredito
 from apps.gamificacao.models import UserCreature, XpBonus
-from apps.trilhas.models import Dificuldade
+from apps.trilhas.models import Dificuldade, StatusEditorial, Trilha
 
 from .models import (
     EventoXP,
@@ -289,36 +294,77 @@ def montar_dashboard(*, user):
     Exercício concluído vem de `EventoXP` e não de `Submissao`: só exercício
     com correção automática gera submissão, e o resto também conclui.
     """
-    hoje = timezone.localdate()
-    inicio = hoje - timedelta(days=6)
     eventos = EventoXP.objects.filter(user=user)
-
-    # order_by() vazio: a ordenação padrão por criado_em entraria no GROUP BY
-    # e quebraria a soma em uma linha por evento.
-    xp_por_dia = dict(
-        eventos.filter(criado_em__date__gte=inicio)
-        .annotate(dia=TruncDate("criado_em"))
-        .values("dia")
-        .annotate(total=Sum("xp"))
-        .order_by()
-        .values_list("dia", "total")
-    )
-
-    dias = [inicio + timedelta(days=i) for i in range(7)]
     return {
         "xp_total": eventos.aggregate(total=Sum("xp"))["total"] or 0,
         "exercicios_concluidos": exercicios_concluidos(user=user).count(),
         "sequencia_atual": ler_sequencia(user=user)["atual"],
         "trilhas_iniciadas": len(trilhas_iniciadas(user=user)),
-        "atividade_semanal": [
-            {
-                "dia": DIAS_DA_SEMANA[dia.weekday()],
-                "data": dia,
-                "xp": xp_por_dia.get(dia, 0),
-            }
-            for dia in dias
-        ],
+        "atividade_semanal": por_dia(eventos, "criado_em", xp=Sum("xp")),
     }
+
+
+def montar_dashboard_admin(*, com_logs=True):
+    """Métricas de gestão da plataforma para a aba Dashboard do /admin."""
+    aprovada = Q(veredito=Veredito.APROVADO)
+    # Dentro da retenção mesmo se o limpar_auditoria atrasar no cron.
+    retencao = timezone.now() - timedelta(days=settings.AUDITORIA_RETENCAO_DIAS)
+    logs = (
+        RegistroDeAuditoria.objects.select_related("actor")
+        .filter(created_at__gte=retencao)
+        # A consulta do próprio dashboard é registrada e cairia sempre no topo.
+        .exclude(acao=AcaoAuditoria.ACESSO_AUDITORIA)
+        .order_by("-created_at")[:10]
+    )
+    return {
+        "total_usuarios": get_user_model().objects.count(),
+        "trilhas_publicadas": Trilha.objects.filter(
+            status=StatusEditorial.PUBLICADO
+        ).count(),
+        "fila_revisao": len(itens_no_status(StatusEditorial.REVISAO)),
+        "submissoes_judge": Submissao.objects.count(),
+        "novos_usuarios_semana": por_dia(
+            get_user_model().objects.all(), "created_at", quantidade=Count("pk")
+        ),
+        "submissoes_semana": por_dia(
+            Submissao.objects.all(),
+            "criado_em",
+            aprovadas=Count("pk", filter=aprovada),
+            rejeitadas=Count("pk", filter=~aprovada),
+        ),
+        "logs_recentes": list(logs) if com_logs else [],
+    }
+
+
+def por_dia(queryset, campo, **agregados):
+    """`agregados` de `queryset` por dia de `campo`, últimos 7 dias, hoje por último.
+
+    Dia sem linha vem com zero em cada agregado, para o gráfico ter 7 barras.
+    """
+    inicio = timezone.localdate() - timedelta(days=6)
+    # Limite em datetime, não `__date__gte`: função na coluna impede o índice.
+    desde = timezone.make_aware(datetime.combine(inicio, time.min))
+
+    # order_by() vazio: a ordenação padrão do model entraria no GROUP BY e
+    # quebraria a soma em uma linha por registro.
+    linhas = (
+        queryset.filter(**{f"{campo}__gte": desde})
+        .annotate(dia=TruncDate(campo))
+        .values("dia")
+        .annotate(**agregados)
+        .order_by()
+    )
+    valores = {linha.pop("dia"): linha for linha in linhas}
+
+    dias = [inicio + timedelta(days=i) for i in range(7)]
+    return [
+        {
+            "dia": DIAS_DA_SEMANA[dia.weekday()],
+            "data": dia,
+            **{nome: valores.get(dia, {}).get(nome) or 0 for nome in agregados},
+        }
+        for dia in dias
+    ]
 
 
 def montar_progresso(progresso):

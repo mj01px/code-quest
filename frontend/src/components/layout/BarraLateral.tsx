@@ -10,6 +10,7 @@ import { api } from "@/lib/api";
 
 // `perm` null = sempre visível; senão só aparece se o usuário tiver a permissão.
 export const ITENS = [
+  { rotulo: "DASHBOARD", href: "/dashboard", perm: null },
   { rotulo: "TRILHAS", href: "/trilhas", perm: "trilhas.view" },
   { rotulo: "DESAFIO DO DIA", href: "/desafios", perm: "trilhas.view" },
   { rotulo: "CRIATURA", href: "/criatura", perm: "criaturas.view" },
@@ -111,9 +112,8 @@ export function BarraLateral() {
         // Enquanto o número não chegou, o bloco existe com as mesmas dimensões
         // e invisível: nada de número inventado e nenhum salto de layout
         // quando o valor real entra.
-        className={`flex flex-col gap-3 transition-opacity duration-150 ${
-          carregando ? "opacity-0" : "opacity-100"
-        }`}
+        className={`flex flex-col gap-3 transition-opacity duration-150 ${carregando ? "opacity-0" : "opacity-100"
+          }`}
         aria-busy={carregando}
       >
         <div className="flex items-center gap-3">
@@ -192,11 +192,10 @@ export function BarraLateral() {
                 <Link
                   href={item.href}
                   aria-current={ativo ? "page" : undefined}
-                  className={`flex items-center gap-3 border-2 p-3 font-label text-[12px] tracking-[2px] ${
-                    ativo
-                      ? "border-brand-light bg-brand-deep text-ink shadow-pixel"
-                      : "border-edge text-ink-body hover:border-brand hover:text-ink-soft"
-                  }`}
+                  className={`flex items-center gap-3 border-2 p-3 font-label text-[12px] tracking-[2px] ${ativo
+                    ? "border-brand-light bg-brand-deep text-ink shadow-pixel"
+                    : "border-edge text-ink-body hover:border-brand hover:text-ink-soft"
+                    }`}
                 >
                   <span
                     aria-hidden="true"

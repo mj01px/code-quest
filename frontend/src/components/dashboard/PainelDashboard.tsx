@@ -6,14 +6,13 @@ import { api } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
 import type { Dashboard } from "@/lib/types";
 
+import { CARD, CartoesNumeros } from "./CartoesNumeros";
 import { GraficoAtividade } from "./GraficoAtividade";
 
 type Carga =
   | { tipo: "carregando" }
   | { tipo: "erro" }
   | { tipo: "pronto"; dados: Dashboard };
-
-const CARD = "flex flex-col gap-3 border-[3px] border-edge-soft bg-panel p-5 shadow-[6px_6px_0_#000]";
 
 export function PainelDashboard() {
   const [carga, setCarga] = useState<Carga>({ tipo: "carregando" });
@@ -73,27 +72,15 @@ export function PainelDashboard() {
 
       {dados ? (
         <>
-          <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 xl:grid-cols-4">
-            {numeros.map((n) => (
-              <li key={n.rotulo} className={CARD}>
-                <span className={`${TIPO.etiqueta} text-ink-muted`}>{n.rotulo}</span>
-                <span className="font-display text-[28px] leading-none text-ink">
-                  {n.valor.toLocaleString("pt-BR")}
-                  {n.sufixo ? (
-                    <span className={`${TIPO.etiqueta} ml-2 text-brand-light`}>
-                      {n.sufixo}
-                    </span>
-                  ) : null}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <CartoesNumeros numeros={numeros} />
 
           <section className={CARD}>
-            <h2 className={`${TIPO.tituloSecao} m-0 text-ink`}>
-              Atividade da semana
-            </h2>
-            <GraficoAtividade dias={dados.atividade_semanal} />
+            <GraficoAtividade
+              titulo="Atividade da semana"
+              rotulo="XP por dia nos últimos 7 dias"
+              dias={dados.atividade_semanal}
+              series={[{ chave: "xp", cor: "#A855F7", nome: "XP" }]}
+            />
           </section>
         </>
       ) : null}
