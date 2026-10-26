@@ -42,7 +42,7 @@ class ApiConquistasTest(TestCase):
 
     def test_lista_o_catalogo_inteiro_na_ordem(self):
         dados = self._listar()
-        self.assertEqual(len(dados), 10)
+        self.assertEqual(len(dados), 13)
         self.assertEqual(dados[0]["slug"], "ovo-chocado")
         self.assertTrue(all(not item["desbloqueada"] for item in dados))
 

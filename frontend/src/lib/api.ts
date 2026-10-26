@@ -22,6 +22,7 @@ import type {
   PermissaoCatalogo,
   PreviaConvite,
   ProgressoAtual,
+  RankingMensal,
   RespostaConclusao,
   Sequencia,
   TipoDeCla,
@@ -821,6 +822,10 @@ export const api = {
       metodo: "POST",
       autenticado: true,
     });
+  },
+
+  rankingMensal() {
+    return requisicao<RankingMensal>("/ranking/mensal/", { autenticado: true });
   },
 };
 

@@ -48,7 +48,7 @@ export function PainelCadastro() {
       sprite={SPRITE}
       spriteAlt={SPRITE_ALT}
       tituloLateral="Desenvolva-se"
-      textoLateral="Crie sua conta para salvar o progresso, evoluir sua criatura e disputar o ranking semanal."
+      textoLateral="Crie sua conta para salvar o progresso, evoluir sua criatura e disputar o ranking mensal."
       acaoLateral={
         <div className="flex flex-col items-center gap-4">
           <p className={`m-0 ${TIPO.etiqueta} text-ink-muted`}>

@@ -132,6 +132,8 @@ class EventoXP(models.Model):
         ]
         indexes = [
             models.Index(fields=["user", "-criado_em"], name="eventoxp_user_data_idx"),
+            # o ranking semanal soma a semana de todos os alunos de uma vez
+            models.Index(fields=["criado_em"], name="eventoxp_data_idx"),
         ]
 
     def __str__(self) -> str:
