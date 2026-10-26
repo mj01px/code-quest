@@ -80,6 +80,7 @@ describe("BarraLateral: navegação", () => {
     const links = screen.getAllByRole("link");
     expect(links.map((l) => l.getAttribute("href"))).toEqual([
       "/trilhas", // a marca: leva ao app, nunca à landing pública
+      "/dashboard",
       "/trilhas",
       "/desafios",
       "/criatura",

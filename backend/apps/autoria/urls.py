@@ -2,6 +2,7 @@ from django.urls import path, re_path
 
 from .views import (
     AprovarView,
+    DetalheEditorialView,
     DevolverView,
     FilaRevisaoView,
     PublicarView,
@@ -33,4 +34,5 @@ urlpatterns = [
     re_path(rf"{CONTEUDO}/aprovar/$", AprovarView.as_view(), name="aprovar"),
     re_path(rf"{CONTEUDO}/devolver/$", DevolverView.as_view(), name="devolver"),
     re_path(rf"{CONTEUDO}/publicar/$", PublicarView.as_view(), name="publicar"),
+    re_path(rf"{CONTEUDO}/detalhe/$", DetalheEditorialView.as_view(), name="detalhe"),
 ]

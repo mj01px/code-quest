@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { ModalVisualizacao } from "@/components/autoria/ModalVisualizacao";
 import { ErroApi } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
 import type { ItemEditorial, TipoConteudo } from "@/lib/types";
@@ -44,6 +45,7 @@ export function ListaEditorial({ titulo, vazio, carregar, acoes }: Props) {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
+  const [aberto, setAberto] = useState<ItemEditorial | null>(null);
 
   useEffect(() => {
     let ativo = true;
@@ -62,25 +64,38 @@ export function ListaEditorial({ titulo, vazio, carregar, acoes }: Props) {
     };
   }, [carregar]);
 
-  async function agir(item: ItemEditorial, acao: AcaoEditorial) {
+  // Devolve se deu certo: o modal só fecha no sucesso, para o erro aparecer nele.
+  async function agir(item: ItemEditorial, acao: AcaoEditorial): Promise<boolean> {
     setOcupado(chave(item));
     setErro(null);
     try {
       await acao.executar(item.tipo, item.id);
       setItens((atual) => atual.filter((i) => chave(i) !== chave(item)));
       acao.depois?.();
+      return true;
     } catch (e) {
       setErro(mensagemDe(e, "Não foi possível concluir a ação."));
+      return false;
     } finally {
       setOcupado(null);
     }
+  }
+
+  async function agirNoModal(item: ItemEditorial, indice: number) {
+    if (await agir(item, acoes[indice])) setAberto(null);
+  }
+
+  function fecharModal() {
+    setAberto(null);
+    // O erro de uma ação feita no modal não vale para a lista.
+    setErro(null);
   }
 
   return (
     <section aria-label={titulo} className="flex flex-col gap-4">
       <h2 className={`m-0 text-ink ${TIPO.tituloSecao}`}>{titulo}</h2>
 
-      {erro ? (
+      {erro && !aberto ? (
         <p
           role="alert"
           className="m-0 border-2 border-danger-deep bg-panel-soft px-4 py-3 font-body text-base leading-[1.6] tracking-wide text-danger"
@@ -107,9 +122,14 @@ export function ListaEditorial({ titulo, vazio, carregar, acoes }: Props) {
                 <span className={`block text-brand-light ${TIPO.etiqueta}`}>
                   {ROTULO_TIPO[item.tipo]}
                 </span>
-                <span className={`block truncate text-ink ${TIPO.corpo}`}>
+                <button
+                  type="button"
+                  onClick={() => setAberto(item)}
+                  aria-label={`Ver conteúdo: ${item.titulo}`}
+                  className={`block max-w-full cursor-pointer truncate text-left text-ink underline decoration-brand-shadow underline-offset-4 hover:decoration-brand-light ${TIPO.corpo}`}
+                >
                   {item.titulo}
-                </span>
+                </button>
               </span>
               <span className="flex gap-2">
                 {acoes.map((acao) => (
@@ -129,6 +149,18 @@ export function ListaEditorial({ titulo, vazio, carregar, acoes }: Props) {
           ))}
         </ul>
       )}
+
+      {aberto ? (
+        <ModalVisualizacao
+          item={aberto}
+          rotulo={ROTULO_TIPO[aberto.tipo]}
+          acoes={acoes}
+          ocupado={ocupado !== null}
+          erro={erro}
+          onAgir={(indice) => agirNoModal(aberto, indice)}
+          onFechar={fecharModal}
+        />
+      ) : null}
     </section>
   );
 }

@@ -566,6 +566,8 @@ recusada enquanto houver conteúdo filho em rascunho ou em revisão. As rotas
 `GET /autoria/rascunhos/` e `GET /autoria/fila-revisao/` listam os três tipos
 de conteúdo em cada fila, e a tela `/autoria` mostra cada lista só a quem tem
 a permissão dela, com os botões de enviar para revisão, aprovar e devolver.
+Clicar no título abre o conteúdo inteiro num modal (`GET
+/autoria/<tipo>/<pk>/detalhe/`, sem a solução do autor), com as mesmas ações.
 
 **O que falta:** rotas para criar e editar conteúdo, a publicação pela tela, a
 comporta automática e o registro do parecer do revisor na devolução.

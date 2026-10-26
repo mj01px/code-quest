@@ -17,6 +17,12 @@ Segue o formato do [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
   usuário do `ProvedorProgresso`).
 - **Correção em `Modulo_Trilhas.md`**: as transições usam o balde `editorial`,
   não `autoria`.
+- **Visualizar antes de agir**: `GET /api/v1/autoria/<tipo>/<pk>/detalhe/`
+  (`trilhas.submit_review` ou `trilhas.review`, balde `editorial`) devolve a
+  trilha com as aulas, a aula com o conteúdo ou o exercício com enunciado e
+  `codigo_inicial`, em qualquer status, com os serializers do catálogo e sem
+  `solucao_autor`. Na tela, o título do item abre o `ModalVisualizacao` (Esc e
+  clique fora fecham) com as ações da fila.
 
 ### Números finais da monografia em 2026-10-23
 

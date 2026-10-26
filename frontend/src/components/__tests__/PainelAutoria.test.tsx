@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import {
@@ -22,6 +22,7 @@ jest.mock("@/lib/api", () => ({
     trilhasIniciadas: jest.fn(),
     autoriaRascunhos: jest.fn(),
     autoriaFilaRevisao: jest.fn(),
+    detalheEditorial: jest.fn(),
     submeterRevisao: jest.fn(),
     aprovarConteudo: jest.fn(),
     devolverConteudo: jest.fn(),
@@ -179,5 +180,128 @@ describe("PainelAutoria: ações", () => {
       "Só conteúdo em revisão aceita esta ação.",
     );
     expect(screen.getByText("Laços")).toBeInTheDocument();
+  });
+});
+
+describe("PainelAutoria: modal de visualização", () => {
+  const detalheAula = {
+    id: 3,
+    titulo: "Laços",
+    slug: "lacos",
+    conteudo: "Um laço repete um bloco.",
+    ordem: 1,
+    pre_requisito: null,
+    exercicios: [{ id: 9, titulo: "Tabuada" }],
+  };
+
+  const exercicio: ItemEditorial = {
+    id: 7,
+    tipo: "exercicios",
+    titulo: "Dobro",
+    status_editorial: "RASCUNHO",
+  };
+
+  const detalheExercicio = {
+    id: 7,
+    titulo: "Dobro",
+    slug: "dobro",
+    enunciado: "Devolva o dobro de n.",
+    dificuldade_label: "Iniciante",
+    aula_titulo: "Funções",
+    trilha_nome: "Lógica",
+    codigo_inicial: "def dobro(n):\n    ...\n",
+  };
+
+  async function abrir(titulo: string) {
+    await userEvent.click(
+      await screen.findByRole("button", { name: `Ver conteúdo: ${titulo}` }),
+    );
+    return screen.getByRole("dialog", { name: titulo });
+  }
+
+  it("abre a aula da fila, mostra o conteúdo e aprova de dentro do modal", async () => {
+    mock.api.detalheEditorial.mockResolvedValue(detalheAula);
+    mock.api.aprovarConteudo.mockResolvedValue({
+      id: 3,
+      status_editorial: "APROVADO",
+    });
+    montar(ADMIN);
+
+    const modal = await abrir("Laços");
+
+    expect(mock.api.detalheEditorial).toHaveBeenCalledWith("aulas", 3);
+    expect(
+      await within(modal).findByText("Um laço repete um bloco."),
+    ).toBeInTheDocument();
+    expect(within(modal).getByText("Tabuada")).toBeInTheDocument();
+
+    await userEvent.click(within(modal).getByRole("button", { name: "Aprovar" }));
+
+    expect(mock.api.aprovarConteudo).toHaveBeenCalledWith("aulas", 3);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByText("Nada esperando revisão.")).toBeInTheDocument();
+  });
+
+  it("abre o exercício em rascunho com enunciado e código e submete", async () => {
+    mock.api.autoriaRascunhos.mockResolvedValue([exercicio]);
+    mock.api.detalheEditorial.mockResolvedValue(detalheExercicio);
+    mock.api.submeterRevisao.mockResolvedValue({
+      id: 7,
+      status_editorial: "REVISAO",
+    });
+    montar(AUTOR);
+
+    const modal = await abrir("Dobro");
+
+    expect(
+      await within(modal).findByText("Devolva o dobro de n."),
+    ).toBeInTheDocument();
+    expect(within(modal).getByLabelText("Código inicial")).toHaveTextContent(
+      "def dobro(n):",
+    );
+
+    await userEvent.click(
+      within(modal).getByRole("button", { name: "Enviar para Revisão" }),
+    );
+
+    expect(mock.api.submeterRevisao).toHaveBeenCalledWith("exercicios", 7);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(
+      screen.getByText("Nenhum rascunho esperando envio."),
+    ).toBeInTheDocument();
+  });
+
+  it("fecha no Esc e no clique fora, sem agir", async () => {
+    mock.api.detalheEditorial.mockResolvedValue(detalheAula);
+    montar(ADMIN);
+
+    await abrir("Laços");
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    const modal = await abrir("Laços");
+    await userEvent.click(modal.parentElement!);
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    expect(mock.api.aprovarConteudo).not.toHaveBeenCalled();
+    expect(screen.getByText("Laços")).toBeInTheDocument();
+  });
+
+  it("erro na ação fica no modal aberto", async () => {
+    const { ErroApi } = jest.requireActual("@/lib/api");
+    mock.api.detalheEditorial.mockResolvedValue(detalheAula);
+    mock.api.devolverConteudo.mockRejectedValue(
+      new ErroApi(400, "transicao_invalida", "O status atual é Aprovado."),
+    );
+    montar(ADMIN);
+
+    const modal = await abrir("Laços");
+    await within(modal).findByText("Um laço repete um bloco.");
+    await userEvent.click(within(modal).getByRole("button", { name: "Devolver" }));
+
+    expect(await within(modal).findByRole("alert")).toHaveTextContent(
+      "O status atual é Aprovado.",
+    );
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 });

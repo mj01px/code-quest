@@ -9,6 +9,8 @@ import type {
   ConviteGerado,
   Correcao,
   Criatura,
+  Dashboard,
+  DetalheEditorial,
   DocumentosLegais,
   EspecificacaoDeCodigo,
   Evolucao,
@@ -635,6 +637,10 @@ export const api = {
     return requisicao<Sequencia>("/eu/sequencia/", { autenticado: true });
   },
 
+  meuDashboard() {
+    return requisicao<Dashboard>("/eu/dashboard/", { autenticado: true });
+  },
+
   // Marca a trilha como iniciada. Idempotente no servidor: clicar duas vezes
   // devolve 200 em vez de 201, e o corpo e o mesmo.
   iniciarTrilha(trilhaSlug: string) {
@@ -836,6 +842,13 @@ export const api = {
 
   autoriaFilaRevisao() {
     return requisicao<ItemEditorial[]>("/autoria/fila-revisao/", {
+      autenticado: true,
+    });
+  },
+
+  // Qualquer status: é a leitura antes de submeter, aprovar ou devolver.
+  detalheEditorial(tipo: TipoConteudo, id: number) {
+    return requisicao<DetalheEditorial>(`/autoria/${tipo}/${id}/detalhe/`, {
       autenticado: true,
     });
   },

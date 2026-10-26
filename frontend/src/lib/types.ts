@@ -108,6 +108,14 @@ export interface TransicaoEditorial {
   status_editorial: StatusEditorial;
 }
 
+/** Exercício na leitura editorial. `codigo_inicial` é null no teórico. */
+export interface ExercicioEditorial extends ExercicioDetalhe {
+  codigo_inicial: string | null;
+}
+
+/** Um por tipo: a trilha tem `nome`, a aula tem `conteudo`, o exercício `enunciado`. */
+export type DetalheEditorial = TrilhaDetalhe | Aula | ExercicioEditorial;
+
 export type DocumentoLegal = "TERMOS" | "PRIVACIDADE";
 
 export interface DocumentoVigente {
@@ -216,6 +224,20 @@ export interface Sequencia {
   recorde: number;
   feito_hoje: boolean;
   ultimo_dia: string | null;
+}
+
+export interface AtividadeDia {
+  dia: string;
+  data: string;
+  xp: number;
+}
+
+export interface Dashboard {
+  xp_total: number;
+  exercicios_concluidos: number;
+  sequencia_atual: number;
+  trilhas_iniciadas: number;
+  atividade_semanal: AtividadeDia[];
 }
 
 export interface SequenciaConclusao {

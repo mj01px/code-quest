@@ -26,6 +26,7 @@ PERMISSAO_POR_ROTA = {
     "publicar": "HasPerm[trilhas.publish]",
     "rascunhos": "HasPerm[trilhas.submit_review]",
     "fila-revisao": "HasPerm[trilhas.review]",
+    "detalhe": "HasAnyPerm[trilhas.submit_review,trilhas.review]",
 }
 
 

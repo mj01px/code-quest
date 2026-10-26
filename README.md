@@ -431,6 +431,7 @@ parênteses.
 | `GET /exercicios/{trilha_slug}/{exercicio_slug}/` | Um único exercício publicado. **Público** |
 | `GET /autoria/exercicios/{trilha_slug}/{exercicio_slug}/solucao/` | A solução de referência do autor (`trilhas.view_solution`) |
 | `GET /autoria/rascunhos/` · `/autoria/fila-revisao/` | Trilhas, aulas e exercícios em rascunho (`trilhas.submit_review`) ou em revisão (`trilhas.review`) |
+| `GET /autoria/{tipo}/{pk}/detalhe/` | O conteúdo inteiro em qualquer status, sem a solução (`trilhas.submit_review` ou `trilhas.review`) |
 
 **Progressão**
 
