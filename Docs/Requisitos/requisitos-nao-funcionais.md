@@ -20,7 +20,7 @@ Cada requisito traz:
 | Critério mensurável | O limite ou a condição objetiva que comprova o atendimento |
 | Fonte | Onde o requisito está no código (caminhos relativos à raiz do repositório) |
 
-Base da verificação: branch `ArthurMain` no commit `92ae376` (20 de outubro de 2026).
+Base da verificação: branch `ArthurMain` no commit `1d82ca0` (25 de outubro de 2026).
 Os valores citados são os padrões do código; os que vêm de variável de ambiente
 estão indicados pelo nome da variável.
 
@@ -416,9 +416,9 @@ criatura por domínio e uma conclusão creditada por exercício.
 **Descrição:** O comportamento do sistema deverá ser verificado por testes
 automatizados executáveis localmente, sem depender de serviços externos.
 
-**Critério mensurável:** 946 testes automatizados no backend (pytest e
+**Critério mensurável:** 996 testes automatizados no backend (pytest e
 pytest-django), incluindo casos negativos de segurança, com cobertura de 97%;
-345 no frontend, em 48 suítes (Jest e React Testing Library); total de 1.291
+375 no frontend, em 51 suítes (Jest e React Testing Library); total de 1.371
 testes verdes; nos testes o Judge0 é substituído por um executor local;
 cobertura medida com `pytest-cov` e `jest --coverage`.
 
@@ -526,16 +526,16 @@ proxy na frente, `NUM_PROXIES` precisa passar a refletir o número de proxies
 tipos.
 
 **Critério mensurável:** `ruff check` sem erros no backend (regras E, F, W, I, N,
-UP); `mypy --strict` sem erros em 54 arquivos de produção, cobrindo os apps
-`trilhas`, `autoria` e `correcao`; ESLint e `tsc --noEmit` sem erros no
+UP); `mypy --strict` sem erros em 44 arquivos de produção, cobrindo os apps
+`trilhas`, `autoria`, `correcao` e `conquistas`; ESLint e `tsc --noEmit` sem erros no
 frontend.
 
 **Critérios de aceite:**
 - CA01: Dado o repositório na `main`, quando `ruff check .` e `mypy` forem executados no backend, então nenhum erro deverá ser reportado.
 
-**O que falta:** o modo estrito do mypy cobre 3 das 10 pastas de app do backend
+**O que falta:** o modo estrito do mypy cobre 4 das 10 pastas de app do backend
 (9 registradas em `INSTALLED_APPS`, todas menos `autoria`); `contas`,
-`auditoria`, `gamificacao`, `progressao`, `core` e `config` estão com
+`auditoria`, `gamificacao`, `progressao`, `core`, `clas` e `config` estão com
 `ignore_errors`.
 
 **Fonte:** `backend/pyproject.toml` (`[tool.ruff]`, `[tool.mypy]`), `frontend/eslint.config.mjs`, `frontend/tsconfig.json`.
