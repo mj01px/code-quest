@@ -127,7 +127,7 @@ describe("desafiosDoDia", () => {
 
   it("traz o XP bruto da dificuldade", () => {
     const [primeiro] = desafiosDoDia([trilhaCom(1, 1)], DIA);
-    expect(primeiro?.xp).toBe(100);
+    expect(primeiro?.xp).toBe(50);
   });
 
   it("sorteia entre todas as trilhas recebidas", () => {

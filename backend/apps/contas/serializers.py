@@ -259,7 +259,12 @@ class LoginSerializer(TokenObtainPairSerializer):
                 CREDENCIAL_INVALIDA, "credencial_invalida"
             ) from None
 
-        self.user.registrar_login_valido()
+        # Com 2FA ativo, quem zera o contador é o 2º passo (LoginMfaView), depois
+        # do código certo. Zerar aqui deixaria quem tem a senha errar o código,
+        # refazer o passo 1 e nunca chegar ao bloqueio.
+        com_mfa = mfa_ativo(self.user) is not None
+        if not com_mfa:
+            self.user.registrar_login_valido()
 
         if not self.user.email_verificado:
             registrar(
@@ -280,7 +285,7 @@ class LoginSerializer(TokenObtainPairSerializer):
 
         # Com 2FA ativo o login só se completa no 2º passo (LoginMfaView), que
         # é quem registra o LOGIN_OK. Aqui a senha apenas passou.
-        if mfa_ativo(self.user) is None:
+        if not com_mfa:
             registrar(AcaoAuditoria.LOGIN_OK, request=request, actor=self.user)
 
         dados["usuario"] = UsuarioSerializer(self.user).data
