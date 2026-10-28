@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import { AreaDeTexto, ROTULO } from "@/components/autoria/AreaDeTexto";
 import { GerenciadorFlashcards } from "@/components/autoria/GerenciadorFlashcards";
@@ -12,7 +12,14 @@ import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelField } from "@/components/ui/PixelField";
 import { ErroApi, api } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
-import type { Dificuldade, NovaAula, NovaTrilha, NovoExercicio } from "@/lib/types";
+import type {
+  Alternativa,
+  Dificuldade,
+  Flashcard,
+  NovaAula,
+  Questao,
+  StatusEditorial,
+} from "@/lib/types";
 
 const CARTAO = "flex flex-col gap-6 border-2 border-edge bg-panel p-7 shadow-pixel-lg";
 
@@ -21,6 +28,40 @@ const NIVEIS: [Dificuldade, string][] = [
   ["INTERMEDIARIO", "INTERMEDIÁRIO"],
   ["AVANCADO", "AVANÇADO"],
 ];
+
+const ALTERNATIVAS: Alternativa[] = ["A", "B", "C", "D"];
+
+const ROTULO_STATUS: Record<StatusEditorial, string> = {
+  RASCUNHO: "TRILHA SALVA EM RASCUNHO",
+  REVISAO: "TRILHA EM REVISÃO",
+  APROVADO: "TRILHA APROVADA",
+  PUBLICADO: "TRILHA PUBLICADA",
+};
+
+// O que o editor guarda da trilha e de cada aula: o bastante para listar e
+// para continuar adicionando, venha da criação agora ou de uma trilha salva.
+interface TrilhaEditor {
+  id: number;
+  nome: string;
+  descricao: string;
+  status_editorial: StatusEditorial;
+}
+
+interface AulaEditor {
+  id: number;
+  titulo: string;
+  exercicios: { id: number; titulo: string }[];
+  flashcards: Flashcard[];
+  questoes: Questao[];
+}
+
+const aulaNova = (a: NovaAula): AulaEditor => ({
+  id: a.id,
+  titulo: a.titulo,
+  exercicios: [],
+  flashcards: [],
+  questoes: [],
+});
 
 function mensagemDe(erro: unknown): string {
   if (!(erro instanceof ErroApi)) return "Não foi possível salvar.";
@@ -36,13 +77,22 @@ function Erro({ texto }: { texto: string | null }) {
   ) : null;
 }
 
-// Monta uma trilha nova em rascunho: primeiro os dados dela, depois as aulas e,
-// dentro de cada aula, os exercícios. Tudo vai para o fluxo editorial normal.
-export function EditorDeConteudo() {
+const opcao = (ativa: boolean) =>
+  `flex-1 basis-[120px] cursor-pointer border-2 px-3 py-3.5 font-label text-[11px] tracking-[2px] shadow-pixel transition-colors duration-150 ${
+    ativa
+      ? "border-brand-light bg-brand-deep text-ink"
+      : "border-edge-soft text-ink-muted hover:border-brand hover:text-ink-soft"
+  }`;
+
+// Monta uma trilha em rascunho: primeiro os dados dela, depois as aulas e,
+// dentro de cada aula, exercícios, questões e flashcards. Com `trilhaId`,
+// retoma uma trilha já salva de onde o autor parou.
+export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null }) {
   const router = useRouter();
   const { usuario, carregando } = useProgresso();
-  const [trilha, setTrilha] = useState<NovaTrilha | null>(null);
-  const [aulas, setAulas] = useState<NovaAula[]>([]);
+  const [trilha, setTrilha] = useState<TrilhaEditor | null>(null);
+  const [aulas, setAulas] = useState<AulaEditor[]>([]);
+  const [erroCarga, setErroCarga] = useState<string | null>(null);
 
   const podeCriar = usuario?.permissoes.includes("trilhas.create") ?? false;
 
@@ -52,29 +102,67 @@ export function EditorDeConteudo() {
     else if (!podeCriar) router.replace("/autoria");
   }, [carregando, usuario, podeCriar, router]);
 
+  useEffect(() => {
+    if (trilhaId === null || !podeCriar) return;
+    let ativo = true;
+    api
+      .detalheEditorial("trilhas", trilhaId)
+      .then((lida) => {
+        if (!ativo || !("aulas" in lida)) return;
+        const { id, nome, descricao, status_editorial } = lida;
+        setTrilha({ id, nome, descricao, status_editorial });
+        setAulas(lida.aulas);
+      })
+      .catch((e: unknown) => {
+        if (ativo) setErroCarga(mensagemDe(e));
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [trilhaId, podeCriar]);
+
   if (carregando || !usuario || !podeCriar) {
     return (
       <p className={`m-0 text-brand-light ${TIPO.etiqueta}`}>&gt; VERIFICANDO ACESSO...</p>
     );
   }
 
+  const retomando = trilhaId !== null;
+
   return (
     <div className="flex w-full max-w-[880px] flex-col gap-10">
       <div className="flex flex-col gap-3">
         <span className={`text-brand ${TIPO.sobretitulo}`}>{"// EDITOR DE TRILHAS"}</span>
-        <h1 className={`m-0 text-ink ${TIPO.tituloPagina}`}>Novo conteúdo</h1>
+        <h1 className={`m-0 text-ink ${TIPO.tituloPagina}`}>
+          {retomando ? "Editar trilha" : "Novo conteúdo"}
+        </h1>
         <p className={`m-0 text-ink-muted ${TIPO.corpo}`}>
           Tudo nasce em rascunho. Envie para revisão na tela de autoria quando
           estiver pronto.
         </p>
       </div>
 
+      {trilha?.status_editorial === "APROVADO" ? (
+        <BotaoPublicar
+          trilha={trilha.id}
+          aoPublicar={() => setTrilha({ ...trilha, status_editorial: "PUBLICADO" })}
+        />
+      ) : null}
+
       {trilha ? (
-        <section className={CARTAO} aria-label="Trilha criada">
-          <span className={`text-success ${TIPO.etiqueta}`}>&gt; TRILHA SALVA EM RASCUNHO</span>
+        <section className={CARTAO} aria-label="Trilha">
+          <span className={`text-success ${TIPO.etiqueta}`}>
+            &gt; {ROTULO_STATUS[trilha.status_editorial]}
+          </span>
           <h2 className={`m-0 text-ink ${TIPO.tituloSecao}`}>{trilha.nome}</h2>
           <p className={`m-0 text-ink-body ${TIPO.corpo}`}>{trilha.descricao}</p>
         </section>
+      ) : retomando ? (
+        erroCarga ? (
+          <Erro texto={erroCarga} />
+        ) : (
+          <p className={`m-0 text-brand-light ${TIPO.etiqueta}`}>&gt; CARREGANDO TRILHA...</p>
+        )
       ) : (
         <FormTrilha aoCriar={setTrilha} />
       )}
@@ -95,7 +183,10 @@ export function EditorDeConteudo() {
               </ol>
             )}
           </section>
-          <FormAula trilha={trilha.id} aoCriar={(a) => setAulas((atual) => [...atual, a])} />
+          <FormAula
+            trilha={trilha.id}
+            aoCriar={(a) => setAulas((atual) => [...atual, aulaNova(a)])}
+          />
           <Link
             href="/autoria"
             className={`self-end text-brand-light underline underline-offset-4 ${TIPO.etiqueta}`}
@@ -108,7 +199,34 @@ export function EditorDeConteudo() {
   );
 }
 
-function FormTrilha({ aoCriar }: { aoCriar: (t: NovaTrilha) => void }) {
+function BotaoPublicar({ trilha, aoPublicar }: { trilha: number; aoPublicar: () => void }) {
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function publicar() {
+    setEnviando(true);
+    setErro(null);
+    try {
+      await api.publicarConteudo("trilhas", trilha);
+      aoPublicar();
+    } catch (e) {
+      setErro(mensagemDe(e));
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-3">
+      <PixelButton onClick={publicar} disabled={enviando}>
+        {enviando ? "PUBLICANDO..." : "PUBLICAR TRILHA"}
+      </PixelButton>
+      <Erro texto={erro} />
+    </div>
+  );
+}
+
+function FormTrilha({ aoCriar }: { aoCriar: (t: TrilhaEditor) => void }) {
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
   const [dificuldade, setDificuldade] = useState<Dificuldade>("INICIANTE");
@@ -120,7 +238,12 @@ function FormTrilha({ aoCriar }: { aoCriar: (t: NovaTrilha) => void }) {
     setEnviando(true);
     setErro(null);
     try {
-      aoCriar(await api.criarTrilha({ nome: nome.trim(), descricao: descricao.trim(), dificuldade }));
+      const criada = await api.criarTrilha({
+        nome: nome.trim(),
+        descricao: descricao.trim(),
+        dificuldade,
+      });
+      aoCriar({ ...criada, status_editorial: "RASCUNHO" });
     } catch (e) {
       setErro(mensagemDe(e));
       setEnviando(false);
@@ -157,11 +280,7 @@ function FormTrilha({ aoCriar }: { aoCriar: (t: NovaTrilha) => void }) {
               role="radio"
               aria-checked={dificuldade === valor}
               onClick={() => setDificuldade(valor)}
-              className={`flex-1 basis-[120px] cursor-pointer border-2 px-3 py-3.5 font-label text-[11px] tracking-[2px] shadow-pixel transition-colors duration-150 ${
-                dificuldade === valor
-                  ? "border-brand-light bg-brand-deep text-ink"
-                  : "border-edge-soft text-ink-muted hover:border-brand hover:text-ink-soft"
-              }`}
+              className={opcao(dificuldade === valor)}
             >
               {rotulo}
             </button>
@@ -238,8 +357,9 @@ function FormAula({ trilha, aoCriar }: { trilha: number; aoCriar: (a: NovaAula) 
   );
 }
 
-function ItemAula({ numero, aula }: { numero: number; aula: NovaAula }) {
-  const [exercicios, setExercicios] = useState<NovoExercicio[]>([]);
+function ItemAula({ numero, aula }: { numero: number; aula: AulaEditor }) {
+  const [exercicios, setExercicios] = useState(aula.exercicios);
+  const [questoes, setQuestoes] = useState(aula.questoes);
   const [aberto, setAberto] = useState(false);
 
   return (
@@ -257,12 +377,18 @@ function ItemAula({ numero, aula }: { numero: number; aula: NovaAula }) {
           {aberto ? "FECHAR" : "+ EXERCÍCIO"}
         </PixelButton>
       </div>
-      <GerenciadorFlashcards aula={aula.id} />
-      {exercicios.length > 0 ? (
+      <GerenciadorFlashcards aula={aula.id} iniciais={aula.flashcards} />
+      {exercicios.length > 0 || questoes.length > 0 ? (
         <ul className="m-0 flex list-none flex-col gap-1 p-0 pl-14">
           {exercicios.map((ex) => (
-            <li key={ex.id} className="font-body text-base text-ink-body">
+            <li key={`ex-${ex.id}`} className="font-body text-base text-ink-body">
               {ex.titulo}
+            </li>
+          ))}
+          {questoes.map((q) => (
+            <li key={`q-${q.id}`} className="font-body text-base text-ink-body">
+              <span className={`mr-2 text-brand-light ${TIPO.etiqueta}`}>MÚLTIPLA ESCOLHA</span>
+              {q.enunciado}
             </li>
           ))}
         </ul>
@@ -270,8 +396,12 @@ function ItemAula({ numero, aula }: { numero: number; aula: NovaAula }) {
       {aberto ? (
         <FormExercicio
           aula={aula.id}
-          aoCriar={(ex) => {
+          aoCriarExercicio={(ex) => {
             setExercicios((atual) => [...atual, ex]);
+            setAberto(false);
+          }}
+          aoCriarQuestao={(q) => {
+            setQuestoes((atual) => [...atual, q]);
             setAberto(false);
           }}
         />
@@ -280,15 +410,62 @@ function ItemAula({ numero, aula }: { numero: number; aula: NovaAula }) {
   );
 }
 
-// ponytail: só exercício teórico (título e enunciado). Exercício de código,
-// com função e casos de teste do corretor, fica fora do editor por escopo; o
-// backend já aceita `funcao` e `testes` quando a tela voltar a pedir.
+// ponytail: teórico (título e enunciado) ou múltipla escolha. Exercício de
+// código, com função e casos de teste do corretor, fica fora do editor por
+// escopo; o backend já aceita `funcao` e `testes` quando a tela voltar a pedir.
 function FormExercicio({
+  aula,
+  aoCriarExercicio,
+  aoCriarQuestao,
+}: {
+  aula: number;
+  aoCriarExercicio: (ex: { id: number; titulo: string }) => void;
+  aoCriarQuestao: (q: Questao) => void;
+}) {
+  const id = useId();
+  const [multipla, setMultipla] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-5 border-2 border-dashed border-brand-shadow bg-panel-deep p-5">
+      <div className="flex flex-col gap-2">
+        <span id={`${id}-tipo`} className={ROTULO}>
+          TIPO
+        </span>
+        <div role="radiogroup" aria-labelledby={`${id}-tipo`} className="flex flex-wrap gap-2">
+          {(
+            [
+              [false, "TEÓRICO"],
+              [true, "MÚLTIPLA ESCOLHA"],
+            ] as const
+          ).map(([valor, rotulo]) => (
+            <button
+              key={rotulo}
+              type="button"
+              role="radio"
+              aria-checked={multipla === valor}
+              onClick={() => setMultipla(valor)}
+              className={opcao(multipla === valor)}
+            >
+              {rotulo}
+            </button>
+          ))}
+        </div>
+      </div>
+      {multipla ? (
+        <FormQuestao aula={aula} aoCriar={aoCriarQuestao} />
+      ) : (
+        <FormTeorico aula={aula} aoCriar={aoCriarExercicio} />
+      )}
+    </div>
+  );
+}
+
+function FormTeorico({
   aula,
   aoCriar,
 }: {
   aula: number;
-  aoCriar: (ex: NovoExercicio) => void;
+  aoCriar: (ex: { id: number; titulo: string }) => void;
 }) {
   const [titulo, setTitulo] = useState("");
   const [enunciado, setEnunciado] = useState("");
@@ -308,11 +485,7 @@ function FormExercicio({
   }
 
   return (
-    <form
-      onSubmit={enviar}
-      aria-label="Novo exercício"
-      className="flex flex-col gap-5 border-2 border-dashed border-brand-shadow bg-panel-deep p-5"
-    >
+    <form onSubmit={enviar} aria-label="Novo exercício" className="flex flex-col gap-5">
       <PixelField
         rotulo="TÍTULO DO EXERCÍCIO"
         value={titulo}
@@ -334,6 +507,84 @@ function FormExercicio({
         disabled={enviando || !titulo.trim() || !enunciado.trim()}
       >
         {enviando ? "SALVANDO..." : "SALVAR EXERCÍCIO"}
+      </PixelButton>
+    </form>
+  );
+}
+
+function FormQuestao({ aula, aoCriar }: { aula: number; aoCriar: (q: Questao) => void }) {
+  const [enunciado, setEnunciado] = useState("");
+  const [opcoes, setOpcoes] = useState(["", "", "", ""]);
+  const [correta, setCorreta] = useState<Alternativa>("A");
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function enviar(evento: React.FormEvent) {
+    evento.preventDefault();
+    setEnviando(true);
+    setErro(null);
+    try {
+      aoCriar(
+        await api.criarQuestao({
+          aula,
+          enunciado: enunciado.trim(),
+          opcoes: opcoes.map((o) => o.trim()),
+          resposta_correta: correta,
+        }),
+      );
+    } catch (e) {
+      setErro(mensagemDe(e));
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <form onSubmit={enviar} aria-label="Nova questão" className="flex flex-col gap-5">
+      <AreaDeTexto
+        id={`questao-${aula}`}
+        rotulo="ENUNCIADO DA QUESTÃO"
+        rows={4}
+        maxLength={1000}
+        value={enunciado}
+        onChange={(e) => setEnunciado(e.target.value)}
+      />
+      <div className="grid gap-4 sm:grid-cols-2">
+        {ALTERNATIVAS.map((letra, i) => (
+          <PixelField
+            key={letra}
+            rotulo={`OPÇÃO ${letra}`}
+            value={opcoes[i]}
+            onChange={(e) =>
+              setOpcoes((atual) => atual.map((o, j) => (j === i ? e.target.value : o)))
+            }
+          />
+        ))}
+      </div>
+      <div className="flex flex-col gap-2">
+        <label htmlFor={`correta-${aula}`} className={ROTULO}>
+          RESPOSTA CORRETA
+        </label>
+        <select
+          id={`correta-${aula}`}
+          value={correta}
+          onChange={(e) => setCorreta(e.target.value as Alternativa)}
+          className="cursor-pointer border-2 border-brand-strong bg-field px-3 py-[11px] font-body text-[15px] text-ink shadow-pixel outline-none focus:border-brand-pale"
+        >
+          {ALTERNATIVAS.map((letra) => (
+            <option key={letra} value={letra}>
+              {letra}
+            </option>
+          ))}
+        </select>
+      </div>
+      <Erro texto={erro} />
+      <PixelButton
+        type="submit"
+        variante="secundaria"
+        className="self-end"
+        disabled={enviando || !enunciado.trim() || opcoes.some((o) => !o.trim())}
+      >
+        {enviando ? "SALVANDO..." : "SALVAR QUESTÃO"}
       </PixelButton>
     </form>
   );

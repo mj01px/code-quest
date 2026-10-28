@@ -24,8 +24,15 @@ from rest_framework.views import APIView
 from apps.auditoria.services import AcaoAuditoria, registrar
 from apps.contas.models import User
 from apps.core.permissions import HasAnyPerm, HasPerm
-from apps.trilhas.models import Aula, Exercicio, Flashcard, StatusEditorial, Trilha
-from apps.trilhas.serializers import AulaSerializer, TrilhaDetalheSerializer
+from apps.trilhas.models import (
+    Aula,
+    Exercicio,
+    Flashcard,
+    Questao,
+    StatusEditorial,
+    Trilha,
+)
+from apps.trilhas.serializers import AulaSerializer
 
 from .models import SolicitacaoAutoria
 from .serializers import (
@@ -34,6 +41,7 @@ from .serializers import (
     ExercicioEditorialSerializer,
     ItemEditorialSerializer,
     NovaAulaSerializer,
+    NovaQuestaoSerializer,
     NovaTrilhaSerializer,
     NovoExercicioSerializer,
     NovoFlashcardSerializer,
@@ -41,6 +49,7 @@ from .serializers import (
     SolicitacaoAdminSerializer,
     SolicitacaoAutoriaSerializer,
     SolucaoAutorSerializer,
+    TrilhaEditorialSerializer,
 )
 from .services import (
     MODELOS,
@@ -140,9 +149,14 @@ class DevolverView(TransicaoEditorialView):
     permission_classes = [IsAuthenticated, HasPerm("trilhas.review")]
 
 
+# O autor publica o que criou depois de aprovado; quem tem `trilhas.publish`
+# publica qualquer um. O dono é cobrado em `transicionar`.
 class PublicarView(TransicaoEditorialView):
     acao = "publicar"
-    permission_classes = [IsAuthenticated, HasPerm("trilhas.publish")]
+    permission_classes = [
+        IsAuthenticated,
+        HasAnyPerm("trilhas.publish", "trilhas.submit_review"),
+    ]
 
 
 # Base das duas filas, sem rota própria. Mesmo balde das ações: a tela lista e
@@ -169,6 +183,13 @@ class RascunhosView(FilaEditorialView):
     permission_classes = [IsAuthenticated, HasPerm("trilhas.submit_review")]
 
 
+# O aprovado volta para o autor publicar; sem esta lista ele não o acharia.
+class AprovadosView(FilaEditorialView):
+    status_listado = StatusEditorial.APROVADO
+    so_do_autor = True
+    permission_classes = [IsAuthenticated, HasPerm("trilhas.submit_review")]
+
+
 class FilaRevisaoView(FilaEditorialView):
     status_listado = StatusEditorial.REVISAO
     permission_classes = [IsAuthenticated, HasPerm("trilhas.review")]
@@ -180,15 +201,18 @@ class FilaRevisaoView(FilaEditorialView):
 # fora; a varredura transversal de serializers garante isso.
 DETALHE: dict[str, tuple[type[serializers.ModelSerializer[Any]], QuerySet[Any]]] = {
     "trilhas": (
-        TrilhaDetalheSerializer,
+        TrilhaEditorialSerializer,
         Trilha.objects.prefetch_related(
-            "aulas__pre_requisito", "aulas__exercicios", "aulas__flashcards"
+            "aulas__pre_requisito",
+            "aulas__exercicios",
+            "aulas__flashcards",
+            "aulas__questoes",
         ),
     ),
     "aulas": (
         AulaSerializer,
         Aula.objects.select_related("pre_requisito").prefetch_related(
-            "exercicios", "flashcards"
+            "exercicios", "flashcards", "questoes"
         ),
     ),
     "exercicios": (
@@ -417,6 +441,28 @@ class CriarFlashcardView(generics.CreateAPIView[Flashcard]):
                 alvo=aula,
                 tipo="aulas",
                 flashcard=flashcard.pk,
+            )
+
+
+@extend_schema(tags=["autoria"])
+class CriarQuestaoView(generics.CreateAPIView[Questao]):
+    serializer_class = NovaQuestaoSerializer
+    permission_classes = [IsAuthenticated, HasPerm("trilhas.create")]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = ESCOPO_EDITORIAL
+
+    def perform_create(self, serializer: BaseSerializer[Questao]) -> None:
+        # Como no flashcard: a aula travada fecha a corrida com um "submeter".
+        with transaction.atomic():
+            aula = cast(Aula, serializer.validated_data["aula"])
+            rascunho_editavel(Aula, aula.pk, cast(User, self.request.user))
+            questao = serializer.save()
+            registrar(
+                AcaoAuditoria.CONTEUDO_EDITADO,
+                request=self.request,
+                alvo=aula,
+                tipo="aulas",
+                questao=questao.pk,
             )
 
 

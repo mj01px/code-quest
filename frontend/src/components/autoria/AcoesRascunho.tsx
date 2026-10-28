@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useId, useRef, useState } from "react";
 
 import { AreaDeTexto } from "@/components/autoria/AreaDeTexto";
@@ -16,7 +17,7 @@ import type {
   TipoConteudo,
 } from "@/lib/types";
 
-const BOTAO_ICONE =
+export const BOTAO_ICONE =
   "flex h-11 w-11 cursor-pointer items-center justify-center border-2 border-edge-soft text-ink-muted transition-colors duration-150 hover:border-brand hover:text-ink disabled:cursor-not-allowed disabled:opacity-50";
 
 // Rótulo do segundo campo de cada tipo; o primeiro é sempre o título.
@@ -44,7 +45,8 @@ function mensagemDe(erro: unknown, padrao: string): string {
 }
 
 // Lápis e lixeira de um rascunho. Os dois terminam em `aoAlterar`, que
-// recarrega a lista: excluir uma trilha leva junto as aulas dela.
+// recarrega a lista: excluir uma trilha leva junto as aulas dela. O lápis da
+// trilha abre o editor completo, onde se continua adicionando aulas.
 export function AcoesRascunho({
   item,
   aoAlterar,
@@ -111,14 +113,24 @@ export function AcoesRascunho({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={abrirEdicao}
-        aria-label={`Editar: ${item.titulo}`}
-        className={BOTAO_ICONE}
-      >
-        <IconeLapis className="h-4 w-4" />
-      </button>
+      {item.tipo === "trilhas" ? (
+        <Link
+          href={`/autoria/novo?trilha_id=${item.id}`}
+          aria-label={`Editar: ${item.titulo}`}
+          className={BOTAO_ICONE}
+        >
+          <IconeLapis className="h-4 w-4" />
+        </Link>
+      ) : (
+        <button
+          type="button"
+          onClick={abrirEdicao}
+          aria-label={`Editar: ${item.titulo}`}
+          className={BOTAO_ICONE}
+        >
+          <IconeLapis className="h-4 w-4" />
+        </button>
+      )}
       <button
         type="button"
         onClick={() => setModo("excluir")}

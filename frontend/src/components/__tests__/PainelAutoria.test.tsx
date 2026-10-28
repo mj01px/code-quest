@@ -22,6 +22,8 @@ jest.mock("@/lib/api", () => ({
     trilhasIniciadas: jest.fn(),
     autoriaRascunhos: jest.fn(),
     autoriaFilaRevisao: jest.fn(),
+    autoriaAprovados: jest.fn(),
+    publicarConteudo: jest.fn(),
     detalheEditorial: jest.fn(),
     submeterRevisao: jest.fn(),
     aprovarConteudo: jest.fn(),
@@ -84,6 +86,7 @@ beforeEach(() => {
   mock.api.trilhasIniciadas.mockResolvedValue([]);
   mock.api.autoriaRascunhos.mockResolvedValue([rascunho]);
   mock.api.autoriaFilaRevisao.mockResolvedValue([emRevisao]);
+  mock.api.autoriaAprovados.mockResolvedValue([]);
 });
 
 describe("PainelAutoria: RBAC", () => {
@@ -368,34 +371,65 @@ describe("PainelAutoria: editar e excluir rascunho", () => {
     );
   });
 
-  it("editar carrega os campos, salva e recarrega", async () => {
+  it("lápis da trilha abre o editor completo", async () => {
+    montar(CRIADOR);
+
+    expect(
+      await screen.findByRole("link", { name: "Editar: Trilha nova" }),
+    ).toHaveAttribute("href", "/autoria/novo?trilha_id=3");
+    expect(mock.api.detalheEditorial).not.toHaveBeenCalled();
+  });
+
+  it("editar aula carrega os campos, salva e recarrega", async () => {
+    mock.api.autoriaRascunhos.mockResolvedValue([
+      { id: 4, tipo: "aulas", titulo: "Laços", status_editorial: "RASCUNHO" },
+    ]);
     mock.api.detalheEditorial.mockResolvedValue({
-      id: 3,
-      nome: "Trilha nova",
-      slug: "trilha-nova",
-      descricao: "Linha curta",
-      resumo: "",
-      sobre: "",
+      id: 4,
+      titulo: "Laços",
+      slug: "lacos",
+      conteudo: "Texto",
       ordem: 1,
-      aulas: [],
+      pre_requisito: null,
+      exercicios: [],
+      flashcards: [],
+      questoes: [],
     });
     mock.api.editarRascunho.mockResolvedValue({});
     montar(CRIADOR);
 
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Editar: Trilha nova" }),
-    );
-    const nome = await screen.findByLabelText("NOME");
-    expect(nome).toHaveValue("Trilha nova");
-    await userEvent.clear(nome);
-    await userEvent.type(nome, "Trilha renomeada");
+    await userEvent.click(await screen.findByRole("button", { name: "Editar: Laços" }));
+    const titulo = await screen.findByLabelText("TÍTULO");
+    expect(titulo).toHaveValue("Laços");
+    await userEvent.clear(titulo);
+    await userEvent.type(titulo, "Repetição");
     await userEvent.click(screen.getByRole("button", { name: "SALVAR" }));
 
-    expect(mock.api.editarRascunho).toHaveBeenCalledWith("trilhas", 3, {
-      nome: "Trilha renomeada",
-      descricao: "Linha curta",
+    expect(mock.api.editarRascunho).toHaveBeenCalledWith("aulas", 4, {
+      titulo: "Repetição",
+      conteudo: "Texto",
     });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     await waitFor(() => expect(mock.api.autoriaRascunhos).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe("PainelAutoria: prontos para publicar", () => {
+  it("autor publica o aprovado e abre a trilha no editor", async () => {
+    mock.api.autoriaAprovados.mockResolvedValue([
+      { id: 5, tipo: "trilhas", titulo: "Trilha pronta", status_editorial: "APROVADO" },
+    ]);
+    mock.api.publicarConteudo.mockResolvedValue({ id: 5, status_editorial: "PUBLICADO" });
+    montar(AUTOR);
+
+    expect(
+      await screen.findByRole("link", { name: "Abrir no editor: Trilha pronta" }),
+    ).toHaveAttribute("href", "/autoria/novo?trilha_id=5");
+    await userEvent.click(screen.getByRole("button", { name: "Publicar: Trilha pronta" }));
+
+    expect(mock.api.publicarConteudo).toHaveBeenCalledWith("trilhas", 5);
+    expect(
+      await screen.findByText("Nada aprovado esperando publicação."),
+    ).toBeInTheDocument();
   });
 });

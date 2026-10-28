@@ -263,13 +263,15 @@ def transicionar(
         except modelo.DoesNotExist:
             raise Http404("Conteúdo não encontrado.") from None
 
-        # Só o dono (ou o admin) envia para revisão. Aprovar, devolver e
-        # publicar são do revisor e se guardam pela permissão da rota.
+        # Só o dono (ou o admin) envia para revisão. Publicar é do dono ou de
+        # quem tem `trilhas.publish`; aprovar e devolver se guardam pela rota.
         # Antes do estado: quem não é dono não descobre em que estado está.
-        if acao == "submeter" and not eh_dono_ou_admin(
-            conteudo, cast(User, request.user)
-        ):
-            raise PermissionDenied("Você só pode enviar para revisão o que criou.")
+        usuario = cast(User, request.user)
+        exige_dono = acao == "submeter" or (
+            acao == "publicar" and not usuario.has_perm("trilhas.publish")
+        )
+        if exige_dono and not eh_dono_ou_admin(conteudo, usuario):
+            raise PermissionDenied("Você só pode enviar para revisão ou publicar o que criou.")
 
         if conteudo.status != origem:
             raise ValidationError(

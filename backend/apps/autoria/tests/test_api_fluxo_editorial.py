@@ -123,7 +123,9 @@ def test_anonimo_recebe_401(acao, origem, _destino):
         ("submeter", RASCUNHO, criar_aluno),
         ("aprovar", REVISAO, criar_autor),
         ("devolver", REVISAO, criar_autor),
+        # O autor tem a rota, mas o conteúdo não é dele: cai no dono.
         ("publicar", APROVADO, criar_autor),
+        ("publicar", APROVADO, criar_aluno),
     ],
 )
 def test_autenticado_sem_permissao_recebe_403(acao, origem, sem_permissao):
@@ -163,7 +165,7 @@ def test_transicao_invalida_recebe_400_no_envelope(acao, estado_atual):
 
 def test_sem_permissao_recebe_403_mesmo_com_pk_inexistente():
     # Permissão antes do lookup: 404 aqui revelaria quais pk existem.
-    resposta = cliente(criar_autor()).post(url("publicar", "exercicios", 999999))
+    resposta = cliente(criar_autor()).post(url("aprovar", "exercicios", 999999))
 
     assert resposta.status_code == 403
 

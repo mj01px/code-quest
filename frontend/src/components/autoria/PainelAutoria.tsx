@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { FilaRevisao } from "@/components/autoria/FilaRevisao";
+import { ListaAprovados } from "@/components/autoria/ListaAprovados";
 import { ListaRascunhos } from "@/components/autoria/ListaRascunhos";
 import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 import { TIPO } from "@/lib/tipografia";
@@ -82,6 +83,8 @@ export function PainelAutoria() {
           }
         />
       ) : null}
+
+      {podeSubmeter ? <ListaAprovados /> : null}
 
       {podeRevisar ? (
         <FilaRevisao

@@ -9,11 +9,12 @@ from apps.trilhas.models import (
     Aula,
     Exercicio,
     Flashcard,
+    Questao,
     StatusEditorial,
     Tipo,
     Trilha,
 )
-from apps.trilhas.serializers import ExercicioDetalheSerializer
+from apps.trilhas.serializers import ExercicioDetalheSerializer, TrilhaDetalheSerializer
 
 from .models import SolicitacaoAutoria
 from .services import MODELOS, exigir_rascunho_do_dono, slug_livre
@@ -56,6 +57,19 @@ class ExercicioEditorialSerializer(ExercicioDetalheSerializer):
     class Meta(ExercicioDetalheSerializer.Meta):
         fields = [*ExercicioDetalheSerializer.Meta.fields, "codigo_inicial"]
         read_only_fields = fields
+
+
+# Trilha na leitura editorial: o editor precisa do status para oferecer o
+# "publicar". Sai por método porque `status` é nome proibido na varredura.
+class TrilhaEditorialSerializer(TrilhaDetalheSerializer):
+    status_editorial = serializers.SerializerMethodField()
+
+    class Meta(TrilhaDetalheSerializer.Meta):
+        fields = [*TrilhaDetalheSerializer.Meta.fields, "status_editorial"]
+        read_only_fields = fields
+
+    def get_status_editorial(self, obj: Trilha) -> str:
+        return obj.status
 
 
 # --- Solicitação de autoria ---
@@ -304,3 +318,15 @@ class NovoFlashcardSerializer(serializers.ModelSerializer[Flashcard]):
 class EdicaoFlashcardSerializer(NovoFlashcardSerializer):
     class Meta(NovoFlashcardSerializer.Meta):
         read_only_fields = ["id", "aula"]
+
+
+# Mesma regra do flashcard: só em aula própria (salvo admin) e em rascunho.
+class NovaQuestaoSerializer(serializers.ModelSerializer[Questao]):
+    class Meta:
+        model = Questao
+        fields = ["id", "aula", "enunciado", "opcoes", "resposta_correta"]
+        read_only_fields = ["id"]
+
+    def validate_aula(self, aula: Aula) -> Aula:
+        exigir_rascunho_do_dono(aula, self.context["request"].user)
+        return aula

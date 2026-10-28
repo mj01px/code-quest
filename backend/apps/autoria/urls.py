@@ -1,11 +1,13 @@
 from django.urls import path, re_path
 
 from .views import (
+    AprovadosView,
     AprovarSolicitacaoView,
     AprovarView,
     CriarAulaView,
     CriarExercicioView,
     CriarFlashcardView,
+    CriarQuestaoView,
     CriarTrilhaView,
     DetalheEditorialView,
     DevolverView,
@@ -58,7 +60,9 @@ urlpatterns = [
     path("autoria/exercicios/", CriarExercicioView.as_view(), name="criar-exercicio"),
     path("autoria/flashcards/", CriarFlashcardView.as_view(), name="criar-flashcard"),
     path("autoria/flashcards/<int:pk>/", FlashcardView.as_view(), name="flashcard"),
+    path("autoria/questoes/", CriarQuestaoView.as_view(), name="criar-questao"),
     path("autoria/rascunhos/", RascunhosView.as_view(), name="rascunhos"),
+    path("autoria/aprovados/", AprovadosView.as_view(), name="aprovados"),
     path("autoria/fila-revisao/", FilaRevisaoView.as_view(), name="fila-revisao"),
     path(
         "autoria/exercicios/<slug:trilha_slug>/<slug:exercicio_slug>/solucao/",

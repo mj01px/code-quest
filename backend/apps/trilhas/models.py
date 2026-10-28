@@ -247,6 +247,59 @@ class Flashcard(models.Model):
         return f"{self.aula.titulo} - {self.pergunta[:40]}"
 
 
+class Alternativa(models.TextChoices):
+    A = "A", "A"
+    B = "B", "B"
+    C = "C", "C"
+    D = "D", "D"
+
+
+def validar_opcoes(valor: Any) -> None:
+    """Exige uma lista de 4 textos não vazios, na ordem A, B, C e D."""
+    if not (
+        isinstance(valor, list)
+        and len(valor) == len(Alternativa.choices)
+        and all(isinstance(o, str) and o.strip() for o in valor)
+    ):
+        raise ValidationError(
+            _("Informe exatamente 4 alternativas preenchidas."), code="opcoes_invalidas"
+        )
+
+
+class Questao(models.Model):
+    """Questão de múltipla escolha presa a uma aula, como o flashcard.
+
+    Herda status e autor da aula e só muda enquanto ela está em rascunho.
+    """
+
+    aula = models.ForeignKey(
+        Aula,
+        on_delete=models.CASCADE,
+        related_name="questoes",
+        verbose_name=_("aula"),
+    )
+
+    enunciado = models.TextField(max_length=1000, verbose_name=_("enunciado"))
+
+    opcoes = models.JSONField(
+        validators=[validar_opcoes],
+        verbose_name=_("opções"),
+        help_text=_("Lista com as 4 alternativas, na ordem A, B, C e D."),
+    )
+
+    resposta_correta = models.CharField(
+        max_length=1, choices=Alternativa.choices, verbose_name=_("resposta correta")
+    )
+
+    class Meta:
+        verbose_name = _("questão")
+        verbose_name_plural = _("questões")
+        ordering = ["id"]
+
+    def __str__(self) -> str:
+        return f"{self.aula.titulo} - {self.enunciado[:40]}"
+
+
 class Exercicio(models.Model):
     aula = models.ForeignKey(
         Aula,

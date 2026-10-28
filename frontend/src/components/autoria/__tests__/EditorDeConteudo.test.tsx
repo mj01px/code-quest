@@ -2,6 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import {
+  aula,
+  exercicioResumo,
   minhaCriatura,
   progressoAtual,
   usuario,
@@ -22,6 +24,9 @@ jest.mock("@/lib/api", () => ({
     criarTrilha: jest.fn(),
     criarAula: jest.fn(),
     criarExercicio: jest.fn(),
+    criarQuestao: jest.fn(),
+    detalheEditorial: jest.fn(),
+    publicarConteudo: jest.fn(),
   },
 }));
 
@@ -37,13 +42,43 @@ const mock = jest.requireMock<{
 
 const AUTOR = [...usuario().permissoes, "trilhas.create", "trilhas.submit_review"];
 
-function montar(permissoes = AUTOR) {
+function montar(permissoes = AUTOR, trilhaId: number | null = null) {
   mock.api.eu.mockResolvedValue(usuario({ permissoes }));
   return render(
     <ProvedorProgresso>
-      <EditorDeConteudo />
+      <EditorDeConteudo trilhaId={trilhaId} />
     </ProvedorProgresso>,
   );
+}
+
+// Trilha salva com uma aula que já tem um exercício, um card e uma questão.
+function trilhaSalva(status_editorial = "RASCUNHO") {
+  return {
+    id: 9,
+    nome: "TS do zero",
+    slug: "ts-do-zero",
+    descricao: "Tipos",
+    resumo: "",
+    sobre: "",
+    ordem: 1,
+    status_editorial,
+    aulas: [
+      aula({
+        id: 4,
+        titulo: "Tipos básicos",
+        exercicios: [exercicioResumo({ id: 2, titulo: "Soma" })],
+        flashcards: [{ id: 1, pergunta: "O que é any?", resposta: "Qualquer tipo" }],
+        questoes: [
+          {
+            id: 6,
+            enunciado: "Qual é primitivo?",
+            opcoes: ["string", "Array", "Map", "Set"],
+            resposta_correta: "A",
+          },
+        ],
+      }),
+    ],
+  };
 }
 
 beforeEach(() => {
@@ -131,5 +166,62 @@ describe("EditorDeConteudo", () => {
       enunciado: "Some",
     });
     expect(await screen.findByText("Soma")).toBeInTheDocument();
+  });
+
+  it("retoma a trilha salva com aulas, exercícios, cards e questões", async () => {
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
+    montar(AUTOR, 9);
+
+    expect(await screen.findByRole("heading", { name: "TS do zero" })).toBeInTheDocument();
+    expect(mock.api.detalheEditorial).toHaveBeenCalledWith("trilhas", 9);
+    expect(screen.getByRole("heading", { name: "Editar trilha" })).toBeInTheDocument();
+    expect(screen.queryByRole("form", { name: "Dados da trilha" })).toBeNull();
+    expect(screen.getByText("Soma")).toBeInTheDocument();
+    expect(screen.getByText("O que é any?")).toBeInTheDocument();
+    expect(screen.getByText("Qual é primitivo?")).toBeInTheDocument();
+    // Rascunho ainda não se publica.
+    expect(screen.queryByRole("button", { name: "PUBLICAR TRILHA" })).toBeNull();
+    expect(screen.getByLabelText("TÍTULO DA AULA")).toBeInTheDocument();
+  });
+
+  it("cria questão de múltipla escolha com 4 opções e a correta", async () => {
+    const u = userEvent.setup();
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
+    mock.api.criarQuestao.mockResolvedValue({
+      id: 7,
+      enunciado: "Quanto é 1 + 1?",
+      opcoes: ["1", "2", "3", "4"],
+      resposta_correta: "B",
+    });
+    montar(AUTOR, 9);
+
+    await u.click(await screen.findByRole("button", { name: "+ EXERCÍCIO" }));
+    await u.click(screen.getByRole("radio", { name: "MÚLTIPLA ESCOLHA" }));
+    await u.type(screen.getByLabelText("ENUNCIADO DA QUESTÃO"), "Quanto é 1 + 1?");
+    for (const [letra, texto] of [["A", "1"], ["B", "2"], ["C", "3"], ["D", "4"]]) {
+      await u.type(screen.getByLabelText(`OPÇÃO ${letra}`), texto);
+    }
+    await u.selectOptions(screen.getByLabelText("RESPOSTA CORRETA"), "B");
+    await u.click(screen.getByRole("button", { name: "SALVAR QUESTÃO" }));
+
+    expect(mock.api.criarQuestao).toHaveBeenCalledWith({
+      aula: 4,
+      enunciado: "Quanto é 1 + 1?",
+      opcoes: ["1", "2", "3", "4"],
+      resposta_correta: "B",
+    });
+    expect(await screen.findByText("Quanto é 1 + 1?")).toBeInTheDocument();
+  });
+
+  it("trilha aprovada mostra PUBLICAR TRILHA e publica", async () => {
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva("APROVADO"));
+    mock.api.publicarConteudo.mockResolvedValue({ id: 9, status_editorial: "PUBLICADO" });
+    montar(AUTOR, 9);
+
+    await userEvent.click(await screen.findByRole("button", { name: "PUBLICAR TRILHA" }));
+
+    expect(mock.api.publicarConteudo).toHaveBeenCalledWith("trilhas", 9);
+    expect(await screen.findByText(/TRILHA PUBLICADA/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "PUBLICAR TRILHA" })).toBeNull();
   });
 });

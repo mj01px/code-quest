@@ -126,4 +126,28 @@ describe("AulaCard", () => {
     expect(screen.getByText("Em breve")).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
+
+  it("mostra o quiz de múltipla escolha mesmo sem fases", () => {
+    render(
+      <AulaCard
+        aula={aula({
+          exercicios: [],
+          questoes: [
+            {
+              id: 1,
+              enunciado: "Qual imprime na tela?",
+              opcoes: ["print", "input", "len", "int"],
+              resposta_correta: "A",
+            },
+          ],
+        })}
+        trilhaSlug={TRILHA}
+        posicao={1}
+      />,
+    );
+
+    expect(screen.getByText("Quiz · 1")).toBeInTheDocument();
+    expect(screen.getByText("Qual imprime na tela?")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { hidden: true })).toHaveLength(4);
+  });
 });

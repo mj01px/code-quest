@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { BaralhoFlashcards } from "@/components/trilhas/CartaoFlashcard";
+import { QuizQuestao } from "@/components/trilhas/QuizQuestao";
 import { Badge, BadgeDificuldade } from "@/components/ui/Badge";
 import { IconeCheck } from "@/components/ui/Icone";
 import { plural, resumoDoModulo, xpDoModulo } from "@/lib/derivados";
@@ -34,6 +35,7 @@ export function AulaCard({
   // O catálogo vem do cache do Next (60s): um payload gravado antes do campo
   // existir chega sem ele, e a página inteira cairia no error boundary.
   const flashcards = aula.flashcards ?? [];
+  const questoes = aula.questoes ?? [];
 
   const cabecalho = (
     <>
@@ -77,8 +79,8 @@ export function AulaCard({
     </>
   );
 
-  // Módulo sem fases nem cards não tem o que abrir.
-  if (!temFases && flashcards.length === 0) {
+  // Módulo sem fases, cards nem questões não tem o que abrir.
+  if (!temFases && flashcards.length === 0 && questoes.length === 0) {
     return (
       <li className="flex items-center gap-5 border-2 border-edge bg-panel p-5 sm:px-6">
         {cabecalho}
@@ -146,6 +148,16 @@ export function AulaCard({
         {flashcards.length > 0 ? (
           <div className="border-t-2 border-edge p-5 sm:px-6">
             <BaralhoFlashcards cards={flashcards} />
+          </div>
+        ) : null}
+        {questoes.length > 0 ? (
+          <div className="flex flex-col gap-3 border-t-2 border-edge p-5 sm:px-6">
+            <span className="font-label text-[11px] tracking-[2px] text-brand-light uppercase">
+              Quiz · {questoes.length}
+            </span>
+            {questoes.map((questao) => (
+              <QuizQuestao key={questao.id} questao={questao} />
+            ))}
           </div>
         ) : null}
       </details>

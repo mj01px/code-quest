@@ -162,8 +162,13 @@ export interface ExercicioEditorial extends ExercicioDetalhe {
   codigo_inicial: string | null;
 }
 
+/** Trilha na leitura editorial: o editor precisa do status para oferecer o "publicar". */
+export interface TrilhaEditorial extends TrilhaDetalhe {
+  status_editorial: StatusEditorial;
+}
+
 /** Um por tipo: a trilha tem `nome`, a aula tem `conteudo`, o exercício `enunciado`. */
-export type DetalheEditorial = TrilhaDetalhe | Aula | ExercicioEditorial;
+export type DetalheEditorial = TrilhaEditorial | Aula | ExercicioEditorial;
 
 export type DocumentoLegal = "TERMOS" | "PRIVACIDADE";
 
@@ -203,12 +208,23 @@ export interface Aula {
   pre_requisito: string | null;
   exercicios: ExercicioResumo[];
   flashcards: Flashcard[];
+  questoes: Questao[];
 }
 
 export interface Flashcard {
   id: number;
   pergunta: string;
   resposta: string;
+}
+
+export type Alternativa = "A" | "B" | "C" | "D";
+
+/** Múltipla escolha da aula. `opcoes` vem na ordem A, B, C e D. */
+export interface Questao {
+  id: number;
+  enunciado: string;
+  opcoes: string[];
+  resposta_correta: Alternativa;
 }
 
 /** Corpo do PUT de rascunho: só os campos básicos de cada tipo. */

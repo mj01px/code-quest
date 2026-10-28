@@ -70,6 +70,7 @@ class AulaSerializerTest(TestCase):
                 "pre_requisito",
                 "exercicios",
                 "flashcards",
+                "questoes",
             },
         )
 

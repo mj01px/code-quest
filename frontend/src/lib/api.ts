@@ -1,4 +1,5 @@
 import type {
+  Alternativa,
   AtividadeItem,
   Bandeira,
   BonusXp,
@@ -31,6 +32,7 @@ import type {
   PermissaoCatalogo,
   PreviaConvite,
   ProgressoAtual,
+  Questao,
   RankingMensal,
   RespostaConclusao,
   Sequencia,
@@ -866,6 +868,13 @@ export const api = {
     });
   },
 
+  // Só os do próprio autor (o admin vê todos), esperando o "publicar".
+  autoriaAprovados() {
+    return requisicao<ItemEditorial[]>("/autoria/aprovados/", {
+      autenticado: true,
+    });
+  },
+
   // Qualquer status: é a leitura antes de submeter, aprovar ou devolver.
   detalheEditorial(tipo: TipoConteudo, id: number) {
     return requisicao<DetalheEditorial>(`/autoria/${tipo}/${id}/detalhe/`, {
@@ -889,6 +898,14 @@ export const api = {
 
   devolverConteudo(tipo: TipoConteudo, id: number) {
     return requisicao<TransicaoEditorial>(`/autoria/${tipo}/${id}/devolver/`, {
+      metodo: "POST",
+      autenticado: true,
+    });
+  },
+
+  // O autor publica o que criou depois de aprovado; o admin publica qualquer um.
+  publicarConteudo(tipo: TipoConteudo, id: number) {
+    return requisicao<TransicaoEditorial>(`/autoria/${tipo}/${id}/publicar/`, {
       metodo: "POST",
       autenticado: true,
     });
@@ -929,6 +946,19 @@ export const api = {
   excluirFlashcard(id: number) {
     return requisicao<null>(`/autoria/flashcards/${id}/`, {
       metodo: "DELETE",
+      autenticado: true,
+    });
+  },
+
+  criarQuestao(dados: {
+    aula: number;
+    enunciado: string;
+    opcoes: string[];
+    resposta_correta: Alternativa;
+  }) {
+    return requisicao<Questao>("/autoria/questoes/", {
+      metodo: "POST",
+      corpo: dados,
       autenticado: true,
     });
   },
