@@ -202,7 +202,20 @@ export interface Aula {
   ordem: number;
   pre_requisito: string | null;
   exercicios: ExercicioResumo[];
+  flashcards: Flashcard[];
 }
+
+export interface Flashcard {
+  id: number;
+  pergunta: string;
+  resposta: string;
+}
+
+/** Corpo do PUT de rascunho: só os campos básicos de cada tipo. */
+export type EdicaoRascunho =
+  | { nome: string; descricao: string }
+  | { titulo: string; conteudo: string }
+  | { titulo: string; enunciado: string };
 
 export interface TrilhaResumo {
   id: number;
@@ -273,20 +286,6 @@ export interface Sequencia {
   recorde: number;
   feito_hoje: boolean;
   ultimo_dia: string | null;
-}
-
-export interface AtividadeDia {
-  dia: string;
-  data: string;
-  xp: number;
-}
-
-export interface Dashboard {
-  xp_total: number;
-  exercicios_concluidos: number;
-  sequencia_atual: number;
-  trilhas_iniciadas: number;
-  atividade_semanal: AtividadeDia[];
 }
 
 export interface DashboardAdmin {

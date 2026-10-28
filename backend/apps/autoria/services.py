@@ -179,6 +179,71 @@ def eh_dono_ou_admin(conteudo: Conteudo, usuario: User) -> bool:
     )
 
 
+def exigir_rascunho_do_dono(conteudo: Conteudo, usuario: User) -> None:
+    """Recusa alterar o que não é do usuário (403) ou já saiu do rascunho (400).
+
+    Dono antes do estado, como em `transicionar`: quem não é dono não descobre
+    em que estado o conteúdo está.
+    """
+    if not eh_dono_ou_admin(conteudo, usuario):
+        raise PermissionDenied("Você só pode alterar o que criou.")
+    if conteudo.status != StatusEditorial.RASCUNHO:
+        raise ValidationError(
+            "Só rascunho pode ser editado ou excluído; "
+            f"o status atual é {StatusEditorial(conteudo.status).label}.",
+            code="nao_rascunho",
+        )
+
+
+def rascunho_editavel(modelo: type[Conteudo], pk: int, usuario: User) -> Conteudo:
+    """Trava e devolve o rascunho que `usuario` pode alterar.
+
+    Chamar dentro de `transaction.atomic()`: o lock segura um "submeter"
+    simultâneo até a edição terminar.
+    """
+    try:
+        conteudo = modelo.objects.select_for_update().get(pk=pk)
+    except modelo.DoesNotExist:
+        raise Http404("Conteúdo não encontrado.") from None
+    exigir_rascunho_do_dono(conteudo, usuario)
+    return conteudo
+
+
+def excluir_rascunho(
+    modelo: type[Conteudo], pk: int, tipo: str, request: Request
+) -> None:
+    """Apaga o rascunho e, em cascata, os filhos dele.
+
+    Recusa se algum filho já saiu do rascunho: apagar a trilha levaria junto
+    uma aula em revisão ou publicada.
+    """
+    with transaction.atomic():
+        conteudo = rascunho_editavel(modelo, pk, cast(User, request.user))
+        # Filhos travados antes de checar: sem o lock, um "submeter" simultâneo
+        # de um filho passaria pela checagem e seria apagado em cascata. Ordem
+        # pai e depois filho, a mesma do cascade, sem deadlock com `transicionar`.
+        filhos: list[Aula | Exercicio]
+        if isinstance(conteudo, Trilha):
+            filhos = [
+                *Aula.objects.select_for_update().filter(trilha=conteudo),
+                *Exercicio.objects.select_for_update().filter(trilha=conteudo),
+            ]
+        elif isinstance(conteudo, Aula):
+            filhos = [*Exercicio.objects.select_for_update().filter(aula=conteudo)]
+        else:
+            filhos = []
+        if any(f.status != StatusEditorial.RASCUNHO for f in filhos):
+            raise ValidationError(
+                "Há conteúdo dentro deste rascunho que já foi enviado para revisão.",
+                code="filho_avancado",
+            )
+        # Antes do delete: depois dele o objeto não tem mais pk para o alvo.
+        registrar(
+            AcaoAuditoria.CONTEUDO_EXCLUIDO, request=request, alvo=conteudo, tipo=tipo
+        )
+        conteudo.delete()
+
+
 def transicionar(
     modelo: type[Conteudo], pk: int, acao: Acao, request: Request
 ) -> Conteudo:

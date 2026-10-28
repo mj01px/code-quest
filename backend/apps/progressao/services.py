@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import Count, F, Max, Q, Sum
+from django.db.models import Count, F, Max, Q
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -286,22 +286,6 @@ def trilhas_iniciadas(*, user):
 
 
 DIAS_DA_SEMANA = ("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom")
-
-
-def montar_dashboard(*, user):
-    """Os big numbers e a atividade dos últimos 7 dias, lidos do banco na hora.
-
-    Exercício concluído vem de `EventoXP` e não de `Submissao`: só exercício
-    com correção automática gera submissão, e o resto também conclui.
-    """
-    eventos = EventoXP.objects.filter(user=user)
-    return {
-        "xp_total": eventos.aggregate(total=Sum("xp"))["total"] or 0,
-        "exercicios_concluidos": exercicios_concluidos(user=user).count(),
-        "sequencia_atual": ler_sequencia(user=user)["atual"],
-        "trilhas_iniciadas": len(trilhas_iniciadas(user=user)),
-        "atividade_semanal": por_dia(eventos, "criado_em", xp=Sum("xp")),
-    }
 
 
 def montar_dashboard_admin(*, com_logs=True):

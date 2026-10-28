@@ -37,6 +37,7 @@ export function aula(extra: Partial<Aula> = {}): Aula {
     ordem: 1,
     pre_requisito: null,
     exercicios: [exercicioResumo()],
+    flashcards: [],
     ...extra,
   };
 }

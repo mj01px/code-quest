@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { ModalVisualizacao } from "@/components/autoria/ModalVisualizacao";
 import { ErroApi } from "@/lib/api";
@@ -29,6 +29,8 @@ interface Props {
   /** Referência estável (ex.: `api.autoriaRascunhos`); uma arrow nova a cada render refaz o fetch em laço. */
   carregar: () => Promise<ItemEditorial[]>;
   acoes: AcaoEditorial[];
+  /** Botões a mais por item, depois das ações (ex.: editar e excluir rascunho). */
+  extras?: (item: ItemEditorial) => ReactNode;
 }
 
 // O id só é único dentro do tipo: trilha 3 e aula 3 convivem na mesma fila.
@@ -40,7 +42,7 @@ function mensagemDe(erro: unknown, padrao: string): string {
 
 // Base das duas filas: busca a lista ao montar e tira da tela o item que a
 // ação moveu. Recarregar é com `key` no painel, não com efeito aqui dentro.
-export function ListaEditorial({ titulo, vazio, carregar, acoes }: Props) {
+export function ListaEditorial({ titulo, vazio, carregar, acoes, extras }: Props) {
   const [itens, setItens] = useState<ItemEditorial[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -131,7 +133,7 @@ export function ListaEditorial({ titulo, vazio, carregar, acoes }: Props) {
                   {item.titulo}
                 </button>
               </span>
-              <span className="flex gap-2">
+              <span className="flex flex-wrap items-center gap-2">
                 {acoes.map((acao) => (
                   <button
                     key={acao.rotulo}
@@ -144,6 +146,7 @@ export function ListaEditorial({ titulo, vazio, carregar, acoes }: Props) {
                     {acao.rotulo}
                   </button>
                 ))}
+                {extras?.(item)}
               </span>
             </li>
           ))}

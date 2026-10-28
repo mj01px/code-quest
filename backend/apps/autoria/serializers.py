@@ -5,11 +5,18 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
 from apps.correcao.models import CasoDeTeste, EspecificacaoDeCodigo
-from apps.trilhas.models import Aula, Exercicio, StatusEditorial, Tipo, Trilha
+from apps.trilhas.models import (
+    Aula,
+    Exercicio,
+    Flashcard,
+    StatusEditorial,
+    Tipo,
+    Trilha,
+)
 from apps.trilhas.serializers import ExercicioDetalheSerializer
 
 from .models import SolicitacaoAutoria
-from .services import MODELOS, slug_livre
+from .services import MODELOS, exigir_rascunho_do_dono, slug_livre
 
 # Única rota autorizada a serializar `solucao_autor`.
 
@@ -244,3 +251,56 @@ class NovoExercicioSerializer(serializers.ModelSerializer[Exercicio]):
                     for i, caso in enumerate(testes, start=1)
                 )
         return exercicio
+
+
+# --- Edição de rascunho ---
+# Só os campos básicos. Slug, pai, tipo e status ficam como estão: o slug é
+# a URL, e trocar de pai pularia a checagem de dono do pai novo.
+
+
+class EdicaoTrilhaSerializer(serializers.ModelSerializer[Trilha]):
+    class Meta:
+        model = Trilha
+        fields = ["id", "nome", "descricao", "dificuldade"]
+        read_only_fields = ["id"]
+
+
+class EdicaoAulaSerializer(serializers.ModelSerializer[Aula]):
+    class Meta:
+        model = Aula
+        fields = ["id", "titulo", "conteudo"]
+        read_only_fields = ["id"]
+
+
+class EdicaoExercicioSerializer(serializers.ModelSerializer[Exercicio]):
+    class Meta:
+        model = Exercicio
+        fields = ["id", "titulo", "enunciado", "dificuldade"]
+        read_only_fields = ["id"]
+
+
+EDICAO: dict[str, type[serializers.ModelSerializer[Any]]] = {
+    "trilhas": EdicaoTrilhaSerializer,
+    "aulas": EdicaoAulaSerializer,
+    "exercicios": EdicaoExercicioSerializer,
+}
+
+
+# --- Flashcards ---
+# A aula é o dono: só entra card em aula própria (salvo admin) e em rascunho.
+
+
+class NovoFlashcardSerializer(serializers.ModelSerializer[Flashcard]):
+    class Meta:
+        model = Flashcard
+        fields = ["id", "aula", "pergunta", "resposta"]
+        read_only_fields = ["id"]
+
+    def validate_aula(self, aula: Aula) -> Aula:
+        exigir_rascunho_do_dono(aula, self.context["request"].user)
+        return aula
+
+
+class EdicaoFlashcardSerializer(NovoFlashcardSerializer):
+    class Meta(NovoFlashcardSerializer.Meta):
+        read_only_fields = ["id", "aula"]

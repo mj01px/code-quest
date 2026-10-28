@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
+import { BaralhoFlashcards } from "@/components/trilhas/CartaoFlashcard";
 import { ErroApi, api } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
 import type { DetalheEditorial, ItemEditorial } from "@/lib/types";
@@ -183,6 +184,7 @@ function Corpo({ detalhe }: { detalhe: DetalheEditorial }) {
       <div className="flex flex-col gap-4">
         <p className={TEXTO}>{detalhe.conteudo}</p>
         <Filhos rotulo="EXERCÍCIOS" itens={detalhe.exercicios} />
+        <BaralhoFlashcards cards={detalhe.flashcards} />
       </div>
     );
   }

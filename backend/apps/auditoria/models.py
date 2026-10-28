@@ -59,6 +59,8 @@ class AcaoAuditoria(models.TextChoices):
     CONTEUDO_DEVOLVIDO = "CONTEUDO_DEVOLVIDO", _("Conteúdo devolvido ao rascunho")
     CONTEUDO_PUBLICADO = "CONTEUDO_PUBLICADO", _("Conteúdo publicado")
     CONTEUDO_CRIADO = "CONTEUDO_CRIADO", _("Conteúdo criado")
+    CONTEUDO_EDITADO = "CONTEUDO_EDITADO", _("Rascunho editado")
+    CONTEUDO_EXCLUIDO = "CONTEUDO_EXCLUIDO", _("Rascunho excluído")
     # Pedido de autoria (apps.autoria.SolicitacaoAutoria).
     AUTORIA_APROVADA = "AUTORIA_APROVADA", _("Solicitação de autoria aprovada")
     AUTORIA_REJEITADA = "AUTORIA_REJEITADA", _("Solicitação de autoria rejeitada")

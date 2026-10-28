@@ -1,8 +1,15 @@
 from rest_framework import serializers
 
-from .models import Aula, Exercicio, Trilha
+from .models import Aula, Exercicio, Flashcard, Trilha
 
 # `fields` sempre em allowlist explícita: `__all__` e `exclude` são proibidos aqui.
+
+
+class FlashcardSerializer(serializers.ModelSerializer[Flashcard]):
+    class Meta:
+        model = Flashcard
+        fields = ["id", "pergunta", "resposta"]
+        read_only_fields = fields
 
 
 class ExercicioResumoSerializer(serializers.ModelSerializer[Exercicio]):
@@ -28,6 +35,7 @@ class ExercicioResumoSerializer(serializers.ModelSerializer[Exercicio]):
 
 class AulaSerializer(serializers.ModelSerializer[Aula]):
     exercicios = ExercicioResumoSerializer(many=True, read_only=True)
+    flashcards = FlashcardSerializer(many=True, read_only=True)
     pre_requisito = serializers.SlugField(
         source="pre_requisito.slug", read_only=True, default=None
     )
@@ -42,6 +50,7 @@ class AulaSerializer(serializers.ModelSerializer[Aula]):
             "ordem",
             "pre_requisito",
             "exercicios",
+            "flashcards",
         ]
         read_only_fields = fields
 

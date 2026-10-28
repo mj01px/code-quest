@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { AreaDeTexto, ROTULO } from "@/components/autoria/AreaDeTexto";
+import { GerenciadorFlashcards } from "@/components/autoria/GerenciadorFlashcards";
 import { PreviaMarkdown } from "@/components/autoria/PreviaMarkdown";
 import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 import { PixelButton } from "@/components/ui/PixelButton";
@@ -11,11 +13,6 @@ import { PixelField } from "@/components/ui/PixelField";
 import { ErroApi, api } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
 import type { Dificuldade, NovaAula, NovaTrilha, NovoExercicio } from "@/lib/types";
-
-const CAMPO_TEXTO =
-  "resize-y border-2 border-brand-strong bg-field px-3.5 py-3 font-body text-[15px] leading-[1.6] text-ink shadow-pixel outline-none focus:border-brand-pale";
-
-const ROTULO = "font-label text-[12px] tracking-[2px] text-ink-label";
 
 const CARTAO = "flex flex-col gap-6 border-2 border-edge bg-panel p-7 shadow-pixel-lg";
 
@@ -29,21 +26,6 @@ function mensagemDe(erro: unknown): string {
   if (!(erro instanceof ErroApi)) return "Não foi possível salvar.";
   // Erro de campo (ex.: "enunciado") é mais útil que o resumo do envelope.
   return Object.values(erro.porCampo())[0] ?? erro.message;
-}
-
-function AreaDeTexto({
-  id,
-  rotulo,
-  ...props
-}: { id: string; rotulo: string } & React.ComponentPropsWithoutRef<"textarea">) {
-  return (
-    <div className="flex flex-col gap-2">
-      <label htmlFor={id} className={ROTULO}>
-        {rotulo}
-      </label>
-      <textarea id={id} rows={4} className={CAMPO_TEXTO} {...props} />
-    </div>
-  );
 }
 
 function Erro({ texto }: { texto: string | null }) {
@@ -275,6 +257,7 @@ function ItemAula({ numero, aula }: { numero: number; aula: NovaAula }) {
           {aberto ? "FECHAR" : "+ EXERCÍCIO"}
         </PixelButton>
       </div>
+      <GerenciadorFlashcards aula={aula.id} />
       {exercicios.length > 0 ? (
         <ul className="m-0 flex list-none flex-col gap-1 p-0 pl-14">
           {exercicios.map((ex) => (

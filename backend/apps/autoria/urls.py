@@ -5,13 +5,16 @@ from .views import (
     AprovarView,
     CriarAulaView,
     CriarExercicioView,
+    CriarFlashcardView,
     CriarTrilhaView,
     DetalheEditorialView,
     DevolverView,
     FilaRevisaoView,
+    FlashcardView,
     MinhaSolicitacaoView,
     PublicarView,
     RascunhosView,
+    RascunhoView,
     RejeitarSolicitacaoView,
     SolicitacoesPendentesView,
     SolicitacoesView,
@@ -53,6 +56,8 @@ urlpatterns = [
     path("autoria/trilhas/", CriarTrilhaView.as_view(), name="criar-trilha"),
     path("autoria/aulas/", CriarAulaView.as_view(), name="criar-aula"),
     path("autoria/exercicios/", CriarExercicioView.as_view(), name="criar-exercicio"),
+    path("autoria/flashcards/", CriarFlashcardView.as_view(), name="criar-flashcard"),
+    path("autoria/flashcards/<int:pk>/", FlashcardView.as_view(), name="flashcard"),
     path("autoria/rascunhos/", RascunhosView.as_view(), name="rascunhos"),
     path("autoria/fila-revisao/", FilaRevisaoView.as_view(), name="fila-revisao"),
     path(
@@ -67,4 +72,6 @@ urlpatterns = [
     re_path(rf"{CONTEUDO}/devolver/$", DevolverView.as_view(), name="devolver"),
     re_path(rf"{CONTEUDO}/publicar/$", PublicarView.as_view(), name="publicar"),
     re_path(rf"{CONTEUDO}/detalhe/$", DetalheEditorialView.as_view(), name="detalhe"),
+    # PUT edita e DELETE exclui, os dois só em rascunho.
+    re_path(rf"{CONTEUDO}/$", RascunhoView.as_view(), name="rascunho"),
 ]

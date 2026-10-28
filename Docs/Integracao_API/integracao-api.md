@@ -376,7 +376,6 @@ API pública só devolve conteúdo publicado.
 | Método | Rota | Acesso | Limite |
 |---|---|---|---|
 | GET | `/eu/progresso/` | sessão | `user` |
-| GET | `/eu/dashboard/` | sessão | `eu_progresso` |
 | GET | `/eu/trilhas/` | sessão | `eu_progresso` |
 | POST | `/trilhas/{trilha_slug}/iniciar/` | permissão `trilhas.enroll` | `conclusao` |
 | GET | `/eu/exercicios-concluidos/` | sessão | `eu_progresso` |

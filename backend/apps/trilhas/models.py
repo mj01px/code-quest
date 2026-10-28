@@ -219,6 +219,34 @@ class Aula(models.Model):
             )
 
 
+class Flashcard(models.Model):
+    """Pergunta e resposta de revisão rápida, presas a uma aula.
+
+    Sem status nem autor próprios: herda os da aula, e só muda enquanto ela
+    está em rascunho.
+    """
+
+    aula = models.ForeignKey(
+        Aula,
+        on_delete=models.CASCADE,
+        related_name="flashcards",
+        verbose_name=_("aula"),
+    )
+
+    pergunta = models.TextField(max_length=500, verbose_name=_("pergunta"))
+
+    resposta = models.TextField(max_length=1000, verbose_name=_("resposta"))
+
+    class Meta:
+        verbose_name = _("flashcard")
+        verbose_name_plural = _("flashcards")
+        # Ordem de criação: é a ordem em que o autor montou o baralho.
+        ordering = ["id"]
+
+    def __str__(self) -> str:
+        return f"{self.aula.titulo} - {self.pergunta[:40]}"
+
+
 class Exercicio(models.Model):
     aula = models.ForeignKey(
         Aula,

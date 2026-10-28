@@ -9,15 +9,16 @@ import type {
   ConviteGerado,
   Correcao,
   Criatura,
-  Dashboard,
   DashboardAdmin,
   DetalheEditorial,
   Dificuldade,
   DocumentosLegais,
+  EdicaoRascunho,
   EspecificacaoDeCodigo,
   Evolucao,
   ExercicioConcluido,
   ExercicioDetalhe,
+  Flashcard,
   ItemEditorial,
   MembroDoCla,
   MeuCla,
@@ -660,10 +661,6 @@ export const api = {
     return requisicao<Sequencia>("/eu/sequencia/", { autenticado: true });
   },
 
-  meuDashboard() {
-    return requisicao<Dashboard>("/eu/dashboard/", { autenticado: true });
-  },
-
   // Marca a trilha como iniciada. Idempotente no servidor: clicar duas vezes
   // devolve 200 em vez de 201, e o corpo e o mesmo.
   iniciarTrilha(trilhaSlug: string) {
@@ -893,6 +890,45 @@ export const api = {
   devolverConteudo(tipo: TipoConteudo, id: number) {
     return requisicao<TransicaoEditorial>(`/autoria/${tipo}/${id}/devolver/`, {
       metodo: "POST",
+      autenticado: true,
+    });
+  },
+
+  // Edição e exclusão valem só para rascunho do próprio autor (ou admin).
+  editarRascunho(tipo: TipoConteudo, id: number, dados: EdicaoRascunho) {
+    return requisicao<unknown>(`/autoria/${tipo}/${id}/`, {
+      metodo: "PUT",
+      corpo: dados,
+      autenticado: true,
+    });
+  },
+
+  excluirRascunho(tipo: TipoConteudo, id: number) {
+    return requisicao<null>(`/autoria/${tipo}/${id}/`, {
+      metodo: "DELETE",
+      autenticado: true,
+    });
+  },
+
+  criarFlashcard(dados: { aula: number; pergunta: string; resposta: string }) {
+    return requisicao<Flashcard>("/autoria/flashcards/", {
+      metodo: "POST",
+      corpo: dados,
+      autenticado: true,
+    });
+  },
+
+  editarFlashcard(id: number, dados: { pergunta: string; resposta: string }) {
+    return requisicao<Flashcard>(`/autoria/flashcards/${id}/`, {
+      metodo: "PUT",
+      corpo: dados,
+      autenticado: true,
+    });
+  },
+
+  excluirFlashcard(id: number) {
+    return requisicao<null>(`/autoria/flashcards/${id}/`, {
+      metodo: "DELETE",
       autenticado: true,
     });
   },

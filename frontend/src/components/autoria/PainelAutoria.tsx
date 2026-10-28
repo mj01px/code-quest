@@ -76,6 +76,10 @@ export function PainelAutoria() {
         <ListaRascunhos
           key={`rascunhos-${versaoRascunhos}`}
           aoSubmeter={() => setVersaoFila((v) => v + 1)}
+          // Editar e excluir são de quem cria (trilhas.create), como no backend.
+          aoAlterar={
+            podeCriar ? () => setVersaoRascunhos((v) => v + 1) : undefined
+          }
         />
       ) : null}
 

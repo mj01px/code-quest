@@ -68,7 +68,7 @@ class TrilhaDetailView(generics.RetrieveAPIView[Trilha]):
             queryset=(
                 Aula.objects.publicados()
                 .select_related("pre_requisito")
-                .prefetch_related(exercicios)
+                .prefetch_related(exercicios, "flashcards")
                 .order_by("ordem", "titulo")
             ),
         )

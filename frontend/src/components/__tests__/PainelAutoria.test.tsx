@@ -26,6 +26,9 @@ jest.mock("@/lib/api", () => ({
     submeterRevisao: jest.fn(),
     aprovarConteudo: jest.fn(),
     devolverConteudo: jest.fn(),
+    editarRascunho: jest.fn(),
+    excluirRascunho: jest.fn(),
+    criarFlashcard: jest.fn(),
   },
 }));
 
@@ -205,6 +208,7 @@ describe("PainelAutoria: modal de visualização", () => {
     ordem: 1,
     pre_requisito: null,
     exercicios: [{ id: 9, titulo: "Tabuada" }],
+    flashcards: [{ id: 4, pergunta: "Laço infinito?", resposta: "Nunca termina." }],
   };
 
   const exercicio: ItemEditorial = {
@@ -247,6 +251,8 @@ describe("PainelAutoria: modal de visualização", () => {
       await within(modal).findByText("Um laço repete um bloco."),
     ).toBeInTheDocument();
     expect(within(modal).getByText("Tabuada")).toBeInTheDocument();
+    await userEvent.click(within(modal).getByRole("button", { pressed: false }));
+    expect(within(modal).getByText("Nunca termina.")).toBeInTheDocument();
 
     await userEvent.click(within(modal).getByRole("button", { name: "Aprovar" }));
 
@@ -316,5 +322,80 @@ describe("PainelAutoria: modal de visualização", () => {
       "O status atual é Aprovado.",
     );
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+});
+
+describe("PainelAutoria: editar e excluir rascunho", () => {
+  const CRIADOR = [...AUTOR, "trilhas.create"];
+
+  it("lápis e lixeira só para quem cria conteúdo", async () => {
+    montar(AUTOR);
+    await screen.findByRole("button", { name: "Enviar para Revisão: Trilha nova" });
+    expect(screen.queryByRole("button", { name: "Excluir: Trilha nova" })).toBeNull();
+  });
+
+  it("excluir pede confirmação, chama a API e recarrega a lista", async () => {
+    mock.api.excluirRascunho.mockResolvedValue(null);
+    montar(CRIADOR);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Excluir: Trilha nova" }),
+    );
+    const modal = screen.getByRole("dialog");
+    expect(mock.api.excluirRascunho).not.toHaveBeenCalled();
+
+    mock.api.autoriaRascunhos.mockResolvedValue([]);
+    await userEvent.click(within(modal).getByRole("button", { name: "EXCLUIR" }));
+
+    expect(mock.api.excluirRascunho).toHaveBeenCalledWith("trilhas", 3);
+    expect(await screen.findByText("Nenhum rascunho esperando envio.")).toBeInTheDocument();
+  });
+
+  it("erro ao excluir fica no modal", async () => {
+    const { ErroApi } = jest.requireActual("@/lib/api");
+    mock.api.excluirRascunho.mockRejectedValue(
+      new ErroApi(400, "validacao", "Só rascunho pode ser editado ou excluído."),
+    );
+    montar(CRIADOR);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Excluir: Trilha nova" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "EXCLUIR" }));
+
+    expect(await within(screen.getByRole("dialog")).findByRole("alert")).toHaveTextContent(
+      "Só rascunho pode ser editado ou excluído.",
+    );
+  });
+
+  it("editar carrega os campos, salva e recarrega", async () => {
+    mock.api.detalheEditorial.mockResolvedValue({
+      id: 3,
+      nome: "Trilha nova",
+      slug: "trilha-nova",
+      descricao: "Linha curta",
+      resumo: "",
+      sobre: "",
+      ordem: 1,
+      aulas: [],
+    });
+    mock.api.editarRascunho.mockResolvedValue({});
+    montar(CRIADOR);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Editar: Trilha nova" }),
+    );
+    const nome = await screen.findByLabelText("NOME");
+    expect(nome).toHaveValue("Trilha nova");
+    await userEvent.clear(nome);
+    await userEvent.type(nome, "Trilha renomeada");
+    await userEvent.click(screen.getByRole("button", { name: "SALVAR" }));
+
+    expect(mock.api.editarRascunho).toHaveBeenCalledWith("trilhas", 3, {
+      nome: "Trilha renomeada",
+      descricao: "Linha curta",
+    });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() => expect(mock.api.autoriaRascunhos).toHaveBeenCalledTimes(2));
   });
 });
