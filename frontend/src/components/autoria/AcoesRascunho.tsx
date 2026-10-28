@@ -20,23 +20,23 @@ import type {
 export const BOTAO_ICONE =
   "flex h-11 w-11 cursor-pointer items-center justify-center border-2 border-edge-soft text-ink-muted transition-colors duration-150 hover:border-brand hover:text-ink disabled:cursor-not-allowed disabled:opacity-50";
 
+// A trilha não passa por aqui: o lápis dela abre o editor completo.
+type TipoNoModal = Exclude<TipoConteudo, "trilhas">;
+
 // Rótulo do segundo campo de cada tipo; o primeiro é sempre o título.
-const TEXTO: Record<TipoConteudo, string> = {
-  trilhas: "DESCRIÇÃO CURTA",
+const TEXTO: Record<TipoNoModal, string> = {
   aulas: "TEXTO (MARKDOWN)",
   exercicios: "ENUNCIADO",
 };
 
-function camposDe(d: DetalheEditorial): { titulo: string; texto: string } {
+function camposDe(d: DetalheEditorial): { titulo: string; texto: string } | null {
   if ("enunciado" in d) return { titulo: d.titulo, texto: d.enunciado };
   if ("conteudo" in d) return { titulo: d.titulo, texto: d.conteudo };
-  return { titulo: d.nome, texto: d.descricao };
+  return null;
 }
 
-function corpoDe(tipo: TipoConteudo, titulo: string, texto: string): EdicaoRascunho {
-  if (tipo === "trilhas") return { nome: titulo, descricao: texto };
-  if (tipo === "aulas") return { titulo, conteudo: texto };
-  return { titulo, enunciado: texto };
+function corpoDe(tipo: TipoNoModal, titulo: string, texto: string): EdicaoRascunho {
+  return tipo === "aulas" ? { titulo, conteudo: texto } : { titulo, enunciado: texto };
 }
 
 function mensagemDe(erro: unknown, padrao: string): string {
@@ -46,7 +46,7 @@ function mensagemDe(erro: unknown, padrao: string): string {
 
 // Lápis e lixeira de um rascunho. Os dois terminam em `aoAlterar`, que
 // recarrega a lista: excluir uma trilha leva junto as aulas dela. O lápis da
-// trilha abre o editor completo, onde se continua adicionando aulas.
+// trilha é um link para o editor completo; o de aula e exercício abre o modal.
 export function AcoesRascunho({
   item,
   aoAlterar,
@@ -55,6 +55,7 @@ export function AcoesRascunho({
   aoAlterar: () => void;
 }) {
   const id = useId();
+  const noModal: TipoNoModal | null = item.tipo === "trilhas" ? null : item.tipo;
   const [modo, setModo] = useState<"editar" | "excluir" | null>(null);
   const [detalhe, setDetalhe] = useState<DetalheEditorial | null>(null);
   const [titulo, setTitulo] = useState("");
@@ -77,8 +78,8 @@ export function AcoesRascunho({
     const meu = ++pedido.current;
     try {
       const lido = await api.detalheEditorial(item.tipo, item.id);
-      if (meu !== pedido.current) return;
       const campos = camposDe(lido);
+      if (meu !== pedido.current || campos === null) return;
       setTitulo(campos.titulo);
       setTexto(campos.texto);
       setDetalhe(lido);
@@ -95,11 +96,11 @@ export function AcoesRascunho({
     try {
       if (modo === "excluir") {
         await api.excluirRascunho(item.tipo, item.id);
-      } else {
+      } else if (noModal !== null) {
         await api.editarRascunho(
-          item.tipo,
+          noModal,
           item.id,
-          corpoDe(item.tipo, titulo.trim(), texto.trim()),
+          corpoDe(noModal, titulo.trim(), texto.trim()),
         );
       }
       fechar();
@@ -113,7 +114,7 @@ export function AcoesRascunho({
 
   return (
     <>
-      {item.tipo === "trilhas" ? (
+      {noModal === null ? (
         <Link
           href={`/autoria/novo?trilha_id=${item.id}`}
           aria-label={`Editar: ${item.titulo}`}
@@ -158,7 +159,7 @@ export function AcoesRascunho({
         </ModalConfirmacao>
       ) : null}
 
-      {modo === "editar" ? (
+      {modo === "editar" && noModal !== null ? (
         <ModalConfirmacao
           rotulo="EDITAR RASCUNHO"
           titulo={item.titulo}
@@ -176,15 +177,15 @@ export function AcoesRascunho({
           ) : (
             <div className="flex flex-col gap-5">
               <PixelField
-                rotulo={item.tipo === "trilhas" ? "NOME" : "TÍTULO"}
+                rotulo="TÍTULO"
                 value={titulo}
-                maxLength={item.tipo === "trilhas" ? 80 : 120}
+                maxLength={120}
                 onChange={(e) => setTitulo(e.target.value)}
               />
               <AreaDeTexto
                 id={`${id}-texto`}
-                rotulo={TEXTO[item.tipo]}
-                rows={item.tipo === "aulas" ? 8 : 4}
+                rotulo={TEXTO[noModal]}
+                rows={noModal === "aulas" ? 8 : 4}
                 value={texto}
                 onChange={(e) => setTexto(e.target.value)}
               />

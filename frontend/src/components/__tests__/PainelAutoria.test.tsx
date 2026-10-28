@@ -412,6 +412,35 @@ describe("PainelAutoria: editar e excluir rascunho", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     await waitFor(() => expect(mock.api.autoriaRascunhos).toHaveBeenCalledTimes(2));
   });
+
+  it("editar exercício usa título e enunciado", async () => {
+    mock.api.autoriaRascunhos.mockResolvedValue([
+      { id: 8, tipo: "exercicios", titulo: "Soma", status_editorial: "RASCUNHO" },
+    ]);
+    mock.api.detalheEditorial.mockResolvedValue({
+      id: 8,
+      titulo: "Soma",
+      slug: "soma",
+      enunciado: "Some dois números.",
+      tipo: "TEORICO",
+      dificuldade: "INICIANTE",
+      ordem: 1,
+      codigo_inicial: null,
+    });
+    mock.api.editarRascunho.mockResolvedValue({});
+    montar(CRIADOR);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Editar: Soma" }));
+    const enunciado = await screen.findByLabelText("ENUNCIADO");
+    expect(enunciado).toHaveValue("Some dois números.");
+    await userEvent.type(enunciado, " E mostre.");
+    await userEvent.click(screen.getByRole("button", { name: "SALVAR" }));
+
+    expect(mock.api.editarRascunho).toHaveBeenCalledWith("exercicios", 8, {
+      titulo: "Soma",
+      enunciado: "Some dois números. E mostre.",
+    });
+  });
 });
 
 describe("PainelAutoria: prontos para publicar", () => {

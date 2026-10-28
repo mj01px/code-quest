@@ -27,6 +27,7 @@ jest.mock("@/lib/api", () => ({
     criarQuestao: jest.fn(),
     detalheEditorial: jest.fn(),
     publicarConteudo: jest.fn(),
+    editarRascunho: jest.fn(),
   },
 }));
 
@@ -173,7 +174,8 @@ describe("EditorDeConteudo", () => {
     mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
     montar(AUTOR, 9);
 
-    expect(await screen.findByRole("heading", { name: "TS do zero" })).toBeInTheDocument();
+    expect(await screen.findByLabelText("NOME DA TRILHA")).toHaveValue("TS do zero");
+    expect(screen.getByLabelText("DESCRIÇÃO CURTA")).toHaveValue("Tipos");
     expect(mock.api.detalheEditorial).toHaveBeenCalledWith("trilhas", 9);
     expect(screen.getByRole("heading", { name: "Editar trilha" })).toBeInTheDocument();
     expect(screen.queryByRole("form", { name: "Dados da trilha" })).toBeNull();
@@ -214,12 +216,54 @@ describe("EditorDeConteudo", () => {
     expect(await screen.findByText("Quanto é 1 + 1?")).toBeInTheDocument();
   });
 
+  it("edita nome e descrição da trilha em rascunho", async () => {
+    const u = userEvent.setup();
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
+    mock.api.editarRascunho.mockResolvedValue({});
+    montar(AUTOR, 9);
+
+    const nome = await screen.findByLabelText("NOME DA TRILHA");
+    const salvar = screen.getByRole("button", { name: "SALVAR DADOS DA TRILHA" });
+    // Sem mudança, não há o que salvar.
+    expect(salvar).toBeDisabled();
+    await u.clear(nome);
+    await u.type(nome, "TS avançado");
+    await u.click(salvar);
+
+    expect(mock.api.editarRascunho).toHaveBeenCalledWith("trilhas", 9, {
+      nome: "TS avançado",
+      descricao: "Tipos",
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent("DADOS DA TRILHA SALVOS.");
+    expect(salvar).toBeDisabled();
+  });
+
+  it("erro ao salvar a trilha aparece na tela", async () => {
+    const u = userEvent.setup();
+    const { ErroApi } = jest.requireActual("@/lib/api");
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
+    mock.api.editarRascunho.mockRejectedValue(
+      new ErroApi(400, "validacao", "Só rascunho pode ser editado ou excluído."),
+    );
+    montar(AUTOR, 9);
+
+    await u.type(await screen.findByLabelText("DESCRIÇÃO CURTA"), " e mais");
+    await u.click(screen.getByRole("button", { name: "SALVAR DADOS DA TRILHA" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Só rascunho pode ser editado ou excluído.",
+    );
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
   it("trilha aprovada mostra PUBLICAR TRILHA e publica", async () => {
     mock.api.detalheEditorial.mockResolvedValue(trilhaSalva("APROVADO"));
     mock.api.publicarConteudo.mockResolvedValue({ id: 9, status_editorial: "PUBLICADO" });
     montar(AUTOR, 9);
 
     await userEvent.click(await screen.findByRole("button", { name: "PUBLICAR TRILHA" }));
+    // Fora de rascunho, nome e descrição não se editam.
+    expect(screen.queryByLabelText("NOME DA TRILHA")).toBeNull();
 
     expect(mock.api.publicarConteudo).toHaveBeenCalledWith("trilhas", 9);
     expect(await screen.findByText(/TRILHA PUBLICADA/)).toBeInTheDocument();

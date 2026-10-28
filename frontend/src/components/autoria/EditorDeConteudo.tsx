@@ -150,13 +150,7 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
       ) : null}
 
       {trilha ? (
-        <section className={CARTAO} aria-label="Trilha">
-          <span className={`text-success ${TIPO.etiqueta}`}>
-            &gt; {ROTULO_STATUS[trilha.status_editorial]}
-          </span>
-          <h2 className={`m-0 text-ink ${TIPO.tituloSecao}`}>{trilha.nome}</h2>
-          <p className={`m-0 text-ink-body ${TIPO.corpo}`}>{trilha.descricao}</p>
-        </section>
+        <DadosTrilha key={trilha.id} trilha={trilha} aoSalvar={setTrilha} />
       ) : retomando ? (
         erroCarga ? (
           <Erro texto={erroCarga} />
@@ -223,6 +217,95 @@ function BotaoPublicar({ trilha, aoPublicar }: { trilha: number; aoPublicar: () 
       </PixelButton>
       <Erro texto={erro} />
     </div>
+  );
+}
+
+// Nome e descrição só se editam em rascunho, a mesma regra do backend; fora
+// dele a trilha aparece como texto, com o status em destaque.
+function DadosTrilha({
+  trilha,
+  aoSalvar,
+}: {
+  trilha: TrilhaEditor;
+  aoSalvar: (t: TrilhaEditor) => void;
+}) {
+  const [nome, setNome] = useState(trilha.nome);
+  const [descricao, setDescricao] = useState(trilha.descricao);
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [salvo, setSalvo] = useState(false);
+
+  const status = (
+    <span className={`text-success ${TIPO.etiqueta}`}>
+      &gt; {ROTULO_STATUS[trilha.status_editorial]}
+    </span>
+  );
+
+  if (trilha.status_editorial !== "RASCUNHO") {
+    return (
+      <section className={CARTAO} aria-label="Trilha">
+        {status}
+        <h2 className={`m-0 text-ink ${TIPO.tituloSecao}`}>{trilha.nome}</h2>
+        <p className={`m-0 text-ink-body ${TIPO.corpo}`}>{trilha.descricao}</p>
+      </section>
+    );
+  }
+
+  async function salvar(evento: React.FormEvent) {
+    evento.preventDefault();
+    setEnviando(true);
+    setErro(null);
+    setSalvo(false);
+    const dados = { nome: nome.trim(), descricao: descricao.trim() };
+    try {
+      await api.editarRascunho("trilhas", trilha.id, dados);
+      aoSalvar({ ...trilha, ...dados });
+      setSalvo(true);
+    } catch (e) {
+      setErro(mensagemDe(e));
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  const mudou = nome.trim() !== trilha.nome || descricao.trim() !== trilha.descricao;
+
+  return (
+    <form onSubmit={salvar} className={CARTAO} aria-label="Trilha">
+      {status}
+      <PixelField
+        rotulo="NOME DA TRILHA"
+        value={nome}
+        maxLength={80}
+        onChange={(e) => {
+          setNome(e.target.value);
+          setSalvo(false);
+        }}
+      />
+      <AreaDeTexto
+        id={`trilha-${trilha.id}-descricao`}
+        rotulo="DESCRIÇÃO CURTA"
+        rows={3}
+        value={descricao}
+        onChange={(e) => {
+          setDescricao(e.target.value);
+          setSalvo(false);
+        }}
+      />
+      <Erro texto={erro} />
+      {salvo ? (
+        <p role="status" className={`m-0 text-success ${TIPO.etiqueta}`}>
+          &gt; DADOS DA TRILHA SALVOS.
+        </p>
+      ) : null}
+      <PixelButton
+        type="submit"
+        className="self-end"
+        disabled={enviando || !mudou || !nome.trim() || !descricao.trim()}
+      >
+        {enviando ? "SALVANDO..." : "SALVAR DADOS DA TRILHA"}
+      </PixelButton>
+    </form>
   );
 }
 
