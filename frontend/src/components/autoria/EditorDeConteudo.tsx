@@ -345,6 +345,10 @@ function FormAula({ trilha, aoCriar }: { trilha: number; aoCriar: (a: NovaAula) 
           </div>
         </div>
       </div>
+      <p className={`m-0 text-ink-muted ${TIPO.corpo}`}>
+        Depois de adicionar, a aula aparece na lista acima, onde você inclui os
+        exercícios dela.
+      </p>
       <Erro texto={erro} />
       <PixelButton
         type="submit"
@@ -361,38 +365,48 @@ function ItemAula({ numero, aula }: { numero: number; aula: AulaEditor }) {
   const [exercicios, setExercicios] = useState(aula.exercicios);
   const [questoes, setQuestoes] = useState(aula.questoes);
   const [aberto, setAberto] = useState(false);
+  const vazia = exercicios.length === 0 && questoes.length === 0;
 
   return (
-    <li className="flex flex-col gap-4 border-2 border-edge bg-panel p-5 shadow-pixel">
+    <li className="flex flex-col gap-5 border-2 border-edge bg-panel p-5 shadow-pixel">
       <div className="flex flex-wrap items-center gap-4">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-brand-shadow bg-panel-deep font-display text-[11px] text-brand-light">
           {String(numero).padStart(2, "0")}
         </span>
         <span className={`min-w-0 flex-1 text-ink ${TIPO.etiqueta}`}>{aula.titulo}</span>
+      </div>
+      <GerenciadorFlashcards aula={aula.id} iniciais={aula.flashcards} />
+      <div className="flex flex-col gap-3">
+        <span className={`text-ink-muted ${TIPO.etiqueta}`}>EXERCÍCIOS DA AULA</span>
+        {vazia ? (
+          <p className="m-0 border-2 border-dashed border-edge-soft px-4 py-3 font-body text-base text-ink-muted">
+            &gt; NENHUM EXERCÍCIO AINDA.
+          </p>
+        ) : (
+          <ul className="m-0 flex list-none flex-col gap-1 p-0">
+            {exercicios.map((ex) => (
+              <li key={`ex-${ex.id}`} className="font-body text-base text-ink-body">
+                <span className={`mr-2 text-brand-light ${TIPO.etiqueta}`}>TEÓRICO</span>
+                {ex.titulo}
+              </li>
+            ))}
+            {questoes.map((q) => (
+              <li key={`q-${q.id}`} className="font-body text-base text-ink-body">
+                <span className={`mr-2 text-brand-light ${TIPO.etiqueta}`}>MÚLTIPLA ESCOLHA</span>
+                {q.enunciado}
+              </li>
+            ))}
+          </ul>
+        )}
         <PixelButton
-          variante="secundaria"
+          variante={aberto ? "secundaria" : "primaria"}
+          className="self-start"
           aria-expanded={aberto}
           onClick={() => setAberto((a) => !a)}
         >
-          {aberto ? "FECHAR" : "+ EXERCÍCIO"}
+          {aberto ? "CANCELAR" : "+ ADICIONAR EXERCÍCIO"}
         </PixelButton>
       </div>
-      <GerenciadorFlashcards aula={aula.id} iniciais={aula.flashcards} />
-      {exercicios.length > 0 || questoes.length > 0 ? (
-        <ul className="m-0 flex list-none flex-col gap-1 p-0 pl-14">
-          {exercicios.map((ex) => (
-            <li key={`ex-${ex.id}`} className="font-body text-base text-ink-body">
-              {ex.titulo}
-            </li>
-          ))}
-          {questoes.map((q) => (
-            <li key={`q-${q.id}`} className="font-body text-base text-ink-body">
-              <span className={`mr-2 text-brand-light ${TIPO.etiqueta}`}>MÚLTIPLA ESCOLHA</span>
-              {q.enunciado}
-            </li>
-          ))}
-        </ul>
-      ) : null}
       {aberto ? (
         <FormExercicio
           aula={aula.id}
@@ -410,9 +424,8 @@ function ItemAula({ numero, aula }: { numero: number; aula: AulaEditor }) {
   );
 }
 
-// ponytail: teórico (título e enunciado) ou múltipla escolha. Exercício de
-// código, com função e casos de teste do corretor, fica fora do editor por
-// escopo; o backend já aceita `funcao` e `testes` quando a tela voltar a pedir.
+// ponytail: só teórico e múltipla escolha por enquanto; um tipo novo entra
+// como mais uma opção do seletor e um formulário ao lado de FormTeorico.
 function FormExercicio({
   aula,
   aoCriarExercicio,
@@ -427,9 +440,10 @@ function FormExercicio({
 
   return (
     <div className="flex flex-col gap-5 border-2 border-dashed border-brand-shadow bg-panel-deep p-5">
+      <h4 className={`m-0 text-ink ${TIPO.tituloSecao}`}>Novo exercício</h4>
       <div className="flex flex-col gap-2">
         <span id={`${id}-tipo`} className={ROTULO}>
-          TIPO
+          TIPO DO EXERCÍCIO
         </span>
         <div role="radiogroup" aria-labelledby={`${id}-tipo`} className="flex flex-wrap gap-2">
           {(
@@ -584,7 +598,7 @@ function FormQuestao({ aula, aoCriar }: { aula: number; aoCriar: (q: Questao) =>
         className="self-end"
         disabled={enviando || !enunciado.trim() || opcoes.some((o) => !o.trim())}
       >
-        {enviando ? "SALVANDO..." : "SALVAR QUESTÃO"}
+        {enviando ? "SALVANDO..." : "SALVAR EXERCÍCIO"}
       </PixelButton>
     </form>
   );

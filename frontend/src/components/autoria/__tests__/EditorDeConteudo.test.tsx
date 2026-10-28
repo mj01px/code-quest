@@ -152,12 +152,13 @@ describe("EditorDeConteudo", () => {
       conteudo: "# Oi",
     });
 
-    await u.click(await screen.findByRole("button", { name: "+ EXERCÍCIO" }));
+    await u.click(await screen.findByRole("button", { name: "+ ADICIONAR EXERCÍCIO" }));
     await u.type(screen.getByLabelText("TÍTULO DO EXERCÍCIO"), "Soma");
     await u.type(screen.getByLabelText("ENUNCIADO"), "Some");
-    // O editor não pede código nem testes.
-    expect(screen.queryByLabelText(/FUNÇÃO/)).toBeNull();
-    expect(screen.queryByLabelText(/TESTES/)).toBeNull();
+    // Só teórico e múltipla escolha: nada de código ou função na tela.
+    expect(screen.getAllByRole("radio", { name: /TEÓRICO|MÚLTIPLA ESCOLHA/ })).toHaveLength(2);
+    expect(screen.queryByText(/CÓDIGO|FUNÇÃO/i)).toBeNull();
+    expect(screen.queryByLabelText(/CÓDIGO|FUNÇÃO|TESTES/i)).toBeNull();
     await u.click(screen.getByRole("button", { name: "SALVAR EXERCÍCIO" }));
 
     expect(mock.api.criarExercicio).toHaveBeenCalledWith({
@@ -195,14 +196,14 @@ describe("EditorDeConteudo", () => {
     });
     montar(AUTOR, 9);
 
-    await u.click(await screen.findByRole("button", { name: "+ EXERCÍCIO" }));
+    await u.click(await screen.findByRole("button", { name: "+ ADICIONAR EXERCÍCIO" }));
     await u.click(screen.getByRole("radio", { name: "MÚLTIPLA ESCOLHA" }));
     await u.type(screen.getByLabelText("ENUNCIADO DA QUESTÃO"), "Quanto é 1 + 1?");
     for (const [letra, texto] of [["A", "1"], ["B", "2"], ["C", "3"], ["D", "4"]]) {
       await u.type(screen.getByLabelText(`OPÇÃO ${letra}`), texto);
     }
     await u.selectOptions(screen.getByLabelText("RESPOSTA CORRETA"), "B");
-    await u.click(screen.getByRole("button", { name: "SALVAR QUESTÃO" }));
+    await u.click(screen.getByRole("button", { name: "SALVAR EXERCÍCIO" }));
 
     expect(mock.api.criarQuestao).toHaveBeenCalledWith({
       aula: 4,

@@ -1022,7 +1022,7 @@ export const api = {
     });
   },
 
-  // Sem `funcao`, o exercício nasce teórico; o editor só cria teóricos.
+  // O editor só cria exercícios teóricos.
   criarExercicio(dados: { aula: number; titulo: string; enunciado: string }) {
     return requisicao<NovoExercicio>("/autoria/exercicios/", {
       metodo: "POST",
