@@ -532,31 +532,38 @@ tipo (código ou teórico), dificuldade e o contexto da aula e da trilha.
 
 **Prioridade:** Média · **Estado:** Implementado
 
-**Descrição:** O sistema deverá conduzir trilhas, aulas e exercícios pelos estados
-RASCUNHO → REVISAO → APROVADO → PUBLICADO, de modo que somente conteúdo
-publicado chegue ao aluno.
+**Descrição:** O sistema deverá permitir que o autor crie conteúdo e o conduza pelos
+estados RASCUNHO → REVISAO → APROVADO → PUBLICADO (trilhas, aulas, exercícios, e
+dentro da aula, flashcards e questões de múltipla escolha), de modo que somente
+conteúdo publicado chegue ao aluno.
 
-**Atores:** Autor, Administrador.
+**Atores:** Autor, Revisor, Administrador.
 
-**Pré-condições:** Conteúdo cadastrado.
+**Pré-condições:** Usuário autenticado com a permissão da etapa. Quem ainda não é
+autor pede acesso em `/ser-autor` e o administrador aprova o pedido.
 
 **Fluxo principal:**
-1. O conteúdo nasce em rascunho (hoje pela carga `seed_trilhas`; ainda não há tela de criação).
-2. O autor abre `/autoria` e vê a lista de rascunhos, com trilhas, aulas e exercícios.
-3. Ao clicar no título, abre-se o modal com o conteúdo inteiro, sem a solução do autor.
-4. O autor envia o rascunho para revisão.
-5. O revisor abre a fila de revisão, consulta o conteúdo no modal e aprova ou devolve ao rascunho.
-6. Um usuário com `trilhas.publish` publica o conteúdo aprovado pela rota de publicação (ainda sem botão na tela).
+1. O usuário solicita autoria em `/ser-autor`; o administrador aprova ou rejeita a solicitação.
+2. O autor cria o conteúdo em `/autoria/novo`: trilha, aula e exercício, com flashcards e questões de múltipla escolha dentro da aula. Tudo nasce em rascunho, com ele como autor.
+3. Enquanto estiver em rascunho, o autor edita ou exclui o próprio conteúdo.
+4. O autor abre `/autoria`, vê a lista de rascunhos e envia o conteúdo para revisão.
+5. O revisor abre a fila de revisão, consulta o conteúdo no modal (sem a solução do autor) e aprova ou devolve ao rascunho.
+6. O autor vê a lista de aprovados e publica o que criou; quem tem `trilhas.publish` publica qualquer conteúdo aprovado.
 
 **Regras de negócio:**
 - RN01: A API pública só devolve conteúdo PUBLICADO.
 - RN02: Cada transição exige a permissão correspondente (`trilhas.create`, `trilhas.submit_review`, `trilhas.review`, `trilhas.publish`).
+- RN03: Editar e excluir valem só para rascunho e só para o dono (ou administrador); excluir é recusado se algum filho já saiu do rascunho.
+- RN04: Aula, exercício, flashcard e questão só entram em pai do próprio autor (salvo administrador); flashcard e questão só em aula em rascunho.
+- RN05: Autor, status e slug não vêm do corpo da requisição: o servidor define.
 
-**Pós-condições:** Conteúdo no novo estado editorial.
+**Pós-condições:** Conteúdo no novo estado editorial, com a ação registrada na auditoria.
 
 **Critérios de aceite:**
 - CA01: Dado um exercício em APROVADO, quando a API pública for consultada, então ele não deverá aparecer.
-- CA02: Dado um aluno, quando tentar publicar conteúdo, então o sistema deverá recusar.
+- CA02: Dado um aluno, quando tentar publicar ou criar conteúdo, então o sistema deverá recusar.
+- CA03: Dado um autor, quando tentar editar o rascunho de outro autor, então o sistema deverá recusar.
+- CA04: Dado um conteúdo fora de RASCUNHO, quando o autor tentar editá-lo ou excluí-lo, então o sistema deverá recusar.
 
 **O que existe:** os quatro estados no modelo, o filtro de publicados em todas as
 rotas públicas, as permissões no catálogo do RBAC, o comando de carga
@@ -564,17 +571,23 @@ idempotente (`seed_trilhas`) e as rotas de transição (enviar para revisão,
 aprovar, devolver ao rascunho e publicar) para trilhas, aulas e exercícios.
 Cada rota exige a permissão correspondente, recusa transição fora de ordem e
 registra a mudança na trilha de auditoria. A publicação de trilha ou aula é
-recusada enquanto houver conteúdo filho em rascunho ou em revisão. As rotas
-`GET /autoria/rascunhos/` e `GET /autoria/fila-revisao/` listam os três tipos
-de conteúdo em cada fila, e a tela `/autoria` mostra cada lista só a quem tem
-a permissão dela, com os botões de enviar para revisão, aprovar e devolver.
-Clicar no título abre o conteúdo inteiro num modal (`GET
-/autoria/<tipo>/<pk>/detalhe/`, sem a solução do autor), com as mesmas ações.
+recusada enquanto houver conteúdo filho em rascunho ou em revisão. A criação
+de trilha, aula e exercício (`POST /autoria/{trilhas,aulas,exercicios}/`), a
+edição e a exclusão de rascunho (`PUT` e `DELETE /autoria/<tipo>/<pk>/`), os
+flashcards (`/autoria/flashcards/`) e as questões de múltipla escolha
+(`/autoria/questoes/`) estão implementados, com a solicitação de autoria
+(`/autoria/solicitacoes/`) decidida pelo administrador. As rotas
+`GET /autoria/rascunhos/`, `GET /autoria/aprovados/` e `GET /autoria/fila-revisao/`
+listam os três tipos de conteúdo em cada fila, e a tela `/autoria` mostra cada
+lista só a quem tem a permissão dela, com os botões de enviar para revisão,
+editar, excluir, aprovar, devolver e publicar. Clicar no título abre o
+conteúdo inteiro num modal (`GET /autoria/<tipo>/<pk>/detalhe/`, sem a solução
+do autor), com as mesmas ações. O aluno responde as questões de múltipla
+escolha na aula; a correção ocorre no navegador e não concede XP.
 
-**O que falta:** rotas para criar e editar conteúdo, a publicação pela tela, a
-comporta automática e o registro do parecer do revisor na devolução.
+**O que falta:** a comporta automática e o registro do parecer do revisor na devolução.
 
-**Fonte:** `backend/apps/trilhas/models.py` (`StatusEditorial`, `PublicavelQuerySet`), `backend/apps/contas/rbac.py`, `backend/apps/trilhas/management/commands/seed_trilhas.py`.
+**Fonte:** `backend/apps/autoria/views.py`, `backend/apps/autoria/services.py`, `backend/apps/autoria/serializers.py`, `backend/apps/trilhas/models.py` (`StatusEditorial`, `Flashcard`, `Questao`), `backend/apps/contas/rbac.py`, `frontend/src/app/(app)/autoria/novo/page.tsx`, `frontend/src/app/(app)/ser-autor/page.tsx`, `frontend/src/components/autoria/PainelAutoria.tsx`, `frontend/src/components/autoria/EditorDeConteudo.tsx`, `frontend/src/components/trilhas/QuizQuestao.tsx`.
 
 ### RF16. Consultar solução de referência
 
