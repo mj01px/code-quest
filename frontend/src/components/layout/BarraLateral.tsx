@@ -10,7 +10,6 @@ import { api } from "@/lib/api";
 
 // `perm` null = sempre visível; senão só aparece se o usuário tiver a permissão.
 export const ITENS = [
-  { rotulo: "DASHBOARD", href: "/dashboard", perm: null },
   { rotulo: "TRILHAS", href: "/trilhas", perm: "trilhas.view" },
   { rotulo: "DESAFIO DO DIA", href: "/desafios", perm: "trilhas.view" },
   { rotulo: "RANKING", href: "/ranking", perm: null },

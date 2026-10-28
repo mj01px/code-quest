@@ -227,20 +227,6 @@ export interface Sequencia {
   ultimo_dia: string | null;
 }
 
-export interface AtividadeDia {
-  dia: string;
-  data: string;
-  xp: number;
-}
-
-export interface Dashboard {
-  xp_total: number;
-  exercicios_concluidos: number;
-  sequencia_atual: number;
-  trilhas_iniciadas: number;
-  atividade_semanal: AtividadeDia[];
-}
-
 export interface DashboardAdmin {
   total_usuarios: number;
   trilhas_publicadas: number;

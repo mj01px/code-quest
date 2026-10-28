@@ -9,7 +9,6 @@ import type {
   ConviteGerado,
   Correcao,
   Criatura,
-  Dashboard,
   DashboardAdmin,
   DetalheEditorial,
   DocumentosLegais,
@@ -652,10 +651,6 @@ export const api = {
 
   minhaSequencia() {
     return requisicao<Sequencia>("/eu/sequencia/", { autenticado: true });
-  },
-
-  meuDashboard() {
-    return requisicao<Dashboard>("/eu/dashboard/", { autenticado: true });
   },
 
   // Marca a trilha como iniciada. Idempotente no servidor: clicar duas vezes

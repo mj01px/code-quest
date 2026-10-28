@@ -46,18 +46,6 @@ class DiaSerializer(serializers.Serializer):
     data = serializers.DateField(read_only=True)
 
 
-class AtividadeDiaSerializer(DiaSerializer):
-    xp = serializers.IntegerField(read_only=True)
-
-
-class DashboardSerializer(serializers.Serializer):
-    xp_total = serializers.IntegerField(read_only=True)
-    exercicios_concluidos = serializers.IntegerField(read_only=True)
-    sequencia_atual = serializers.IntegerField(read_only=True)
-    trilhas_iniciadas = serializers.IntegerField(read_only=True)
-    atividade_semanal = AtividadeDiaSerializer(many=True, read_only=True)
-
-
 class NovosUsuariosDiaSerializer(DiaSerializer):
     quantidade = serializers.IntegerField(read_only=True)
 
