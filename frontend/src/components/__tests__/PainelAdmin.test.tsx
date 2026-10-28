@@ -118,6 +118,9 @@ describe("PainelAdmin: aba Dashboard", () => {
       trilhas_publicadas: 3,
       fila_revisao: 5,
       submissoes_judge: 1234,
+      media_xp_por_usuario: 150.5,
+      media_submissoes_por_usuario: 29.4,
+      taxa_aprovacao_submissoes: 75,
       novos_usuarios_semana: [
         { dia: "Seg", data: "2026-10-19", quantidade: 2 },
         { dia: "Ter", data: "2026-10-20", quantidade: 1 },
@@ -142,6 +145,12 @@ describe("PainelAdmin: aba Dashboard", () => {
     expect(await screen.findByText("42")).toBeInTheDocument();
     expect(screen.getByText("+3 na semana")).toBeInTheDocument();
     expect(screen.getByText("1.234")).toBeInTheDocument();
+    expect(screen.getByText("MÉDIA XP/USUÁRIO")).toBeInTheDocument();
+    expect(screen.getByText("150,5")).toBeInTheDocument();
+    expect(screen.getByText("MÉDIA SUBMISSÕES/USUÁRIO")).toBeInTheDocument();
+    expect(screen.getByText("29,4")).toBeInTheDocument();
+    expect(screen.getByText("TAXA DE APROVAÇÃO")).toBeInTheDocument();
+    expect(screen.getByText("%")).toBeInTheDocument();
     expect(
       screen.getByRole("img", { name: /Seg: 4 Aprovadas e 1 Rejeitadas/ }),
     ).toBeInTheDocument();

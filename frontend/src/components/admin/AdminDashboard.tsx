@@ -58,6 +58,12 @@ export function AdminDashboard() {
           { rotulo: "TRILHAS", valor: dados.trilhas_publicadas, sufixo: "publicadas" },
           { rotulo: "FILA DE REVISÃO", valor: dados.fila_revisao },
           { rotulo: "SUBMISSÕES", valor: dados.submissoes_judge },
+          { rotulo: "MÉDIA XP/USUÁRIO", valor: dados.media_xp_por_usuario },
+          {
+            rotulo: "MÉDIA SUBMISSÕES/USUÁRIO",
+            valor: dados.media_submissoes_por_usuario,
+          },
+          { rotulo: "TAXA DE APROVAÇÃO", valor: dados.taxa_aprovacao_submissoes, sufixo: "%" },
         ]}
       />
 

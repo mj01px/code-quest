@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import Count, F, Max, Q
+from django.db.models import Count, F, Max, Q, Sum
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -300,13 +300,21 @@ def montar_dashboard_admin(*, com_logs=True):
         .exclude(acao=AcaoAuditoria.ACESSO_AUDITORIA)
         .order_by("-created_at")[:10]
     )
+    total_usuarios = get_user_model().objects.count()
+    total_submissoes = Submissao.objects.count()
+    xp_total = EventoXP.objects.aggregate(t=Sum("xp"))["t"] or 0
+    total_aprovadas = Submissao.objects.filter(aprovada).count()
     return {
-        "total_usuarios": get_user_model().objects.count(),
+        "total_usuarios": total_usuarios,
         "trilhas_publicadas": Trilha.objects.filter(
             status=StatusEditorial.PUBLICADO
         ).count(),
         "fila_revisao": len(itens_no_status(StatusEditorial.REVISAO)),
-        "submissoes_judge": Submissao.objects.count(),
+        "submissoes_judge": total_submissoes,
+        # Divisão por zero vira 0: plataforma vazia não é erro.
+        "media_xp_por_usuario": _razao(xp_total, total_usuarios),
+        "media_submissoes_por_usuario": _razao(total_submissoes, total_usuarios),
+        "taxa_aprovacao_submissoes": _razao(total_aprovadas * 100, total_submissoes),
         "novos_usuarios_semana": por_dia(
             get_user_model().objects.all(), "created_at", quantidade=Count("pk")
         ),
@@ -318,6 +326,10 @@ def montar_dashboard_admin(*, com_logs=True):
         ),
         "logs_recentes": list(logs) if com_logs else [],
     }
+
+
+def _razao(numerador, denominador):
+    return round(numerador / denominador, 1) if denominador else 0
 
 
 def por_dia(queryset, campo, **agregados):

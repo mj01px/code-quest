@@ -293,6 +293,9 @@ export interface DashboardAdmin {
   trilhas_publicadas: number;
   fila_revisao: number;
   submissoes_judge: number;
+  media_xp_por_usuario: number;
+  media_submissoes_por_usuario: number;
+  taxa_aprovacao_submissoes: number;
   novos_usuarios_semana: { dia: string; data: string; quantidade: number }[];
   submissoes_semana: {
     dia: string;
