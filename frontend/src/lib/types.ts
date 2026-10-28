@@ -64,6 +64,8 @@ export interface Usuario {
   is_admin: boolean;
   nivel_id: string | null;
   criado_em: string;
+  /** Pedido de autoria em análise. */
+  solicitacao_pendente: boolean;
 }
 
 // --- RBAC (painel de admin) ---
@@ -107,6 +109,52 @@ export interface ItemEditorial {
 export interface TransicaoEditorial {
   id: number;
   status_editorial: StatusEditorial;
+}
+
+// --- Solicitação de autoria ---
+export type SituacaoSolicitacao = "PENDENTE" | "APROVADA" | "REJEITADA";
+
+export interface SolicitacaoAutoria {
+  id: number;
+  areas: number[];
+  areas_nomes: string[];
+  carta_apresentacao: string;
+  portfolio_link: string;
+  aceite_diretrizes: boolean;
+  situacao: SituacaoSolicitacao;
+  motivo_rejeicao: string;
+  criado_em: string;
+}
+
+export interface SolicitacaoAdmin extends SolicitacaoAutoria {
+  solicitante: { id: string; nickname: string; email: string };
+}
+
+// --- Criação de conteúdo (nasce em rascunho) ---
+export interface NovaTrilha {
+  id: number;
+  nome: string;
+  slug: string;
+  descricao: string;
+  dificuldade: Dificuldade;
+}
+
+export interface NovaAula {
+  id: number;
+  trilha: number;
+  titulo: string;
+  slug: string;
+  conteudo: string;
+}
+
+export interface NovoExercicio {
+  id: number;
+  aula: number;
+  titulo: string;
+  slug: string;
+  enunciado: string;
+  dificuldade: Dificuldade;
+  tipo: TipoExercicio;
 }
 
 /** Exercício na leitura editorial. `codigo_inicial` é null no teórico. */

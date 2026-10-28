@@ -41,15 +41,29 @@ ACAO_AUDITORIA = {
 TIPOS = ["trilhas", "aulas", "exercicios"]
 
 
-def criar_conteudo(tipo, status):
-    """Conteúdo do `tipo` pedido no `status` pedido; os pais saem publicados."""
-    trilha = criar_trilha("logica", status=status if tipo == "trilhas" else PUBLICADO)
+def criar_conteudo(tipo, status, autor=None):
+    """Conteúdo do `tipo` pedido no `status` pedido; os pais saem publicados.
+
+    `autor` vai só para o conteúdo devolvido: quem envia para revisão precisa
+    ser o dono dele.
+    """
+    dono = {"autor": autor}
+    trilha = criar_trilha(
+        "logica",
+        status=status if tipo == "trilhas" else PUBLICADO,
+        **(dono if tipo == "trilhas" else {}),
+    )
     if tipo == "trilhas":
         return trilha
-    aula = criar_aula(trilha, "variaveis", status=status if tipo == "aulas" else PUBLICADO)
+    aula = criar_aula(
+        trilha,
+        "variaveis",
+        status=status if tipo == "aulas" else PUBLICADO,
+        **(dono if tipo == "aulas" else {}),
+    )
     if tipo == "aulas":
         return aula
-    return criar_exercicio(aula, "media", status=status)
+    return criar_exercicio(aula, "media", status=status, **dono)
 
 
 def url(acao, tipo, pk):
@@ -71,8 +85,8 @@ def quem_pode(acao):
 @pytest.mark.parametrize("tipo", TIPOS)
 @pytest.mark.parametrize(("acao", "origem", "destino"), TRANSICOES)
 def test_transicao_valida_com_permissao(acao, origem, destino, tipo):
-    conteudo = criar_conteudo(tipo, origem)
     usuario = quem_pode(acao)
+    conteudo = criar_conteudo(tipo, origem, autor=usuario)
 
     resposta = cliente(usuario).post(url(acao, tipo, conteudo.pk))
 
@@ -157,10 +171,11 @@ def test_sem_permissao_recebe_403_mesmo_com_pk_inexistente():
 def test_transicao_trava_a_linha():
     # Sem o lock, "aprovar" e "devolver" simultâneos venceriam por ordem de
     # gravação. A suíte não reproduz a corrida; garante que o lock existe.
-    conteudo = criar_conteudo("exercicios", RASCUNHO)
+    autor = criar_autor()
+    conteudo = criar_conteudo("exercicios", RASCUNHO, autor=autor)
 
     with CaptureQueriesContext(connection) as consultas:
-        cliente(criar_autor()).post(url("submeter", "exercicios", conteudo.pk))
+        cliente(autor).post(url("submeter", "exercicios", conteudo.pk))
 
     assert any("FOR UPDATE" in q["sql"] for q in consultas.captured_queries)
 
@@ -187,17 +202,18 @@ def test_get_nao_e_aceito():
 
 
 def test_resposta_nao_carrega_solucao_autor():
-    conteudo = criar_conteudo("exercicios", RASCUNHO)
+    autor = criar_autor()
+    conteudo = criar_conteudo("exercicios", RASCUNHO, autor=autor)
 
-    resposta = cliente(criar_autor()).post(url("submeter", "exercicios", conteudo.pk))
+    resposta = cliente(autor).post(url("submeter", "exercicios", conteudo.pk))
 
     assert "solucao_autor" not in resposta.data
     assert b"SEGREDO" not in resposta.content
 
 
 def test_fluxo_completo_do_rascunho_ao_publicado():
-    conteudo = criar_conteudo("exercicios", RASCUNHO)
     autor, admin = criar_autor(), criar_admin()
+    conteudo = criar_conteudo("exercicios", RASCUNHO, autor=autor)
 
     for acao, usuario in [
         ("submeter", autor),

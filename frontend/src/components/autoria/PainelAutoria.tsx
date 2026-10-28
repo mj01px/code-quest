@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -24,6 +25,7 @@ export function PainelAutoria() {
   const permissoes = usuario?.permissoes ?? [];
   const podeSubmeter = permissoes.includes("trilhas.submit_review");
   const podeRevisar = permissoes.includes("trilhas.review");
+  const podeCriar = permissoes.includes("trilhas.create");
   const temAcesso = podeSubmeter || podeRevisar;
 
   useEffect(() => {
@@ -50,14 +52,24 @@ export function PainelAutoria() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-3">
-        <span className={`text-brand ${TIPO.sobretitulo}`}>{"// AUTORIA"}</span>
-        <h1 className={`m-0 text-ink ${TIPO.tituloPagina}`}>
-          Fluxo editorial
-        </h1>
-        <p className={`m-0 text-ink-muted ${TIPO.corpo}`}>
-          Envie rascunhos para revisão e aprove ou devolva o que chegou na fila.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-6">
+        <div className="flex flex-col gap-3">
+          <span className={`text-brand ${TIPO.sobretitulo}`}>{"// AUTORIA"}</span>
+          <h1 className={`m-0 text-ink ${TIPO.tituloPagina}`}>
+            Fluxo editorial
+          </h1>
+          <p className={`m-0 text-ink-muted ${TIPO.corpo}`}>
+            Envie rascunhos para revisão e aprove ou devolva o que chegou na fila.
+          </p>
+        </div>
+        {podeCriar ? (
+          <Link
+            href="/autoria/novo"
+            className="inline-flex items-center justify-center border-[3px] border-brand-light bg-brand-deep px-5 py-4 font-display text-[11px] leading-[1.7] tracking-[1px] text-ink shadow-[0_0_0_3px_var(--color-brand-void),6px_6px_0_rgba(0,0,0,0.7)] hover:bg-brand-strong"
+          >
+            NOVO CONTEÚDO
+          </Link>
+        ) : null}
       </div>
 
       {podeSubmeter ? (

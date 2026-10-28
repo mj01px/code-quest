@@ -1,5 +1,6 @@
 from typing import Any
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -80,6 +81,23 @@ class Trilha(models.Model):
         help_text=_("Posição na listagem de trilhas."),
     )
 
+    dificuldade = models.CharField(
+        max_length=15,
+        choices=Dificuldade.choices,
+        default=Dificuldade.INICIANTE,
+        verbose_name=_("nível"),
+    )
+
+    autor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name=_("autor"),
+        help_text=_("Quem criou pela tela de autoria. Nulo no conteúdo semeado."),
+    )
+
     status = models.CharField(
         max_length=10,
         choices=StatusEditorial.choices,
@@ -140,6 +158,16 @@ class Aula(models.Model):
         related_name="dependentes",
         verbose_name=_("pré-requisito"),
         help_text=_("Aula que precisa ser concluída antes desta, na mesma trilha."),
+    )
+
+    autor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name=_("autor"),
+        help_text=_("Quem criou pela tela de autoria. Nulo no conteúdo semeado."),
     )
 
     status = models.CharField(
@@ -243,6 +271,16 @@ class Exercicio(models.Model):
             "Solução de referência. Nunca é serializada pela API pública: só "
             "quem tem trilhas.view_solution pode ver, por rota própria."
         ),
+    )
+
+    autor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name=_("autor"),
+        help_text=_("Quem criou pela tela de autoria. Nulo no conteúdo semeado."),
     )
 
     status = models.CharField(

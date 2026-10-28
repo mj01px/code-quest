@@ -27,6 +27,15 @@ PERMISSAO_POR_ROTA = {
     "rascunhos": "HasPerm[trilhas.submit_review]",
     "fila-revisao": "HasPerm[trilhas.review]",
     "detalhe": "HasAnyPerm[trilhas.submit_review,trilhas.review]",
+    "criar-trilha": "HasPerm[trilhas.create]",
+    "criar-aula": "HasPerm[trilhas.create]",
+    "criar-exercicio": "HasPerm[trilhas.create]",
+    "admin-solicitacoes": "HasPerm[usuarios.grant_author]",
+    "admin-solicitacao-aprovar": "HasPerm[usuarios.grant_author]",
+    "admin-solicitacao-rejeitar": "HasPerm[usuarios.grant_author]",
+    # Pedir autoria é de qualquer conta logada: o login é a permissão.
+    "solicitacoes": "IsAuthenticated",
+    "minha-solicitacao": "IsAuthenticated",
 }
 
 

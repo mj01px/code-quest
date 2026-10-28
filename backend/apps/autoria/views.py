@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, cast
 
 from django.db.models import QuerySet
 from django.http import Http404
@@ -12,24 +12,37 @@ from drf_spectacular.utils import (
     inline_serializer,
 )
 from rest_framework import generics, serializers
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.serializers import BaseSerializer
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from apps.auditoria.services import AcaoAuditoria, registrar
+from apps.contas.models import User
 from apps.core.permissions import HasAnyPerm, HasPerm
 from apps.trilhas.models import Aula, Exercicio, StatusEditorial, Trilha
 from apps.trilhas.serializers import AulaSerializer, TrilhaDetalheSerializer
 
+from .models import SolicitacaoAutoria
 from .serializers import (
     ExercicioEditorialSerializer,
     ItemEditorialSerializer,
+    NovaAulaSerializer,
+    NovaTrilhaSerializer,
+    NovoExercicioSerializer,
+    RejeicaoSerializer,
+    SolicitacaoAdminSerializer,
+    SolicitacaoAutoriaSerializer,
     SolucaoAutorSerializer,
 )
 from .services import (
     MODELOS,
     Acao,
+    decidir_solicitacao,
+    eh_dono_ou_admin,
     exercicios_para_autoria,
     itens_no_status,
     transicionar,
@@ -131,16 +144,22 @@ class PublicarView(TransicaoEditorialView):
 @extend_schema(tags=["autoria"], responses=ItemEditorialSerializer(many=True))
 class FilaEditorialView(APIView):
     status_listado: StatusEditorial
+    # Na fila de rascunhos o autor só vê o que criou; o admin vê tudo.
+    so_do_autor = False
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = ESCOPO_EDITORIAL
 
     def get(self, request: Request) -> Response:
-        itens = itens_no_status(self.status_listado)
+        # IsAuthenticated já barrou o anônimo.
+        usuario = cast(User, request.user)
+        autor = usuario if self.so_do_autor and not usuario.is_platform_admin else None
+        itens = itens_no_status(self.status_listado, autor)
         return Response(ItemEditorialSerializer(itens, many=True).data)
 
 
 class RascunhosView(FilaEditorialView):
     status_listado = StatusEditorial.RASCUNHO
+    so_do_autor = True
     permission_classes = [IsAuthenticated, HasPerm("trilhas.submit_review")]
 
 
@@ -192,4 +211,130 @@ class DetalheEditorialView(APIView):
 
     def get(self, request: Request, tipo: str, pk: str) -> Response:
         serializer, consulta = DETALHE[tipo]
-        return Response(serializer(get_object_or_404(consulta, pk=int(pk))).data)
+        conteudo = get_object_or_404(consulta, pk=int(pk))
+        usuario = cast(User, request.user)
+        # Quem revisa lê a fila inteira; quem só submete lê o que criou.
+        if not usuario.has_perm("trilhas.review") and not eh_dono_ou_admin(
+            conteudo, usuario
+        ):
+            raise PermissionDenied("Você só pode abrir o que criou.")
+        return Response(serializer(conteudo).data)
+
+
+# --- Solicitação de autoria ---
+# Pedir é de qualquer usuário logado; por isso estas duas não têm HasPerm, e a
+# varredura estrutural as registra como só `IsAuthenticated`.
+
+
+@extend_schema(tags=["autoria"])
+class SolicitacoesView(generics.CreateAPIView[SolicitacaoAutoria]):
+    serializer_class = SolicitacaoAutoriaSerializer
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = ESCOPO_EDITORIAL
+
+    def perform_create(self, serializer: BaseSerializer[SolicitacaoAutoria]) -> None:
+        serializer.save(usuario=self.request.user)
+
+
+@extend_schema(tags=["autoria"], responses=SolicitacaoAutoriaSerializer)
+class MinhaSolicitacaoView(APIView):
+    """A solicitação mais recente do usuário, ou 404 se ele nunca pediu."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = ESCOPO_EDITORIAL
+
+    def get(self, request: Request) -> Response:
+        solicitacao = (
+            SolicitacaoAutoria.objects.filter(usuario=cast(User, request.user))
+            .prefetch_related("areas")
+            .first()
+        )
+        if solicitacao is None:
+            raise Http404("Nenhuma solicitação de autoria.")
+        return Response(SolicitacaoAutoriaSerializer(solicitacao).data)
+
+
+PODE_CONCEDER = HasPerm("usuarios.grant_author")
+
+
+@extend_schema(tags=["admin"])
+class SolicitacoesPendentesView(generics.ListAPIView[SolicitacaoAutoria]):
+    serializer_class = SolicitacaoAdminSerializer
+    permission_classes = [IsAuthenticated, PODE_CONCEDER]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = ESCOPO_EDITORIAL
+    pagination_class = None
+
+    def get_queryset(self) -> QuerySet[SolicitacaoAutoria]:
+        # Mais antiga primeiro: é a ordem de atendimento da fila.
+        return (
+            SolicitacaoAutoria.objects.filter(status=SolicitacaoAutoria.Status.PENDENTE)
+            .select_related("usuario")
+            .prefetch_related("areas")
+            .order_by("criado_em")
+        )
+
+
+@extend_schema(tags=["admin"], request=None, responses=SolicitacaoAdminSerializer)
+class AprovarSolicitacaoView(APIView):
+    permission_classes = [IsAuthenticated, PODE_CONCEDER]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = ESCOPO_EDITORIAL
+
+    def post(self, request: Request, pk: int) -> Response:
+        solicitacao = decidir_solicitacao(pk, request, aprovar=True)
+        return Response(SolicitacaoAdminSerializer(solicitacao).data)
+
+
+@extend_schema(
+    tags=["admin"], request=RejeicaoSerializer, responses=SolicitacaoAdminSerializer
+)
+class RejeitarSolicitacaoView(APIView):
+    permission_classes = [IsAuthenticated, PODE_CONCEDER]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = ESCOPO_EDITORIAL
+
+    def post(self, request: Request, pk: int) -> Response:
+        entrada = RejeicaoSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        solicitacao = decidir_solicitacao(
+            pk, request, aprovar=False, motivo=entrada.validated_data["motivo"]
+        )
+        return Response(SolicitacaoAdminSerializer(solicitacao).data)
+
+
+# --- Criação de conteúdo ---
+# Base das três rotas de criação, sem rota própria. O autor sai da request,
+# nunca do corpo, e toda criação vai para a auditoria.
+@extend_schema(tags=["autoria"])
+class CriarConteudoView(generics.CreateAPIView[Any]):
+    permission_classes = [IsAuthenticated, HasPerm("trilhas.create")]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = ESCOPO_EDITORIAL
+    tipo: str
+
+    def perform_create(self, serializer: BaseSerializer[Any]) -> None:
+        conteudo = serializer.save(autor=self.request.user)
+        registrar(
+            AcaoAuditoria.CONTEUDO_CRIADO,
+            request=self.request,
+            alvo=conteudo,
+            tipo=self.tipo,
+        )
+
+
+class CriarTrilhaView(CriarConteudoView):
+    serializer_class = NovaTrilhaSerializer
+    tipo = "trilhas"
+
+
+class CriarAulaView(CriarConteudoView):
+    serializer_class = NovaAulaSerializer
+    tipo = "aulas"
+
+
+class CriarExercicioView(CriarConteudoView):
+    serializer_class = NovoExercicioSerializer
+    tipo = "exercicios"

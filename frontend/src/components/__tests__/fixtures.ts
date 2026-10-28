@@ -179,6 +179,7 @@ export function usuario(extra: Partial<Usuario> = {}): Usuario {
     is_admin: false,
     nivel_id: null,
     criado_em: "2026-09-01T12:00:00Z",
+    solicitacao_pendente: false,
     ...extra,
   };
 }

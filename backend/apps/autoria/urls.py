@@ -1,12 +1,20 @@
 from django.urls import path, re_path
 
 from .views import (
+    AprovarSolicitacaoView,
     AprovarView,
+    CriarAulaView,
+    CriarExercicioView,
+    CriarTrilhaView,
     DetalheEditorialView,
     DevolverView,
     FilaRevisaoView,
+    MinhaSolicitacaoView,
     PublicarView,
     RascunhosView,
+    RejeitarSolicitacaoView,
+    SolicitacoesPendentesView,
+    SolicitacoesView,
     SolucaoAutorView,
     SubmeterRevisaoView,
 )
@@ -21,6 +29,30 @@ app_name = "autoria"
 CONTEUDO = r"^autoria/(?P<tipo>trilhas|aulas|exercicios)/(?P<pk>[0-9]+)"
 
 urlpatterns = [
+    path("autoria/solicitacoes/", SolicitacoesView.as_view(), name="solicitacoes"),
+    path(
+        "autoria/solicitacoes/minha/",
+        MinhaSolicitacaoView.as_view(),
+        name="minha-solicitacao",
+    ),
+    path(
+        "admin/solicitacoes/",
+        SolicitacoesPendentesView.as_view(),
+        name="admin-solicitacoes",
+    ),
+    path(
+        "admin/solicitacoes/<int:pk>/aprovar/",
+        AprovarSolicitacaoView.as_view(),
+        name="admin-solicitacao-aprovar",
+    ),
+    path(
+        "admin/solicitacoes/<int:pk>/rejeitar/",
+        RejeitarSolicitacaoView.as_view(),
+        name="admin-solicitacao-rejeitar",
+    ),
+    path("autoria/trilhas/", CriarTrilhaView.as_view(), name="criar-trilha"),
+    path("autoria/aulas/", CriarAulaView.as_view(), name="criar-aula"),
+    path("autoria/exercicios/", CriarExercicioView.as_view(), name="criar-exercicio"),
     path("autoria/rascunhos/", RascunhosView.as_view(), name="rascunhos"),
     path("autoria/fila-revisao/", FilaRevisaoView.as_view(), name="fila-revisao"),
     path(

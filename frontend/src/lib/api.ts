@@ -12,6 +12,7 @@ import type {
   Dashboard,
   DashboardAdmin,
   DetalheEditorial,
+  Dificuldade,
   DocumentosLegais,
   EspecificacaoDeCodigo,
   Evolucao,
@@ -22,6 +23,9 @@ import type {
   MeuCla,
   MinhaCriatura,
   NivelDeAcesso,
+  NovaAula,
+  NovaTrilha,
+  NovoExercicio,
   Pagina,
   PermissaoCatalogo,
   PreviaConvite,
@@ -29,6 +33,8 @@ import type {
   RankingMensal,
   RespostaConclusao,
   Sequencia,
+  SolicitacaoAdmin,
+  SolicitacaoAutoria,
   TipoConteudo,
   TipoDeCla,
   TransicaoEditorial,
@@ -887,6 +893,74 @@ export const api = {
   devolverConteudo(tipo: TipoConteudo, id: number) {
     return requisicao<TransicaoEditorial>(`/autoria/${tipo}/${id}/devolver/`, {
       metodo: "POST",
+      autenticado: true,
+    });
+  },
+
+  // --- Solicitação de autoria ---
+  solicitarAutoria(dados: {
+    areas: number[];
+    carta_apresentacao: string;
+    portfolio_link: string;
+    aceite_diretrizes: boolean;
+  }) {
+    return requisicao<SolicitacaoAutoria>("/autoria/solicitacoes/", {
+      metodo: "POST",
+      corpo: dados,
+      autenticado: true,
+    });
+  },
+
+  // 404 quando o usuário nunca pediu.
+  minhaSolicitacao() {
+    return requisicao<SolicitacaoAutoria>("/autoria/solicitacoes/minha/", {
+      autenticado: true,
+    });
+  },
+
+  adminSolicitacoes() {
+    return requisicao<SolicitacaoAdmin[]>("/admin/solicitacoes/", {
+      autenticado: true,
+    });
+  },
+
+  aprovarSolicitacao(id: number) {
+    return requisicao<SolicitacaoAdmin>(`/admin/solicitacoes/${id}/aprovar/`, {
+      metodo: "POST",
+      autenticado: true,
+    });
+  },
+
+  rejeitarSolicitacao(id: number, motivo: string) {
+    return requisicao<SolicitacaoAdmin>(`/admin/solicitacoes/${id}/rejeitar/`, {
+      metodo: "POST",
+      corpo: { motivo },
+      autenticado: true,
+    });
+  },
+
+  // --- Criação de conteúdo ---
+  criarTrilha(dados: { nome: string; descricao: string; dificuldade: Dificuldade }) {
+    return requisicao<NovaTrilha>("/autoria/trilhas/", {
+      metodo: "POST",
+      corpo: dados,
+      autenticado: true,
+    });
+  },
+
+  criarAula(dados: { trilha: number; titulo: string; conteudo: string }) {
+    return requisicao<NovaAula>("/autoria/aulas/", {
+      metodo: "POST",
+      corpo: dados,
+      autenticado: true,
+    });
+  },
+
+  // Sem `funcao`, o exercício nasce teórico; o editor só cria teóricos.
+  criarExercicio(dados: { aula: number; titulo: string; enunciado: string }) {
+    return requisicao<NovoExercicio>("/autoria/exercicios/", {
+      metodo: "POST",
+      corpo: dados,
       autenticado: true,
     });
   },

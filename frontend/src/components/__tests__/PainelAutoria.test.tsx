@@ -84,6 +84,19 @@ beforeEach(() => {
 });
 
 describe("PainelAutoria: RBAC", () => {
+  it("botão NOVO CONTEÚDO só para quem cria conteúdo", async () => {
+    const { unmount } = montar(AUTOR);
+    await screen.findByRole("button", { name: "Enviar para Revisão: Trilha nova" });
+    expect(screen.queryByRole("link", { name: "NOVO CONTEÚDO" })).toBeNull();
+    unmount();
+
+    montar([...AUTOR, "trilhas.create"]);
+    expect(await screen.findByRole("link", { name: "NOVO CONTEÚDO" })).toHaveAttribute(
+      "href",
+      "/autoria/novo",
+    );
+  });
+
   it("autor vê os rascunhos e não vê a fila de revisão", async () => {
     montar(AUTOR);
 

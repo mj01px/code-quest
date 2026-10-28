@@ -1,8 +1,8 @@
 """Contrato das filas editoriais: rascunhos e fila de revisão.
 
 Cada fila lista os três tipos de conteúdo num formato só, filtra pelo status
-da própria fila e exige a permissão RBAC de quem age sobre ela. O schema não
-tem dono por conteúdo, então todo autor vê os mesmos rascunhos.
+da própria fila e exige a permissão RBAC de quem age sobre ela. Nos rascunhos,
+o autor só vê o que criou; o admin vê os de todos.
 """
 
 import pytest
@@ -28,20 +28,22 @@ def cliente(usuario=None):
 
 
 @pytest.fixture
-def conteudos():
+def autor():
+    return criar_autor()
+
+
+@pytest.fixture
+def conteudos(autor):
     """Um conteúdo de cada tipo em cada fila, mais um publicado que não aparece."""
     publicada = criar_trilha("publicada", nome="Publicada", status=PUBLICADO)
-    rascunho = criar_trilha("rascunho", nome="Trilha nova", status=RASCUNHO)
-    aula = criar_aula(publicada, "laco", titulo="Laços", status=REVISAO)
-    exercicio = criar_exercicio(aula, "soma", titulo="Soma", status=RASCUNHO)
+    rascunho = criar_trilha("rascunho", nome="Trilha nova", status=RASCUNHO, autor=autor)
+    aula = criar_aula(publicada, "laco", titulo="Laços", status=REVISAO, autor=autor)
+    exercicio = criar_exercicio(aula, "soma", titulo="Soma", status=RASCUNHO, autor=autor)
     return {"trilha": rascunho, "aula": aula, "exercicio": exercicio}
 
 
-def test_rascunhos_lista_os_tres_tipos_so_em_rascunho(conteudos):
-    resposta = cliente(criar_autor()).get(reverse("autoria:rascunhos"))
-
-    assert resposta.status_code == 200
-    assert resposta.data == [
+def rascunhos_esperados(conteudos):
+    return [
         {
             "id": conteudos["trilha"].pk,
             "tipo": "trilhas",
@@ -55,6 +57,27 @@ def test_rascunhos_lista_os_tres_tipos_so_em_rascunho(conteudos):
             "status_editorial": RASCUNHO,
         },
     ]
+
+
+def test_rascunhos_lista_os_tres_tipos_so_em_rascunho(conteudos, autor):
+    resposta = cliente(autor).get(reverse("autoria:rascunhos"))
+
+    assert resposta.status_code == 200
+    assert resposta.data == rascunhos_esperados(conteudos)
+
+
+def test_rascunhos_de_outro_autor_nao_aparecem(conteudos):
+    resposta = cliente(criar_autor("outro")).get(reverse("autoria:rascunhos"))
+
+    assert resposta.status_code == 200
+    assert resposta.data == []
+
+
+def test_admin_ve_rascunhos_de_todos_os_autores(conteudos):
+    resposta = cliente(criar_admin()).get(reverse("autoria:rascunhos"))
+
+    assert resposta.status_code == 200
+    assert resposta.data == rascunhos_esperados(conteudos)
 
 
 def test_fila_revisao_lista_so_em_revisao(conteudos):

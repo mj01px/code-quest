@@ -152,8 +152,12 @@ class BaldeEditorialTest(TestCase):
     def setUpTestData(cls):
         aula = criar_aula(criar_trilha("logica"), "variaveis")
         criar_exercicio(aula, "media")
+        # Só o dono envia para revisão: os rascunhos são do usuário do teste.
+        cls.autor = criar_autor()
         cls.rascunhos = [
-            criar_exercicio(aula, f"rascunho-{i}", ordem=i + 2, status=RASCUNHO)
+            criar_exercicio(
+                aula, f"rascunho-{i}", ordem=i + 2, status=RASCUNHO, autor=cls.autor
+            )
             for i in range(3)
         ]
 
@@ -165,7 +169,7 @@ class BaldeEditorialTest(TestCase):
         self.addCleanup(cache.clear)
 
         self.cliente = APIClient()
-        self.cliente.force_authenticate(user=criar_autor())
+        self.cliente.force_authenticate(user=self.autor)
 
     def submeter(self, exercicio):
         url = reverse("autoria:submeter", kwargs={"tipo": "exercicios", "pk": exercicio.pk})
