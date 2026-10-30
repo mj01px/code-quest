@@ -157,6 +157,11 @@ export function ListaEditorial({ titulo, vazio, carregar, acoes, extras }: Props
               <span className="min-w-0 flex-1">
                 <span className={`block text-brand-light ${TIPO.etiqueta}`}>
                   {ROTULO_TIPO[item.tipo]}
+                  {item.status_editorial === "APROVADO" ? (
+                    <span className="ml-2 border-2 border-success px-1.5 py-0.5 text-success">
+                      APROVADO
+                    </span>
+                  ) : null}
                 </span>
                 <button
                   type="button"

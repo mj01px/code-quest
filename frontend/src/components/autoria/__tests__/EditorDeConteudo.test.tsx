@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import {
@@ -28,6 +28,8 @@ jest.mock("@/lib/api", () => ({
     detalheEditorial: jest.fn(),
     publicarConteudo: jest.fn(),
     editarRascunho: jest.fn(),
+    excluirRascunho: jest.fn(),
+    catalogo: jest.fn(),
   },
 }));
 
@@ -95,6 +97,10 @@ beforeEach(() => {
   });
   mock.api.exerciciosConcluidos.mockResolvedValue([]);
   mock.api.trilhasIniciadas.mockResolvedValue([]);
+  mock.api.catalogo.mockResolvedValue([
+    { slug: "blaze", nome: "Blaze", dominio_rotulo: "Scripting" },
+    { slug: "shellby", nome: "Shellby", dominio_rotulo: "Fundamentos" },
+  ]);
   mock.api.criarTrilha.mockResolvedValue({
     id: 9,
     nome: "TS do zero",
@@ -153,12 +159,11 @@ describe("EditorDeConteudo", () => {
       conteudo: "# Oi",
     });
 
-    await u.click(await screen.findByRole("button", { name: "+ ADICIONAR EXERCÍCIO" }));
+    await u.click(await screen.findByRole("button", { name: "+ EXERCÍCIO TEÓRICO" }));
     await u.type(screen.getByLabelText("TÍTULO DO EXERCÍCIO"), "Soma");
     await u.type(screen.getByLabelText("ENUNCIADO"), "Some");
-    expect(
-      screen.getAllByRole("radio", { name: /TEÓRICO|MÚLTIPLA ESCOLHA|EXERCÍCIO DE CÓDIGO/ }),
-    ).toHaveLength(3);
+    // Sem seletor de tipo: o botão clicado já escolheu.
+    expect(screen.queryByText("TIPO DO EXERCÍCIO")).toBeNull();
     // Teórico não pede função nem testes: isso é só do exercício de código.
     expect(screen.queryByLabelText(/FUNÇÃO|ARGUMENTOS|ESPERADO/i)).toBeNull();
     await u.click(screen.getByRole("button", { name: "SALVAR EXERCÍCIO" }));
@@ -169,6 +174,65 @@ describe("EditorDeConteudo", () => {
       enunciado: "Some",
     });
     expect(await screen.findByText("Soma")).toBeInTheDocument();
+    // Salvou: o formulário fecha e os três botões voltam.
+    expect(screen.queryByRole("form", { name: "Novo exercício" })).toBeNull();
+    expect(screen.getByRole("button", { name: "+ MÚLTIPLA ESCOLHA" })).toBeInTheDocument();
+  });
+
+  it("oferece um botão por tipo e esconde os outros com um formulário aberto", async () => {
+    const u = userEvent.setup();
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
+    montar(AUTOR, 9);
+
+    const botoes = ["+ EXERCÍCIO TEÓRICO", "+ MÚLTIPLA ESCOLHA", "+ EXERCÍCIO DE CÓDIGO"];
+    for (const nome of botoes) {
+      expect(await screen.findByRole("button", { name: nome })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole("radio")).toBeNull();
+
+    await u.click(screen.getByRole("button", { name: "+ EXERCÍCIO DE CÓDIGO" }));
+    for (const nome of botoes) {
+      expect(screen.queryByRole("button", { name: nome })).toBeNull();
+    }
+
+    // Cancelar fecha sem salvar e devolve os três botões.
+    await u.click(screen.getByRole("button", { name: "CANCELAR" }));
+    expect(screen.queryByLabelText("TÍTULO DO EXERCÍCIO")).toBeNull();
+    for (const nome of botoes) {
+      expect(screen.getByRole("button", { name: nome })).toBeInTheDocument();
+    }
+    expect(mock.api.criarExercicio).not.toHaveBeenCalled();
+  });
+
+  it("+ MÚLTIPLA ESCOLHA abre enunciado, 4 opções e resposta; sem função nem testes", async () => {
+    const u = userEvent.setup();
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
+    montar(AUTOR, 9);
+
+    await u.click(await screen.findByRole("button", { name: "+ MÚLTIPLA ESCOLHA" }));
+
+    expect(screen.getByLabelText("ENUNCIADO DA QUESTÃO")).toBeInTheDocument();
+    for (const letra of ["A", "B", "C", "D"]) {
+      expect(screen.getByLabelText(`OPÇÃO ${letra}`)).toBeInTheDocument();
+    }
+    expect(screen.getByLabelText("RESPOSTA CORRETA")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/FUNÇÃO|ARGUMENTOS|ESPERADO/i)).toBeNull();
+  });
+
+  it("+ EXERCÍCIO DE CÓDIGO abre título, enunciado, função e casos de teste; sem opções", async () => {
+    const u = userEvent.setup();
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
+    montar(AUTOR, 9);
+
+    await u.click(await screen.findByRole("button", { name: "+ EXERCÍCIO DE CÓDIGO" }));
+
+    expect(screen.getByLabelText("TÍTULO DO EXERCÍCIO")).toBeInTheDocument();
+    expect(screen.getByLabelText("ENUNCIADO")).toBeInTheDocument();
+    expect(screen.getByLabelText(/NOME DA FUNÇÃO/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/ARGUMENTOS 1/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/ESPERADO 1/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+ CASO DE TESTE" })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/OPÇÃO A/)).toBeNull();
   });
 
   it("retoma a trilha salva com aulas, exercícios, cards e questões", async () => {
@@ -199,8 +263,7 @@ describe("EditorDeConteudo", () => {
     });
     montar(AUTOR, 9);
 
-    await u.click(await screen.findByRole("button", { name: "+ ADICIONAR EXERCÍCIO" }));
-    await u.click(screen.getByRole("radio", { name: "MÚLTIPLA ESCOLHA" }));
+    await u.click(await screen.findByRole("button", { name: "+ MÚLTIPLA ESCOLHA" }));
     await u.type(screen.getByLabelText("ENUNCIADO DA QUESTÃO"), "Quanto é 1 + 1?");
     for (const [letra, texto] of [["A", "1"], ["B", "2"], ["C", "3"], ["D", "4"]]) {
       await u.type(screen.getByLabelText(`OPÇÃO ${letra}`), texto);
@@ -231,8 +294,7 @@ describe("EditorDeConteudo", () => {
     });
     montar(AUTOR, 9);
 
-    await u.click(await screen.findByRole("button", { name: "+ ADICIONAR EXERCÍCIO" }));
-    await u.click(screen.getByRole("radio", { name: "EXERCÍCIO DE CÓDIGO" }));
+    await u.click(await screen.findByRole("button", { name: "+ EXERCÍCIO DE CÓDIGO" }));
     await u.type(screen.getByLabelText("TÍTULO DO EXERCÍCIO"), "Média");
     await u.type(screen.getByLabelText("ENUNCIADO"), "Calcule");
     await u.type(screen.getByLabelText(/NOME DA FUNÇÃO/), "media");
@@ -262,8 +324,7 @@ describe("EditorDeConteudo", () => {
     mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
     montar(AUTOR, 9);
 
-    await u.click(await screen.findByRole("button", { name: "+ ADICIONAR EXERCÍCIO" }));
-    await u.click(screen.getByRole("radio", { name: "EXERCÍCIO DE CÓDIGO" }));
+    await u.click(await screen.findByRole("button", { name: "+ EXERCÍCIO DE CÓDIGO" }));
     await u.type(screen.getByLabelText("TÍTULO DO EXERCÍCIO"), "Média");
     await u.type(screen.getByLabelText("ENUNCIADO"), "Calcule");
     await u.type(screen.getByLabelText(/NOME DA FUNÇÃO/), "media");
@@ -312,6 +373,88 @@ describe("EditorDeConteudo", () => {
       "Só rascunho pode ser editado ou excluído.",
     );
     expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("escolhe a criatura do bônus ao criar a trilha", async () => {
+    const u = userEvent.setup();
+    montar();
+
+    await u.type(await screen.findByLabelText("NOME DA TRILHA"), "TS do zero");
+    await u.type(screen.getByLabelText("DESCRIÇÃO CURTA"), "Tipos");
+    const bonus = screen.getByLabelText("BÔNUS DE CRIATURA");
+    expect(await screen.findByRole("option", { name: "Blaze (Scripting)" })).toBeInTheDocument();
+    await u.selectOptions(bonus, "blaze");
+    await u.click(screen.getByRole("button", { name: "CRIAR TRILHA" }));
+
+    expect(mock.api.criarTrilha).toHaveBeenCalledWith({
+      nome: "TS do zero",
+      descricao: "Tipos",
+      dificuldade: "INICIANTE",
+      criatura_bonus: "blaze",
+    });
+  });
+
+  it("troca ou tira o bônus de uma trilha salva", async () => {
+    const u = userEvent.setup();
+    mock.api.detalheEditorial.mockResolvedValue({ ...trilhaSalva(), criatura_bonus: "blaze" });
+    mock.api.editarRascunho.mockResolvedValue({});
+    montar(AUTOR, 9);
+
+    const bonus = await screen.findByLabelText("BÔNUS DE CRIATURA");
+    await waitFor(() => expect(bonus).toHaveValue("blaze"));
+    await u.selectOptions(bonus, "");
+    await u.click(screen.getByRole("button", { name: "SALVAR DADOS DA TRILHA" }));
+
+    expect(mock.api.editarRascunho).toHaveBeenCalledWith("trilhas", 9, {
+      nome: "TS do zero",
+      descricao: "Tipos",
+      criatura_bonus: null,
+    });
+  });
+
+  it("exclui o rascunho depois de confirmar, avisa e volta para /autoria", async () => {
+    const u = userEvent.setup();
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
+    mock.api.excluirRascunho.mockResolvedValue(null);
+    montar(AUTOR, 9);
+
+    await u.click(await screen.findByRole("button", { name: "EXCLUIR RASCUNHO" }));
+    const modal = screen.getByRole("dialog");
+    expect(modal).toHaveTextContent("tudo dentro dela");
+    expect(mock.api.excluirRascunho).not.toHaveBeenCalled();
+    await u.click(within(modal).getByRole("button", { name: "EXCLUIR" }));
+
+    expect(mock.api.excluirRascunho).toHaveBeenCalledWith("trilhas", 9);
+    expect(await screen.findByRole("status")).toHaveTextContent("TRILHA EXCLUÍDA");
+    await waitFor(() => expect(substituirRota).toHaveBeenCalledWith("/autoria"), {
+      timeout: 3000,
+    });
+  });
+
+  it("erro ao excluir fica no modal e a trilha continua", async () => {
+    const u = userEvent.setup();
+    const { ErroApi } = jest.requireActual("@/lib/api");
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
+    mock.api.excluirRascunho.mockRejectedValue(
+      new ErroApi(400, "validacao", "Há conteúdo aqui dentro em revisão ou já publicado."),
+    );
+    montar(AUTOR, 9);
+
+    await u.click(await screen.findByRole("button", { name: "EXCLUIR RASCUNHO" }));
+    await u.click(within(screen.getByRole("dialog")).getByRole("button", { name: "EXCLUIR" }));
+
+    expect(await within(screen.getByRole("dialog")).findByRole("alert")).toHaveTextContent(
+      "em revisão ou já publicado",
+    );
+    expect(substituirRota).not.toHaveBeenCalledWith("/autoria");
+  });
+
+  it("trilha em revisão não tem botão de excluir", async () => {
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva("REVISAO"));
+    montar(AUTOR, 9);
+
+    await screen.findByText(/TRILHA EM REVISÃO/);
+    expect(screen.queryByRole("button", { name: "EXCLUIR RASCUNHO" })).toBeNull();
   });
 
   it("trilha aprovada mostra PUBLICAR TRILHA e publica", async () => {

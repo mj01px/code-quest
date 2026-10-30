@@ -1009,7 +1009,12 @@ export const api = {
   },
 
   // --- Criação de conteúdo ---
-  criarTrilha(dados: { nome: string; descricao: string; dificuldade: Dificuldade }) {
+  criarTrilha(dados: {
+    nome: string;
+    descricao: string;
+    dificuldade: Dificuldade;
+    criatura_bonus?: string;
+  }) {
     return requisicao<NovaTrilha>("/autoria/trilhas/", {
       metodo: "POST",
       corpo: dados,

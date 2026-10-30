@@ -473,6 +473,49 @@ describe("PainelAutoria: editar e excluir rascunho", () => {
 });
 
 describe("PainelAutoria: prontos para publicar", () => {
+  const aprovada: ItemEditorial = {
+    id: 5,
+    tipo: "aulas",
+    titulo: "Aula pronta",
+    status_editorial: "APROVADO",
+  };
+
+  it("marca o item com o selo APROVADO", async () => {
+    mock.api.autoriaAprovados.mockResolvedValue([aprovada]);
+    montar(AUTOR);
+
+    const regiao = await screen.findByRole("region", { name: "Prontos para publicar" });
+    expect(await within(regiao).findByText("APROVADO")).toBeInTheDocument();
+  });
+
+  it("quem cria exclui o aprovado depois de confirmar; aula aprovada não tem lápis", async () => {
+    mock.api.autoriaAprovados.mockResolvedValue([aprovada]);
+    mock.api.excluirRascunho.mockResolvedValue(null);
+    montar([...AUTOR, "trilhas.create"]);
+
+    const lixeira = await screen.findByRole("button", { name: "Excluir: Aula pronta" });
+    expect(screen.queryByRole("button", { name: "Editar: Aula pronta" })).toBeNull();
+    await userEvent.click(lixeira);
+    const modal = screen.getByRole("dialog");
+    expect(mock.api.excluirRascunho).not.toHaveBeenCalled();
+
+    mock.api.autoriaAprovados.mockResolvedValue([]);
+    await userEvent.click(within(modal).getByRole("button", { name: "EXCLUIR" }));
+
+    expect(mock.api.excluirRascunho).toHaveBeenCalledWith("aulas", 5);
+    expect(
+      await screen.findByText("Nada aprovado esperando publicação."),
+    ).toBeInTheDocument();
+  });
+
+  it("sem trilhas.create não há lixeira nos aprovados", async () => {
+    mock.api.autoriaAprovados.mockResolvedValue([aprovada]);
+    montar(AUTOR);
+
+    await screen.findByRole("button", { name: "Publicar: Aula pronta" });
+    expect(screen.queryByRole("button", { name: "Excluir: Aula pronta" })).toBeNull();
+  });
+
   it("autor publica o aprovado e abre a trilha no editor", async () => {
     mock.api.autoriaAprovados.mockResolvedValue([
       { id: 5, tipo: "trilhas", titulo: "Trilha pronta", status_editorial: "APROVADO" },

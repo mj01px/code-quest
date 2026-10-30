@@ -50,9 +50,12 @@ function mensagemDe(erro: unknown, padrao: string): string {
 export function AcoesRascunho({
   item,
   aoAlterar,
+  soExcluir = false,
 }: {
   item: ItemEditorial;
   aoAlterar: () => void;
+  /** Aprovado não se edita: só a lixeira. */
+  soExcluir?: boolean;
 }) {
   const id = useId();
   const noModal: TipoNoModal | null = item.tipo === "trilhas" ? null : item.tipo;
@@ -114,7 +117,7 @@ export function AcoesRascunho({
 
   return (
     <>
-      {noModal === null ? (
+      {soExcluir ? null : noModal === null ? (
         <Link
           href={`/autoria/novo?trilha_id=${item.id}`}
           aria-label={`Editar: ${item.titulo}`}
@@ -143,7 +146,7 @@ export function AcoesRascunho({
 
       {modo === "excluir" ? (
         <ModalConfirmacao
-          rotulo="EXCLUIR RASCUNHO"
+          rotulo={soExcluir ? "EXCLUIR APROVADO" : "EXCLUIR RASCUNHO"}
           titulo={item.titulo}
           textoConfirmar="EXCLUIR"
           perigo
@@ -153,7 +156,8 @@ export function AcoesRascunho({
           onFechar={fechar}
         >
           <p className="m-0">
-            O rascunho será apagado de vez, junto com o que estiver dentro dele
+            {soExcluir ? "O conteúdo aprovado" : "O rascunho"} será apagado de vez,
+            junto com o que estiver dentro dele
             (aulas, exercícios e flashcards).
           </p>
         </ModalConfirmacao>

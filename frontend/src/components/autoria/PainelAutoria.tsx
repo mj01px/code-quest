@@ -22,6 +22,7 @@ export function PainelAutoria() {
   // tempo. Subir `ocupado` para cá se isso aparecer.
   const [versaoRascunhos, setVersaoRascunhos] = useState(0);
   const [versaoFila, setVersaoFila] = useState(0);
+  const [versaoAprovados, setVersaoAprovados] = useState(0);
 
   const permissoes = usuario?.permissoes ?? [];
   const podeSubmeter = permissoes.includes("trilhas.submit_review");
@@ -84,7 +85,12 @@ export function PainelAutoria() {
         />
       ) : null}
 
-      {podeSubmeter ? <ListaAprovados /> : null}
+      {podeSubmeter ? (
+        <ListaAprovados
+          key={`aprovados-${versaoAprovados}`}
+          aoAlterar={podeCriar ? () => setVersaoAprovados((v) => v + 1) : undefined}
+        />
+      ) : null}
 
       {podeRevisar ? (
         <FilaRevisao

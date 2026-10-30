@@ -139,6 +139,8 @@ export interface NovaTrilha {
   slug: string;
   descricao: string;
   dificuldade: Dificuldade;
+  /** Slug da criatura que ganha o dobro de XP na trilha, ou null. */
+  criatura_bonus?: string | null;
 }
 
 export interface NovaAula {
@@ -173,6 +175,7 @@ export interface ExercicioEditorial extends ExercicioDetalhe {
 /** Trilha na leitura editorial: o editor precisa do status para oferecer o "publicar". */
 export interface TrilhaEditorial extends TrilhaDetalhe {
   status_editorial: StatusEditorial;
+  criatura_bonus: string | null;
 }
 
 /** Um por tipo: a trilha tem `nome`, a aula tem `conteudo`, o exercício `enunciado`. */
@@ -237,7 +240,7 @@ export interface Questao {
 
 /** Corpo do PUT de rascunho: só os campos básicos de cada tipo. */
 export type EdicaoRascunho =
-  | { nome: string; descricao: string }
+  | { nome: string; descricao: string; criatura_bonus?: string | null }
   | { titulo: string; conteudo: string }
   | { titulo: string; enunciado: string };
 

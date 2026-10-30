@@ -7,6 +7,7 @@ import { useEffect, useId, useState } from "react";
 import { AreaDeTexto, ROTULO } from "@/components/autoria/AreaDeTexto";
 import { GerenciadorFlashcards } from "@/components/autoria/GerenciadorFlashcards";
 import { PreviaMarkdown } from "@/components/autoria/PreviaMarkdown";
+import { ModalConfirmacao } from "@/components/clas/ModalConfirmacao";
 import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelField } from "@/components/ui/PixelField";
@@ -14,6 +15,7 @@ import { ErroApi, api } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
 import type {
   Alternativa,
+  Criatura,
   Dificuldade,
   Flashcard,
   NovaAula,
@@ -47,7 +49,12 @@ interface TrilhaEditor {
   nome: string;
   descricao: string;
   status_editorial: StatusEditorial;
+  /** Slug da criatura que ganha o dobro de XP na trilha. */
+  criatura_bonus: string | null;
 }
+
+// O backend só exclui rascunho e aprovado; em revisão ou publicada o botão some.
+const EXCLUIVEIS: StatusEditorial[] = ["RASCUNHO", "APROVADO"];
 
 interface ExercicioEditor {
   id: number;
@@ -101,6 +108,10 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
   const [trilha, setTrilha] = useState<TrilhaEditor | null>(null);
   const [aulas, setAulas] = useState<AulaEditor[]>([]);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
+  const [excluindo, setExcluindo] = useState(false);
+  const [excluida, setExcluida] = useState(false);
+  const [ocupado, setOcupado] = useState(false);
+  const [erroExclusao, setErroExclusao] = useState<string | null>(null);
 
   const podeCriar = usuario?.permissoes.includes("trilhas.create") ?? false;
 
@@ -110,6 +121,13 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
     else if (!podeCriar) router.replace("/autoria");
   }, [carregando, usuario, podeCriar, router]);
 
+  // Dá tempo de ler o aviso antes de voltar à lista.
+  useEffect(() => {
+    if (!excluida) return;
+    const timer = setTimeout(() => router.replace("/autoria"), 1500);
+    return () => clearTimeout(timer);
+  }, [excluida, router]);
+
   useEffect(() => {
     if (trilhaId === null || !podeCriar) return;
     let ativo = true;
@@ -118,7 +136,13 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
       .then((lida) => {
         if (!ativo || !("aulas" in lida)) return;
         const { id, nome, descricao, status_editorial } = lida;
-        setTrilha({ id, nome, descricao, status_editorial });
+        setTrilha({
+          id,
+          nome,
+          descricao,
+          status_editorial,
+          criatura_bonus: lida.criatura_bonus ?? null,
+        });
         setAulas(lida.aulas);
       })
       .catch((e: unknown) => {
@@ -137,13 +161,50 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
 
   const retomando = trilhaId !== null;
 
+  async function excluir() {
+    if (!trilha) return;
+    setOcupado(true);
+    setErroExclusao(null);
+    try {
+      await api.excluirRascunho("trilhas", trilha.id);
+      setExcluindo(false);
+      setExcluida(true);
+    } catch (e) {
+      setErroExclusao(mensagemDe(e));
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  if (excluida) {
+    return (
+      <p role="status" className={`m-0 text-success ${TIPO.etiqueta}`}>
+        &gt; TRILHA EXCLUÍDA. VOLTANDO PARA A AUTORIA...
+      </p>
+    );
+  }
+
   return (
     <div className="flex w-full max-w-[880px] flex-col gap-10">
       <div className="flex flex-col gap-3">
         <span className={`text-brand ${TIPO.sobretitulo}`}>{"// EDITOR DE TRILHAS"}</span>
-        <h1 className={`m-0 text-ink ${TIPO.tituloPagina}`}>
-          {retomando ? "Editar trilha" : "Novo conteúdo"}
-        </h1>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h1 className={`m-0 text-ink ${TIPO.tituloPagina}`}>
+            {retomando ? "Editar trilha" : "Novo conteúdo"}
+          </h1>
+          {trilha && EXCLUIVEIS.includes(trilha.status_editorial) ? (
+            <button
+              type="button"
+              onClick={() => {
+                setErroExclusao(null);
+                setExcluindo(true);
+              }}
+              className="cursor-pointer border-2 border-danger-deep px-4 py-2.5 font-label text-[11px] tracking-[2px] text-danger shadow-pixel transition-colors duration-150 hover:border-danger"
+            >
+              EXCLUIR RASCUNHO
+            </button>
+          ) : null}
+        </div>
         <p className={`m-0 text-ink-muted ${TIPO.corpo}`}>
           Tudo nasce em rascunho. Envie para revisão na tela de autoria quando
           estiver pronto.
@@ -197,6 +258,24 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
           </Link>
         </>
       ) : null}
+
+      {excluindo && trilha ? (
+        <ModalConfirmacao
+          rotulo="EXCLUIR RASCUNHO"
+          titulo={trilha.nome}
+          textoConfirmar="EXCLUIR"
+          perigo
+          carregando={ocupado}
+          erro={erroExclusao}
+          onConfirmar={excluir}
+          onFechar={() => setExcluindo(false)}
+        >
+          <p className="m-0">
+            A trilha e tudo dentro dela (aulas, exercícios, questões e
+            flashcards) será apagado de vez. Não dá para desfazer.
+          </p>
+        </ModalConfirmacao>
+      ) : null}
     </div>
   );
 }
@@ -239,9 +318,11 @@ function DadosTrilha({
 }) {
   const [nome, setNome] = useState(trilha.nome);
   const [descricao, setDescricao] = useState(trilha.descricao);
+  const [bonus, setBonus] = useState(trilha.criatura_bonus ?? "");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [salvo, setSalvo] = useState(false);
+  const bonusMudou = bonus !== (trilha.criatura_bonus ?? "");
 
   const status = (
     <span className={`text-success ${TIPO.etiqueta}`}>
@@ -266,8 +347,12 @@ function DadosTrilha({
     setSalvo(false);
     const dados = { nome: nome.trim(), descricao: descricao.trim() };
     try {
-      await api.editarRascunho("trilhas", trilha.id, dados);
-      aoSalvar({ ...trilha, ...dados });
+      // Omitir o campo mantém o bônus; null o tira.
+      await api.editarRascunho("trilhas", trilha.id, {
+        ...dados,
+        ...(bonusMudou ? { criatura_bonus: bonus || null } : {}),
+      });
+      aoSalvar({ ...trilha, ...dados, criatura_bonus: bonus || null });
       setSalvo(true);
     } catch (e) {
       setErro(mensagemDe(e));
@@ -276,7 +361,8 @@ function DadosTrilha({
     }
   }
 
-  const mudou = nome.trim() !== trilha.nome || descricao.trim() !== trilha.descricao;
+  const mudou =
+    nome.trim() !== trilha.nome || descricao.trim() !== trilha.descricao || bonusMudou;
 
   return (
     <form onSubmit={salvar} className={CARTAO} aria-label="Trilha">
@@ -297,6 +383,13 @@ function DadosTrilha({
         value={descricao}
         onChange={(e) => {
           setDescricao(e.target.value);
+          setSalvo(false);
+        }}
+      />
+      <SeletorBonus
+        valor={bonus}
+        aoMudar={(slug) => {
+          setBonus(slug);
           setSalvo(false);
         }}
       />
@@ -321,6 +414,7 @@ function FormTrilha({ aoCriar }: { aoCriar: (t: TrilhaEditor) => void }) {
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
   const [dificuldade, setDificuldade] = useState<Dificuldade>("INICIANTE");
+  const [bonus, setBonus] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -333,8 +427,15 @@ function FormTrilha({ aoCriar }: { aoCriar: (t: TrilhaEditor) => void }) {
         nome: nome.trim(),
         descricao: descricao.trim(),
         dificuldade,
+        ...(bonus ? { criatura_bonus: bonus } : {}),
       });
-      aoCriar({ ...criada, status_editorial: "RASCUNHO" });
+      aoCriar({
+        id: criada.id,
+        nome: criada.nome,
+        descricao: criada.descricao,
+        status_editorial: "RASCUNHO",
+        criatura_bonus: criada.criatura_bonus ?? null,
+      });
     } catch (e) {
       setErro(mensagemDe(e));
       setEnviando(false);
@@ -378,6 +479,7 @@ function FormTrilha({ aoCriar }: { aoCriar: (t: TrilhaEditor) => void }) {
           ))}
         </div>
       </div>
+      <SeletorBonus valor={bonus} aoMudar={setBonus} />
       <Erro texto={erro} />
       <PixelButton
         type="submit"
@@ -387,6 +489,51 @@ function FormTrilha({ aoCriar }: { aoCriar: (t: TrilhaEditor) => void }) {
         {enviando ? "SALVANDO..." : "CRIAR TRILHA"}
       </PixelButton>
     </form>
+  );
+}
+
+// A criatura escolhida ganha o dobro de XP nesta trilha. O bônus não vem da
+// trilha: mora numa tabela à parte, que o backend grava a partir deste campo.
+function SeletorBonus({ valor, aoMudar }: { valor: string; aoMudar: (slug: string) => void }) {
+  const id = useId();
+  const [criaturas, setCriaturas] = useState<Criatura[]>([]);
+
+  useEffect(() => {
+    let ativo = true;
+    api
+      .catalogo()
+      .then((lista) => {
+        if (ativo) setCriaturas(lista);
+      })
+      // Sem o catálogo a lista fica só com "Nenhum", e a trilha segue sem bônus.
+      .catch(() => {});
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <label htmlFor={id} className={ROTULO}>
+        BÔNUS DE CRIATURA
+      </label>
+      <select
+        id={id}
+        value={valor}
+        onChange={(e) => aoMudar(e.target.value)}
+        className="cursor-pointer border-2 border-brand-strong bg-field px-3 py-[11px] font-body text-[15px] text-ink shadow-pixel outline-none focus:border-brand-pale"
+      >
+        <option value="">Nenhum</option>
+        {criaturas.map((c) => (
+          <option key={c.slug} value={c.slug}>
+            {c.nome} ({c.dominio_rotulo})
+          </option>
+        ))}
+      </select>
+      <p className={`m-0 text-ink-muted ${TIPO.corpo}`}>
+        Quem tiver essa criatura ganha o dobro de XP nesta trilha.
+      </p>
+    </div>
   );
 }
 
@@ -456,7 +603,8 @@ function FormAula({ trilha, aoCriar }: { trilha: number; aoCriar: (a: NovaAula) 
 function ItemAula({ numero, aula }: { numero: number; aula: AulaEditor }) {
   const [exercicios, setExercicios] = useState(aula.exercicios);
   const [questoes, setQuestoes] = useState(aula.questoes);
-  const [aberto, setAberto] = useState(false);
+  // Tipo do exercício em criação; null mostra os três botões de adicionar.
+  const [novo, setNovo] = useState<TipoNovo | null>(null);
   const vazia = exercicios.length === 0 && questoes.length === 0;
 
   return (
@@ -492,25 +640,33 @@ function ItemAula({ numero, aula }: { numero: number; aula: AulaEditor }) {
             ))}
           </ul>
         )}
-        <PixelButton
-          variante={aberto ? "secundaria" : "primaria"}
-          className="self-start"
-          aria-expanded={aberto}
-          onClick={() => setAberto((a) => !a)}
-        >
-          {aberto ? "CANCELAR" : "+ ADICIONAR EXERCÍCIO"}
-        </PixelButton>
+        {novo === null ? (
+          <div role="group" aria-label="Adicionar exercício" className="flex flex-wrap gap-3">
+            {TIPOS_NOVOS.map(([valor, rotulo, cor]) => (
+              <button
+                key={valor}
+                type="button"
+                onClick={() => setNovo(valor)}
+                className={`cursor-pointer border-2 bg-panel-deep px-4 py-3 font-label text-[11px] tracking-[2px] shadow-pixel transition-colors duration-150 hover:bg-panel-soft ${cor}`}
+              >
+                + {rotulo}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
-      {aberto ? (
+      {novo !== null ? (
         <FormExercicio
+          tipo={novo}
           aula={aula.id}
+          aoCancelar={() => setNovo(null)}
           aoCriarExercicio={(ex) => {
             setExercicios((atual) => [...atual, ex]);
-            setAberto(false);
+            setNovo(null);
           }}
           aoCriarQuestao={(q) => {
             setQuestoes((atual) => [...atual, q]);
-            setAberto(false);
+            setNovo(null);
           }}
         />
       ) : null}
@@ -520,57 +676,45 @@ function ItemAula({ numero, aula }: { numero: number; aula: AulaEditor }) {
 
 type TipoNovo = "TEORICO" | "MULTIPLA" | "CODIGO";
 
-const TIPOS_NOVOS: [TipoNovo, string][] = [
-  ["TEORICO", "TEÓRICO"],
-  ["MULTIPLA", "MÚLTIPLA ESCOLHA"],
-  ["CODIGO", "EXERCÍCIO DE CÓDIGO"],
+// Rótulo do botão e cor de destaque: cada tipo se reconhece de relance.
+const TIPOS_NOVOS: [TipoNovo, string, string][] = [
+  ["TEORICO", "EXERCÍCIO TEÓRICO", "border-brand-light text-brand-light"],
+  ["MULTIPLA", "MÚLTIPLA ESCOLHA", "border-warning text-warning"],
+  ["CODIGO", "EXERCÍCIO DE CÓDIGO", "border-success text-success"],
 ];
 
-// Um tipo novo entra como mais uma opção do seletor e um formulário ao lado.
+const TITULO_NOVO: Record<TipoNovo, string> = {
+  TEORICO: "Novo exercício teórico",
+  MULTIPLA: "Nova questão de múltipla escolha",
+  CODIGO: "Novo exercício de código",
+};
+
+// O tipo vem do botão clicado: cada um abre só o formulário dele.
 function FormExercicio({
+  tipo,
   aula,
+  aoCancelar,
   aoCriarExercicio,
   aoCriarQuestao,
 }: {
+  tipo: TipoNovo;
   aula: number;
+  aoCancelar: () => void;
   aoCriarExercicio: (ex: ExercicioEditor) => void;
   aoCriarQuestao: (q: Questao) => void;
 }) {
-  const id = useId();
-  const [tipo, setTipo] = useState<TipoNovo>("TEORICO");
-
   return (
     <div className="flex flex-col gap-5 border-2 border-dashed border-brand-shadow bg-panel-deep p-5">
-      <h4 className={`m-0 text-ink ${TIPO.tituloSecao}`}>Novo exercício</h4>
-      <div className="flex flex-col gap-2">
-        <span id={`${id}-tipo`} className={ROTULO}>
-          TIPO DO EXERCÍCIO
-        </span>
-        <div role="radiogroup" aria-labelledby={`${id}-tipo`} className="flex flex-wrap gap-2">
-          {TIPOS_NOVOS.map(([valor, rotulo]) => (
-            <button
-              key={valor}
-              type="button"
-              role="radio"
-              aria-checked={tipo === valor}
-              onClick={() => setTipo(valor)}
-              className={opcao(tipo === valor)}
-            >
-              {rotulo}
-            </button>
-          ))}
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h4 className={`m-0 text-ink ${TIPO.tituloSecao}`}>{TITULO_NOVO[tipo]}</h4>
+        <PixelButton type="button" variante="secundaria" onClick={aoCancelar}>
+          CANCELAR
+        </PixelButton>
       </div>
       {tipo === "MULTIPLA" ? (
         <FormQuestao aula={aula} aoCriar={aoCriarQuestao} />
       ) : (
-        // `key`: trocar entre teórico e código zera o formulário.
-        <FormTeorico
-          key={tipo}
-          aula={aula}
-          codigo={tipo === "CODIGO"}
-          aoCriar={aoCriarExercicio}
-        />
+        <FormTeorico aula={aula} codigo={tipo === "CODIGO"} aoCriar={aoCriarExercicio} />
       )}
     </div>
   );
