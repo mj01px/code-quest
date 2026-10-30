@@ -10,6 +10,14 @@ import { ListaRascunhos } from "@/components/autoria/ListaRascunhos";
 import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 import { TIPO } from "@/lib/tipografia";
 
+// Classes inteiras, não montadas: o Tailwind só gera o que lê escrito. Em
+// `xl` e não `lg`: com a barra lateral, três colunas em 1024px ficam com 200px.
+const COLUNAS: Record<number, string> = {
+  1: "",
+  2: "xl:grid-cols-2",
+  3: "xl:grid-cols-3",
+};
+
 // Guarda de navegação, como no /admin: cada painel só aparece com a permissão
 // da rota que ele consome. Quem barra de verdade é o backend (HasPerm).
 export function PainelAutoria() {
@@ -28,7 +36,11 @@ export function PainelAutoria() {
   const podeSubmeter = permissoes.includes("trilhas.submit_review");
   const podeRevisar = permissoes.includes("trilhas.review");
   const podeCriar = permissoes.includes("trilhas.create");
+  // Trilha nova é a granular `create_trilha`; editar e excluir seguem em `create`.
+  const podeCriarTrilha = podeCriar && permissoes.includes("trilhas.create_trilha");
   const temAcesso = podeSubmeter || podeRevisar;
+  // Rascunhos e aprovados vêm juntos (submit_review); a fila, com review.
+  const paineis = (podeSubmeter ? 2 : 0) + (podeRevisar ? 1 : 0);
 
   useEffect(() => {
     if (carregando) return;
@@ -64,7 +76,7 @@ export function PainelAutoria() {
             Envie rascunhos para revisão e aprove ou devolva o que chegou na fila.
           </p>
         </div>
-        {podeCriar ? (
+        {podeCriarTrilha ? (
           <Link
             href="/autoria/novo"
             className="inline-flex items-center justify-center border-[3px] border-brand-light bg-brand-deep px-5 py-4 font-display text-[11px] leading-[1.7] tracking-[1px] text-ink shadow-[0_0_0_3px_var(--color-brand-void),6px_6px_0_rgba(0,0,0,0.7)] hover:bg-brand-strong"
@@ -74,30 +86,34 @@ export function PainelAutoria() {
         ) : null}
       </div>
 
-      {podeSubmeter ? (
-        <ListaRascunhos
-          key={`rascunhos-${versaoRascunhos}`}
-          aoSubmeter={() => setVersaoFila((v) => v + 1)}
-          // Editar e excluir são de quem cria (trilhas.create), como no backend.
-          aoAlterar={
-            podeCriar ? () => setVersaoRascunhos((v) => v + 1) : undefined
-          }
-        />
-      ) : null}
+      {/* Uma coluna por lista em tela larga, empilhadas abaixo disso. */}
+      <div className={`grid items-start gap-6 ${COLUNAS[paineis]}`}>
+        {podeSubmeter ? (
+          <ListaRascunhos
+            key={`rascunhos-${versaoRascunhos}`}
+            aoSubmeter={() => setVersaoFila((v) => v + 1)}
+            // Editar e excluir são de quem cria (trilhas.create), como no backend.
+            aoAlterar={
+              podeCriar ? () => setVersaoRascunhos((v) => v + 1) : undefined
+            }
+          />
+        ) : null}
 
-      {podeSubmeter ? (
-        <ListaAprovados
-          key={`aprovados-${versaoAprovados}`}
-          aoAlterar={podeCriar ? () => setVersaoAprovados((v) => v + 1) : undefined}
-        />
-      ) : null}
+        {podeSubmeter ? (
+          <ListaAprovados
+            key={`aprovados-${versaoAprovados}`}
+            aoAlterar={podeCriar ? () => setVersaoAprovados((v) => v + 1) : undefined}
+          />
+        ) : null}
 
-      {podeRevisar ? (
-        <FilaRevisao
-          key={`fila-${versaoFila}`}
-          aoDevolver={() => setVersaoRascunhos((v) => v + 1)}
-        />
-      ) : null}
+        {podeRevisar ? (
+          <FilaRevisao
+            key={`fila-${versaoFila}`}
+            aoDevolver={() => setVersaoRascunhos((v) => v + 1)}
+            aoAprovar={() => setVersaoAprovados((v) => v + 1)}
+          />
+        ) : null}
+      </div>
     </div>
   );
 }

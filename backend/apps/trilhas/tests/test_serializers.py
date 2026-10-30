@@ -123,6 +123,7 @@ class TrilhaSerializerTest(TestCase):
                 "sobre",
                 "ordem",
                 "aulas",
+                "criado_por",
             },
         )
 

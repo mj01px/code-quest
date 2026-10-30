@@ -49,19 +49,14 @@ def rascunhos_esperados(conteudos):
             "tipo": "trilhas",
             "titulo": "Trilha nova",
             "status_editorial": RASCUNHO,
-            "parecer": None,
-        },
-        {
-            "id": conteudos["exercicio"].pk,
-            "tipo": "exercicios",
-            "titulo": "Soma",
-            "status_editorial": RASCUNHO,
+            "criado_por": conteudos["trilha"].autor.nickname,
             "parecer": None,
         },
     ]
 
 
-def test_rascunhos_lista_os_tres_tipos_so_em_rascunho(conteudos, autor):
+def test_rascunhos_lista_so_trilhas_em_rascunho(conteudos, autor):
+    # O exercício em rascunho existe, mas vive dentro da trilha: sem card solto.
     resposta = cliente(autor).get(reverse("autoria:rascunhos"))
 
     assert resposta.status_code == 200
@@ -92,6 +87,7 @@ def test_fila_revisao_lista_so_em_revisao(conteudos):
             "tipo": "aulas",
             "titulo": "Laços",
             "status_editorial": REVISAO,
+            "criado_por": conteudos["aula"].autor.nickname,
         },
     ]
 

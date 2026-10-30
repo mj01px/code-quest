@@ -14,6 +14,15 @@ CATALOG: tuple[PermissionSpec, ...] = (
     PermissionSpec("trilhas.view", "Ver trilhas, aulas e exercícios publicados", "trilhas"),
     PermissionSpec("trilhas.enroll", "Iniciar uma trilha", "trilhas"),
     PermissionSpec("trilhas.create", "Criar trilhas, aulas e exercícios", "trilhas"),
+    # Granulares: somadas a `trilhas.create`, dizem o que o autor pode criar.
+    PermissionSpec("trilhas.create_trilha", "Criar trilhas inteiras", "trilhas"),
+    PermissionSpec("trilhas.create_aula", "Adicionar aulas", "trilhas"),
+    PermissionSpec("trilhas.create_exercicio", "Adicionar exercícios e questões", "trilhas"),
+    PermissionSpec(
+        "trilhas.delete_published",
+        "Excluir conteúdo já publicado, com motivo",
+        "trilhas",
+    ),
     PermissionSpec("trilhas.edit", "Editar conteúdo de própria autoria", "trilhas"),
     PermissionSpec("trilhas.submit_review", "Enviar conteúdo para revisão", "trilhas"),
     PermissionSpec("trilhas.review", "Aprovar ou devolver conteúdo na fila de revisão", "trilhas"),
@@ -62,6 +71,9 @@ _STUDENT = frozenset(
 _AUTHOR = _STUDENT | frozenset(
     {
         "trilhas.create",
+        "trilhas.create_trilha",
+        "trilhas.create_aula",
+        "trilhas.create_exercicio",
         "trilhas.edit",
         "trilhas.submit_review",
         "trilhas.view_solution",
@@ -72,6 +84,7 @@ _ADMIN = _AUTHOR | frozenset(
     {
         "trilhas.review",
         "trilhas.publish",
+        "trilhas.delete_published",
         "submissoes.view_all",
         "gamificacao.manage_catalog",
         "usuarios.view",

@@ -2,6 +2,7 @@
 
 import { useId, useMemo, useState } from "react";
 
+import { ExcluirTrilhaPublicada } from "@/components/trilhas/ExcluirTrilhaPublicada";
 import { TrilhaCard } from "@/components/trilhas/TrilhaCard";
 import { IconeLupa } from "@/components/ui/Icone";
 import { plural } from "@/lib/derivados";
@@ -31,12 +32,17 @@ export function ListaDeTrilhas({
   // Sem progresso da gamificação, todas contam como não iniciadas.
   progressoPorSlug = {},
   iniciadas = VAZIO,
+  // Lixeira da moderação (trilhas.delete_published); o catálogo só lista publicadas.
+  podeExcluir = false,
 }: {
   trilhas: TrilhaResumo[];
   progressoPorSlug?: Record<string, number>;
   iniciadas?: ReadonlySet<string>;
+  podeExcluir?: boolean;
 }) {
   const [busca, setBusca] = useState("");
+  // O catálogo vem do servidor; a excluída some daqui sem refazer a página.
+  const [excluidas, setExcluidas] = useState<ReadonlySet<number>>(new Set());
   const [filtro, setFiltro] = useState<Filtro>("todas");
   const idBusca = useId();
 
@@ -44,6 +50,7 @@ export function ListaDeTrilhas({
     const termo = normalizar(busca.trim());
 
     return trilhas.filter((trilha) => {
+      if (excluidas.has(trilha.id)) return false;
       const progresso = progressoPorSlug[trilha.slug] ?? 0;
       const comecou = progresso > 0 || iniciadas.has(trilha.slug);
 
@@ -56,7 +63,7 @@ export function ListaDeTrilhas({
       if (!termo) return true;
       return normalizar(`${trilha.nome} ${trilha.descricao}`).includes(termo);
     });
-  }, [trilhas, progressoPorSlug, iniciadas, busca, filtro]);
+  }, [trilhas, progressoPorSlug, iniciadas, busca, filtro, excluidas]);
 
   return (
     <section aria-labelledby="lista-de-trilhas" className="mt-12">
@@ -123,6 +130,14 @@ export function ListaDeTrilhas({
               trilha={trilha}
               progresso={progressoPorSlug[trilha.slug] ?? null}
               iniciada={iniciadas.has(trilha.slug)}
+              acao={
+                podeExcluir ? (
+                  <ExcluirTrilhaPublicada
+                    trilha={trilha}
+                    aoExcluir={(id) => setExcluidas((atual) => new Set(atual).add(id))}
+                  />
+                ) : null
+              }
             />
           ))}
         </ul>

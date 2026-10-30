@@ -16,6 +16,7 @@ export function ListaAprovados({ aoAlterar }: { aoAlterar?: () => void }) {
     <ListaEditorial
       titulo="Prontos para publicar"
       vazio="Nada aprovado esperando publicação."
+      status="APROVADO"
       carregar={api.autoriaAprovados}
       acoes={[{ rotulo: "Publicar", executar: api.publicarConteudo }]}
       extras={(item) => (

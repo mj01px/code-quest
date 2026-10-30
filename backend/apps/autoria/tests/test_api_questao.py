@@ -126,3 +126,80 @@ def test_autor_nao_publica_trilha_alheia(autor):
     assert cliente(autor).post(url_publicar(trilha)).status_code == 403
     trilha.refresh_from_db()
     assert trilha.status == APROVADO
+
+
+# --- Edição e exclusão da questão ---
+
+
+def url_questao(questao):
+    return reverse("autoria:questao", kwargs={"pk": questao.pk})
+
+
+@pytest.fixture
+def questao(aula):
+    return Questao.objects.create(
+        aula=aula, enunciado="Como imprimir?", opcoes=OPCOES, resposta_correta="A"
+    )
+
+
+EDICAO = {
+    "enunciado": "Qual imprime?",
+    "opcoes": ["a", "b", "c", "d"],
+    "resposta_correta": "C",
+}
+
+
+def test_autor_edita_questao_da_propria_aula(autor, questao):
+    resposta = cliente(autor).put(url_questao(questao), EDICAO, format="json")
+
+    assert resposta.status_code == 200
+    questao.refresh_from_db()
+    assert questao.enunciado == "Qual imprime?"
+    assert questao.opcoes == ["a", "b", "c", "d"]
+    assert questao.resposta_correta == "C"
+
+
+def test_edicao_invalida_recebe_400(autor, questao):
+    corpo = {**EDICAO, "resposta_correta": "E"}
+
+    resposta = cliente(autor).put(url_questao(questao), corpo, format="json")
+
+    assert resposta.status_code == 400
+    questao.refresh_from_db()
+    assert questao.resposta_correta == "A"
+
+
+def test_autor_exclui_questao_da_propria_aula(autor, questao):
+    assert cliente(autor).delete(url_questao(questao)).status_code == 204
+    assert not Questao.objects.exists()
+
+
+@pytest.mark.parametrize("metodo", ["put", "delete"])
+def test_questao_alheia_recebe_403(questao, metodo):
+    outro = cliente(criar_autor("outro"))
+
+    resposta = getattr(outro, metodo)(url_questao(questao), EDICAO, format="json")
+
+    assert resposta.status_code == 403
+    questao.refresh_from_db()
+    assert questao.enunciado == "Como imprimir?"
+
+
+@pytest.mark.parametrize("metodo", ["put", "delete"])
+def test_questao_fora_de_rascunho_recebe_400(autor, aula, questao, metodo):
+    aula.status = StatusEditorial.REVISAO
+    aula.save(update_fields=["status"])
+
+    resposta = getattr(cliente(autor), metodo)(
+        url_questao(questao), EDICAO, format="json"
+    )
+
+    assert resposta.status_code == 400
+    questao.refresh_from_db()
+    assert questao.enunciado == "Como imprimir?"
+
+
+def test_questao_inexistente_recebe_404(autor):
+    url = reverse("autoria:questao", kwargs={"pk": 999})
+
+    assert cliente(autor).delete(url).status_code == 404

@@ -34,6 +34,13 @@ jest.mock("@/lib/api", () => ({
   },
 }));
 
+// O Monaco não sobe no jsdom: um textarea faz o papel do editor.
+jest.mock("@/components/exercicio/EditorDeCodigo", () => ({
+  EditorDeCodigo: ({ valor }: { valor: string }) => (
+    <textarea aria-label="Código" value={valor} readOnly />
+  ),
+}));
+
 const substituirRota = jest.fn();
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ replace: substituirRota }),
@@ -96,11 +103,27 @@ describe("PainelAutoria: RBAC", () => {
     expect(screen.queryByRole("link", { name: "NOVO CONTEÚDO" })).toBeNull();
     unmount();
 
-    montar([...AUTOR, "trilhas.create"]);
+    montar([...AUTOR, "trilhas.create", "trilhas.create_trilha"]);
     expect(await screen.findByRole("link", { name: "NOVO CONTEÚDO" })).toHaveAttribute(
       "href",
       "/autoria/novo",
     );
+  });
+
+  it("sem create_trilha, quem cria aula ou exercício não vê NOVO CONTEÚDO", async () => {
+    montar([...AUTOR, "trilhas.create", "trilhas.create_aula"]);
+    await screen.findByRole("button", { name: "Enviar para Revisão: Trilha nova" });
+    expect(screen.queryByRole("link", { name: "NOVO CONTEÚDO" })).toBeNull();
+  });
+
+  it("mostra quem criou cada item e um estado vazio amigável", async () => {
+    mock.api.autoriaRascunhos.mockResolvedValue([{ ...rascunho, criado_por: "ana" }]);
+    montar(AUTOR);
+
+    expect(await screen.findByText("CRIADO POR: ana")).toBeInTheDocument();
+    // Aprovados vem vazio no beforeEach.
+    const aprovados = screen.getByRole("region", { name: "Prontos para publicar" });
+    expect(await within(aprovados).findByText("TUDO EM DIA!")).toBeInTheDocument();
   });
 
   it("autor vê os rascunhos e não vê a fila de revisão", async () => {
@@ -234,6 +257,7 @@ describe("PainelAutoria: modal de visualização", () => {
     pre_requisito: null,
     exercicios: [{ id: 9, titulo: "Tabuada" }],
     flashcards: [{ id: 4, pergunta: "Laço infinito?", resposta: "Nunca termina." }],
+    questoes: [],
   };
 
   const exercicio: ItemEditorial = {
@@ -251,7 +275,18 @@ describe("PainelAutoria: modal de visualização", () => {
     dificuldade_label: "Iniciante",
     aula_titulo: "Funções",
     trilha_nome: "Lógica",
+    trilha_slug: "logica",
     codigo_inicial: "def dobro(n):\n    ...\n",
+    especificacao: {
+      linguagem: "PYTHON",
+      funcao: "dobro",
+      codigo_inicial: "def dobro(n):\n    ...\n",
+      requisitos: [],
+      limite_de_caracteres: 10_000,
+      codigo_aprovado: "",
+      exemplos: [],
+    },
+    testes: [],
   };
 
   async function abrir(titulo: string) {
@@ -300,9 +335,10 @@ describe("PainelAutoria: modal de visualização", () => {
     expect(
       await within(modal).findByText("Devolva o dobro de n."),
     ).toBeInTheDocument();
-    expect(within(modal).getByLabelText("Código inicial")).toHaveTextContent(
-      "def dobro(n):",
-    );
+    // O código inicial abre no mesmo editor do aluno, que executa mas não envia.
+    expect(within(modal).getByLabelText("Código")).toHaveValue("def dobro(n):\n    ...\n");
+    expect(within(modal).getByRole("button", { name: "Executar" })).toBeInTheDocument();
+    expect(within(modal).queryByRole("button", { name: "Enviar" })).toBeNull();
 
     await userEvent.click(
       within(modal).getByRole("button", { name: "Enviar para Revisão" }),
@@ -407,6 +443,20 @@ describe("PainelAutoria: editar e excluir rascunho", () => {
       await screen.findByRole("link", { name: "Editar: Trilha nova" }),
     ).toHaveAttribute("href", "/autoria/novo?trilha_id=3");
     expect(mock.api.detalheEditorial).not.toHaveBeenCalled();
+  });
+
+  it("clicar na trilha abre o editor; sem trilhas.create abre a leitura", async () => {
+    const { unmount } = montar(CRIADOR);
+    expect(
+      await screen.findByRole("link", { name: "Abrir no editor: Trilha nova" }),
+    ).toHaveAttribute("href", "/autoria/novo?trilha_id=3");
+    unmount();
+
+    montar(AUTOR);
+    expect(
+      await screen.findByRole("button", { name: "Ver conteúdo: Trilha nova" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Abrir no editor: Trilha nova" })).toBeNull();
   });
 
   it("editar aula carrega os campos, salva e recarrega", async () => {

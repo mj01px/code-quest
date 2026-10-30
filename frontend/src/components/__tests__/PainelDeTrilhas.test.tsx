@@ -51,6 +51,7 @@ const DESTAQUE: TrilhaDetalhe = {
   ...TRILHA,
   resumo: "",
   sobre: "",
+  criado_por: null,
   aulas: [
     aula({
       exercicios: [

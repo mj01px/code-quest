@@ -144,7 +144,7 @@ class Command(BaseCommand):
                         "tipo": item["tipo"],
                         "dificuldade": Dificuldade.INICIANTE,
                         "ordem": ordem,
-                        "solucao_autor": item["resposta"],
+                        "explicacao": item["resposta"],
                         "status": StatusEditorial.PUBLICADO,
                     },
                 )

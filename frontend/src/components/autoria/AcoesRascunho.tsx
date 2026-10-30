@@ -4,6 +4,14 @@ import Link from "next/link";
 import { useId, useRef, useState } from "react";
 
 import { AreaDeTexto } from "@/components/autoria/AreaDeTexto";
+import {
+  CamposDeCodigo,
+  ERRO_CASO,
+  casosDeTexto,
+  casosIncompletos,
+  lerCasos,
+  type CasoTexto,
+} from "@/components/autoria/CamposDeCodigo";
 import { GerenciadorFlashcards } from "@/components/autoria/GerenciadorFlashcards";
 import { ModalConfirmacao } from "@/components/clas/ModalConfirmacao";
 import { PixelField } from "@/components/ui/PixelField";
@@ -63,6 +71,9 @@ export function AcoesRascunho({
   const [detalhe, setDetalhe] = useState<DetalheEditorial | null>(null);
   const [titulo, setTitulo] = useState("");
   const [texto, setTexto] = useState("");
+  // Só o exercício de código usa: `testes` null é teórico.
+  const [funcao, setFuncao] = useState("");
+  const [casos, setCasos] = useState<CasoTexto[] | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   // Leitura do rascunho que chega depois de fechar o modal é descartada: senão
@@ -85,6 +96,9 @@ export function AcoesRascunho({
       if (meu !== pedido.current || campos === null) return;
       setTitulo(campos.titulo);
       setTexto(campos.texto);
+      const codigo = "testes" in lido && lido.testes ? lido : null;
+      setFuncao(codigo?.especificacao?.funcao ?? "");
+      setCasos(codigo ? casosDeTexto(codigo.testes ?? []) : null);
       setDetalhe(lido);
     } catch (e) {
       if (meu === pedido.current) {
@@ -94,16 +108,22 @@ export function AcoesRascunho({
   }
 
   async function confirmar() {
-    setOcupado(true);
     setErro(null);
+    const testes = modo === "editar" && casos !== null ? lerCasos(casos) : [];
+    if (testes === null) {
+      setErro(ERRO_CASO);
+      return;
+    }
+    setOcupado(true);
     try {
       if (modo === "excluir") {
         await api.excluirRascunho(item.tipo, item.id);
       } else if (noModal !== null) {
+        const corpo = corpoDe(noModal, titulo.trim(), texto.trim());
         await api.editarRascunho(
           noModal,
           item.id,
-          corpoDe(noModal, titulo.trim(), texto.trim()),
+          casos === null ? corpo : { ...corpo, funcao: funcao.trim(), testes },
         );
       }
       fechar();
@@ -169,7 +189,12 @@ export function AcoesRascunho({
           titulo={item.titulo}
           textoConfirmar="SALVAR"
           carregando={ocupado}
-          confirmarDesabilitado={detalhe === null || !titulo.trim() || !texto.trim()}
+          confirmarDesabilitado={
+            detalhe === null ||
+            !titulo.trim() ||
+            !texto.trim() ||
+            (casos !== null && (!funcao.trim() || casosIncompletos(casos)))
+          }
           erro={erro}
           onConfirmar={confirmar}
           onFechar={fechar}
@@ -194,6 +219,14 @@ export function AcoesRascunho({
                 value={texto}
                 onChange={(e) => setTexto(e.target.value)}
               />
+              {casos !== null ? (
+                <CamposDeCodigo
+                  funcao={funcao}
+                  aoMudarFuncao={setFuncao}
+                  casos={casos}
+                  aoMudarCasos={setCasos}
+                />
+              ) : null}
               {"flashcards" in detalhe ? (
                 <>
                   <p className={`m-0 text-ink-muted ${TIPO.corpo}`}>

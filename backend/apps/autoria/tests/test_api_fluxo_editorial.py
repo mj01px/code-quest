@@ -260,16 +260,36 @@ def test_devolver_sem_parecer_valido_recebe_400(corpo):
 
 def test_rascunho_devolvido_mostra_o_ultimo_parecer():
     autor, admin = criar_autor(), criar_admin()
-    conteudo = criar_conteudo("exercicios", REVISAO, autor=autor)
-    agir(admin, "devolver", "exercicios", conteudo.pk)
-    agir(autor, "submeter", "exercicios", conteudo.pk)
+    conteudo = criar_conteudo("trilhas", REVISAO, autor=autor)
+    agir(admin, "devolver", "trilhas", conteudo.pk)
+    agir(autor, "submeter", "trilhas", conteudo.pk)
     cliente(admin).post(
-        url("devolver", "exercicios", conteudo.pk), {"parecer": "Agora sim."}, format="json"
+        url("devolver", "trilhas", conteudo.pk), {"parecer": "Agora sim."}, format="json"
     )
 
     itens = cliente(autor).get(reverse("autoria:rascunhos")).data
 
     assert [i["parecer"] for i in itens] == ["Agora sim."]
+
+
+def test_submeter_trilha_leva_junto_aulas_e_exercicios_em_rascunho():
+    autor = criar_autor()
+    trilha = criar_trilha("logica", status=RASCUNHO, autor=autor)
+    aula = criar_aula(trilha, "vars", status=RASCUNHO, autor=autor)
+    exercicio = criar_exercicio(aula, "media", status=RASCUNHO, autor=autor)
+    pronta = criar_aula(trilha, "pronta", status=APROVADO, autor=autor)
+
+    assert agir(autor, "submeter", "trilhas", trilha.pk).status_code == 200
+
+    for filho in (aula, exercicio):
+        filho.refresh_from_db()
+        assert filho.status == REVISAO
+    pronta.refresh_from_db()
+    assert pronta.status == APROVADO
+    # Um registro para a trilha e um para cada filho levado junto.
+    assert RegistroDeAuditoria.objects.filter(
+        acao=AcaoAuditoria.CONTEUDO_SUBMETIDO
+    ).count() == 3
 
 
 def _publicar_e_ler_erro(pai):

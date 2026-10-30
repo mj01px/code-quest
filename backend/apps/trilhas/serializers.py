@@ -86,6 +86,10 @@ class TrilhaListaSerializer(serializers.ModelSerializer[Trilha]):
 
 class TrilhaDetalheSerializer(serializers.ModelSerializer[Trilha]):
     aulas = AulaSerializer(many=True, read_only=True)
+    # Só o nickname, que já é público no ranking; null no conteúdo semeado.
+    criado_por = serializers.CharField(
+        source="autor.nickname", read_only=True, allow_null=True
+    )
 
     class Meta:
         model = Trilha
@@ -98,6 +102,7 @@ class TrilhaDetalheSerializer(serializers.ModelSerializer[Trilha]):
             "sobre",
             "ordem",
             "aulas",
+            "criado_por",
         ]
         read_only_fields = fields
 

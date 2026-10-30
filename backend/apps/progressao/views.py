@@ -152,6 +152,8 @@ class ConcluirExercicioView(APIView):
         )
 
         correcao = None
+        # O texto devolvido ao aluno é `explicacao`, nunca `solucao_autor`: este
+        # monta a resposta à mão, fora da varredura transversal de serializers.
         if exercicio.tipo == Tipo.ALTERNATIVA:
             escolha = EscolhaSerializer(data=request.data)
             escolha.is_valid(raise_exception=True)
@@ -172,7 +174,7 @@ class ConcluirExercicioView(APIView):
                     {
                         "aprovado": False,
                         "correcao": None,
-                        "explicacao": exercicio.solucao_autor,
+                        "explicacao": exercicio.explicacao,
                         "alternativa_correta_id": exercicio.alternativas.get(
                             correta=True
                         ).pk,
@@ -215,9 +217,9 @@ class ConcluirExercicioView(APIView):
             "correcao": CorrecaoSerializer(correcao).data if correcao else None,
         }
         if exercicio.tipo == Tipo.ALTERNATIVA:
-            resposta["explicacao"] = exercicio.solucao_autor
+            resposta["explicacao"] = exercicio.explicacao
         elif exercicio.tipo == Tipo.FLASHCARD:
-            resposta["resposta"] = exercicio.solucao_autor
+            resposta["resposta"] = exercicio.explicacao
         return Response(resposta)
 
 

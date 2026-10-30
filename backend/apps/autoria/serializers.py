@@ -6,6 +6,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
 from apps.correcao.models import CasoDeTeste, EspecificacaoDeCodigo
+from apps.correcao.serializers import EspecificacaoSerializer
 from apps.gamificacao.models import Creature, XpBonus
 from apps.trilhas.models import (
     Aula,
@@ -50,21 +51,44 @@ class ItemEditorialSerializer(serializers.Serializer[object]):
     tipo = serializers.ChoiceField(choices=list(MODELOS), read_only=True)
     titulo = serializers.CharField(read_only=True)
     status_editorial = serializers.ChoiceField(StatusEditorial.choices, read_only=True)
+    # Nickname de quem criou; null no conteúdo semeado, que não tem autor.
+    # Nome sem "autor": a varredura transversal barra campo que o cite.
+    criado_por = serializers.CharField(read_only=True, allow_null=True)
     # Só a lista de rascunhos traz: é o motivo da última devolução (ou null).
     # Nas outras filas a chave não existe e o campo some da resposta.
     parecer = serializers.CharField(read_only=True, required=False)
 
 
+class CasoEditorialSerializer(serializers.ModelSerializer[CasoDeTeste]):
+    class Meta:
+        model = CasoDeTeste
+        fields = ["argumentos", "esperado", "visivel"]
+        read_only_fields = fields
+
+
 # Exercício na leitura editorial: o detalhe público mais o código inicial. A
 # solução fica de fora, como no detalhe público; ela tem rota própria.
 class ExercicioEditorialSerializer(ExercicioDetalheSerializer):
-    # Exercício teórico não tem especificação de código: vem null.
+    # Exercício teórico não tem especificação de código: os três vêm null.
     codigo_inicial = serializers.CharField(
         source="especificacao_codigo.codigo_inicial", read_only=True, allow_null=True
     )
+    # A mesma que o aluno recebe: a prévia monta o painel de código com ela.
+    especificacao = EspecificacaoSerializer(
+        source="especificacao_codigo", read_only=True, allow_null=True
+    )
+    # Todos os casos, ocultos inclusive: o autor edita, o revisor confere.
+    testes = CasoEditorialSerializer(
+        source="especificacao_codigo.casos", many=True, read_only=True, allow_null=True
+    )
 
     class Meta(ExercicioDetalheSerializer.Meta):
-        fields = [*ExercicioDetalheSerializer.Meta.fields, "codigo_inicial"]
+        fields = [
+            *ExercicioDetalheSerializer.Meta.fields,
+            "codigo_inicial",
+            "especificacao",
+            "testes",
+        ]
         read_only_fields = fields
 
 
@@ -174,6 +198,12 @@ class RejeicaoSerializer(serializers.Serializer[None]):
 
 class ParecerSerializer(serializers.Serializer[None]):
     parecer = serializers.CharField(max_length=1000)
+
+
+class MotivoExclusaoSerializer(serializers.Serializer[None]):
+    motivo = serializers.CharField(
+        max_length=1000, required=False, allow_blank=True, default=""
+    )
 
 
 # --- Criação de conteúdo ---
@@ -354,10 +384,50 @@ class EdicaoAulaSerializer(serializers.ModelSerializer[Aula]):
 
 
 class EdicaoExercicioSerializer(serializers.ModelSerializer[Exercicio]):
+    # Só no exercício de código. Omitidos, função e casos ficam como estão;
+    # `testes` substitui a lista inteira.
+    funcao = serializers.CharField(max_length=60, required=False, write_only=True)
+    testes = CasoNovoSerializer(
+        many=True, required=False, allow_empty=False, write_only=True
+    )
+
     class Meta:
         model = Exercicio
-        fields = ["id", "titulo", "enunciado", "dificuldade"]
+        fields = ["id", "titulo", "enunciado", "dificuldade", "funcao", "testes"]
         read_only_fields = ["id"]
+
+    def validate_funcao(self, funcao: str) -> str:
+        if not funcao.isidentifier():
+            raise serializers.ValidationError(
+                "Nome de função inválido.", code="funcao_invalida"
+            )
+        return funcao
+
+    def validate(self, dados: dict[str, Any]) -> dict[str, Any]:
+        de_codigo = sorted({"funcao", "testes"} & dados.keys())
+        if de_codigo and self.instance and self.instance.tipo != Tipo.CODIGO:
+            raise serializers.ValidationError(
+                {de_codigo[0]: "Só exercício de código tem função e testes."},
+                code="nao_e_codigo",
+            )
+        return dados
+
+    def update(self, exercicio: Exercicio, dados: dict[str, Any]) -> Exercicio:
+        funcao = dados.pop("funcao", None)
+        testes = dados.pop("testes", None)
+        exercicio = super().update(exercicio, dados)
+        # A view já abriu a transação e travou o exercício.
+        spec = exercicio.especificacao_codigo if funcao or testes else None
+        if spec is not None and funcao:
+            spec.funcao = funcao
+            spec.save(update_fields=["funcao", "atualizado_em"])
+        if spec is not None and testes:
+            spec.casos.all().delete()
+            CasoDeTeste.objects.bulk_create(
+                CasoDeTeste(especificacao=spec, ordem=i, **caso)
+                for i, caso in enumerate(testes, start=1)
+            )
+        return exercicio
 
 
 EDICAO: dict[str, type[serializers.ModelSerializer[Any]]] = {
@@ -397,3 +467,8 @@ class NovaQuestaoSerializer(serializers.ModelSerializer[Questao]):
     def validate_aula(self, aula: Aula) -> Aula:
         exigir_rascunho_do_dono(aula, self.context["request"].user)
         return aula
+
+
+class EdicaoQuestaoSerializer(NovaQuestaoSerializer):
+    class Meta(NovaQuestaoSerializer.Meta):
+        read_only_fields = ["id", "aula"]

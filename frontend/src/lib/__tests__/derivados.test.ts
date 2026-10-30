@@ -21,7 +21,7 @@ function trilhaDetalhe(aulas: Aula[]): TrilhaDetalhe {
   const { total_aulas, total_exercicios, ...resto } = trilhaResumo();
   void total_aulas;
   void total_exercicios;
-  return { ...resto, resumo: "", sobre: "", aulas };
+  return { ...resto, resumo: "", sobre: "", aulas, criado_por: null };
 }
 
 describe("derivados", () => {

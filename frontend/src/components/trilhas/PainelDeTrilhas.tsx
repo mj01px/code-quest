@@ -68,7 +68,7 @@ export function PainelDeTrilhas({
   trilhas: TrilhaResumo[];
   destaque?: TrilhaDetalhe | null;
 }) {
-  const { concluidos, trilhasIniciadas } = useProgresso();
+  const { concluidos, trilhasIniciadas, usuario } = useProgresso();
 
   const progressoPorSlug = calcularProgresso(trilhas, concluidos);
   const [primeira] = trilhas;
@@ -94,6 +94,9 @@ export function PainelDeTrilhas({
         trilhas={trilhas}
         progressoPorSlug={progressoPorSlug}
         iniciadas={trilhasIniciadas}
+        podeExcluir={
+          usuario?.permissoes.includes("trilhas.delete_published") ?? false
+        }
       />
     </>
   );

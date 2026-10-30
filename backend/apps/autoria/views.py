@@ -38,8 +38,10 @@ from .models import SolicitacaoAutoria
 from .serializers import (
     EDICAO,
     EdicaoFlashcardSerializer,
+    EdicaoQuestaoSerializer,
     ExercicioEditorialSerializer,
     ItemEditorialSerializer,
+    MotivoExclusaoSerializer,
     NovaAulaSerializer,
     NovaQuestaoSerializer,
     NovaTrilhaSerializer,
@@ -181,6 +183,7 @@ class PublicarView(TransicaoEditorialView):
 @extend_schema(tags=["autoria"], responses=ItemEditorialSerializer(many=True))
 class FilaEditorialView(APIView):
     status_listado: StatusEditorial
+    tipos_listados: tuple[str, ...] = tuple(MODELOS)
     # Na fila de rascunhos o autor só vê o que criou; o admin vê tudo.
     so_do_autor = False
     throttle_classes = [ScopedRateThrottle]
@@ -190,14 +193,16 @@ class FilaEditorialView(APIView):
         # IsAuthenticated já barrou o anônimo.
         usuario = cast(User, request.user)
         autor = usuario if self.so_do_autor and not usuario.is_platform_admin else None
-        itens = itens_no_status(self.status_listado, autor)
+        itens = itens_no_status(self.status_listado, autor, self.tipos_listados)
         if self.status_listado == StatusEditorial.RASCUNHO:
             itens = anexar_pareceres(itens)
         return Response(ItemEditorialSerializer(itens, many=True).data)
 
 
+# Só a trilha: aula e exercício vivem dentro dela e se gerenciam no editor.
 class RascunhosView(FilaEditorialView):
     status_listado = StatusEditorial.RASCUNHO
+    tipos_listados = ("trilhas",)
     so_do_autor = True
     permission_classes = [IsAuthenticated, HasPerm("trilhas.submit_review")]
 
@@ -221,7 +226,7 @@ class FilaRevisaoView(FilaEditorialView):
 DETALHE: dict[str, tuple[type[serializers.ModelSerializer[Any]], QuerySet[Any]]] = {
     "trilhas": (
         TrilhaEditorialSerializer,
-        Trilha.objects.prefetch_related(
+        Trilha.objects.select_related("autor").prefetch_related(
             "aulas__pre_requisito",
             "aulas__exercicios",
             "aulas__flashcards",
@@ -236,7 +241,9 @@ DETALHE: dict[str, tuple[type[serializers.ModelSerializer[Any]], QuerySet[Any]]]
     ),
     "exercicios": (
         ExercicioEditorialSerializer,
-        Exercicio.objects.select_related("aula", "trilha", "especificacao_codigo"),
+        Exercicio.objects.select_related(
+            "aula", "trilha", "especificacao_codigo"
+        ).prefetch_related("especificacao_codigo__casos"),
     ),
 }
 
@@ -363,6 +370,7 @@ class RejeitarSolicitacaoView(APIView):
 # nunca do corpo, e toda criação vai para a auditoria.
 @extend_schema(tags=["autoria"])
 class CriarConteudoView(generics.CreateAPIView[Any]):
+    # Cada subclasse soma a granular do tipo: o admin define quem cria o quê.
     permission_classes = [IsAuthenticated, HasPerm("trilhas.create")]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = ESCOPO_EDITORIAL
@@ -379,16 +387,28 @@ class CriarConteudoView(generics.CreateAPIView[Any]):
 
 
 class CriarTrilhaView(CriarConteudoView):
+    permission_classes = [
+        IsAuthenticated,
+        HasPerm("trilhas.create", "trilhas.create_trilha"),
+    ]
     serializer_class = NovaTrilhaSerializer
     tipo = "trilhas"
 
 
 class CriarAulaView(CriarConteudoView):
+    permission_classes = [
+        IsAuthenticated,
+        HasPerm("trilhas.create", "trilhas.create_aula"),
+    ]
     serializer_class = NovaAulaSerializer
     tipo = "aulas"
 
 
 class CriarExercicioView(CriarConteudoView):
+    permission_classes = [
+        IsAuthenticated,
+        HasPerm("trilhas.create", "trilhas.create_exercicio"),
+    ]
     serializer_class = NovoExercicioSerializer
     tipo = "exercicios"
 
@@ -434,9 +454,14 @@ class RascunhoView(APIView):
             )
         return Response(entrada.data)
 
-    @extend_schema(request=None, responses={204: None})
+    # O motivo só é exigido ao excluir publicado (moderação); no rascunho é ignorado.
+    @extend_schema(request=MotivoExclusaoSerializer, responses={204: None})
     def delete(self, request: Request, tipo: str, pk: str) -> Response:
-        excluir_rascunho(MODELOS[tipo], int(pk), tipo, request)
+        entrada = MotivoExclusaoSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        excluir_rascunho(
+            MODELOS[tipo], int(pk), tipo, request, entrada.validated_data["motivo"]
+        )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -466,7 +491,11 @@ class CriarFlashcardView(generics.CreateAPIView[Flashcard]):
 @extend_schema(tags=["autoria"])
 class CriarQuestaoView(generics.CreateAPIView[Questao]):
     serializer_class = NovaQuestaoSerializer
-    permission_classes = [IsAuthenticated, HasPerm("trilhas.create")]
+    # Questão é exercício de múltipla escolha: mesma granular do exercício.
+    permission_classes = [
+        IsAuthenticated,
+        HasPerm("trilhas.create", "trilhas.create_exercicio"),
+    ]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = ESCOPO_EDITORIAL
 
@@ -534,5 +563,57 @@ class FlashcardView(APIView):
                 alvo=aula,
                 tipo="aulas",
                 flashcard=pk,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# Mesma regra do flashcard: a aula é o dono, travada antes de ler a questão.
+@extend_schema(
+    tags=["autoria"],
+    request=EdicaoQuestaoSerializer,
+    responses=EdicaoQuestaoSerializer,
+)
+class QuestaoView(APIView):
+    permission_classes = [IsAuthenticated, HasPerm("trilhas.create")]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = ESCOPO_EDITORIAL
+
+    def _editavel(self, pk: int) -> tuple[Questao, Aula]:
+        aula_id = (
+            Questao.objects.filter(pk=pk).values_list("aula_id", flat=True).first()
+        )
+        if aula_id is None:
+            raise Http404("Questão não encontrada.")
+        aula = rascunho_editavel(Aula, aula_id, cast(User, self.request.user))
+        return get_object_or_404(Questao, pk=pk, aula=aula), cast(Aula, aula)
+
+    def put(self, request: Request, pk: int) -> Response:
+        with transaction.atomic():
+            questao, aula = self._editavel(pk)
+            entrada = EdicaoQuestaoSerializer(
+                questao, data=request.data, context={"request": request}
+            )
+            entrada.is_valid(raise_exception=True)
+            entrada.save()
+            registrar(
+                AcaoAuditoria.CONTEUDO_EDITADO,
+                request=request,
+                alvo=aula,
+                tipo="aulas",
+                questao=pk,
+            )
+        return Response(entrada.data)
+
+    @extend_schema(request=None, responses={204: None})
+    def delete(self, request: Request, pk: int) -> Response:
+        with transaction.atomic():
+            questao, aula = self._editavel(pk)
+            questao.delete()
+            registrar(
+                AcaoAuditoria.CONTEUDO_EDITADO,
+                request=request,
+                alvo=aula,
+                tipo="aulas",
+                questao=pk,
             )
         return Response(status=status.HTTP_204_NO_CONTENT)

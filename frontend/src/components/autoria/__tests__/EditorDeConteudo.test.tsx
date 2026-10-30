@@ -25,8 +25,11 @@ jest.mock("@/lib/api", () => ({
     criarAula: jest.fn(),
     criarExercicio: jest.fn(),
     criarQuestao: jest.fn(),
+    editarQuestao: jest.fn(),
+    excluirQuestao: jest.fn(),
     detalheEditorial: jest.fn(),
     publicarConteudo: jest.fn(),
+    submeterRevisao: jest.fn(),
     editarRascunho: jest.fn(),
     excluirRascunho: jest.fn(),
     catalogo: jest.fn(),
@@ -43,7 +46,14 @@ const mock = jest.requireMock<{
   api: Record<string, jest.Mock>;
 }>("@/lib/api");
 
-const AUTOR = [...usuario().permissoes, "trilhas.create", "trilhas.submit_review"];
+const AUTOR = [
+  ...usuario().permissoes,
+  "trilhas.create",
+  "trilhas.create_trilha",
+  "trilhas.create_aula",
+  "trilhas.create_exercicio",
+  "trilhas.submit_review",
+];
 
 function montar(permissoes = AUTOR, trilhaId: number | null = null) {
   mock.api.eu.mockResolvedValue(usuario({ permissoes }));
@@ -267,6 +277,20 @@ describe("EditorDeConteudo", () => {
     // O formulário de aula fica escondido até o autor pedir.
     expect(screen.queryByLabelText("TÍTULO DA AULA")).toBeNull();
     expect(screen.getByRole("button", { name: "+ ADICIONAR NOVA AULA" })).toBeInTheDocument();
+  });
+
+  it("sem create_aula esconde a nova aula; sem create_exercicio, os botões de exercício", async () => {
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
+    const soCriar = AUTOR.filter((p) => !["trilhas.create_aula", "trilhas.create_exercicio"].includes(p));
+    const { unmount } = montar([...soCriar, "trilhas.create_aula"], 9);
+
+    expect(await screen.findByRole("button", { name: "+ ADICIONAR NOVA AULA" })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Adicionar exercício" })).toBeNull();
+    unmount();
+
+    montar([...soCriar, "trilhas.create_exercicio"], 9);
+    expect(await screen.findByRole("group", { name: "Adicionar exercício" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "+ ADICIONAR NOVA AULA" })).toBeNull();
   });
 
   it("cancelar a nova aula fecha o formulário sem salvar e devolve o botão", async () => {
@@ -508,5 +532,197 @@ describe("EditorDeConteudo", () => {
     expect(mock.api.publicarConteudo).toHaveBeenCalledWith("trilhas", 9);
     expect(await screen.findByText(/TRILHA PUBLICADA/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "PUBLICAR TRILHA" })).toBeNull();
+  });
+
+  // O mesmo mock atende trilha, aula e exercício; a aula relida vem sem o
+  // exercício quando `semExercicio` (depois de excluir) ou com o título novo.
+  function lerPorTipo(
+    aulaLida = trilhaSalva().aulas[0],
+    exercicioLido: object = {
+      id: 2,
+      titulo: "Soma",
+      enunciado: "Some dois números.",
+      tipo: "TEORICO",
+      codigo_inicial: null,
+    },
+  ) {
+    mock.api.detalheEditorial.mockImplementation(async (tipo: string) => {
+      if (tipo === "trilhas") return trilhaSalva();
+      if (tipo === "aulas") return aulaLida;
+      return exercicioLido;
+    });
+  }
+
+  it("o lápis do exercício edita título e enunciado e a linha mostra o novo título", async () => {
+    const u = userEvent.setup();
+    const base = trilhaSalva().aulas[0];
+    lerPorTipo({ ...base, exercicios: [exercicioResumo({ id: 2, titulo: "Soma nova" })] });
+    mock.api.editarRascunho.mockResolvedValue({});
+    montar(AUTOR, 9);
+
+    await u.click(await screen.findByRole("button", { name: "Editar: Soma" }));
+    const modal = await screen.findByRole("dialog");
+    const campo = await within(modal).findByLabelText("TÍTULO");
+    await u.clear(campo);
+    await u.type(campo, "Soma nova");
+    await u.click(within(modal).getByRole("button", { name: "SALVAR" }));
+
+    expect(mock.api.editarRascunho).toHaveBeenCalledWith("exercicios", 2, {
+      titulo: "Soma nova",
+      enunciado: "Some dois números.",
+    });
+    expect(await screen.findByText("Soma nova")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("a lixeira do exercício pede confirmação, exclui e tira a linha", async () => {
+    const u = userEvent.setup();
+    lerPorTipo({ ...trilhaSalva().aulas[0], exercicios: [] });
+    mock.api.excluirRascunho.mockResolvedValue(null);
+    montar(AUTOR, 9);
+
+    await u.click(await screen.findByRole("button", { name: "Excluir: Soma" }));
+    expect(mock.api.excluirRascunho).not.toHaveBeenCalled();
+    await u.click(within(screen.getByRole("dialog")).getByRole("button", { name: "EXCLUIR" }));
+
+    expect(mock.api.excluirRascunho).toHaveBeenCalledWith("exercicios", 2);
+    await waitFor(() => expect(screen.queryByText("Soma")).toBeNull());
+  });
+
+  it("o lápis do exercício de código traz função e casos salvos e envia os dois", async () => {
+    const u = userEvent.setup();
+    lerPorTipo(trilhaSalva().aulas[0], {
+      id: 2,
+      titulo: "Soma",
+      enunciado: "Some dois números.",
+      tipo: "CODIGO",
+      codigo_inicial: "",
+      especificacao: { funcao: "soma" },
+      testes: [{ argumentos: [1, 2], esperado: 3, visivel: false }],
+    });
+    mock.api.editarRascunho.mockResolvedValue({});
+    montar(AUTOR, 9);
+
+    await u.click(await screen.findByRole("button", { name: "Editar: Soma" }));
+    const modal = await screen.findByRole("dialog");
+    const funcao = await within(modal).findByLabelText(/NOME DA FUNÇÃO/);
+    expect(funcao).toHaveValue("soma");
+    expect(within(modal).getByLabelText(/ARGUMENTOS 1/)).toHaveValue("1,2");
+    expect(within(modal).getByLabelText(/ESPERADO 1/)).toHaveValue("3");
+    await u.clear(funcao);
+    await u.type(funcao, "somar");
+    await u.click(within(modal).getByRole("button", { name: "+ CASO DE TESTE" }));
+    await u.type(within(modal).getByLabelText(/ARGUMENTOS 2/), "0, 0");
+    await u.type(within(modal).getByLabelText(/ESPERADO 2/), "0");
+    await u.click(within(modal).getByRole("button", { name: "SALVAR" }));
+
+    // O caso salvo mantém o `visivel`; o novo deixa o backend decidir.
+    expect(mock.api.editarRascunho).toHaveBeenCalledWith("exercicios", 2, {
+      titulo: "Soma",
+      enunciado: "Some dois números.",
+      funcao: "somar",
+      testes: [
+        { argumentos: [1, 2], esperado: 3, visivel: false },
+        { argumentos: [0, 0], esperado: 0 },
+      ],
+    });
+  });
+
+  it("o lápis da questão edita enunciado, opções e correta", async () => {
+    const u = userEvent.setup();
+    const base = trilhaSalva().aulas[0];
+    const editada = { ...base.questoes[0], enunciado: "Qual é tipo primitivo?" };
+    lerPorTipo({ ...base, questoes: [editada] });
+    mock.api.editarQuestao.mockResolvedValue(editada);
+    montar(AUTOR, 9);
+
+    await u.click(await screen.findByRole("button", { name: "Editar: Qual é primitivo?" }));
+    const modal = screen.getByRole("dialog");
+    const enunciado = within(modal).getByLabelText("ENUNCIADO DA QUESTÃO");
+    expect(enunciado).toHaveValue("Qual é primitivo?");
+    expect(within(modal).getByLabelText("OPÇÃO B")).toHaveValue("Array");
+    await u.clear(enunciado);
+    await u.type(enunciado, "Qual é tipo primitivo?");
+    await u.selectOptions(within(modal).getByLabelText("RESPOSTA CORRETA"), "C");
+    await u.click(within(modal).getByRole("button", { name: "SALVAR" }));
+
+    expect(mock.api.editarQuestao).toHaveBeenCalledWith(6, {
+      enunciado: "Qual é tipo primitivo?",
+      opcoes: ["string", "Array", "Map", "Set"],
+      resposta_correta: "C",
+    });
+    expect(await screen.findByText("Qual é tipo primitivo?")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("a lixeira da questão pede confirmação, exclui e tira a linha", async () => {
+    const u = userEvent.setup();
+    lerPorTipo({ ...trilhaSalva().aulas[0], questoes: [] });
+    mock.api.excluirQuestao.mockResolvedValue(null);
+    montar(AUTOR, 9);
+
+    await u.click(await screen.findByRole("button", { name: "Excluir: Qual é primitivo?" }));
+    expect(mock.api.excluirQuestao).not.toHaveBeenCalled();
+    await u.click(within(screen.getByRole("dialog")).getByRole("button", { name: "EXCLUIR" }));
+
+    expect(mock.api.excluirQuestao).toHaveBeenCalledWith(6);
+    await waitFor(() => expect(screen.queryByText("Qual é primitivo?")).toBeNull());
+  });
+
+  it("trilha em revisão não mostra lápis nem lixeira nos exercícios", async () => {
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva("REVISAO"));
+    montar(AUTOR, 9);
+
+    await screen.findByText("Soma");
+    expect(screen.queryByRole("button", { name: "Editar: Soma" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Excluir: Soma" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Editar: Qual é primitivo?" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Excluir: Qual é primitivo?" })).toBeNull();
+  });
+
+  it("REVISAR CONTEÚDO abre a prévia da trilha inteira sem enviar nada", async () => {
+    const u = userEvent.setup();
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
+    montar(AUTOR, 9);
+
+    await u.click(await screen.findByRole("button", { name: "REVISAR CONTEÚDO" }));
+    const modal = await screen.findByRole("dialog");
+
+    expect(await within(modal).findByRole("region", { name: "Aula 1: Tipos básicos" })).toBeInTheDocument();
+    expect(within(modal).getByText("Soma")).toBeInTheDocument();
+    expect(mock.api.detalheEditorial).toHaveBeenCalledWith("trilhas", 9);
+    expect(mock.api.submeterRevisao).not.toHaveBeenCalled();
+    await u.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("ENVIAR PARA REVISÃO dentro da prévia envia a trilha e fecha o modal", async () => {
+    const u = userEvent.setup();
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
+    mock.api.submeterRevisao.mockResolvedValue({ id: 9, status_editorial: "REVISAO" });
+    montar(AUTOR, 9);
+
+    await u.click(await screen.findByRole("button", { name: "REVISAR CONTEÚDO" }));
+    const modal = await screen.findByRole("dialog");
+    await within(modal).findByRole("region", { name: "Aula 1: Tipos básicos" });
+    await u.click(within(modal).getByRole("button", { name: "ENVIAR PARA REVISÃO" }));
+
+    expect(mock.api.submeterRevisao).toHaveBeenCalledWith("trilhas", 9);
+    expect(await screen.findByText(/TRILHA EM REVISÃO/)).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByRole("button", { name: "ENVIAR PARA REVISÃO" })).toBeNull();
+  });
+
+  it("ENVIAR PARA REVISÃO na tela principal mostra o erro do envio", async () => {
+    const u = userEvent.setup();
+    const { ErroApi } = jest.requireActual("@/lib/api");
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
+    mock.api.submeterRevisao.mockRejectedValue(new ErroApi(400, "validacao", "Não deu."));
+    montar(AUTOR, 9);
+
+    await u.click(await screen.findByRole("button", { name: "ENVIAR PARA REVISÃO" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Não deu.");
+    expect(screen.getByRole("button", { name: "ENVIAR PARA REVISÃO" })).toBeEnabled();
   });
 });

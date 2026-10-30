@@ -1,6 +1,7 @@
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.contas.cookies import ACCESS, CAMINHO_REFRESH, REFRESH, SESSAO
 
@@ -164,6 +165,18 @@ class SinalizadorDeSessaoTest(APITestCase):
         r = self.client.get(reverse("contas:eu"))
 
         self.assertEqual(r.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_renovar_com_dono_do_token_apagado_recebe_401(self):
+        # Token íntegro e não expirado, mas o `user_id` dele não existe mais.
+        apagado = criar_aluno("apagado")
+        refresh = str(RefreshToken.for_user(apagado))
+        apagado.delete()
+        self.client.cookies[REFRESH] = refresh
+
+        r = self.client.post(reverse("contas:renovar"), {}, format="json")
+
+        self.assertEqual(r.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(r.json()["error"]["message"], "Sessão inválida. Entre de novo.")
 
     def test_sair_apaga_o_sinalizador(self):
         self._entrar()

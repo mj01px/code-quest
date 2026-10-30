@@ -104,6 +104,11 @@ export interface ItemEditorial {
   tipo: TipoConteudo;
   titulo: string;
   status_editorial: StatusEditorial;
+  /**
+   * Nickname de quem criou; null no conteúdo semeado, que não tem autor.
+   * Ausente no item que o editor monta no cliente.
+   */
+  criado_por?: string | null;
   /** Só na lista de rascunhos: o motivo da última devolução, se houve. */
   parecer?: string | null;
 }
@@ -155,6 +160,8 @@ export interface NovaAula {
 export interface NovoCaso {
   argumentos: unknown[];
   esperado: unknown;
+  /** Omitido, o backend grava visível. */
+  visivel?: boolean;
 }
 
 export interface NovoExercicio {
@@ -170,6 +177,16 @@ export interface NovoExercicio {
 /** Exercício na leitura editorial. `codigo_inicial` é null no teórico. */
 export interface ExercicioEditorial extends ExercicioDetalhe {
   codigo_inicial: string | null;
+  /** A mesma que o aluno recebe; null no teórico. */
+  especificacao: EspecificacaoDeCodigo | null;
+  /** Todos os casos, ocultos inclusive; null no teórico. */
+  testes: CasoEditorial[] | null;
+}
+
+export interface CasoEditorial {
+  argumentos: unknown[];
+  esperado: unknown;
+  visivel: boolean;
 }
 
 /** Trilha na leitura editorial: o editor precisa do status para oferecer o "publicar". */
@@ -247,7 +264,7 @@ export interface Questao {
 export type EdicaoRascunho =
   | { nome: string; descricao: string; criatura_bonus?: string | null }
   | { titulo: string; conteudo: string }
-  | { titulo: string; enunciado: string };
+  | { titulo: string; enunciado: string; funcao?: string; testes?: NovoCaso[] };
 
 export interface TrilhaResumo {
   id: number;
@@ -271,6 +288,8 @@ export interface TrilhaDetalhe {
   sobre: string;
   ordem: number;
   aulas: Aula[];
+  /** Nickname de quem criou; null no conteúdo semeado. */
+  criado_por: string | null;
 }
 
 export interface ExercicioDetalhe {

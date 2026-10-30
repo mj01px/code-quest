@@ -4,8 +4,25 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useState } from "react";
 
+import {
+  AcoesQuestao,
+  CamposQuestao,
+  QUESTAO_VAZIA,
+  questaoCompleta,
+  questaoLimpa,
+} from "@/components/autoria/AcoesQuestao";
+import { AcoesRascunho } from "@/components/autoria/AcoesRascunho";
 import { AreaDeTexto, ROTULO } from "@/components/autoria/AreaDeTexto";
+import {
+  CASO_VAZIO,
+  CamposDeCodigo,
+  ERRO_CASO,
+  casosIncompletos,
+  lerCasos,
+  type CasoTexto,
+} from "@/components/autoria/CamposDeCodigo";
 import { GerenciadorFlashcards } from "@/components/autoria/GerenciadorFlashcards";
+import { ModalVisualizacao } from "@/components/autoria/ModalVisualizacao";
 import { PreviaMarkdown } from "@/components/autoria/PreviaMarkdown";
 import { ModalConfirmacao } from "@/components/clas/ModalConfirmacao";
 import { useProgresso } from "@/components/progresso/ProvedorProgresso";
@@ -14,12 +31,10 @@ import { PixelField } from "@/components/ui/PixelField";
 import { ErroApi, api } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
 import type {
-  Alternativa,
   Criatura,
   Dificuldade,
   Flashcard,
   NovaAula,
-  NovoCaso,
   Questao,
   StatusEditorial,
   TipoExercicio,
@@ -32,8 +47,6 @@ const NIVEIS: [Dificuldade, string][] = [
   ["INTERMEDIARIO", "INTERMEDIÁRIO"],
   ["AVANCADO", "AVANÇADO"],
 ];
-
-const ALTERNATIVAS: Alternativa[] = ["A", "B", "C", "D"];
 
 const ROTULO_STATUS: Record<StatusEditorial, string> = {
   RASCUNHO: "TRILHA SALVA EM RASCUNHO",
@@ -116,8 +129,17 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
   const [excluida, setExcluida] = useState(false);
   const [ocupado, setOcupado] = useState(false);
   const [erroExclusao, setErroExclusao] = useState<string | null>(null);
+  // Prévia da trilha inteira, a mesma que o revisor abre; o envio pode sair dela.
+  const [revisando, setRevisando] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [erroEnvio, setErroEnvio] = useState<string | null>(null);
 
   const podeCriar = usuario?.permissoes.includes("trilhas.create") ?? false;
+  // Granulares do RBAC: o admin define quem adiciona aula e quem adiciona
+  // exercício. Esconder é navegação; quem barra é o backend.
+  const podeAula = usuario?.permissoes.includes("trilhas.create_aula") ?? false;
+  const podeExercicio =
+    usuario?.permissoes.includes("trilhas.create_exercicio") ?? false;
 
   useEffect(() => {
     if (carregando) return;
@@ -180,6 +202,21 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
     }
   }
 
+  async function enviarParaRevisao() {
+    if (!trilha) return;
+    setEnviando(true);
+    setErroEnvio(null);
+    try {
+      await api.submeterRevisao("trilhas", trilha.id);
+      setRevisando(false);
+      setTrilha({ ...trilha, status_editorial: "REVISAO" });
+    } catch (e) {
+      setErroEnvio(mensagemDe(e));
+    } finally {
+      setEnviando(false);
+    }
+  }
+
   if (excluida) {
     return (
       <p role="status" className={`m-0 text-success ${TIPO.etiqueta}`}>
@@ -210,8 +247,8 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
           ) : null}
         </div>
         <p className={`m-0 text-ink-muted ${TIPO.corpo}`}>
-          Tudo nasce em rascunho. Envie para revisão na tela de autoria quando
-          estiver pronto.
+          Tudo nasce em rascunho. Confira o resultado em REVISAR CONTEÚDO e envie
+          a trilha para revisão quando estiver pronta.
         </p>
       </div>
 
@@ -245,7 +282,13 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
             ) : (
               <ol className="m-0 flex list-none flex-col gap-6 p-0">
                 {aulas.map((aula, i) => (
-                  <ItemAula key={aula.id} numero={i + 1} aula={aula} />
+                  <ItemAula
+                    key={aula.id}
+                    numero={i + 1}
+                    aula={aula}
+                    editavel={trilha.status_editorial === "RASCUNHO"}
+                    podeExercicio={podeExercicio}
+                  />
                 ))}
               </ol>
             )}
@@ -258,19 +301,60 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
                   setNovaAula(false);
                 }}
               />
-            ) : (
+            ) : podeAula ? (
               <PixelButton className="self-start" onClick={() => setNovaAula(true)}>
                 + ADICIONAR NOVA AULA
               </PixelButton>
-            )}
+            ) : null}
           </section>
-          <Link
-            href="/autoria"
-            className={`self-end text-brand-light underline underline-offset-4 ${TIPO.etiqueta}`}
-          >
-            IR PARA OS RASCUNHOS
-          </Link>
+          <div className="flex flex-col items-end gap-3">
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <Link
+                href="/autoria"
+                className={`mr-2 text-brand-light underline underline-offset-4 ${TIPO.etiqueta}`}
+              >
+                IR PARA OS RASCUNHOS
+              </Link>
+              <PixelButton
+                type="button"
+                variante="secundaria"
+                onClick={() => {
+                  setErroEnvio(null);
+                  setRevisando(true);
+                }}
+              >
+                REVISAR CONTEÚDO
+              </PixelButton>
+              {trilha.status_editorial === "RASCUNHO" ? (
+                <PixelButton type="button" onClick={enviarParaRevisao} disabled={enviando}>
+                  {enviando ? "ENVIANDO..." : "ENVIAR PARA REVISÃO"}
+                </PixelButton>
+              ) : null}
+            </div>
+            {revisando ? null : <Erro texto={erroEnvio} />}
+          </div>
         </>
+      ) : null}
+
+      {revisando && trilha ? (
+        <ModalVisualizacao
+          item={{
+            id: trilha.id,
+            tipo: "trilhas",
+            titulo: trilha.nome,
+            status_editorial: trilha.status_editorial,
+          }}
+          rotulo="PRÉVIA DA TRILHA"
+          acoes={
+            trilha.status_editorial === "RASCUNHO"
+              ? [{ rotulo: "ENVIAR PARA REVISÃO" }]
+              : []
+          }
+          ocupado={enviando}
+          erro={erroEnvio}
+          onAgir={() => void enviarParaRevisao()}
+          onFechar={() => setRevisando(false)}
+        />
       ) : null}
 
       {excluindo && trilha ? (
@@ -636,9 +720,29 @@ function BlocoDaAula({ titulo, children }: { titulo: string; children: React.Rea
   );
 }
 
-function ItemAula({ numero, aula }: { numero: number; aula: AulaEditor }) {
+function ItemAula({
+  numero,
+  aula,
+  editavel,
+  podeExercicio,
+}: {
+  numero: number;
+  aula: AulaEditor;
+  /** Lápis e lixeira nos exercícios: só com a trilha em rascunho, como no backend. */
+  editavel: boolean;
+  /** Sem `trilhas.create_exercicio`, os botões de adicionar somem. */
+  podeExercicio: boolean;
+}) {
   const [exercicios, setExercicios] = useState(aula.exercicios);
   const [questoes, setQuestoes] = useState(aula.questoes);
+  // Editar ou excluir mexe no título ou some com a linha: relê a aula em vez de
+  // remendar a lista aqui.
+  async function recarregar() {
+    const lida = await api.detalheEditorial("aulas", aula.id);
+    if (!("conteudo" in lida)) return;
+    setExercicios(lida.exercicios);
+    setQuestoes(lida.questoes);
+  }
   // Tipo do exercício em criação; null mostra os três botões de adicionar.
   const [novo, setNovo] = useState<TipoNovo | null>(null);
   const vazia = exercicios.length === 0 && questoes.length === 0;
@@ -670,36 +774,68 @@ function ItemAula({ numero, aula }: { numero: number; aula: AulaEditor }) {
             &gt; NENHUM EXERCÍCIO AINDA.
           </p>
         ) : (
-          <ul className="m-0 flex list-none flex-col gap-1 p-0">
+          <ul className="m-0 flex list-none flex-col gap-2 p-0">
             {exercicios.map((ex) => (
-              <li key={`ex-${ex.id}`} className="font-body text-base text-ink-body">
-                <span className={`mr-2 text-brand-light ${TIPO.etiqueta}`}>
-                  {ex.tipo === "CODIGO" ? "CÓDIGO" : "TEÓRICO"}
+              <li
+                key={`ex-${ex.id}`}
+                className="flex flex-wrap items-center gap-3 font-body text-base text-ink-body"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className={`mr-2 text-brand-light ${TIPO.etiqueta}`}>
+                    {ex.tipo === "CODIGO" ? "CÓDIGO" : "TEÓRICO"}
+                  </span>
+                  {ex.titulo}
                 </span>
-                {ex.titulo}
+                {editavel ? (
+                  <span className="flex items-center gap-2">
+                    <AcoesRascunho
+                      item={{
+                        id: ex.id,
+                        tipo: "exercicios",
+                        titulo: ex.titulo,
+                        status_editorial: "RASCUNHO",
+                      }}
+                      aoAlterar={recarregar}
+                    />
+                  </span>
+                ) : null}
               </li>
             ))}
             {questoes.map((q) => (
-              <li key={`q-${q.id}`} className="font-body text-base text-ink-body">
-                <span className={`mr-2 text-brand-light ${TIPO.etiqueta}`}>MÚLTIPLA ESCOLHA</span>
-                {q.enunciado}
+              <li
+                key={`q-${q.id}`}
+                className="flex flex-wrap items-center gap-3 font-body text-base text-ink-body"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className={`mr-2 text-brand-light ${TIPO.etiqueta}`}>
+                    MÚLTIPLA ESCOLHA
+                  </span>
+                  {q.enunciado}
+                </span>
+                {editavel ? (
+                  <span className="flex items-center gap-2">
+                    <AcoesQuestao questao={q} aoAlterar={recarregar} />
+                  </span>
+                ) : null}
               </li>
             ))}
           </ul>
         )}
         {novo === null ? (
-          <div role="group" aria-label="Adicionar exercício" className="flex flex-wrap gap-3">
-            {TIPOS_NOVOS.map(([valor, rotulo, cor]) => (
-              <button
-                key={valor}
-                type="button"
-                onClick={() => setNovo(valor)}
-                className={`cursor-pointer border-2 bg-panel-deep px-4 py-3 font-label text-[11px] tracking-[2px] shadow-pixel transition-colors duration-150 hover:bg-panel-soft ${cor}`}
-              >
-                + {rotulo}
-              </button>
-            ))}
-          </div>
+          podeExercicio ? (
+            <div role="group" aria-label="Adicionar exercício" className="flex flex-wrap gap-3">
+              {TIPOS_NOVOS.map(([valor, rotulo, cor]) => (
+                <button
+                  key={valor}
+                  type="button"
+                  onClick={() => setNovo(valor)}
+                  className={`cursor-pointer border-2 bg-panel-deep px-4 py-3 font-label text-[11px] tracking-[2px] shadow-pixel transition-colors duration-150 hover:bg-panel-soft ${cor}`}
+                >
+                  + {rotulo}
+                </button>
+              ))}
+            </div>
+          ) : null
         ) : (
           <FormExercicio
             tipo={novo}
@@ -766,29 +902,6 @@ function FormExercicio({
   );
 }
 
-// O que o autor digita em cada caso, antes de virar JSON.
-interface CasoTexto {
-  argumentos: string;
-  esperado: string;
-}
-
-const CASO_VAZIO: CasoTexto = { argumentos: "", esperado: "" };
-
-const ERRO_CASO =
-  'Cada caso precisa de argumentos e esperado em JSON (ex.: 8, 6 e 7.0; texto vai entre aspas: "oi").';
-
-// Argumentos vêm sem colchetes ("8, 6") e viram a lista que o corretor espera.
-function lerCasos(casos: CasoTexto[]): NovoCaso[] | null {
-  try {
-    return casos.map((c) => ({
-      argumentos: JSON.parse(`[${c.argumentos}]`) as unknown[],
-      esperado: JSON.parse(c.esperado) as unknown,
-    }));
-  } catch {
-    return null;
-  }
-}
-
 // Teórico e código dividem título e enunciado; o de código pede também a
 // função que o aluno implementa e os casos que o corretor roda nela.
 function FormTeorico({
@@ -806,12 +919,6 @@ function FormTeorico({
   const [casos, setCasos] = useState<CasoTexto[]>([CASO_VAZIO]);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-
-  const casosIncompletos = casos.some((c) => !c.esperado.trim());
-
-  function mudarCaso(i: number, campo: keyof CasoTexto, valor: string) {
-    setCasos((atual) => atual.map((c, j) => (j === i ? { ...c, [campo]: valor } : c)));
-  }
 
   async function enviar(evento: React.FormEvent) {
     evento.preventDefault();
@@ -851,48 +958,12 @@ function FormTeorico({
         onChange={(e) => setEnunciado(e.target.value)}
       />
       {codigo ? (
-        <>
-          <PixelField
-            rotulo="NOME DA FUNÇÃO (EX: MEDIA)"
-            value={funcao}
-            maxLength={60}
-            onChange={(e) => setFuncao(e.target.value)}
-          />
-          <fieldset className="m-0 flex flex-col gap-4 border-0 p-0">
-            <legend className={`mb-2 ${ROTULO}`}>CASOS DE TESTE</legend>
-            {casos.map((caso, i) => (
-              <div key={i} className="grid items-end gap-4 sm:grid-cols-[1fr_1fr_auto]">
-                <PixelField
-                  rotulo={`ARGUMENTOS ${i + 1} (EX: 8, 6)`}
-                  value={caso.argumentos}
-                  onChange={(e) => mudarCaso(i, "argumentos", e.target.value)}
-                />
-                <PixelField
-                  rotulo={`ESPERADO ${i + 1} (EX: 7.0)`}
-                  value={caso.esperado}
-                  onChange={(e) => mudarCaso(i, "esperado", e.target.value)}
-                />
-                <PixelButton
-                  type="button"
-                  variante="secundaria"
-                  aria-label={`Remover caso ${i + 1}`}
-                  disabled={casos.length === 1}
-                  onClick={() => setCasos((atual) => atual.filter((_, j) => j !== i))}
-                >
-                  REMOVER
-                </PixelButton>
-              </div>
-            ))}
-            <PixelButton
-              type="button"
-              variante="secundaria"
-              className="self-start"
-              onClick={() => setCasos((atual) => [...atual, CASO_VAZIO])}
-            >
-              + CASO DE TESTE
-            </PixelButton>
-          </fieldset>
-        </>
+        <CamposDeCodigo
+          funcao={funcao}
+          aoMudarFuncao={setFuncao}
+          casos={casos}
+          aoMudarCasos={setCasos}
+        />
       ) : null}
       <Erro texto={erro} />
       <PixelButton
@@ -903,7 +974,7 @@ function FormTeorico({
           enviando ||
           !titulo.trim() ||
           !enunciado.trim() ||
-          (codigo && (!funcao.trim() || casosIncompletos))
+          (codigo && (!funcao.trim() || casosIncompletos(casos)))
         }
       >
         {enviando ? "SALVANDO..." : "SALVAR EXERCÍCIO"}
@@ -913,9 +984,7 @@ function FormTeorico({
 }
 
 function FormQuestao({ aula, aoCriar }: { aula: number; aoCriar: (q: Questao) => void }) {
-  const [enunciado, setEnunciado] = useState("");
-  const [opcoes, setOpcoes] = useState(["", "", "", ""]);
-  const [correta, setCorreta] = useState<Alternativa>("A");
+  const [dados, setDados] = useState(QUESTAO_VAZIA);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -924,14 +993,7 @@ function FormQuestao({ aula, aoCriar }: { aula: number; aoCriar: (q: Questao) =>
     setEnviando(true);
     setErro(null);
     try {
-      aoCriar(
-        await api.criarQuestao({
-          aula,
-          enunciado: enunciado.trim(),
-          opcoes: opcoes.map((o) => o.trim()),
-          resposta_correta: correta,
-        }),
-      );
+      aoCriar(await api.criarQuestao({ aula, ...questaoLimpa(dados) }));
     } catch (e) {
       setErro(mensagemDe(e));
       setEnviando(false);
@@ -940,49 +1002,13 @@ function FormQuestao({ aula, aoCriar }: { aula: number; aoCriar: (q: Questao) =>
 
   return (
     <form onSubmit={enviar} aria-label="Nova questão" className="flex flex-col gap-5">
-      <AreaDeTexto
-        id={`questao-${aula}`}
-        rotulo="ENUNCIADO DA QUESTÃO"
-        rows={4}
-        maxLength={1000}
-        value={enunciado}
-        onChange={(e) => setEnunciado(e.target.value)}
-      />
-      <div className="grid gap-4 sm:grid-cols-2">
-        {ALTERNATIVAS.map((letra, i) => (
-          <PixelField
-            key={letra}
-            rotulo={`OPÇÃO ${letra}`}
-            value={opcoes[i]}
-            onChange={(e) =>
-              setOpcoes((atual) => atual.map((o, j) => (j === i ? e.target.value : o)))
-            }
-          />
-        ))}
-      </div>
-      <div className="flex flex-col gap-2">
-        <label htmlFor={`correta-${aula}`} className={ROTULO}>
-          RESPOSTA CORRETA
-        </label>
-        <select
-          id={`correta-${aula}`}
-          value={correta}
-          onChange={(e) => setCorreta(e.target.value as Alternativa)}
-          className="cursor-pointer border-2 border-brand-strong bg-field px-3 py-[11px] font-body text-[15px] text-ink shadow-pixel outline-none focus:border-brand-pale"
-        >
-          {ALTERNATIVAS.map((letra) => (
-            <option key={letra} value={letra}>
-              {letra}
-            </option>
-          ))}
-        </select>
-      </div>
+      <CamposQuestao valor={dados} aoMudar={setDados} />
       <Erro texto={erro} />
       <PixelButton
         type="submit"
         variante="secundaria"
         className="self-end"
-        disabled={enviando || !enunciado.trim() || opcoes.some((o) => !o.trim())}
+        disabled={enviando || !questaoCompleta(dados)}
       >
         {enviando ? "SALVANDO..." : "SALVAR EXERCÍCIO"}
       </PixelButton>

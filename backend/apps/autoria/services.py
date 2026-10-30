@@ -62,12 +62,16 @@ def exercicios_para_autoria() -> QuerySet[Exercicio]:
 
 
 def itens_no_status(
-    status: StatusEditorial, autor: User | None = None
+    status: StatusEditorial,
+    autor: User | None = None,
+    tipos: tuple[str, ...] = tuple(MODELOS),
 ) -> list[dict[str, int | str]]:
-    """Trilhas, aulas e exercícios em `status`, num formato único para as filas.
+    """Itens de `tipos` em `status`, num formato único para as filas.
 
-    Uma consulta por model, só com as duas colunas usadas. Com `autor`, só o
-    que ele criou; sem, tudo (a visão do admin e da fila de revisão).
+    Uma consulta por model, só com as colunas usadas (o nickname do autor vem
+    no mesmo JOIN, sem N+1). Com `autor`, só o que ele criou; sem, tudo (a
+    visão do admin e da fila de revisão). Filho cujo pai está no mesmo status
+    não sai solto: aparece dentro do pai, e a ação no pai o leva junto.
     """
     filtro: dict[str, object] = {"status": status}
     if autor is not None:
@@ -75,12 +79,28 @@ def itens_no_status(
     # ponytail: sem paginação, o volume editorial é de dezenas; paginar quando
     # a fila passar de algumas centenas.
     return [
-        {"id": pk, "tipo": tipo, "titulo": titulo, "status_editorial": status}
+        {
+            "id": pk,
+            "tipo": tipo,
+            "titulo": titulo,
+            "status_editorial": status,
+            "criado_por": criado_por,
+        }
         for tipo, modelo in MODELOS.items()
-        for pk, titulo in modelo.objects.filter(**filtro).values_list(
-            "pk", "nome" if modelo is Trilha else "titulo"
-        )
+        if tipo in tipos
+        for pk, titulo, criado_por in modelo.objects.filter(**filtro)
+        .exclude(_pai_no_status(tipo, status))
+        .values_list("pk", "nome" if modelo is Trilha else "titulo", "autor__nickname")
     ]
+
+
+def _pai_no_status(tipo: str, status: StatusEditorial) -> Q:
+    """Filho com algum pai em `status`; Q vazio (exclui nada) para a trilha."""
+    if tipo == "aulas":
+        return Q(trilha__status=status)
+    if tipo == "exercicios":
+        return Q(aula__status=status) | Q(trilha__status=status)
+    return Q()
 
 
 def bonus_da_trilha(trilha: Trilha) -> str | None:
@@ -233,17 +253,27 @@ def rascunho_editavel(
 
 
 def excluir_rascunho(
-    modelo: type[Conteudo], pk: int, tipo: str, request: Request
+    modelo: type[Conteudo], pk: int, tipo: str, request: Request, motivo: str = ""
 ) -> None:
     """Apaga o rascunho ou aprovado e, em cascata, os filhos dele.
 
     Recusa se algum filho está em revisão ou publicado: apagar a trilha levaria
-    junto uma aula com o revisor ou já no ar.
+    junto uma aula com o revisor ou já no ar. Publicado só sai com
+    `trilhas.delete_published` e `motivo`, que vai para a auditoria.
     """
+    usuario = cast(User, request.user)
     with transaction.atomic():
-        conteudo = rascunho_editavel(
-            modelo, pk, cast(User, request.user), EXCLUIVEIS
-        )
+        try:
+            conteudo = modelo.objects.select_for_update().get(pk=pk)
+        except modelo.DoesNotExist:
+            raise Http404("Conteúdo não encontrado.") from None
+        # Sem a permissão, o publicado cai na regra comum (403 ou 400), como antes.
+        if conteudo.status == StatusEditorial.PUBLICADO and usuario.has_perm(
+            "trilhas.delete_published"
+        ):
+            _excluir_publicado(conteudo, tipo, request, motivo)
+            return
+        exigir_rascunho_do_dono(conteudo, usuario, EXCLUIVEIS)
         # Filhos travados antes de checar: sem o lock, um "submeter" simultâneo
         # de um filho passaria pela checagem e seria apagado em cascata. Ordem
         # pai e depois filho, a mesma do cascade, sem deadlock com `transicionar`.
@@ -267,6 +297,29 @@ def excluir_rascunho(
             AcaoAuditoria.CONTEUDO_EXCLUIDO, request=request, alvo=conteudo, tipo=tipo
         )
         conteudo.delete()
+
+
+def _excluir_publicado(
+    conteudo: Conteudo, tipo: str, request: Request, motivo: str
+) -> None:
+    """Moderação: tira do ar o publicado, com os filhos, guardando o motivo.
+
+    Sem checagem de filhos: o moderador remove o conjunto inteiro de propósito.
+    Chamar sob o lock de `excluir_rascunho`, que já cobrou a permissão.
+    """
+    if not motivo:
+        raise ValidationError("Informe o motivo da exclusão.", code="sem_motivo")
+    # O nome some com o delete; sem ele o registro não diz o que saiu do ar.
+    nome = conteudo.nome if isinstance(conteudo, Trilha) else conteudo.titulo
+    registrar(
+        AcaoAuditoria.CONTEUDO_PUBLICADO_EXCLUIDO,
+        request=request,
+        alvo=conteudo,
+        tipo=tipo,
+        titulo=nome,
+        motivo=motivo,
+    )
+    conteudo.delete()
 
 
 def anexar_pareceres(itens: list[dict[str, int | str]]) -> list[dict[str, int | str]]:
@@ -337,11 +390,7 @@ def transicionar(
         if acao == "publicar":
             _exigir_filhos_prontos(conteudo)
 
-        conteudo.status = destino
-        # `auto_now` só grava o carimbo se o campo entrar em update_fields, e
-        # o nome varia entre os models (atualizada_em, atualizado_em).
-        carimbos = [f.name for f in modelo._meta.fields if getattr(f, "auto_now", False)]
-        conteudo.save(update_fields=["status", *carimbos])
+        _gravar_status(conteudo, destino)
         registrar(
             acao_auditoria,
             request=request,
@@ -350,4 +399,36 @@ def transicionar(
             para=destino.value,
             **metadata,
         )
+        # As filas mostram o pai no lugar dos filhos no mesmo estado: agir no
+        # pai leva junto os filhos em `origem`, senão aulas e exercícios
+        # ficariam presos sem botão e a trilha nunca poderia ser publicada.
+        for filho in _filhos_em(conteudo, origem):
+            _gravar_status(filho, destino)
+            registrar(
+                acao_auditoria,
+                request=request,
+                alvo=filho,
+                de=origem.value,
+                para=destino.value,
+            )
     return conteudo
+
+
+def _gravar_status(conteudo: Conteudo, destino: StatusEditorial) -> None:
+    conteudo.status = destino
+    # `auto_now` só grava o carimbo se o campo entrar em update_fields, e
+    # o nome varia entre os models (atualizada_em, atualizado_em).
+    carimbos = [f.name for f in conteudo._meta.fields if getattr(f, "auto_now", False)]
+    conteudo.save(update_fields=["status", *carimbos])
+
+
+def _filhos_em(conteudo: Conteudo, status: StatusEditorial) -> list[Aula | Exercicio]:
+    """Filhos do conteúdo em `status`, travados (mesma ordem de `excluir_rascunho`)."""
+    if isinstance(conteudo, Trilha):
+        return [
+            *Aula.objects.select_for_update().filter(trilha=conteudo, status=status),
+            *Exercicio.objects.select_for_update().filter(trilha=conteudo, status=status),
+        ]
+    if isinstance(conteudo, Aula):
+        return [*Exercicio.objects.select_for_update().filter(aula=conteudo, status=status)]
+    return []

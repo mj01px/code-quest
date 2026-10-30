@@ -1,18 +1,49 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { AreaDeTexto } from "@/components/autoria/AreaDeTexto";
 import { ModalVisualizacao } from "@/components/autoria/ModalVisualizacao";
 import { ModalConfirmacao } from "@/components/clas/ModalConfirmacao";
+import { IconeCheck } from "@/components/ui/Icone";
 import { ErroApi } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
-import type { ItemEditorial, TipoConteudo } from "@/lib/types";
+import type { ItemEditorial, StatusEditorial, TipoConteudo } from "@/lib/types";
 
 const ROTULO_TIPO: Record<TipoConteudo, string> = {
   trilhas: "TRILHA",
   aulas: "AULA",
   exercicios: "EXERCÍCIO",
+};
+
+// Cor de cada status, na borda do card e na moldura da seção que o lista:
+// o autor reconhece a fila de relance, sem ler o título. Classes literais: o
+// Tailwind só gera o que encontra escrito por inteiro no código.
+const COR_STATUS: Record<
+  StatusEditorial,
+  { secao: string; card: string; selo: string }
+> = {
+  RASCUNHO: {
+    secao: "border-t-brand",
+    card: "border-l-brand",
+    selo: "border-brand text-brand-light",
+  },
+  REVISAO: {
+    secao: "border-t-warning",
+    card: "border-l-warning",
+    selo: "border-warning text-warning",
+  },
+  APROVADO: {
+    secao: "border-t-success",
+    card: "border-l-success",
+    selo: "border-success text-success",
+  },
+  PUBLICADO: {
+    secao: "border-t-brand-light",
+    card: "border-l-brand-light",
+    selo: "border-brand-light text-brand-light",
+  },
 };
 
 const BOTAO =
@@ -31,11 +62,15 @@ export interface AcaoEditorial {
 interface Props {
   titulo: string;
   vazio: string;
+  /** Status que a lista mostra: dá a cor da seção e dos cards. */
+  status: StatusEditorial;
   /** Referência estável (ex.: `api.autoriaRascunhos`); uma arrow nova a cada render refaz o fetch em laço. */
   carregar: () => Promise<ItemEditorial[]>;
   acoes: AcaoEditorial[];
   /** Botões a mais por item, depois das ações (ex.: editar e excluir rascunho). */
   extras?: (item: ItemEditorial) => ReactNode;
+  /** Com ele, o título vira link para essa rota em vez de abrir o modal de leitura. */
+  hrefDoItem?: (item: ItemEditorial) => string;
 }
 
 // O id só é único dentro do tipo: trilha 3 e aula 3 convivem na mesma fila.
@@ -47,7 +82,15 @@ function mensagemDe(erro: unknown, padrao: string): string {
 
 // Base das duas filas: busca a lista ao montar e tira da tela o item que a
 // ação moveu. Recarregar é com `key` no painel, não com efeito aqui dentro.
-export function ListaEditorial({ titulo, vazio, carregar, acoes, extras }: Props) {
+export function ListaEditorial({
+  titulo,
+  vazio,
+  status,
+  carregar,
+  acoes,
+  extras,
+  hrefDoItem,
+}: Props) {
   const [itens, setItens] = useState<ItemEditorial[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -127,9 +170,24 @@ export function ListaEditorial({ titulo, vazio, carregar, acoes, extras }: Props
     setErro(null);
   }
 
+  const cor = COR_STATUS[status];
+
   return (
-    <section aria-label={titulo} className="flex flex-col gap-4">
-      <h2 className={`m-0 text-ink ${TIPO.tituloSecao}`}>{titulo}</h2>
+    <section
+      aria-label={titulo}
+      className={`flex min-w-0 flex-col gap-4 border-2 border-t-4 border-edge bg-panel-deep p-4 shadow-pixel sm:p-5 ${cor.secao}`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <h2 className={`m-0 text-ink ${TIPO.tituloSecao}`}>{titulo}</h2>
+        {carregando ? null : (
+          <span
+            aria-label={`${itens.length} ${itens.length === 1 ? "item" : "itens"}`}
+            className={`border-2 px-2 py-0.5 ${cor.selo} ${TIPO.etiqueta}`}
+          >
+            {itens.length}
+          </span>
+        )}
+      </div>
 
       {erro && !aberto && !pedindo ? (
         <p
@@ -146,15 +204,25 @@ export function ListaEditorial({ titulo, vazio, carregar, acoes, extras }: Props
         </p>
       ) : itens.length === 0 ? (
         // Lista que não carregou não está vazia: o alerta acima já explica.
-        erro ? null : <p className={`m-0 text-ink-dim ${TIPO.corpo}`}>{vazio}</p>
+        erro ? null : (
+          <div className="flex flex-col items-center gap-3 border-2 border-dashed border-edge-soft px-4 py-8 text-center">
+            <span
+              className={`flex h-12 w-12 items-center justify-center border-2 ${cor.selo}`}
+            >
+              <IconeCheck className="h-6 w-6" />
+            </span>
+            <p className={`m-0 text-ink ${TIPO.etiqueta}`}>TUDO EM DIA!</p>
+            <p className={`m-0 text-ink-muted ${TIPO.corpo}`}>{vazio}</p>
+          </div>
+        )
       ) : (
         <ul className="m-0 flex list-none flex-col gap-3 p-0">
           {itens.map((item) => (
             <li
               key={chave(item)}
-              className="flex flex-wrap items-center gap-4 border-2 border-edge bg-panel p-4 shadow-pixel"
+              className={`flex flex-col gap-3 border-2 border-l-4 border-edge bg-panel p-4 ${cor.card}`}
             >
-              <span className="min-w-0 flex-1">
+              <span className="min-w-0">
                 <span className={`block text-brand-light ${TIPO.etiqueta}`}>
                   {ROTULO_TIPO[item.tipo]}
                   {item.status_editorial === "APROVADO" ? (
@@ -163,14 +231,29 @@ export function ListaEditorial({ titulo, vazio, carregar, acoes, extras }: Props
                     </span>
                   ) : null}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setAberto(item)}
-                  aria-label={`Ver conteúdo: ${item.titulo}`}
-                  className={`block max-w-full cursor-pointer truncate text-left text-ink underline decoration-brand-shadow underline-offset-4 hover:decoration-brand-light ${TIPO.corpo}`}
-                >
-                  {item.titulo}
-                </button>
+                {hrefDoItem ? (
+                  <Link
+                    href={hrefDoItem(item)}
+                    aria-label={`Abrir no editor: ${item.titulo}`}
+                    className={`block max-w-full truncate text-left text-ink underline decoration-brand-shadow underline-offset-4 hover:decoration-brand-light ${TIPO.corpo}`}
+                  >
+                    {item.titulo}
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setAberto(item)}
+                    aria-label={`Ver conteúdo: ${item.titulo}`}
+                    className={`block max-w-full cursor-pointer truncate text-left text-ink underline decoration-brand-shadow underline-offset-4 hover:decoration-brand-light ${TIPO.corpo}`}
+                  >
+                    {item.titulo}
+                  </button>
+                )}
+                {item.criado_por ? (
+                  <span className={`mt-1 block break-words text-ink-muted ${TIPO.etiqueta}`}>
+                    CRIADO POR: {item.criado_por}
+                  </span>
+                ) : null}
                 {item.status_editorial === "RASCUNHO" && item.parecer ? (
                   <span
                     role="note"

@@ -947,9 +947,11 @@ export const api = {
     });
   },
 
-  excluirRascunho(tipo: TipoConteudo, id: number) {
+  // `motivo` só conta ao excluir publicado (moderação), e lá é obrigatório.
+  excluirRascunho(tipo: TipoConteudo, id: number, motivo?: string) {
     return requisicao<null>(`/autoria/${tipo}/${id}/`, {
       metodo: "DELETE",
+      ...(motivo === undefined ? {} : { corpo: { motivo } }),
       autenticado: true,
     });
   },
@@ -986,6 +988,21 @@ export const api = {
     return requisicao<Questao>("/autoria/questoes/", {
       metodo: "POST",
       corpo: dados,
+      autenticado: true,
+    });
+  },
+
+  editarQuestao(id: number, dados: Omit<Questao, "id">) {
+    return requisicao<Questao>(`/autoria/questoes/${id}/`, {
+      metodo: "PUT",
+      corpo: dados,
+      autenticado: true,
+    });
+  },
+
+  excluirQuestao(id: number) {
+    return requisicao<null>(`/autoria/questoes/${id}/`, {
+      metodo: "DELETE",
       autenticado: true,
     });
   },

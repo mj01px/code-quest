@@ -20,6 +20,8 @@ export function HeroTrilha({
   totalDeFases,
   // Sem fase publicada o botão some: a trilha ainda não tem por onde começar.
   primeiraFaseSlug = null,
+  // Conteúdo semeado não tem autor: a linha some.
+  criadoPor = null,
   // Nota e alcance vêm do módulo de avaliações; sem eles o bloco não aparece.
   avaliacao = null,
   // Selo de bônus de XP, que só existe para quem está logado com criatura.
@@ -31,6 +33,7 @@ export function HeroTrilha({
   totalDeModulos: number;
   totalDeFases: number;
   primeiraFaseSlug?: string | null;
+  criadoPor?: string | null;
   avaliacao?: { nota: number; total: number; emJornada: number } | null;
   selo?: ReactNode;
 }) {
@@ -50,6 +53,12 @@ export function HeroTrilha({
         <h1 className="m-0 font-display text-[17px] leading-[1.7] tracking-[1px] text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)] sm:text-[22px]">
           {nome}
         </h1>
+
+        {criadoPor ? (
+          <p className="m-0 font-label text-[11px] tracking-[2px] text-brand-light uppercase">
+            Trilha criada por {criadoPor}
+          </p>
+        ) : null}
 
         <p className="m-0 max-w-prose font-body text-lg leading-[1.7] tracking-[1px] text-ink-body text-pretty">
           {descricao}

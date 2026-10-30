@@ -228,7 +228,8 @@ def test_acessar_rascunhos_sem_permissao_deve_retornar_403():
 
 
 def test_acessar_rascunhos_com_permissao_deve_retornar_200():
-    cliente = _cliente(criar_autor(f"autor_{_uid()}"))
+    autor = criar_autor(f"autor_{_uid()}")
+    cliente = _cliente(autor)
     trilha = _trilha_via_api(cliente)
 
     resposta = cliente.get(reverse("autoria:rascunhos"))
@@ -239,6 +240,7 @@ def test_acessar_rascunhos_com_permissao_deve_retornar_200():
         "tipo": "trilhas",
         "titulo": trilha["nome"],
         "status_editorial": StatusEditorial.RASCUNHO,
+        "criado_por": autor.nickname,
         "parecer": None,
     } in resposta.json()
 

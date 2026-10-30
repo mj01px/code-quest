@@ -16,6 +16,7 @@ export function ListaRascunhos({
     <ListaEditorial
       titulo="Rascunhos"
       vazio="Nenhum rascunho esperando envio."
+      status="RASCUNHO"
       carregar={api.autoriaRascunhos}
       acoes={[
         {
@@ -29,6 +30,8 @@ export function ListaRascunhos({
           ? (item) => <AcoesRascunho item={item} aoAlterar={aoAlterar} />
           : undefined
       }
+      // A lista só traz trilhas; quem edita (aoAlterar) abre o editor no título.
+      hrefDoItem={aoAlterar ? (item) => `/autoria/novo?trilha_id=${item.id}` : undefined}
     />
   );
 }

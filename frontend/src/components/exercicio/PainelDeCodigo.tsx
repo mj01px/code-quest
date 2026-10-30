@@ -67,10 +67,13 @@ export function PainelDeCodigo({
                                    trilhaSlug,
                                    exercicioSlug,
                                    especificacao,
+                                   previa = false,
                                }: {
     trilhaSlug: string;
     exercicioSlug: string;
     especificacao: EspecificacaoDeCodigo;
+    /** Na prévia editorial só se executa: enviar concluiria um rascunho. */
+    previa?: boolean;
 }) {
     const {chaves, recarregar} = useProgresso();
     const [codigo, setCodigo] = useState(
@@ -214,7 +217,7 @@ export function PainelDeCodigo({
                     {executando ? "Executando…" : "Executar"}
                 </button>
 
-                <button
+                {previa ? null : <button
                     type="button"
                     aria-pressed={feito}
                     aria-disabled={ocupado || excedeu || feito}
@@ -231,7 +234,7 @@ export function PainelDeCodigo({
                     }`}
                 >
                     {feito ? "Concluído" : enviando ? "Enviando…" : "Enviar"}
-                </button>
+                </button>}
 
                 <p
                     role="status"

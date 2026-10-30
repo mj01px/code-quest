@@ -72,7 +72,7 @@ class TrilhaDetailView(generics.RetrieveAPIView[Trilha]):
                 .order_by("ordem", "titulo")
             ),
         )
-        return Trilha.objects.publicados().prefetch_related(aulas)
+        return Trilha.objects.publicados().select_related("autor").prefetch_related(aulas)
 
 
 class ExercicioDetailView(generics.RetrieveAPIView[Exercicio]):

@@ -82,6 +82,7 @@ export function trilhaDetalhe(
     sobre: "Programar é quebrar um problema em passos pequenos.",
     ordem: 1,
     aulas: [aula()],
+    criado_por: null,
     ...extra,
   };
 }

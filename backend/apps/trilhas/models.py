@@ -356,6 +356,18 @@ class Exercicio(models.Model):
         ),
     )
 
+    # Texto que o aluno lê depois de responder: a explicação da múltipla
+    # escolha ou o verso do flashcard. Público, ao contrário de `solucao_autor`.
+    explicacao = models.TextField(
+        blank=True,
+        default="",
+        verbose_name=_("explicação"),
+        help_text=_(
+            "Mostrada ao aluno depois que ele responde (múltipla escolha) ou "
+            "revela (flashcard). Não ponha aqui nada que não possa ser público."
+        ),
+    )
+
     autor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
