@@ -116,6 +116,34 @@ describe("PainelDeCodigo", () => {
     expect(screen.getByTestId("terminal")).not.toHaveTextContent("primeiro");
   });
 
+  it("mostra no terminal o retorno dos casos visíveis sem print", async () => {
+    executarCodigo.mockResolvedValue(
+      correcao({
+        casos: [
+          {
+            ordem: 1,
+            visivel: true,
+            passou: true,
+            argumentos: [2, 3],
+            esperado: 5,
+            obtido: 5,
+          },
+          { ordem: 2, visivel: false, passou: true },
+        ],
+      }),
+    );
+    montar();
+
+    await userEvent.click(screen.getByRole("button", { name: "Executar" }));
+
+    expect(await screen.findByTestId("terminal")).toHaveTextContent(
+      "soma(2, 3) → 5",
+    );
+    expect(screen.getByTestId("terminal")).not.toHaveTextContent(
+      "Caso oculto",
+    );
+  });
+
   it("mostra stderr e remove o terminal ao editar", async () => {
     executarCodigo.mockResolvedValue(
       correcao({

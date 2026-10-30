@@ -3,12 +3,16 @@
 import { useEffect, useState } from "react";
 
 import { PainelDeCodigo } from "@/components/exercicio/PainelDeCodigo";
+import { PainelDeAlternativas } from "@/components/exercicio/PainelDeAlternativas";
+import { PainelFlashcard } from "@/components/exercicio/PainelFlashcard";
 import { BotaoConclusao } from "@/components/trilhas/BotaoConclusao";
 import { ErroApi, api } from "@/lib/api";
-import type { EspecificacaoDeCodigo } from "@/lib/types";
+import type {
+  AlternativaExercicio,
+  EspecificacaoDeCodigo,
+  TipoExercicio,
+} from "@/lib/types";
 
-// 403 vem de quem não tem `submissoes.create`, e vale até para exercício sem
-// código (a permissão é checada antes do 404), então o botão continua na tela.
 function notaDaFalha(status: number | null): string {
   if (status === 404) {
     return "O terminal integrado para resolver e submeter este exercício chega em uma próxima entrega.";
@@ -19,13 +23,16 @@ function notaDaFalha(status: number | null): string {
   return "Não foi possível carregar o editor agora. Recarregue a página.";
 }
 
-// exercício com espec ganha o editor, o resto segue com o botao de concluir
 export function AreaDeResolucao({
   trilhaSlug,
   exercicioSlug,
+  tipo,
+  alternativas = [],
 }: {
   trilhaSlug: string;
   exercicioSlug: string;
+  tipo?: TipoExercicio;
+  alternativas?: AlternativaExercicio[];
 }) {
   const [especificacao, setEspecificacao] =
     useState<EspecificacaoDeCodigo | null>(null);
@@ -33,6 +40,7 @@ export function AreaDeResolucao({
   const [falha, setFalha] = useState<number | null>(null);
 
   useEffect(() => {
+    if (tipo && tipo !== "CODIGO") return;
     let vivo = true;
 
     api
@@ -52,7 +60,25 @@ export function AreaDeResolucao({
     return () => {
       vivo = false;
     };
-  }, [trilhaSlug, exercicioSlug]);
+  }, [trilhaSlug, exercicioSlug, tipo]);
+
+  if (tipo === "ALTERNATIVA") {
+    return (
+      <PainelDeAlternativas
+        trilhaSlug={trilhaSlug}
+        exercicioSlug={exercicioSlug}
+        alternativas={alternativas}
+      />
+    );
+  }
+  if (tipo === "FLASHCARD") {
+    return (
+      <PainelFlashcard trilhaSlug={trilhaSlug} exercicioSlug={exercicioSlug} />
+    );
+  }
+  if (tipo === "TEORICO") {
+    return <BotaoConclusao trilhaSlug={trilhaSlug} faseSlug={exercicioSlug} />;
+  }
 
   if (carregando) {
     return (

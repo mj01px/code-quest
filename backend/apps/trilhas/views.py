@@ -87,6 +87,7 @@ class ExercicioDetailView(generics.RetrieveAPIView[Exercicio]):
             return (
                 Exercicio.objects.publicados()
                 .select_related("aula", "trilha")
+                .prefetch_related("alternativas")
                 .get(
                     trilha__slug=self.kwargs["trilha_slug"],
                     trilha__status=PUBLICADO,

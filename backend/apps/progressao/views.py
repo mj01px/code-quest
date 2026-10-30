@@ -14,15 +14,17 @@ from apps.correcao.judge0 import Judge0Error
 from apps.correcao.serializers import CorrecaoSerializer, EnvioDeCodigoSerializer
 from apps.correcao.services import corrigir_envio, tem_correcao_automatica
 from apps.correcao.views import PODE_SUBMETER_CODIGO, Judge0PorMinuto, codigo_enviado
-from apps.trilhas.models import Exercicio, Trilha
+from apps.trilhas.models import AlternativaExercicio, Exercicio, Tipo, Trilha
 
 from .models import TrilhaIniciada
 from .serializers import (
     ConclusaoSerializer,
     DashboardAdminSerializer,
+    EscolhaSerializer,
     ExercicioConcluidoSerializer,
     ProgressoSerializer,
     ResultadoXPSerializer,
+    RevelarFlashcardSerializer,
     SequenciaSerializer,
     TrilhaIniciadaSerializer,
 )
@@ -135,7 +137,8 @@ class MinhasTrilhasIniciadasView(APIView):
 
 
 @extend_schema(
-    tags=["progressao"], request=EnvioDeCodigoSerializer, responses=ConclusaoSerializer)
+    tags=["progressao"], request=EnvioDeCodigoSerializer, responses=ConclusaoSerializer
+)
 class ConcluirExercicioView(APIView):
     permission_classes = [IsAuthenticated, PODE_CONCLUIR_EXERCICIO]
     throttle_classes = [ScopedRateThrottle]
@@ -149,7 +152,38 @@ class ConcluirExercicioView(APIView):
         )
 
         correcao = None
-        if tem_correcao_automatica(exercicio):
+        if exercicio.tipo == Tipo.ALTERNATIVA:
+            escolha = EscolhaSerializer(data=request.data)
+            escolha.is_valid(raise_exception=True)
+            alternativa = AlternativaExercicio.objects.filter(
+                exercicio=exercicio, pk=escolha.validated_data["alternativa_id"]
+            ).first()
+            if alternativa is None:
+                raise serializers.ValidationError(
+                    {
+                        "alternativa_id": serializers.ErrorDetail(
+                            "Escolha uma alternativa deste exercício.",
+                            code="alternativa_invalida",
+                        )
+                    }
+                )
+            if not alternativa.correta:
+                return Response(
+                    {
+                        "aprovado": False,
+                        "correcao": None,
+                        "explicacao": exercicio.solucao_autor,
+                        "alternativa_correta_id": exercicio.alternativas.get(
+                            correta=True
+                        ).pk,
+                    }
+                )
+
+        if exercicio.tipo == Tipo.FLASHCARD:
+            revelacao = RevelarFlashcardSerializer(data=request.data)
+            revelacao.is_valid(raise_exception=True)
+
+        if exercicio.tipo == Tipo.CODIGO and tem_correcao_automatica(exercicio):
             # Só o envio que chama o Judge0 gasta o balde dele, o mesmo de
             # executar/. Concluir exercício sem código segue em `conclusao`.
             # Permissão antes do balde: 403 não gasta a rajada de ninguém.
@@ -175,13 +209,16 @@ class ConcluirExercicioView(APIView):
         montar_progresso(resultado.progresso)
 
         dados = ResultadoXPSerializer(resultado, context={"request": request}).data
-        return Response(
-            {
-                **dados,
-                "aprovado": True,
-                "correcao": CorrecaoSerializer(correcao).data if correcao else None,
-            }
-        )
+        resposta = {
+            **dados,
+            "aprovado": True,
+            "correcao": CorrecaoSerializer(correcao).data if correcao else None,
+        }
+        if exercicio.tipo == Tipo.ALTERNATIVA:
+            resposta["explicacao"] = exercicio.solucao_autor
+        elif exercicio.tipo == Tipo.FLASHCARD:
+            resposta["resposta"] = exercicio.solucao_autor
+        return Response(resposta)
 
 
 @extend_schema(

@@ -118,6 +118,8 @@ export default async function ExercicioPage({
       <AreaDeResolucao
         trilhaSlug={exercicio.trilha_slug}
         exercicioSlug={exercicio.slug}
+        tipo={exercicio.tipo}
+        alternativas={exercicio.alternativas}
       />
 
       <div className="mt-4 flex justify-end">

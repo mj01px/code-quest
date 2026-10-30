@@ -36,6 +36,8 @@ import type {
   Questao,
   RankingMensal,
   RespostaConclusao,
+  RespostaAlternativa,
+  RespostaFlashcard,
   Sequencia,
   SolicitacaoAdmin,
   SolicitacaoAutoria,
@@ -723,6 +725,28 @@ export const api = {
       corpo: codigo === undefined ? undefined : { codigo },
       autenticado: true,
     });
+  },
+
+  concluirAlternativa(
+    trilhaSlug: string,
+    exercicioSlug: string,
+    alternativaId: number,
+  ) {
+    return requisicao<RespostaAlternativa>(
+      `/exercicios/${encodeURIComponent(trilhaSlug)}/${encodeURIComponent(exercicioSlug)}/concluir/`,
+      {
+        metodo: "POST",
+        corpo: { alternativa_id: alternativaId },
+        autenticado: true,
+      },
+    );
+  },
+
+  revelarFlashcard(trilhaSlug: string, exercicioSlug: string) {
+    return requisicao<RespostaFlashcard>(
+      `/exercicios/${encodeURIComponent(trilhaSlug)}/${encodeURIComponent(exercicioSlug)}/concluir/`,
+      { metodo: "POST", corpo: { revelar: true }, autenticado: true },
+    );
   },
 
   listarClas(params: { busca?: string; pagina?: number } = {}) {

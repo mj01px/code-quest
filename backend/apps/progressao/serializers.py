@@ -89,6 +89,22 @@ class SequenciaConclusaoSerializer(serializers.Serializer):
     aumentou = serializers.BooleanField(read_only=True)
 
 
+class EscolhaSerializer(serializers.Serializer):
+    alternativa_id = serializers.IntegerField(min_value=1)
+
+
+class RevelarFlashcardSerializer(serializers.Serializer):
+    revelar = serializers.BooleanField()
+
+    def validate_revelar(self, valor):
+        if not valor:
+            raise serializers.ValidationError(
+                "Revele a resposta para concluir o flashcard.",
+                code="resposta_nao_revelada",
+            )
+        return valor
+
+
 class ResultadoXPSerializer(serializers.Serializer):
     xp_ganho = serializers.IntegerField(read_only=True)
     ja_concluido = serializers.BooleanField(read_only=True)
@@ -103,6 +119,9 @@ class ResultadoXPSerializer(serializers.Serializer):
 class ConclusaoSerializer(ResultadoXPSerializer):
     aprovado = serializers.BooleanField(read_only=True)
     correcao = CorrecaoSerializer(read_only=True, allow_null=True)
+    explicacao = serializers.CharField(read_only=True, required=False)
+    alternativa_correta_id = serializers.IntegerField(read_only=True, required=False)
+    resposta = serializers.CharField(read_only=True, required=False)
 
 
 class TrilhaIniciadaSerializer(serializers.Serializer):

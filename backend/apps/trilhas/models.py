@@ -18,6 +18,8 @@ class StatusEditorial(models.TextChoices):
 class Tipo(models.TextChoices):
     CODIGO = "CODIGO", _("Código")
     TEORICO = "TEORICO", _("Teórico")
+    ALTERNATIVA = "ALTERNATIVA", _("Múltipla escolha")
+    FLASHCARD = "FLASHCARD", _("Flashcard")
 
 
 class Dificuldade(models.TextChoices):
@@ -329,7 +331,7 @@ class Exercicio(models.Model):
     enunciado = models.TextField(verbose_name=_("enunciado"))
 
     tipo = models.CharField(
-        max_length=10,
+        max_length=11,
         choices=Tipo.choices,
         default=Tipo.CODIGO,
         verbose_name=_("tipo"),
@@ -406,3 +408,25 @@ class Exercicio(models.Model):
     @property
     def publicado(self) -> bool:
         return self.status == StatusEditorial.PUBLICADO
+
+
+class AlternativaExercicio(models.Model):
+    exercicio = models.ForeignKey(
+        Exercicio, on_delete=models.CASCADE, related_name="alternativas"
+    )
+    texto = models.TextField()
+    correta = models.BooleanField(default=False)
+    ordem = models.PositiveSmallIntegerField()
+
+    class Meta:
+        ordering = ["ordem"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["exercicio", "ordem"], name="alternativa_ordem_unica"
+            ),
+            models.UniqueConstraint(
+                fields=["exercicio"],
+                condition=models.Q(correta=True),
+                name="alternativa_correta_unica",
+            ),
+        ]
