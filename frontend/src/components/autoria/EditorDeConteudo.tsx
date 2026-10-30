@@ -65,6 +65,7 @@ interface ExercicioEditor {
 interface AulaEditor {
   id: number;
   titulo: string;
+  conteudo: string;
   exercicios: ExercicioEditor[];
   flashcards: Flashcard[];
   questoes: Questao[];
@@ -73,6 +74,7 @@ interface AulaEditor {
 const aulaNova = (a: NovaAula): AulaEditor => ({
   id: a.id,
   titulo: a.titulo,
+  conteudo: a.conteudo,
   exercicios: [],
   flashcards: [],
   questoes: [],
@@ -108,6 +110,8 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
   const [trilha, setTrilha] = useState<TrilhaEditor | null>(null);
   const [aulas, setAulas] = useState<AulaEditor[]>([]);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
+  // O formulário de aula fica atrás de um botão: aberto, esconde o botão.
+  const [novaAula, setNovaAula] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
   const [excluida, setExcluida] = useState(false);
   const [ocupado, setOcupado] = useState(false);
@@ -239,17 +243,27 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
                 &gt; NENHUMA AULA AINDA. ADICIONE A PRIMEIRA ABAIXO.
               </p>
             ) : (
-              <ol className="m-0 flex list-none flex-col gap-3 p-0">
+              <ol className="m-0 flex list-none flex-col gap-6 p-0">
                 {aulas.map((aula, i) => (
                   <ItemAula key={aula.id} numero={i + 1} aula={aula} />
                 ))}
               </ol>
             )}
+            {novaAula ? (
+              <FormAula
+                trilha={trilha.id}
+                aoCancelar={() => setNovaAula(false)}
+                aoCriar={(a) => {
+                  setAulas((atual) => [...atual, aulaNova(a)]);
+                  setNovaAula(false);
+                }}
+              />
+            ) : (
+              <PixelButton className="self-start" onClick={() => setNovaAula(true)}>
+                + ADICIONAR NOVA AULA
+              </PixelButton>
+            )}
           </section>
-          <FormAula
-            trilha={trilha.id}
-            aoCriar={(a) => setAulas((atual) => [...atual, aulaNova(a)])}
-          />
           <Link
             href="/autoria"
             className={`self-end text-brand-light underline underline-offset-4 ${TIPO.etiqueta}`}
@@ -503,7 +517,8 @@ function SeletorBonus({ valor, aoMudar }: { valor: string; aoMudar: (slug: strin
     api
       .catalogo()
       .then((lista) => {
-        if (ativo) setCriaturas(lista);
+        // O catálogo público lista também as criaturas sem arte (Raposa, Elefante).
+        if (ativo) setCriaturas(lista.filter((c) => c.disponivel));
       })
       // Sem o catálogo a lista fica só com "Nenhum", e a trilha segue sem bônus.
       .catch(() => {});
@@ -537,7 +552,15 @@ function SeletorBonus({ valor, aoMudar }: { valor: string; aoMudar: (slug: strin
   );
 }
 
-function FormAula({ trilha, aoCriar }: { trilha: number; aoCriar: (a: NovaAula) => void }) {
+function FormAula({
+  trilha,
+  aoCriar,
+  aoCancelar,
+}: {
+  trilha: number;
+  aoCriar: (a: NovaAula) => void;
+  aoCancelar: () => void;
+}) {
   const [titulo, setTitulo] = useState("");
   const [conteudo, setConteudo] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -548,19 +571,22 @@ function FormAula({ trilha, aoCriar }: { trilha: number; aoCriar: (a: NovaAula) 
     setEnviando(true);
     setErro(null);
     try {
+      // Fecha o formulário: o pai o desmonta, então não há o que limpar.
       aoCriar(await api.criarAula({ trilha, titulo: titulo.trim(), conteudo }));
-      setTitulo("");
-      setConteudo("");
     } catch (e) {
       setErro(mensagemDe(e));
-    } finally {
       setEnviando(false);
     }
   }
 
   return (
     <form onSubmit={enviar} className={CARTAO} aria-label="Nova aula">
-      <h3 className={`m-0 text-ink ${TIPO.tituloSecao}`}>+ Adicionar aula</h3>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className={`m-0 text-ink ${TIPO.tituloSecao}`}>Nova aula</h3>
+        <PixelButton type="button" variante="secundaria" onClick={aoCancelar}>
+          CANCELAR
+        </PixelButton>
+      </div>
       <PixelField
         rotulo="TÍTULO DA AULA"
         value={titulo}
@@ -585,8 +611,8 @@ function FormAula({ trilha, aoCriar }: { trilha: number; aoCriar: (a: NovaAula) 
         </div>
       </div>
       <p className={`m-0 text-ink-muted ${TIPO.corpo}`}>
-        Depois de adicionar, a aula aparece na lista acima, onde você inclui os
-        exercícios dela.
+        Depois de salvar, a aula aparece na lista acima, onde você inclui os
+        flashcards e os exercícios dela.
       </p>
       <Erro texto={erro} />
       <PixelButton
@@ -597,6 +623,16 @@ function FormAula({ trilha, aoCriar }: { trilha: number; aoCriar: (a: NovaAula) 
         {enviando ? "SALVANDO..." : "ADICIONAR AULA"}
       </PixelButton>
     </form>
+  );
+}
+
+// Moldura de uma das três partes da aula, com o título numerado.
+function BlocoDaAula({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-3 border-2 border-edge-soft border-l-4 border-l-brand bg-panel-deep p-4">
+      <h4 className={`m-0 text-brand-light ${TIPO.etiqueta}`}>{titulo}</h4>
+      {children}
+    </div>
   );
 }
 
@@ -615,9 +651,20 @@ function ItemAula({ numero, aula }: { numero: number; aula: AulaEditor }) {
         </span>
         <span className={`min-w-0 flex-1 text-ink ${TIPO.etiqueta}`}>{aula.titulo}</span>
       </div>
-      <GerenciadorFlashcards aula={aula.id} iniciais={aula.flashcards} />
-      <div className="flex flex-col gap-3">
-        <span className={`text-ink-muted ${TIPO.etiqueta}`}>EXERCÍCIOS DA AULA</span>
+      {/* Três blocos com moldura própria: estudo, memorização e prática. */}
+      <BlocoDaAula titulo="1. CONTEÚDO DA AULA">
+        <div
+          tabIndex={0}
+          aria-label={`Texto da aula: ${aula.titulo}`}
+          className="max-h-72 overflow-y-auto"
+        >
+          <PreviaMarkdown markdown={aula.conteudo} />
+        </div>
+      </BlocoDaAula>
+      <BlocoDaAula titulo="2. FLASHCARDS">
+        <GerenciadorFlashcards aula={aula.id} iniciais={aula.flashcards} />
+      </BlocoDaAula>
+      <BlocoDaAula titulo="3. EXERCÍCIOS DA AULA">
         {vazia ? (
           <p className="m-0 border-2 border-dashed border-edge-soft px-4 py-3 font-body text-base text-ink-muted">
             &gt; NENHUM EXERCÍCIO AINDA.
@@ -653,23 +700,22 @@ function ItemAula({ numero, aula }: { numero: number; aula: AulaEditor }) {
               </button>
             ))}
           </div>
-        ) : null}
-      </div>
-      {novo !== null ? (
-        <FormExercicio
-          tipo={novo}
-          aula={aula.id}
-          aoCancelar={() => setNovo(null)}
-          aoCriarExercicio={(ex) => {
-            setExercicios((atual) => [...atual, ex]);
-            setNovo(null);
-          }}
-          aoCriarQuestao={(q) => {
-            setQuestoes((atual) => [...atual, q]);
-            setNovo(null);
-          }}
-        />
-      ) : null}
+        ) : (
+          <FormExercicio
+            tipo={novo}
+            aula={aula.id}
+            aoCancelar={() => setNovo(null)}
+            aoCriarExercicio={(ex) => {
+              setExercicios((atual) => [...atual, ex]);
+              setNovo(null);
+            }}
+            aoCriarQuestao={(q) => {
+              setQuestoes((atual) => [...atual, q]);
+              setNovo(null);
+            }}
+          />
+        )}
+      </BlocoDaAula>
     </li>
   );
 }

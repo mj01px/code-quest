@@ -87,6 +87,53 @@ def test_dono_nao_exclui_o_que_ja_foi_para_revisao(tipo, dono):
     assert MODELOS[tipo].objects.filter(pk=conteudo.pk).exists()
 
 
+@pytest.mark.parametrize("tipo", MODELOS)
+def test_dono_exclui_o_que_esta_aprovado(tipo, dono):
+    conteudo = criar_conteudo(tipo, dono, status=StatusEditorial.APROVADO)
+
+    resposta = cliente(dono).delete(url(tipo, conteudo.pk))
+
+    assert resposta.status_code == 204
+    assert not MODELOS[tipo].objects.filter(pk=conteudo.pk).exists()
+
+
+@pytest.mark.parametrize("tipo", MODELOS)
+def test_dono_nao_exclui_o_que_ja_foi_publicado(tipo, dono):
+    conteudo = criar_conteudo(tipo, dono, status=StatusEditorial.PUBLICADO)
+
+    resposta = cliente(dono).delete(url(tipo, conteudo.pk))
+
+    assert resposta.status_code == 400
+    assert resposta.data["error"]["details"][0]["code"] == "nao_rascunho"
+    assert MODELOS[tipo].objects.filter(pk=conteudo.pk).exists()
+
+
+def test_aprovado_nao_e_editavel(dono):
+    conteudo = criar_conteudo("trilhas", dono, status=StatusEditorial.APROVADO)
+
+    resposta = cliente(dono).put(
+        url("trilhas", conteudo.pk), EDICAO["trilhas"], format="json"
+    )
+
+    assert resposta.status_code == 400
+
+
+def test_trilha_aprovada_leva_a_aula_aprovada_junto(dono):
+    trilha = criar_trilha("logica", status=StatusEditorial.APROVADO, autor=dono)
+    criar_aula(trilha, "vars", status=StatusEditorial.APROVADO, autor=dono)
+
+    assert cliente(dono).delete(url("trilhas", trilha.pk)).status_code == 204
+    assert not Aula.objects.filter(trilha=trilha).exists()
+
+
+def test_trilha_com_aula_publicada_nao_e_excluida(dono):
+    trilha = criar_trilha("logica", status=StatusEditorial.APROVADO, autor=dono)
+    criar_aula(trilha, "vars", status=StatusEditorial.PUBLICADO, autor=dono)
+
+    assert cliente(dono).delete(url("trilhas", trilha.pk)).status_code == 400
+    assert Aula.objects.filter(trilha=trilha).exists()
+
+
 def test_trilha_com_aula_em_revisao_nao_e_excluida(dono):
     trilha = criar_trilha("logica", status=RASCUNHO, autor=dono)
     criar_aula(trilha, "vars", status=REVISAO, autor=dono)

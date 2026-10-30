@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Any
 
 from django.db import IntegrityError, transaction
@@ -5,6 +6,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
 from apps.correcao.models import CasoDeTeste, EspecificacaoDeCodigo
+from apps.gamificacao.models import Creature, XpBonus
 from apps.trilhas.models import (
     Aula,
     Exercicio,
@@ -17,7 +19,11 @@ from apps.trilhas.models import (
 from apps.trilhas.serializers import ExercicioDetalheSerializer, TrilhaDetalheSerializer
 
 from .models import SolicitacaoAutoria
-from .services import MODELOS, exigir_rascunho_do_dono, slug_livre
+from .services import MODELOS, bonus_da_trilha, exigir_rascunho_do_dono, slug_livre
+
+# Mesmo dobro que o seed dá às criaturas de domínio afim.
+BONUS_DO_AUTOR = Decimal("2.00")
+_OMITIDO: Any = object()
 
 # Única rota autorizada a serializar `solucao_autor`.
 
@@ -66,13 +72,21 @@ class ExercicioEditorialSerializer(ExercicioDetalheSerializer):
 # "publicar". Sai por método porque `status` é nome proibido na varredura.
 class TrilhaEditorialSerializer(TrilhaDetalheSerializer):
     status_editorial = serializers.SerializerMethodField()
+    criatura_bonus = serializers.SerializerMethodField()
 
     class Meta(TrilhaDetalheSerializer.Meta):
-        fields = [*TrilhaDetalheSerializer.Meta.fields, "status_editorial"]
+        fields = [
+            *TrilhaDetalheSerializer.Meta.fields,
+            "status_editorial",
+            "criatura_bonus",
+        ]
         read_only_fields = fields
 
     def get_status_editorial(self, obj: Trilha) -> str:
         return obj.status
+
+    def get_criatura_bonus(self, obj: Trilha) -> str | None:
+        return bonus_da_trilha(obj)
 
 
 # --- Solicitação de autoria ---
@@ -173,10 +187,56 @@ def _exigir_dono(conteudo: Trilha | Aula, request: Any) -> None:
     raise PermissionDenied("Você só pode adicionar conteúdo ao que criou.")
 
 
-class NovaTrilhaSerializer(serializers.ModelSerializer[Trilha]):
+class _BonusDaTrilha(serializers.ModelSerializer[Trilha]):
+    """Campo `criatura_bonus` (slug ou null): quem ganha o dobro de XP na trilha.
+
+    O bônus mora em `XpBonus`, não na trilha. Aqui o autor escolhe uma criatura
+    só; null tira o bônus. Omitir o campo deixa o bônus como está.
+    """
+
+    criatura_bonus = serializers.SlugRelatedField(
+        slug_field="slug",
+        # Só as oficiais: Raposa e Elefante existem no catálogo, mas sem arte.
+        queryset=Creature.objects.filter(is_available=True),
+        required=False,
+        allow_null=True,
+        write_only=True,
+    )
+
+    @staticmethod
+    def _gravar_bonus(trilha: Trilha, criatura: Creature | None) -> None:
+        trilha.xp_bonuses.all().delete()
+        if criatura is not None:
+            XpBonus.objects.create(
+                creature=criatura, trilha=trilha, multiplier=BONUS_DO_AUTOR
+            )
+
+    @transaction.atomic
+    def create(self, dados: dict[str, Any]) -> Trilha:
+        criatura = dados.pop("criatura_bonus", _OMITIDO)
+        trilha = super().create(dados)
+        if criatura is not _OMITIDO:
+            self._gravar_bonus(trilha, criatura)
+        return trilha
+
+    @transaction.atomic
+    def update(self, trilha: Trilha, dados: dict[str, Any]) -> Trilha:
+        criatura = dados.pop("criatura_bonus", _OMITIDO)
+        trilha = super().update(trilha, dados)
+        if criatura is not _OMITIDO:
+            self._gravar_bonus(trilha, criatura)
+        return trilha
+
+    def to_representation(self, instance: Trilha) -> dict[str, Any]:
+        saida = super().to_representation(instance)
+        saida["criatura_bonus"] = bonus_da_trilha(instance)
+        return saida
+
+
+class NovaTrilhaSerializer(_BonusDaTrilha):
     class Meta:
         model = Trilha
-        fields = ["id", "nome", "slug", "descricao", "dificuldade"]
+        fields = ["id", "nome", "slug", "descricao", "dificuldade", "criatura_bonus"]
         read_only_fields = ["id", "slug"]
 
     def create(self, dados: dict[str, Any]) -> Trilha:
@@ -279,10 +339,10 @@ class NovoExercicioSerializer(serializers.ModelSerializer[Exercicio]):
 # a URL, e trocar de pai pularia a checagem de dono do pai novo.
 
 
-class EdicaoTrilhaSerializer(serializers.ModelSerializer[Trilha]):
+class EdicaoTrilhaSerializer(_BonusDaTrilha):
     class Meta:
         model = Trilha
-        fields = ["id", "nome", "descricao", "dificuldade"]
+        fields = ["id", "nome", "descricao", "dificuldade", "criatura_bonus"]
         read_only_fields = ["id"]
 
 

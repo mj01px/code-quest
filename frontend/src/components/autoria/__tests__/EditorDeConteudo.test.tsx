@@ -98,8 +98,12 @@ beforeEach(() => {
   mock.api.exerciciosConcluidos.mockResolvedValue([]);
   mock.api.trilhasIniciadas.mockResolvedValue([]);
   mock.api.catalogo.mockResolvedValue([
-    { slug: "blaze", nome: "Blaze", dominio_rotulo: "Scripting" },
-    { slug: "shellby", nome: "Shellby", dominio_rotulo: "Fundamentos" },
+    { slug: "shellby", nome: "Shellby", dominio_rotulo: "Fundamentos", disponivel: true },
+    { slug: "slyth", nome: "Slyth", dominio_rotulo: "Scripting", disponivel: true },
+    { slug: "blaze", nome: "Blaze", dominio_rotulo: "Compiladas", disponivel: true },
+    // Sem arte: está no catálogo público, mas não vale como bônus.
+    { slug: "raposa", nome: "Raposa", dominio_rotulo: "Web", disponivel: false },
+    { slug: "elefante", nome: "Elefante", dominio_rotulo: "Dados", disponivel: false },
   ]);
   mock.api.criarTrilha.mockResolvedValue({
     id: 9,
@@ -148,7 +152,11 @@ describe("EditorDeConteudo", () => {
       dificuldade: "AVANCADO",
     });
 
-    await u.type(await screen.findByLabelText("TÍTULO DA AULA"), "Tipos básicos");
+    // O formulário de aula só aparece atrás do botão, que some enquanto ele está aberto.
+    expect(screen.queryByLabelText("TÍTULO DA AULA")).toBeNull();
+    await u.click(await screen.findByRole("button", { name: "+ ADICIONAR NOVA AULA" }));
+    expect(screen.queryByRole("button", { name: "+ ADICIONAR NOVA AULA" })).toBeNull();
+    await u.type(screen.getByLabelText("TÍTULO DA AULA"), "Tipos básicos");
     await u.type(screen.getByLabelText("TEXTO (MARKDOWN)"), "# Oi");
     expect(screen.getByRole("heading", { name: "Oi" })).toBeInTheDocument();
     await u.click(screen.getByRole("button", { name: "ADICIONAR AULA" }));
@@ -158,6 +166,13 @@ describe("EditorDeConteudo", () => {
       titulo: "Tipos básicos",
       conteudo: "# Oi",
     });
+    // Salvou: o formulário fecha, a aula entra na lista com as três partes e o botão volta.
+    expect(await screen.findByRole("button", { name: "+ ADICIONAR NOVA AULA" })).toBeInTheDocument();
+    expect(screen.queryByRole("form", { name: "Nova aula" })).toBeNull();
+    expect(screen.getByText("1. CONTEÚDO DA AULA")).toBeInTheDocument();
+    expect(screen.getByText("2. FLASHCARDS")).toBeInTheDocument();
+    expect(screen.getByText("3. EXERCÍCIOS DA AULA")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Oi" })).toBeInTheDocument();
 
     await u.click(await screen.findByRole("button", { name: "+ EXERCÍCIO TEÓRICO" }));
     await u.type(screen.getByLabelText("TÍTULO DO EXERCÍCIO"), "Soma");
@@ -249,7 +264,24 @@ describe("EditorDeConteudo", () => {
     expect(screen.getByText("Qual é primitivo?")).toBeInTheDocument();
     // Rascunho ainda não se publica.
     expect(screen.queryByRole("button", { name: "PUBLICAR TRILHA" })).toBeNull();
-    expect(screen.getByLabelText("TÍTULO DA AULA")).toBeInTheDocument();
+    // O formulário de aula fica escondido até o autor pedir.
+    expect(screen.queryByLabelText("TÍTULO DA AULA")).toBeNull();
+    expect(screen.getByRole("button", { name: "+ ADICIONAR NOVA AULA" })).toBeInTheDocument();
+  });
+
+  it("cancelar a nova aula fecha o formulário sem salvar e devolve o botão", async () => {
+    const u = userEvent.setup();
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
+    montar(AUTOR, 9);
+
+    await u.click(await screen.findByRole("button", { name: "+ ADICIONAR NOVA AULA" }));
+    await u.type(screen.getByLabelText("TÍTULO DA AULA"), "Rascunho solto");
+    const form = screen.getByRole("form", { name: "Nova aula" });
+    await u.click(within(form).getByRole("button", { name: "CANCELAR" }));
+
+    expect(screen.queryByRole("form", { name: "Nova aula" })).toBeNull();
+    expect(screen.getByRole("button", { name: "+ ADICIONAR NOVA AULA" })).toBeInTheDocument();
+    expect(mock.api.criarAula).not.toHaveBeenCalled();
   });
 
   it("cria questão de múltipla escolha com 4 opções e a correta", async () => {
@@ -382,7 +414,14 @@ describe("EditorDeConteudo", () => {
     await u.type(await screen.findByLabelText("NOME DA TRILHA"), "TS do zero");
     await u.type(screen.getByLabelText("DESCRIÇÃO CURTA"), "Tipos");
     const bonus = screen.getByLabelText("BÔNUS DE CRIATURA");
-    expect(await screen.findByRole("option", { name: "Blaze (Scripting)" })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: "Blaze (Compiladas)" })).toBeInTheDocument();
+    // Só as 3 oficiais mais "Nenhum": Raposa e Elefante não aparecem.
+    expect(within(bonus).getAllByRole("option").map((o) => o.textContent)).toEqual([
+      "Nenhum",
+      "Shellby (Fundamentos)",
+      "Slyth (Scripting)",
+      "Blaze (Compiladas)",
+    ]);
     await u.selectOptions(bonus, "blaze");
     await u.click(screen.getByRole("button", { name: "CRIAR TRILHA" }));
 
