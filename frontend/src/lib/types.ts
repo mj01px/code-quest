@@ -197,7 +197,12 @@ export interface DocumentosLegais {
 }
 
 export type Dificuldade = "INICIANTE" | "INTERMEDIARIO" | "AVANCADO";
-export type TipoExercicio = "CODIGO" | "TEORICO";
+export type TipoExercicio = "CODIGO" | "TEORICO" | "ALTERNATIVA" | "FLASHCARD";
+
+export interface AlternativaExercicio {
+  id: number;
+  texto: string;
+}
 
 export interface ExercicioResumo {
   id: number;
@@ -282,6 +287,7 @@ export interface ExercicioDetalhe {
   aula_slug: string;
   trilha_nome: string;
   trilha_slug: string;
+  alternativas?: AlternativaExercicio[];
 }
 
 export interface BonusXp {
@@ -432,6 +438,20 @@ export interface Correcao {
 export type RespostaConclusao =
   | ({ aprovado: true; correcao: Correcao | null } & ResultadoConclusao)
   | { aprovado: false; correcao: Correcao };
+
+export type RespostaAlternativa =
+  | (Extract<RespostaConclusao, { aprovado: true }> & { explicacao: string })
+  | {
+      aprovado: false;
+      correcao: null;
+      explicacao: string;
+      alternativa_correta_id: number;
+    };
+
+export type RespostaFlashcard = Extract<RespostaConclusao, { aprovado: true }> & {
+  resposta: string;
+};
+
 // Uma linha do histórico de atividade do próprio titular, como o backend
 // devolve em /auth/eu/atividade/. O rótulo já vem legível, em pt-BR.
 export interface AtividadeItem {

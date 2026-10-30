@@ -1,14 +1,23 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useEffect, type ReactNode } from "react";
 
 import { BarraLateral } from "@/components/layout/BarraLateral";
-
-// Moldura das telas de dentro do app: sidebar, área de conteúdo e rodapé.
-// Vive num componente, e não no layout de /trilhas, porque mais de uma rota
-// usa a mesma moldura e duplicá-la faria as duas divergirem.
+import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 
 const ANO = new Date().getFullYear();
 
 export function LayoutDoApp({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  const { usuario, carregando } = useProgresso();
+
+  useEffect(() => {
+    if (!carregando && !usuario) router.replace("/entrar");
+  }, [carregando, usuario, router]);
+
+  if (carregando || !usuario) return null;
+
   return (
     <div className="flex min-h-dvh flex-col lg:flex-row">
       <BarraLateral />

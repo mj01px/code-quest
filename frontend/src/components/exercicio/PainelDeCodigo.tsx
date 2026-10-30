@@ -13,6 +13,7 @@ import type {
     Correcao,
     EspecificacaoDeCodigo,
     ExemploDeCaso,
+    ResultadoDoCaso,
     RequisitoEstrutural,
 } from "@/lib/types";
 
@@ -49,12 +50,16 @@ function descreverExemplo(exemplo: ExemploDeCaso, funcao: string): string {
     return `${funcao}(${args}) ${saida}`;
 }
 
+function descreverResultado(caso: ResultadoDoCaso, funcao: string): string {
+    const args = (caso.argumentos ?? []).map(comoTexto).join(", ");
+    return `${funcao}(${args}) → ${caso.erro || comoTexto(caso.obtido)}`;
+}
+
 function mensagemDoErro(erro: unknown): string {
     if (!(erro instanceof ErroApi)) {
         return "Não foi possível executar agora. Tente de novo.";
     }
     if (erro.status === 401) return "Entre na sua conta para executar o código.";
-    // os outros erros ja vem do back
     return erro.message;
 }
 
@@ -128,8 +133,6 @@ export function PainelDeCodigo({
             setXpGanho(resultado.ja_concluido ? null : resultado.xp_ganho);
             setDiaGanho(resultado.sequencia.aumentou);
             setConcluido(true);
-            // Atualiza XP, nível e conclusões de uma vez. O aviso de nível escuta o
-            // contexto, então dispara sozinho daqui.
             recarregar();
         } catch (erro) {
             setAviso(mensagemDoErro(erro));
@@ -145,8 +148,15 @@ export function PainelDeCodigo({
     const feito = concluido || estaConcluida(chaves, trilhaSlug, exercicioSlug);
     const ocupado = executando || enviando;
 
+    const retornos = correcao?.modo === "EXECUTAR"
+        ? correcao.casos
+            .filter((caso) => caso.visivel)
+            .map((caso) => descreverResultado(caso, especificacao.funcao))
+            .join("\n")
+        : "";
+    const saidaTerminal = [correcao?.saida, retornos].filter(Boolean).join("\n");
     const mostrarTerminal = correcao?.modo === "EXECUTAR" &&
-        (Boolean(correcao.saida || correcao.erro) ||
+        (Boolean(saidaTerminal || correcao.erro) ||
             correcao.veredito === "TEMPO_ESGOTADO" || correcao.veredito === "ERRO_DE_EXECUCAO");
 
     return (
@@ -239,7 +249,7 @@ export function PainelDeCodigo({
 
             {mostrarTerminal && correcao && (
                 <TerminalDeSaida
-                    saida={correcao.saida}
+                    saida={saidaTerminal}
                     erro={correcao.erro}
                     veredito={correcao.veredito}
                 />

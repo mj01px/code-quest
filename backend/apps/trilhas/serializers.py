@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Aula, Exercicio, Flashcard, Questao, Trilha
+from .models import Aula, Exercicio, Flashcard, Questao, Tipo, Trilha
 
 # `fields` sempre em allowlist explícita: `__all__` e `exclude` são proibidos aqui.
 
@@ -111,6 +111,21 @@ class ExercicioDetalheSerializer(serializers.ModelSerializer[Exercicio]):
     aula_slug = serializers.SlugField(source="aula.slug", read_only=True)
     trilha_nome = serializers.CharField(source="trilha.nome", read_only=True)
     trilha_slug = serializers.SlugField(source="trilha.slug", read_only=True)
+    alternativas = serializers.SerializerMethodField()
+
+    def get_alternativas(self, obj):
+        if obj.tipo != Tipo.ALTERNATIVA:
+            return []
+        return [
+            {"id": alternativa.id, "texto": alternativa.texto}
+            for alternativa in obj.alternativas.all()
+        ]
+
+    def to_representation(self, instance):
+        dados = super().to_representation(instance)
+        if instance.tipo != Tipo.ALTERNATIVA:
+            dados.pop("alternativas", None)
+        return dados
 
     class Meta:
         model = Exercicio
@@ -128,5 +143,6 @@ class ExercicioDetalheSerializer(serializers.ModelSerializer[Exercicio]):
             "aula_slug",
             "trilha_nome",
             "trilha_slug",
+            "alternativas",
         ]
         read_only_fields = fields
