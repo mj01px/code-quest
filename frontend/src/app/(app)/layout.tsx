@@ -1,3 +1,4 @@
+import { AvisoDeConquista } from "@/components/conquistas/AvisoDeConquista";
 import { LayoutDoApp } from "@/components/layout/LayoutDoApp";
 import { AvisoDeNivel } from "@/components/progresso/AvisoDeNivel";
 import { ProvedorProgresso } from "@/components/progresso/ProvedorProgresso";
@@ -8,6 +9,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <ProvedorProgresso>
       <AvisoDeNivel />
+      <AvisoDeConquista />
       <LayoutDoApp>{children}</LayoutDoApp>
     </ProvedorProgresso>
   );

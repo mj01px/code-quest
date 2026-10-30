@@ -44,11 +44,40 @@ def _erro_link_ja_usado(mensagem: str) -> serializers.ValidationError:
     )
 
 
+def exigir_senha_atual(usuario, senha: str) -> None:
+    """Confere a senha atual de quem já tem sessão, para ações sensíveis.
+
+    Conta no mesmo bloqueio do login: sem isto, a rota vira um oráculo de senha.
+    """
+    if usuario.esta_bloqueado:
+        raise serializers.ValidationError(
+            {
+                "senha_atual": serializers.ErrorDetail(
+                    "Muitas tentativas. Espere alguns minutos.",
+                    code="bloqueado",
+                )
+            }
+        )
+    if not usuario.check_password(senha):
+        usuario.registrar_falha_de_login()
+        raise serializers.ValidationError(
+            {
+                "senha_atual": serializers.ErrorDetail(
+                    "Senha incorreta.", code="senha_incorreta"
+                )
+            }
+        )
+
+
 class UsuarioSerializer(serializers.ModelSerializer):
     papel = serializers.CharField(source="role", read_only=True)
     papel_rotulo = serializers.CharField(source="get_role_display", read_only=True)
     permissoes = serializers.SerializerMethodField()
     is_admin = serializers.BooleanField(source="is_platform_admin", read_only=True)
+    # Para o painel saber qual nível é o do próprio admin e travar a edição dele.
+    nivel_id = serializers.UUIDField(
+        source="nivel_de_acesso_id", read_only=True, allow_null=True
+    )
     criado_em = serializers.DateTimeField(source="created_at", read_only=True)
 
     class Meta:
@@ -61,6 +90,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
             "papel_rotulo",
             "permissoes",
             "is_admin",
+            "nivel_id",
             "criado_em",
         )
         read_only_fields = ("id", "email")
@@ -309,25 +339,7 @@ class TrocaEmailSerializer(serializers.Serializer):
         usuario = self.context["request"].user
         # Primeiro a senha: só a sessão não basta para trocar o e-mail (A1), e
         # quem não tem a senha não descobre se o endereço novo já tem conta.
-        # Conta no mesmo bloqueio do login: sem isto, é um oráculo de senha.
-        if usuario.esta_bloqueado:
-            raise serializers.ValidationError(
-                {
-                    "senha_atual": serializers.ErrorDetail(
-                        "Muitas tentativas. Espere alguns minutos.",
-                        code="bloqueado",
-                    )
-                }
-            )
-        if not usuario.check_password(dados["senha_atual"]):
-            usuario.registrar_falha_de_login()
-            raise serializers.ValidationError(
-                {
-                    "senha_atual": serializers.ErrorDetail(
-                        "Senha incorreta.", code="senha_incorreta"
-                    )
-                }
-            )
+        exigir_senha_atual(usuario, dados["senha_atual"])
         novo = dados["email"]
         if novo == usuario.email:
             raise serializers.ValidationError(
@@ -520,6 +532,19 @@ class MfaCodigoSerializer(serializers.Serializer):
     codigo = serializers.CharField(max_length=12)
 
 
+class MfaConfirmarSerializer(MfaCodigoSerializer):
+    """Ativar o 2FA pede a senha: com só a sessão roubada, o atacante
+    cadastraria o próprio autenticador e passaria pelas ações protegidas."""
+
+    senha_atual = serializers.CharField(
+        write_only=True, style={"input_type": "password"}, trim_whitespace=False
+    )
+
+    def validate(self, dados):
+        exigir_senha_atual(self.context["request"].user, dados["senha_atual"])
+        return dados
+
+
 class LoginMfaSerializer(serializers.Serializer):
     mfa_token = serializers.CharField(max_length=500, write_only=True)
     codigo = serializers.CharField(max_length=12, write_only=True)
@@ -540,7 +565,31 @@ class LoginMfaSerializer(serializers.Serializer):
                     )
                 }
             )
+        # O 2º fator conta para o mesmo bloqueio da senha: sem isso o mfa_token
+        # aceitaria tentativas à vontade durante a validade dele.
+        if usuario.esta_bloqueado:
+            registrar(
+                AcaoAuditoria.LOGIN_FALHA,
+                request=self.context.get("request"),
+                actor=usuario,
+                motivo="bloqueado",
+            )
+            raise serializers.ValidationError(
+                {
+                    "codigo": serializers.ErrorDetail(
+                        "Muitas tentativas. Aguarde alguns minutos e entre de novo.",
+                        code="bloqueado",
+                    )
+                }
+            )
         if not verificar_codigo(usuario, dados["codigo"]):
+            usuario.registrar_falha_de_login()
+            registrar(
+                AcaoAuditoria.LOGIN_FALHA,
+                request=self.context.get("request"),
+                actor=usuario,
+                motivo="codigo_2fa_invalido",
+            )
             raise serializers.ValidationError(
                 {
                     "codigo": serializers.ErrorDetail(

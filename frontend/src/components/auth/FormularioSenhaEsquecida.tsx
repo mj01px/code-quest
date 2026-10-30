@@ -4,6 +4,7 @@ import { useState } from "react";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelField } from "@/components/ui/PixelField";
 import { api } from "@/lib/api";
+import { TIPO } from "@/lib/tipografia";
 import { validarEmail } from "@/lib/validacao";
 
 const CAIXA =
@@ -38,7 +39,7 @@ export function FormularioSenhaEsquecida({ aoPedir }: Props) {
 
   return (
     <form noValidate onSubmit={aoEnviar} className="flex flex-col gap-6">
-      <p className="m-0 font-body text-lg leading-[1.8] tracking-[1px] text-ink-body">
+      <p className={`m-0 ${TIPO.corpo} text-ink-body`}>
         Informe o e-mail da sua conta. Se ela existir, mandamos um link para
         você criar uma senha nova.
       </p>

@@ -4,6 +4,148 @@ Segue o formato do [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
 ## [Não publicado]
 
+### Segurança do painel do admin em 2026-10-25
+
+- **2FA obrigatório para excluir usuário**: `DELETE /api/v1/auth/admin/usuarios/<id>/`
+  exige `{"totp_code": "123456"}` do aplicativo autenticador do próprio admin
+  (`mfa_necessario` sem autenticador ativo, `totp_invalido` com código ausente,
+  errado, de recuperação ou já usado nos últimos 90 s). Balde `verificacao`
+  (5/min). No painel, o modal pede o "Código do autenticador (2FA)" e só libera
+  o botão com o campo preenchido.
+- **Exclusão entre admins bloqueada**: conta com nível de acesso ao painel
+  devolve 400 `alvo_admin`, e a lixeira some na linha de outros admins e na
+  própria (`auto_exclusao`).
+- **Bloqueio de auto-rebaixamento**: o admin não altera o próprio nível na
+  lista de usuários (400 `auto_rebaixamento`, inclusive para outro nível com
+  acesso ao painel) nem edita as permissões do próprio nível na tela de níveis
+  (400 `proprio_nivel`). No front, o seletor e o botão EDITAR ficam
+  desabilitados com o motivo visível. `/auth/eu/` passa a devolver `nivel_id`.
+- **Ativar 2FA pede a senha atual**: `POST /auth/eu/mfa/confirmar/` exige
+  `senha_atual` além do `codigo`, conferida pelo novo `exigir_senha_atual`
+  (o mesmo da troca de e-mail, que conta para o bloqueio do login). Fecha a
+  brecha em que uma sessão roubada cadastraria o próprio autenticador.
+- **2º fator do login conta para o bloqueio**: código errado chama
+  `registrar_falha_de_login` e fica na auditoria (`codigo_2fa_invalido`); conta
+  bloqueada não tenta o código.
+- **Anonimização sem sobra de PII**: além de e-mail e nickname, apaga data de
+  nascimento, IP e user agent da auditoria do titular e o MFA (segredo e
+  códigos), encerra as sessões e trava a linha contra pedidos simultâneos. O
+  registro-prova `CONTA_ANONIMIZADA` diz qual admin pediu.
+- **Auditoria legível**: `RegistroDeAuditoria.detalhes` traduz o `metadata` de
+  `LOGIN_FALHA`, `NIVEL_ATRIBUIDO` e `CONTA_ANONIMIZADA` (ex.: "Nível alterado
+  de Aluno para Monitor"), exibido nos logs recentes do dashboard.
+- **Retenção de 180 dias mantida** (Marco Civil, art. 15, e Política de
+  Privacidade v1.2). O comando `purgar_logs_antigos` foi renomeado para
+  `limpar_auditoria`; README e RNF13 atualizados.
+- **Aviso no modal de exclusão**: ao abrir, o modal consulta `/auth/eu/mfa/`.
+  Admin com o aplicativo autenticador ativo vê o campo do código; admin só com
+  2FA por e-mail (ou sem 2FA) vê o aviso de que ações destrutivas exigem o
+  aplicativo, com link para Configurações, e o botão ANONIMIZAR fica
+  desabilitado. Antes ele só descobria depois de digitar (`mfa_necessario`).
+- **Testes**: 996 no backend e 375 no frontend, sem migration
+  (`makemigrations --check` limpo).
+
+### Painel do admin em 2026-10-25
+
+- **Dashboard de gestão** (`GET /api/v1/admin/dashboard/`, `IsAdmin`): total de
+  usuários (com novos na semana), trilhas publicadas, fila de revisão
+  (`itens_no_status`), submissões, gráfico de submissões aprovadas e rejeitadas,
+  gráfico de novos usuários e os 10 logs recentes (`select_related`, dentro da
+  retenção, só com `auditoria.view`; a consulta fica registrada como
+  `ACESSO_AUDITORIA`). Substitui o gráfico de XP, que era métrica do aluno.
+- **`por_dia`**: agregação dos últimos 7 dias reutilizada pelos três gráficos,
+  com filtro de data que usa índice. `GraficoAtividade` virou genérico
+  (`series`) e `CartoesNumeros` é compartilhado pelos dois dashboards.
+- **Lista de usuários**: busca `?q=` em nickname, e-mail ou nível (debounce de
+  300 ms no front) e exclusão por anonimização (LGPD) com o aviso no
+  `ModalConfirmacao`, que ganhou trap de foco e devolução do foco ao fechar.
+
+### Dashboard do aluno em 2026-10-25
+
+- **Endpoint `GET /api/v1/eu/dashboard/`** (`apps/progressao`, login
+  obrigatório, balde `eu_progresso`): devolve `xp_total` (soma dos
+  `EventoXP`), `exercicios_concluidos`, `sequencia_atual`, `trilhas_iniciadas`
+  e `atividade_semanal` com os últimos 7 dias (`{ dia, data, xp }`), agrupados
+  por `TruncDate` + `Sum` no fuso de São Paulo.
+- **Exercícios concluídos vêm de `EventoXP`, não de `Submissao`**: só 14 dos
+  78 exercícios têm correção automática e geram submissão, então contar
+  submissões aprovadas ignoraria os outros 64 e contaria duas vezes o reenvio.
+  `EventoXP` de origem `EXERCICIO` é único por exercício (UniqueConstraint).
+- **Sequência via `ler_sequencia`**: zera a sequência quando o aluno perdeu o
+  dia, em vez de exibir o campo `atual` já vencido. Trilhas iniciadas reusam
+  `trilhas_iniciadas`, o mesmo número da tela de trilhas.
+- **Tela `/dashboard`** (`components/dashboard/`): 4 cards de big numbers (XP
+  total, exercícios, sequência, trilhas) com a tipografia de `TIPO`, em 1
+  coluna no celular, 2 em telas médias e 4 em telas largas. Item DASHBOARD no
+  topo da barra lateral, visível para todos.
+- **Gráfico `GraficoAtividade`** em SVG nativo, sem biblioteca: barras
+  verticais `#A855F7` proporcionais ao maior dia da semana, semana zerada sem
+  NaN, e os valores de cada dia expostos em texto para leitor de tela.
+- **Auditoria de validação de formulários**: Login, Cadastro, Redefinir Senha,
+  Esqueci a Senha e Criar Clã já validam antes do envio (`lib/validacao.ts`,
+  espelho de `apps/contas/validators.py`), com mensagens visíveis
+  (`role="alert"`). O backend valida os mesmos campos nos serializers
+  (`validate_password`, `validate_email`, `validate_nickname`,
+  `validate_data_nascimento`, `validate_nome` do clã). Nada precisou ser
+  implementado.
+- **Testes**: `test_api_dashboard.py` (4 casos: semana zerada, agregação por
+  dia com janela e isolamento por usuário, AJUSTE fora da contagem, contrato
+  da API) e `GraficoAtividade.test.tsx` (proporção e semana zerada). Suítes:
+  965 no backend e 361 no frontend, `tsc --noEmit` limpo.
+
+### Telas de autoria em 2026-10-25
+
+- **Filas editoriais na API** (`apps/autoria`): `GET /api/v1/autoria/rascunhos/`
+  (`trilhas.submit_review`) e `GET /api/v1/autoria/fila-revisao/`
+  (`trilhas.review`) devolvem `[{ id, tipo, titulo, status_editorial }]` com
+  trilhas, aulas e exercícios, no balde `editorial`. Sem paginação e sem dono
+  por conteúdo: o schema não guarda autor.
+- **Tela `/autoria`** (`components/autoria/`): rascunhos com "Enviar para
+  Revisão" e fila com "Aprovar" e "Devolver", cada painel só com a permissão
+  da rota que consome. Segue o padrão do `/admin` (Client Component com o
+  usuário do `ProvedorProgresso`).
+- **Correção em `Modulo_Trilhas.md`**: as transições usam o balde `editorial`,
+  não `autoria`.
+- **Visualizar antes de agir**: `GET /api/v1/autoria/<tipo>/<pk>/detalhe/`
+  (`trilhas.submit_review` ou `trilhas.review`, balde `editorial`) devolve a
+  trilha com as aulas, a aula com o conteúdo ou o exercício com enunciado e
+  `codigo_inicial`, em qualquer status, com os serializers do catálogo e sem
+  `solucao_autor`. Na tela, o título do item abre o `ModalVisualizacao` (Esc e
+  clique fora fecham) com as ações da fila.
+
+### Números finais da monografia em 2026-10-23
+
+- **Atualização dos números finais na monografia**: RNF20 com 948 testes no
+  backend e 1.293 no total (após +2 testes de throttle editorial); RNF26 com
+  44 arquivos de produção sob mypy strict e 4 apps cobertos (trilhas, autoria,
+  correcao, conquistas). O número anterior de 54 incluía 22 arquivos de teste
+  que só eram ignorados pelo override, então a produção real era 32; com
+  conquistas passou a 44.
+
+### Pendências fechadas em 2026-10-23
+
+- **Documentação de throttle**: `Docs/Integracao_API/integracao-api.md` passa a
+  listar o escopo `editorial` (30/min, `THROTTLE_EDITORIAL`) aplicado às rotas
+  `submeter`, `aprovar`, `devolver` e `publicar` em
+  `/api/v1/autoria/<tipo>/<pk>/`.
+- **Helper `usuario_atual(request)`** em `apps/core/auth.py` unifica o
+  narrowing de `request.user` em views autenticadas. Substitui o `assert`
+  inline de `apps/conquistas/views.py` e o `cast` de `apps/correcao/views.py`.
+  Padrão adotado para novos módulos.
+- **`Docs/Diagramas/Diagrama_de_classe.md` removido** (arquivo vazio desde
+  `94eea72`). A fonte do diagrama de classes passa a ser a Figura 8 da
+  monografia.
+
+### Integrado em 2026-10-18
+
+- **Streak e prerender**: integração do streak do Julio (`origin/JulioMain`) e
+  correção da concorrência do prerender (`next.config.ts`).
+- **Conquistas**: integração do PR #53 (conquistas do Mauro).
+- **`on_commit` robusto**: fix em `signals.py`, com `partial`.
+- **Tipografia centralizada** em `src/lib/tipografia.ts`.
+- **Quick wins de `/desafios`**: fuso de São Paulo, sequência, contador e
+  enunciado em preview.
+
 ### Adicionado
 
 - **Módulo de Trilhas** (`backend/apps/trilhas/`): três models, `Trilha`,
@@ -15,9 +157,9 @@ Segue o formato do [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
   `GET /api/exercicios/<trilha_slug>/<exercicio_slug>/`. Os serializers
   declaram uma allowlist explícita de campos, e nenhuma das rotas expõe
   `solucao_autor`.
-- **Comando `seed_trilhas`**: cria as cinco trilhas previstas e publica
-  "Lógica de Programação", com 6 módulos e 26 fases que vão de variáveis a
-  depuração. É idempotente. Nos dois níveis o `update_or_create` usa
+- **Comando `seed_trilhas`**: cria as seis trilhas previstas e publica três
+  delas, entre elas "Lógica de Programação", com 6 módulos e 26 fases que vão
+  de variáveis a depuração. É idempotente. Nos dois níveis o `update_or_create` usa
   `(trilha, slug)` como chave, por isso uma segunda execução reaproveita as
   linhas em vez de duplicá-las.
 - **Telas de trilhas** (Next.js): listagem, detalhe da trilha com o mapa de
@@ -192,9 +334,12 @@ Segue o formato do [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
   quem associá-lo no servidor. Limpar os dados do site apaga tudo, e quem
   troca de máquina não leva o progresso junto. Quando a gamificação entrar, o
   `localStorage` vira a origem da primeira sincronização.
-- XP e streak ainda existem só nos modelos de tela. A sidebar mostra o perfil
-  neutro de propósito, porque preenchê-la com número inventado seria pior que
-  a ausência.
+- O streak diário está implementado no backend (modelo `Sequencia`, migration
+  `progressao.0004_sequencia`, rota `/eu/sequencia/`) e no frontend
+  (`BarraLateral`, `PainelDeCodigo`, `BotaoConclusao`). A sidebar passa a
+  exibir a sequência diária, o XP e o nome do usuário, refletindo o estado real
+  do progresso. O perfil neutro anterior foi removido após a integração do
+  streak em 14/10/2026 e dos ajustes de `/desafios` em 18/10/2026.
 - **Pendente: o dia do RapidAPI não coincide com o dia do CodeQuest.** O
   disjuntor conta a partir da meia-noite de `America/Sao_Paulo`. Já pela
   documentação do RapidAPI, a cota diária recomeça no horário da assinatura,

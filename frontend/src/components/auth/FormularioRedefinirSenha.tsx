@@ -5,6 +5,7 @@ import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelField } from "@/components/ui/PixelField";
 import { PixelLink } from "@/components/ui/PixelLink";
 import { ErroApi, api } from "@/lib/api";
+import { TIPO } from "@/lib/tipografia";
 import { SENHA_MAX, validarConfirmacao, validarSenha } from "@/lib/validacao";
 
 interface Erros {
@@ -71,7 +72,7 @@ export function FormularioRedefinirSenha({
 
   return (
     <form noValidate onSubmit={aoEnviar} className="flex flex-col gap-6">
-      <p className="m-0 font-body text-lg leading-[1.8] tracking-[1px] text-ink-body">
+      <p className={`m-0 ${TIPO.corpo} text-ink-body`}>
         Escolha uma senha nova. Ao trocar, as sessões abertas em outros
         aparelhos são encerradas.
       </p>

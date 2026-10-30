@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
+import { TIPO } from "@/lib/tipografia";
 
 interface Props {
   titulo: ReactNode;
@@ -93,7 +94,7 @@ export function PainelAuth({
                 </h2>
               ) : null}
               {textoLateral ? (
-                <p className="m-0 max-w-[330px] font-body text-lg leading-[1.8] tracking-[1px] text-ink-body text-pretty">
+                <p className={`m-0 max-w-[330px] ${TIPO.corpo} text-ink-body text-pretty`}>
                   {textoLateral}
                 </p>
               ) : null}

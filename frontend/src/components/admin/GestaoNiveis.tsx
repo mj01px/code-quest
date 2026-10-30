@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 import { ErroApi, api } from "@/lib/api";
 import type { NivelDeAcesso, PermissaoCatalogo } from "@/lib/types";
 
@@ -19,7 +20,10 @@ const FORM_VAZIO: FormState = {
   sel: new Set(),
 };
 
+const PROPRIO_NIVEL = "Você não pode editar o seu próprio nível";
+
 export function GestaoNiveis() {
+  const meuNivel = useProgresso().usuario?.nivel_id ?? null;
   const [niveis, setNiveis] = useState<NivelDeAcesso[]>([]);
   const [permissoes, setPermissoes] = useState<PermissaoCatalogo[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -330,12 +334,25 @@ export function GestaoNiveis() {
                 <span className="font-label text-[9px] tracking-[1px] text-ink-muted">
                   {n.qtd_usuarios} USUÁRIO{n.qtd_usuarios === 1 ? "" : "S"}
                 </span>
+                {/* Visível, não só title: o motivo do EDITAR travado precisa chegar a todos. */}
+                {n.id === meuNivel ? (
+                  <span
+                    id={`proprio-nivel-${n.id}`}
+                    className="border border-ink-dim px-2 py-1 font-label text-[8px] tracking-[1px] text-ink-muted"
+                  >
+                    SEU NÍVEL
+                  </span>
+                ) : null}
               </span>
               <span className="flex gap-2">
+                {/* O backend recusa editar o próprio nível (proprio_nivel). */}
                 <button
                   type="button"
                   onClick={() => abrirEdicao(n)}
-                  className="cursor-pointer border-2 border-edge-soft bg-transparent px-3 py-1.5 font-label text-[9px] tracking-[1px] text-brand-light hover:border-brand hover:text-ink-soft"
+                  disabled={n.id === meuNivel}
+                  title={n.id === meuNivel ? PROPRIO_NIVEL : undefined}
+                  aria-describedby={n.id === meuNivel ? `proprio-nivel-${n.id}` : undefined}
+                  className="cursor-pointer border-2 border-edge-soft bg-transparent px-3 py-1.5 font-label text-[9px] tracking-[1px] text-brand-light hover:border-brand hover:text-ink-soft disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   EDITAR
                 </button>

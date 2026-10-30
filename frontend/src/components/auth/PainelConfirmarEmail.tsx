@@ -12,6 +12,7 @@ import {
   ArteLinkInvalido,
 } from "@/components/ui/ilustracoes";
 import { ErroApi, api } from "@/lib/api";
+import { TIPO } from "@/lib/tipografia";
 
 type Estado =
   | "aguardando"
@@ -31,9 +32,9 @@ const TITULO = (
 const LINHA = "Confirmando a troca de endereço...";
 
 const ESTILO_H2 =
-  "m-0 font-display text-[13px] leading-[1.8] tracking-[1px] text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)]";
+  `m-0 ${TIPO.tituloSecao} text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)]`;
 const ESTILO_P =
-  "m-0 font-body text-lg leading-[1.8] tracking-[1px] text-ink-body";
+  `m-0 ${TIPO.corpo} text-ink-body`;
 
 export function PainelConfirmarEmailCarregando() {
   return (

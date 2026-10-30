@@ -4,15 +4,20 @@ import type {
   BonusXp,
   Cargo,
   Cla,
+  Conquista,
   Consentimento,
   ConviteGerado,
   Correcao,
   Criatura,
+  Dashboard,
+  DashboardAdmin,
+  DetalheEditorial,
   DocumentosLegais,
   EspecificacaoDeCodigo,
   Evolucao,
   ExercicioConcluido,
   ExercicioDetalhe,
+  ItemEditorial,
   MembroDoCla,
   MeuCla,
   MinhaCriatura,
@@ -21,9 +26,12 @@ import type {
   PermissaoCatalogo,
   PreviaConvite,
   ProgressoAtual,
+  RankingMensal,
   RespostaConclusao,
   Sequencia,
+  TipoConteudo,
   TipoDeCla,
+  TransicaoEditorial,
   TrilhaDetalhe,
   TrilhaResumo,
   Usuario,
@@ -405,10 +413,10 @@ export const api = {
     });
   },
 
-  mfaConfirmar(codigo: string) {
+  mfaConfirmar(codigo: string, senhaAtual: string) {
     return requisicao<MfaConfirmado>("/auth/eu/mfa/confirmar/", {
       metodo: "POST",
-      corpo: { codigo },
+      corpo: { codigo, senha_atual: senhaAtual },
       autenticado: true,
     });
   },
@@ -439,6 +447,10 @@ export const api = {
     return requisicao<PermissaoCatalogo[]>("/auth/admin/permissoes/", {
       autenticado: true,
     });
+  },
+
+  adminDashboard() {
+    return requisicao<DashboardAdmin>("/admin/dashboard/", { autenticado: true });
   },
 
   adminNiveis() {
@@ -483,9 +495,20 @@ export const api = {
     });
   },
 
-  adminUsuarios() {
-    return requisicao<UsuarioAdmin[]>("/auth/admin/usuarios/", {
+  adminUsuarios(busca = "") {
+    const q = busca ? `?q=${encodeURIComponent(busca)}` : "";
+    return requisicao<UsuarioAdmin[]>(`/auth/admin/usuarios/${q}`, {
       autenticado: true,
+    });
+  },
+
+  // Anonimiza (LGPD), não apaga: 204 sem corpo.
+  // Exige o código do autenticador (2FA) do próprio admin.
+  adminExcluirUsuario(id: string, totpCode: string) {
+    return requisicao<void>(`/auth/admin/usuarios/${encodeURIComponent(id)}/`, {
+      metodo: "DELETE",
+      autenticado: true,
+      corpo: { totp_code: totpCode },
     });
   },
 
@@ -629,6 +652,10 @@ export const api = {
 
   minhaSequencia() {
     return requisicao<Sequencia>("/eu/sequencia/", { autenticado: true });
+  },
+
+  meuDashboard() {
+    return requisicao<Dashboard>("/eu/dashboard/", { autenticado: true });
   },
 
   // Marca a trilha como iniciada. Idempotente no servidor: clicar duas vezes
@@ -809,6 +836,63 @@ export const api = {
       metodo: "POST",
       autenticado: true,
     });
+  },
+
+  minhasConquistas() {
+    return requisicao<Conquista[]>("/eu/conquistas/", { autenticado: true });
+  },
+
+  marcarConquistasVistas() {
+    return requisicao<void>("/eu/conquistas/vistas/", {
+      metodo: "POST",
+      autenticado: true,
+    });
+  },
+
+  // --- Fluxo editorial ---
+  // O backend cobra a permissão de cada rota; esconder o botão é só navegação.
+  autoriaRascunhos() {
+    return requisicao<ItemEditorial[]>("/autoria/rascunhos/", {
+      autenticado: true,
+    });
+  },
+
+  autoriaFilaRevisao() {
+    return requisicao<ItemEditorial[]>("/autoria/fila-revisao/", {
+      autenticado: true,
+    });
+  },
+
+  // Qualquer status: é a leitura antes de submeter, aprovar ou devolver.
+  detalheEditorial(tipo: TipoConteudo, id: number) {
+    return requisicao<DetalheEditorial>(`/autoria/${tipo}/${id}/detalhe/`, {
+      autenticado: true,
+    });
+  },
+
+  submeterRevisao(tipo: TipoConteudo, id: number) {
+    return requisicao<TransicaoEditorial>(`/autoria/${tipo}/${id}/submeter/`, {
+      metodo: "POST",
+      autenticado: true,
+    });
+  },
+
+  aprovarConteudo(tipo: TipoConteudo, id: number) {
+    return requisicao<TransicaoEditorial>(`/autoria/${tipo}/${id}/aprovar/`, {
+      metodo: "POST",
+      autenticado: true,
+    });
+  },
+
+  devolverConteudo(tipo: TipoConteudo, id: number) {
+    return requisicao<TransicaoEditorial>(`/autoria/${tipo}/${id}/devolver/`, {
+      metodo: "POST",
+      autenticado: true,
+    });
+  },
+
+  rankingMensal() {
+    return requisicao<RankingMensal>("/ranking/mensal/", { autenticado: true });
   },
 };
 

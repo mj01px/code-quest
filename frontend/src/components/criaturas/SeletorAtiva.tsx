@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelLink } from "@/components/ui/PixelLink";
 import { ErroApi, api, temSessao } from "@/lib/api";
+import { TIPO } from "@/lib/tipografia";
 import type { Estagio, MinhaCriatura } from "@/lib/types";
 
 const FORMA: Record<Estagio, string> = {
@@ -75,7 +76,7 @@ function Cartao({
       </div>
 
       {ativa ? (
-        <p className="m-0 font-label text-[10px] tracking-[2px] text-brand-light">
+        <p className={`m-0 ${TIPO.etiqueta} text-brand-light`}>
           RECEBENDO XP
         </p>
       ) : (
@@ -151,7 +152,7 @@ export function SeletorAtiva() {
   if (posses.length === 0) {
     return (
       <div className="flex flex-col gap-5">
-        <p className="m-0 font-body text-lg leading-[1.8] tracking-[1px] text-ink-body">
+        <p className={`m-0 ${TIPO.corpo} text-ink-body`}>
           Você ainda não escolheu sua criatura inicial.
         </p>
         <PixelLink href="/escolher-criatura">ESCOLHER CRIATURA</PixelLink>
@@ -163,7 +164,7 @@ export function SeletorAtiva() {
 
   return (
     <div className="flex flex-col gap-5">
-      <p className="m-0 font-body text-lg leading-[1.8] tracking-[1px] text-ink-body">
+      <p className={`m-0 ${TIPO.corpo} text-ink-body`}>
         {uma
           ? "A criatura ativa é a que acompanha você e recebe o XP dos exercícios. Quando você tiver mais de uma, dá para escolher qual será."
           : "Só uma criatura fica ativa por vez, e é ela que recebe o XP dos exercícios. As outras ficam de reserva, com o progresso delas guardado."}

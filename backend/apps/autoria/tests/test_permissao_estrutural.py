@@ -24,6 +24,9 @@ PERMISSAO_POR_ROTA = {
     "aprovar": "HasPerm[trilhas.review]",
     "devolver": "HasPerm[trilhas.review]",
     "publicar": "HasPerm[trilhas.publish]",
+    "rascunhos": "HasPerm[trilhas.submit_review]",
+    "fila-revisao": "HasPerm[trilhas.review]",
+    "detalhe": "HasAnyPerm[trilhas.submit_review,trilhas.review]",
 }
 
 
@@ -84,4 +87,5 @@ class TodaViewDeAutoriaExigePermissaoTest(TestCase):
                 classes = [type(t) for t in cls().get_throttles()]
 
                 self.assertEqual(classes, [ScopedRateThrottle])
-                self.assertEqual(cls.throttle_scope, "autoria")
+                esperado = "autoria" if nome == "solucao-autor" else "editorial"
+                self.assertEqual(cls.throttle_scope, esperado)

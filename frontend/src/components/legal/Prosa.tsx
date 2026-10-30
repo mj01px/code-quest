@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
+import { TIPO } from "@/lib/tipografia";
 
-const CORPO = "font-body text-lg leading-[1.8] tracking-[1px] text-ink-body";
+const CORPO = `${TIPO.corpo} text-ink-body`;
 
 export function idSecao(numero: number): string {
   return `secao-${String(numero).padStart(2, "0")}`;
@@ -20,7 +21,7 @@ export function Secao({
       id={idSecao(numero)}
       className="flex scroll-mt-24 flex-col gap-4 border-2 border-edge bg-panel p-6 shadow-pixel sm:p-7"
     >
-      <h2 className="m-0 flex items-baseline gap-3 font-display text-[13px] leading-[1.8] tracking-[1px] text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)]">
+      <h2 className={`m-0 flex items-baseline gap-3 ${TIPO.tituloSecao} text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)]`}>
         <span className="text-brand">{String(numero).padStart(2, "0")}</span>
         <span className="min-w-0">{titulo}</span>
       </h2>
@@ -82,7 +83,7 @@ export function Tabela({
               <th
                 key={coluna}
                 scope="col"
-                className="border-b-2 border-edge-soft px-3 py-2.5 font-label text-[10px] tracking-[2px] text-ink-label"
+                className={`border-b-2 border-edge-soft px-3 py-2.5 ${TIPO.etiqueta} text-ink-label`}
               >
                 {coluna}
               </th>

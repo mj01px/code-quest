@@ -5,6 +5,7 @@ import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelField } from "@/components/ui/PixelField";
 import { PixelLink } from "@/components/ui/PixelLink";
 import { ErroApi, api } from "@/lib/api";
+import { TIPO } from "@/lib/tipografia";
 
 interface Props {
   token: string;
@@ -59,7 +60,7 @@ export function FormularioConfirmarExclusao({
 
   return (
     <form noValidate onSubmit={aoEnviar} className="flex flex-col gap-6">
-      <p className="m-0 font-body text-lg leading-[1.8] tracking-[1px] text-ink-body">
+      <p className={`m-0 ${TIPO.corpo} text-ink-body`}>
         Confirme com a sua senha para excluir a conta de vez. Seus dados são
         anonimizados na hora, e não tem como desfazer.
       </p>

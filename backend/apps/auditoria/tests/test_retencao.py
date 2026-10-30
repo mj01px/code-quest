@@ -23,7 +23,7 @@ class PurgaLogsTests(TestCase):
         recente = registrar(AcaoAuditoria.LOGIN_OK)
         _envelhecer(antigo, settings.AUDITORIA_RETENCAO_DIAS + 5)
 
-        call_command("purgar_logs_antigos")
+        call_command("limpar_auditoria")
 
         self.assertFalse(RegistroDeAuditoria.objects.filter(pk=antigo.pk).exists())
         self.assertTrue(RegistroDeAuditoria.objects.filter(pk=recente.pk).exists())
@@ -33,7 +33,7 @@ class PurgaLogsTests(TestCase):
         registro = registrar(AcaoAuditoria.LOGIN_OK)
         _envelhecer(registro, settings.AUDITORIA_RETENCAO_DIAS - 1)
 
-        call_command("purgar_logs_antigos")
+        call_command("limpar_auditoria")
 
         self.assertTrue(RegistroDeAuditoria.objects.filter(pk=registro.pk).exists())
 
@@ -41,6 +41,6 @@ class PurgaLogsTests(TestCase):
         registro = registrar(AcaoAuditoria.LOGIN_OK)
         _envelhecer(registro, settings.AUDITORIA_RETENCAO_DIAS + 30)
 
-        call_command("purgar_logs_antigos", "--dry-run")
+        call_command("limpar_auditoria", "--dry-run")
 
         self.assertTrue(RegistroDeAuditoria.objects.filter(pk=registro.pk).exists())

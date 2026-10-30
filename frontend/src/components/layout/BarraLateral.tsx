@@ -10,9 +10,12 @@ import { api } from "@/lib/api";
 
 // `perm` null = sempre visível; senão só aparece se o usuário tiver a permissão.
 export const ITENS = [
+  { rotulo: "DASHBOARD", href: "/dashboard", perm: null },
   { rotulo: "TRILHAS", href: "/trilhas", perm: "trilhas.view" },
   { rotulo: "DESAFIO DO DIA", href: "/desafios", perm: "trilhas.view" },
+  { rotulo: "RANKING", href: "/ranking", perm: null },
   { rotulo: "CRIATURA", href: "/criatura", perm: "criaturas.view" },
+  { rotulo: "CONQUISTAS", href: "/conquistas", perm: null },
   { rotulo: "CLÃS", href: "/clas", perm: null },
   { rotulo: "CONFIGURAÇÕES", href: "/configuracoes", perm: null },
 ] as const;
@@ -20,6 +23,10 @@ export const ITENS = [
 // Só aparece para administradores. A rota /admin também se protege sozinha:
 // o item some da barra, mas quem digitar a URL direto cai na guarda de papel.
 export const ITEM_ADMIN = { rotulo: "ADMIN", href: "/admin" } as const;
+
+// Quem envia para revisão ou revisa. Como o ADMIN, a rota se guarda sozinha.
+export const ITEM_AUTORIA = { rotulo: "AUTORIA", href: "/autoria" } as const;
+const PERMISSOES_AUTORIA = ["trilhas.submit_review", "trilhas.review"];
 
 const BLOCOS = 10;
 
@@ -44,7 +51,14 @@ export function BarraLateral() {
   const permitidos = usuario
     ? ITENS.filter((i) => i.perm === null || usuario.permissoes.includes(i.perm))
     : ITENS;
-  const itens = usuario?.is_admin ? [...permitidos, ITEM_ADMIN] : permitidos;
+  const veAutoria = PERMISSOES_AUTORIA.some((p) =>
+    usuario?.permissoes.includes(p),
+  );
+  const itens = [
+    ...permitidos,
+    ...(veAutoria ? [ITEM_AUTORIA] : []),
+    ...(usuario?.is_admin ? [ITEM_ADMIN] : []),
+  ];
 
   // Apesar do nome, `xp_para_o_proximo` NÃO é quanto falta: é o tamanho da
   // faixa do nível inteiro (xp do próximo menos xp do atual). Ou seja, ele já
@@ -99,9 +113,8 @@ export function BarraLateral() {
         // Enquanto o número não chegou, o bloco existe com as mesmas dimensões
         // e invisível: nada de número inventado e nenhum salto de layout
         // quando o valor real entra.
-        className={`flex flex-col gap-3 transition-opacity duration-150 ${
-          carregando ? "opacity-0" : "opacity-100"
-        }`}
+        className={`flex flex-col gap-3 transition-opacity duration-150 ${carregando ? "opacity-0" : "opacity-100"
+          }`}
         aria-busy={carregando}
       >
         <div className="flex items-center gap-3">
@@ -180,11 +193,10 @@ export function BarraLateral() {
                 <Link
                   href={item.href}
                   aria-current={ativo ? "page" : undefined}
-                  className={`flex items-center gap-3 border-2 p-3 font-label text-[12px] tracking-[2px] ${
-                    ativo
-                      ? "border-brand-light bg-brand-deep text-ink shadow-pixel"
-                      : "border-edge text-ink-body hover:border-brand hover:text-ink-soft"
-                  }`}
+                  className={`flex items-center gap-3 border-2 p-3 font-label text-[12px] tracking-[2px] ${ativo
+                    ? "border-brand-light bg-brand-deep text-ink shadow-pixel"
+                    : "border-edge text-ink-body hover:border-brand hover:text-ink-soft"
+                    }`}
                 >
                   <span
                     aria-hidden="true"

@@ -1,6 +1,7 @@
 import type {
   Aula,
   BonusXp,
+  Conquista,
   Criatura,
   ExercicioDetalhe,
   ExercicioResumo,
@@ -176,7 +177,25 @@ export function usuario(extra: Partial<Usuario> = {}): Usuario {
       "comunidades.join",
     ],
     is_admin: false,
+    nivel_id: null,
     criado_em: "2026-09-01T12:00:00Z",
+    ...extra,
+  };
+}
+
+export function conquista(extra: Partial<Conquista> = {}): Conquista {
+  return {
+    slug: "hello-world",
+    nome: "Hello, World!",
+    descricao: "Conclua seu primeiro exercício.",
+    icone: "terminal",
+    oculta: false,
+    desbloqueada: false,
+    desbloqueada_em: null,
+    vista: false,
+    progresso: 0,
+    meta: 1,
+    raridade: 0,
     ...extra,
   };
 }

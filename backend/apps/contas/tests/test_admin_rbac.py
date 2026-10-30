@@ -96,6 +96,18 @@ class CrudDeNivelTest(APITestCase):
         self.assertEqual(r.status_code, status.HTTP_200_OK)
         self.assertEqual(nivel.permissoes.count(), 2)
 
+    def test_nao_edita_o_proprio_nivel(self):
+        meu = NivelDeAcesso.objects.get(nome="Admin")
+        antes = set(meu.permissoes.values_list("codename", flat=True))
+        r = self.client.patch(
+            reverse("contas:admin-nivel", kwargs={"pk": meu.pk}),
+            {"permissoes": ["trilhas.view"]},
+            format="json",
+        )
+        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(r.data["error"]["code"], "proprio_nivel")
+        self.assertEqual(set(meu.permissoes.values_list("codename", flat=True)), antes)
+
     def test_nao_apaga_nivel_de_sistema(self):
         admin = NivelDeAcesso.objects.get(nome="Admin")
         r = self.client.delete(
@@ -181,6 +193,20 @@ class AtribuirNivelTest(APITestCase):
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
         self.admin.refresh_from_db()
         self.assertTrue(self.admin.is_platform_admin)
+
+    def test_nem_para_outro_nivel_com_acesso_ao_painel(self):
+        # Outro nível de admin pode ter menos permissões: também é rebaixar.
+        anterior = self.admin.nivel_de_acesso_id
+        outro = NivelDeAcesso.objects.create(nome="admin_enxuto", acesso_admin=True)
+        r = self.client.patch(
+            reverse("contas:admin-usuario-nivel", kwargs={"pk": self.admin.pk}),
+            {"nivel_de_acesso": str(outro.pk)},
+            format="json",
+        )
+        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(r.data["error"]["code"], "auto_rebaixamento")
+        self.admin.refresh_from_db()
+        self.assertEqual(self.admin.nivel_de_acesso_id, anterior)
 
 
 # Mesmo ponto de falha usado em apps/auditoria/tests/test_auditoria.py.

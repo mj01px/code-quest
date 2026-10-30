@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { TelaBase } from "@/components/layout/TelaBase";
+import { TIPO } from "@/lib/tipografia";
 import type { DocumentoVigente } from "@/lib/types";
 import { idSecao } from "./Prosa";
 
@@ -71,20 +72,20 @@ export function PaginaLegal({
 
           <div className="min-w-0">
             <header className="flex flex-col gap-5 border-b-2 border-edge pb-8">
-              <span className="font-label text-[11px] tracking-[0.2em] text-brand-light">
+              <span className={`${TIPO.sobretitulo} text-brand-light`}>
                 {"// LEGAL"}
               </span>
 
-              <h1 className="m-0 font-display text-[17px] leading-[1.7] tracking-[1px] text-ink [overflow-wrap:anywhere] [text-shadow:2px_2px_0_var(--color-brand-dark)] sm:text-[22px]">
+              <h1 className={`m-0 ${TIPO.tituloPagina} text-ink [overflow-wrap:anywhere] [text-shadow:2px_2px_0_var(--color-brand-dark)] sm:text-[22px]`}>
                 {titulo}
               </h1>
 
-              <p className="m-0 max-w-[62ch] font-body text-lg leading-[1.8] tracking-[1px] text-ink-body text-pretty">
+              <p className={`m-0 max-w-[62ch] ${TIPO.corpo} text-ink-body text-pretty`}>
                 {resumo}
               </p>
 
               {documento ? (
-                <p className="m-0 flex flex-wrap items-center gap-2 font-label text-[10px] tracking-[2px] text-ink-muted">
+                <p className={`m-0 flex flex-wrap items-center gap-2 ${TIPO.etiqueta} text-ink-muted`}>
                   <span className="border-2 border-brand-shadow bg-panel-soft px-2.5 py-1 text-brand-light">
                     VERSÃO {documento.versao}
                   </span>

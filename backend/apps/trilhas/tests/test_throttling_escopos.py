@@ -20,7 +20,12 @@ from rest_framework.throttling import (
 )
 
 from apps.contas.tests.helpers import criar_autor
-from apps.trilhas.tests.helpers import criar_aula, criar_exercicio, criar_trilha
+from apps.trilhas.tests.helpers import (
+    RASCUNHO,
+    criar_aula,
+    criar_exercicio,
+    criar_trilha,
+)
 from apps.trilhas.views import ExercicioDetailView, TrilhaDetailView, TrilhaListView
 
 # O DRF lê a taxa no momento em que instancia o throttle, uma vez por
@@ -132,3 +137,57 @@ class BaldeDaAutoriaTest(TestCase):
             APIClient().get(self.url)
 
         self.assertEqual(self.cliente.get(self.url).status_code, 200)
+
+
+class BaldeEditorialTest(TestCase):
+    """As ações do fluxo editorial têm balde próprio.
+
+    Abrir gabaritos (`autoria`) ou ler o próprio progresso (`eu_progresso`)
+    até o 429 não pode travar submeter, aprovar, devolver nem publicar.
+    """
+
+    TAXAS = {"autoria": "2/min", "eu_progresso": "2/min", "editorial": "2/min"}
+
+    @classmethod
+    def setUpTestData(cls):
+        aula = criar_aula(criar_trilha("logica"), "variaveis")
+        criar_exercicio(aula, "media")
+        cls.rascunhos = [
+            criar_exercicio(aula, f"rascunho-{i}", ordem=i + 2, status=RASCUNHO)
+            for i in range(3)
+        ]
+
+    def setUp(self):
+        patch = mock.patch.dict(SimpleRateThrottle.THROTTLE_RATES, self.TAXAS)
+        patch.start()
+        self.addCleanup(patch.stop)
+        cache.clear()
+        self.addCleanup(cache.clear)
+
+        self.cliente = APIClient()
+        self.cliente.force_authenticate(user=criar_autor())
+
+    def submeter(self, exercicio):
+        url = reverse("autoria:submeter", kwargs={"tipo": "exercicios", "pk": exercicio.pk})
+        return self.cliente.post(url).status_code
+
+    def esgotar(self, url):
+        codigos = [self.cliente.get(url).status_code for _ in range(3)]
+        self.assertEqual(codigos[-1], 429)
+
+    def test_estourar_leituras_nao_trava_o_fluxo_editorial(self):
+        self.esgotar(
+            reverse(
+                "autoria:solucao-autor",
+                kwargs={"trilha_slug": "logica", "exercicio_slug": "media"},
+            )
+        )
+        self.esgotar(reverse("progressao:minha-sequencia"))
+        self.esgotar(reverse("conquistas:minhas-conquistas"))
+
+        self.assertEqual(self.submeter(self.rascunhos[0]), 200)
+
+    def test_o_limite_editorial_fecha_no_terceiro_pedido(self):
+        codigos = [self.submeter(exercicio) for exercicio in self.rascunhos]
+
+        self.assertEqual(codigos, [200, 200, 429])

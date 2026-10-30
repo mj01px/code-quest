@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 
 import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 import { ErroApi, api } from "@/lib/api";
+import { avisarConquistas } from "@/lib/conquistas";
 import {
   LIMITE_MEMBROS,
   bandeira,
@@ -168,6 +169,7 @@ export function PainelDoCla({ tag }: { tag: string }) {
     setErroAcao(null);
     try {
       await api.entrarNoCla(cla!.tag);
+      avisarConquistas();
       recarregar();
     } catch (erro) {
       setErroAcao(mensagem(erro));

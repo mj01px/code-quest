@@ -344,8 +344,10 @@ Caminhos relativos a `/api/v1`.
 | GET | `/auth/admin/permissoes/` | admin | `user` |
 | GET, POST | `/auth/admin/niveis/` | admin | `user` |
 | GET, PUT, PATCH, DELETE | `/auth/admin/niveis/{id}/` | admin | `user` |
-| GET | `/auth/admin/usuarios/` | admin | `user` |
+| GET | `/auth/admin/usuarios/` (aceita `?q=`: nickname, e-mail ou nível) | admin | `user` |
 | PATCH | `/auth/admin/usuarios/{id}/nivel/` | admin | `user` |
+| DELETE | `/auth/admin/usuarios/{id}/` | admin, com `totp_code` no corpo | `verificacao` |
+| GET | `/admin/dashboard/` | admin (logs só com `auditoria.view`) | `user` |
 | GET | `/auditoria/` | permissão `auditoria.view` | `user` |
 
 `/auditoria/` aceita os filtros `acao`, `actor`, `desde` e `ate`, e pagina com
@@ -359,6 +361,9 @@ Caminhos relativos a `/api/v1`.
 | GET | `/trilhas/{slug}/` | pública | `catalogo` |
 | GET | `/exercicios/{trilha_slug}/{exercicio_slug}/` | pública | `catalogo` |
 | GET | `/autoria/exercicios/{trilha_slug}/{exercicio_slug}/solucao/` | permissão `trilhas.view_solution` | `autoria` |
+| GET | `/autoria/rascunhos/` | permissão `trilhas.submit_review` | `editorial` |
+| GET | `/autoria/fila-revisao/` | permissão `trilhas.review` | `editorial` |
+| GET | `/autoria/{tipo}/{pk}/detalhe/` | permissão `trilhas.submit_review` ou `trilhas.review` | `editorial` |
 
 A API pública só devolve conteúdo publicado.
 
@@ -367,6 +372,7 @@ A API pública só devolve conteúdo publicado.
 | Método | Rota | Acesso | Limite |
 |---|---|---|---|
 | GET | `/eu/progresso/` | sessão | `user` |
+| GET | `/eu/dashboard/` | sessão | `eu_progresso` |
 | GET | `/eu/trilhas/` | sessão | `eu_progresso` |
 | POST | `/trilhas/{trilha_slug}/iniciar/` | permissão `trilhas.enroll` | `conclusao` |
 | GET | `/eu/exercicios-concluidos/` | sessão | `eu_progresso` |
@@ -525,6 +531,7 @@ pessoa tentar depois, sem repetir a chamada em laço.
 | `eu_progresso` | 120/min (`THROTTLE_EU_PROGRESSO`) | Listas do próprio progresso e especificação do exercício |
 | `conclusao` | 30/min | Iniciar trilha, concluir exercício, evoluir criatura |
 | `autoria` | 30/min (`THROTTLE_AUTORIA`) | Solução de referência |
+| `editorial` | 30/min (`THROTTLE_EDITORIAL`) | `/autoria/rascunhos/`, `/autoria/fila-revisao/`, `detalhe/` e `submeter`, `aprovar`, `devolver` e `publicar` em `/autoria/{tipo}/{pk}/`: listas e ações editoriais de transição de estado, em balde separado de `autoria` para que leituras de gabarito não consumam a cota delas |
 | `judge0` | 5/min por usuário | `executar/` e o envio de código do `concluir/`, no mesmo balde |
 
 Além da rajada, a correção tem dois tetos diários, contados no banco e só para
