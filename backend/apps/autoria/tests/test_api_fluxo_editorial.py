@@ -66,8 +66,17 @@ def criar_conteudo(tipo, status, autor=None):
     return criar_exercicio(aula, "media", status=status, **dono)
 
 
+PARECER = "Faltou um exemplo no enunciado."
+
+
 def url(acao, tipo, pk):
     return reverse(f"autoria:{acao}", kwargs={"tipo": tipo, "pk": pk})
+
+
+def agir(usuario, acao, tipo, pk):
+    """POST na ação; devolver exige o parecer no corpo."""
+    corpo = {"parecer": PARECER} if acao == "devolver" else None
+    return cliente(usuario).post(url(acao, tipo, pk), corpo, format="json")
 
 
 def cliente(usuario=None):
@@ -88,7 +97,7 @@ def test_transicao_valida_com_permissao(acao, origem, destino, tipo):
     usuario = quem_pode(acao)
     conteudo = criar_conteudo(tipo, origem, autor=usuario)
 
-    resposta = cliente(usuario).post(url(acao, tipo, conteudo.pk))
+    resposta = agir(usuario, acao, tipo, conteudo.pk)
 
     assert resposta.status_code == 200
     assert resposta.data == {"id": conteudo.pk, "status_editorial": destino}
@@ -101,8 +110,12 @@ def test_transicao_valida_com_permissao(acao, origem, destino, tipo):
     assert registro.actor_email_snapshot == usuario.email
     assert registro.alvo_tipo == tipo.removesuffix("s")
     assert registro.alvo_id == str(conteudo.pk)
-    # Só os dois estados: nada de solução, segredo de 2FA ou token do Judge0.
-    assert registro.metadata == {"de": origem, "para": destino}
+    # Só os dois estados (e o parecer na devolução): nada de solução, segredo
+    # de 2FA ou token do Judge0.
+    esperado = {"de": origem, "para": destino}
+    if acao == "devolver":
+        esperado["parecer"] = PARECER
+    assert registro.metadata == esperado
 
 
 @pytest.mark.parametrize(("acao", "origem", "_destino"), TRANSICOES)
@@ -152,7 +165,7 @@ def test_autenticado_sem_permissao_recebe_403(acao, origem, sem_permissao):
 def test_transicao_invalida_recebe_400_no_envelope(acao, estado_atual):
     conteudo = criar_conteudo("exercicios", estado_atual)
 
-    resposta = cliente(criar_admin()).post(url(acao, "exercicios", conteudo.pk))
+    resposta = agir(criar_admin(), acao, "exercicios", conteudo.pk)
 
     assert resposta.status_code == 400
     erro = resposta.json()["error"]
@@ -224,11 +237,39 @@ def test_fluxo_completo_do_rascunho_ao_publicado():
         ("aprovar", admin),
         ("publicar", admin),
     ]:
-        assert cliente(usuario).post(url(acao, "exercicios", conteudo.pk)).status_code == 200
+        assert agir(usuario, acao, "exercicios", conteudo.pk).status_code == 200
 
     conteudo.refresh_from_db()
     assert conteudo.status == PUBLICADO
     assert RegistroDeAuditoria.objects.count() == 5
+
+
+@pytest.mark.parametrize("corpo", [None, {"parecer": ""}, {"parecer": "x" * 1001}])
+def test_devolver_sem_parecer_valido_recebe_400(corpo):
+    conteudo = criar_conteudo("exercicios", REVISAO)
+
+    resposta = cliente(criar_admin()).post(
+        url("devolver", "exercicios", conteudo.pk), corpo, format="json"
+    )
+
+    assert resposta.status_code == 400
+    conteudo.refresh_from_db()
+    assert conteudo.status == REVISAO
+    assert not RegistroDeAuditoria.objects.exists()
+
+
+def test_rascunho_devolvido_mostra_o_ultimo_parecer():
+    autor, admin = criar_autor(), criar_admin()
+    conteudo = criar_conteudo("exercicios", REVISAO, autor=autor)
+    agir(admin, "devolver", "exercicios", conteudo.pk)
+    agir(autor, "submeter", "exercicios", conteudo.pk)
+    cliente(admin).post(
+        url("devolver", "exercicios", conteudo.pk), {"parecer": "Agora sim."}, format="json"
+    )
+
+    itens = cliente(autor).get(reverse("autoria:rascunhos")).data
+
+    assert [i["parecer"] for i in itens] == ["Agora sim."]
 
 
 def _publicar_e_ler_erro(pai):

@@ -15,7 +15,7 @@ app_name = "progressao"
 urlpatterns = [
     path("eu/progresso/", MeuProgressoView.as_view(), name="meu-progresso"),
     path("admin/dashboard/", AdminDashboardView.as_view(), name="admin-dashboard"),
-    path("eu/sequencia/",MinhaSequenciaView.as_view(), name="minha-sequencia"),
+    path("eu/sequencia/", MinhaSequenciaView.as_view(), name="minha-sequencia"),
     path(
         "eu/trilhas/",
         MinhasTrilhasIniciadasView.as_view(),

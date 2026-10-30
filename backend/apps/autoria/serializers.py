@@ -44,6 +44,9 @@ class ItemEditorialSerializer(serializers.Serializer[object]):
     tipo = serializers.ChoiceField(choices=list(MODELOS), read_only=True)
     titulo = serializers.CharField(read_only=True)
     status_editorial = serializers.ChoiceField(StatusEditorial.choices, read_only=True)
+    # Só a lista de rascunhos traz: é o motivo da última devolução (ou null).
+    # Nas outras filas a chave não existe e o campo some da resposta.
+    parecer = serializers.CharField(read_only=True, required=False)
 
 
 # Exercício na leitura editorial: o detalhe público mais o código inicial. A
@@ -153,6 +156,10 @@ class SolicitacaoAdminSerializer(SolicitacaoAutoriaSerializer):
 
 class RejeicaoSerializer(serializers.Serializer[None]):
     motivo = serializers.CharField(max_length=1000)
+
+
+class ParecerSerializer(serializers.Serializer[None]):
+    parecer = serializers.CharField(max_length=1000)
 
 
 # --- Criação de conteúdo ---

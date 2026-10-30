@@ -166,9 +166,31 @@ describe("PainelAutoria: ações", () => {
       await screen.findByRole("button", { name: "Devolver: Laços" }),
     );
 
-    expect(mock.api.devolverConteudo).toHaveBeenCalledWith("aulas", 3);
+    // O motivo é obrigatório: sem texto o botão de enviar fica travado.
+    const modal = await screen.findByRole("dialog");
+    const enviar = within(modal).getByRole("button", { name: "DEVOLVER" });
+    expect(enviar).toBeDisabled();
+    await userEvent.type(
+      within(modal).getByLabelText(/MOTIVO DA DEVOLUÇÃO/),
+      "Faltou exemplo.",
+    );
+    await userEvent.click(enviar);
+
+    expect(mock.api.devolverConteudo).toHaveBeenCalledWith("aulas", 3, "Faltou exemplo.");
+    expect(screen.queryByRole("dialog")).toBeNull();
     expect(await screen.findByText("Nada esperando revisão.")).toBeInTheDocument();
     await waitFor(() => expect(mock.api.autoriaRascunhos).toHaveBeenCalledTimes(2));
+  });
+
+  it("rascunho devolvido mostra o motivo da revisão", async () => {
+    mock.api.autoriaRascunhos.mockResolvedValue([
+      { ...rascunho, parecer: "Faltou um exemplo." },
+    ]);
+    montar(AUTOR);
+
+    expect(
+      await screen.findByRole("note", { name: "Motivo da devolução" }),
+    ).toHaveTextContent("Faltou um exemplo.");
   });
 
   it("falha ao carregar mostra o erro sem dizer que a lista está vazia", async () => {
@@ -317,9 +339,16 @@ describe("PainelAutoria: modal de visualização", () => {
     );
     montar(ADMIN);
 
-    const modal = await abrir("Laços");
-    await within(modal).findByText("Um laço repete um bloco.");
-    await userEvent.click(within(modal).getByRole("button", { name: "Devolver" }));
+    const visualizacao = await abrir("Laços");
+    await within(visualizacao).findByText("Um laço repete um bloco.");
+    await userEvent.click(
+      within(visualizacao).getByRole("button", { name: "Devolver" }),
+    );
+
+    // Devolver troca a visualização pelo modal do motivo.
+    const modal = await screen.findByRole("dialog");
+    await userEvent.type(within(modal).getByRole("textbox"), "Revise o enunciado.");
+    await userEvent.click(within(modal).getByRole("button", { name: "DEVOLVER" }));
 
     expect(await within(modal).findByRole("alert")).toHaveTextContent(
       "O status atual é Aprovado.",

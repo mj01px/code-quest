@@ -27,6 +27,7 @@ import type {
   NivelDeAcesso,
   NovaAula,
   NovaTrilha,
+  NovoCaso,
   NovoExercicio,
   Pagina,
   PermissaoCatalogo,
@@ -896,9 +897,11 @@ export const api = {
     });
   },
 
-  devolverConteudo(tipo: TipoConteudo, id: number) {
+  // O parecer é obrigatório no backend: é o que o autor lê no rascunho.
+  devolverConteudo(tipo: TipoConteudo, id: number, parecer: string) {
     return requisicao<TransicaoEditorial>(`/autoria/${tipo}/${id}/devolver/`, {
       metodo: "POST",
+      corpo: { parecer },
       autenticado: true,
     });
   },
@@ -1023,7 +1026,14 @@ export const api = {
   },
 
   // O editor só cria exercícios teóricos.
-  criarExercicio(dados: { aula: number; titulo: string; enunciado: string }) {
+  // Com `funcao` e `testes`, o backend cria o exercício como de código.
+  criarExercicio(dados: {
+    aula: number;
+    titulo: string;
+    enunciado: string;
+    funcao?: string;
+    testes?: NovoCaso[];
+  }) {
     return requisicao<NovoExercicio>("/autoria/exercicios/", {
       metodo: "POST",
       corpo: dados,

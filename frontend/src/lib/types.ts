@@ -104,6 +104,8 @@ export interface ItemEditorial {
   tipo: TipoConteudo;
   titulo: string;
   status_editorial: StatusEditorial;
+  /** Só na lista de rascunhos: o motivo da última devolução, se houve. */
+  parecer?: string | null;
 }
 
 export interface TransicaoEditorial {
@@ -145,6 +147,12 @@ export interface NovaAula {
   titulo: string;
   slug: string;
   conteudo: string;
+}
+
+/** Caso de teste na criação de exercício de código. */
+export interface NovoCaso {
+  argumentos: unknown[];
+  esperado: unknown;
 }
 
 export interface NovoExercicio {
@@ -535,4 +543,3 @@ export interface RankingMensal {
   topo: LinhaDoRanking[];
   voce: MinhaPosicao;
 }
-

@@ -2,7 +2,9 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 
+import { AreaDeTexto } from "@/components/autoria/AreaDeTexto";
 import { ModalVisualizacao } from "@/components/autoria/ModalVisualizacao";
+import { ModalConfirmacao } from "@/components/clas/ModalConfirmacao";
 import { ErroApi } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
 import type { ItemEditorial, TipoConteudo } from "@/lib/types";
@@ -18,9 +20,12 @@ const BOTAO =
 
 export interface AcaoEditorial {
   rotulo: string;
-  executar: (tipo: TipoConteudo, id: number) => Promise<unknown>;
+  // Sintaxe de método: aceita `api.devolverConteudo`, que exige o motivo.
+  executar(tipo: TipoConteudo, id: number, motivo?: string): Promise<unknown>;
   /** Avisa o painel que o item foi parar em outra fila. */
   depois?: () => void;
+  /** Com ele, a ação abre um modal pedindo o motivo antes de executar. */
+  pedirMotivo?: string;
 }
 
 interface Props {
@@ -48,6 +53,11 @@ export function ListaEditorial({ titulo, vazio, carregar, acoes, extras }: Props
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [aberto, setAberto] = useState<ItemEditorial | null>(null);
+  const [pedindo, setPedindo] = useState<{
+    item: ItemEditorial;
+    acao: AcaoEditorial;
+  } | null>(null);
+  const [motivo, setMotivo] = useState("");
 
   useEffect(() => {
     let ativo = true;
@@ -67,11 +77,17 @@ export function ListaEditorial({ titulo, vazio, carregar, acoes, extras }: Props
   }, [carregar]);
 
   // Devolve se deu certo: o modal só fecha no sucesso, para o erro aparecer nele.
-  async function agir(item: ItemEditorial, acao: AcaoEditorial): Promise<boolean> {
+  async function agir(
+    item: ItemEditorial,
+    acao: AcaoEditorial,
+    motivoDado?: string,
+  ): Promise<boolean> {
     setOcupado(chave(item));
     setErro(null);
     try {
-      await acao.executar(item.tipo, item.id);
+      await (motivoDado === undefined
+        ? acao.executar(item.tipo, item.id)
+        : acao.executar(item.tipo, item.id, motivoDado));
       setItens((atual) => atual.filter((i) => chave(i) !== chave(item)));
       acao.depois?.();
       return true;
@@ -83,12 +99,30 @@ export function ListaEditorial({ titulo, vazio, carregar, acoes, extras }: Props
     }
   }
 
+  // A ação que pede motivo troca o modal de visualização pelo do motivo: dois
+  // modais empilhados disputariam o Esc e o foco.
+  function iniciar(item: ItemEditorial, acao: AcaoEditorial) {
+    if (!acao.pedirMotivo) return agir(item, acao);
+    setAberto(null);
+    setErro(null);
+    setMotivo("");
+    setPedindo({ item, acao });
+  }
+
   async function agirNoModal(item: ItemEditorial, indice: number) {
-    if (await agir(item, acoes[indice])) setAberto(null);
+    const acao = acoes[indice];
+    if (acao.pedirMotivo) iniciar(item, acao);
+    else if (await agir(item, acao)) setAberto(null);
+  }
+
+  async function confirmarMotivo() {
+    if (!pedindo) return;
+    if (await agir(pedindo.item, pedindo.acao, motivo.trim())) setPedindo(null);
   }
 
   function fecharModal() {
     setAberto(null);
+    setPedindo(null);
     // O erro de uma ação feita no modal não vale para a lista.
     setErro(null);
   }
@@ -97,7 +131,7 @@ export function ListaEditorial({ titulo, vazio, carregar, acoes, extras }: Props
     <section aria-label={titulo} className="flex flex-col gap-4">
       <h2 className={`m-0 text-ink ${TIPO.tituloSecao}`}>{titulo}</h2>
 
-      {erro && !aberto ? (
+      {erro && !aberto && !pedindo ? (
         <p
           role="alert"
           className="m-0 border-2 border-danger-deep bg-panel-soft px-4 py-3 font-body text-base leading-[1.6] tracking-wide text-danger"
@@ -132,6 +166,16 @@ export function ListaEditorial({ titulo, vazio, carregar, acoes, extras }: Props
                 >
                   {item.titulo}
                 </button>
+                {item.status_editorial === "RASCUNHO" && item.parecer ? (
+                  <span
+                    role="note"
+                    aria-label="Motivo da devolução"
+                    className={`mt-2 block border-2 border-danger-deep bg-panel-soft px-3 py-2 text-danger ${TIPO.corpo}`}
+                  >
+                    <span className={`block ${TIPO.etiqueta}`}>DEVOLVIDO PELA REVISÃO</span>
+                    <span className="block whitespace-pre-wrap">{item.parecer}</span>
+                  </span>
+                ) : null}
               </span>
               <span className="flex flex-wrap items-center gap-2">
                 {acoes.map((acao) => (
@@ -139,7 +183,7 @@ export function ListaEditorial({ titulo, vazio, carregar, acoes, extras }: Props
                     key={acao.rotulo}
                     type="button"
                     disabled={ocupado !== null}
-                    onClick={() => agir(item, acao)}
+                    onClick={() => iniciar(item, acao)}
                     aria-label={`${acao.rotulo}: ${item.titulo}`}
                     className={BOTAO}
                   >
@@ -163,6 +207,28 @@ export function ListaEditorial({ titulo, vazio, carregar, acoes, extras }: Props
           onAgir={(indice) => agirNoModal(aberto, indice)}
           onFechar={fecharModal}
         />
+      ) : null}
+
+      {pedindo ? (
+        <ModalConfirmacao
+          rotulo={ROTULO_TIPO[pedindo.item.tipo]}
+          titulo={`${pedindo.acao.rotulo}: ${pedindo.item.titulo}`}
+          textoConfirmar={pedindo.acao.rotulo.toUpperCase()}
+          perigo
+          carregando={ocupado !== null}
+          confirmarDesabilitado={motivo.trim() === ""}
+          erro={erro}
+          onConfirmar={confirmarMotivo}
+          onFechar={fecharModal}
+        >
+          <AreaDeTexto
+            id="motivo-acao-editorial"
+            rotulo={pedindo.acao.pedirMotivo ?? ""}
+            maxLength={1000}
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+          />
+        </ModalConfirmacao>
       ) : null}
     </section>
   );

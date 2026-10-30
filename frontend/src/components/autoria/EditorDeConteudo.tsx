@@ -17,8 +17,10 @@ import type {
   Dificuldade,
   Flashcard,
   NovaAula,
+  NovoCaso,
   Questao,
   StatusEditorial,
+  TipoExercicio,
 } from "@/lib/types";
 
 const CARTAO = "flex flex-col gap-6 border-2 border-edge bg-panel p-7 shadow-pixel-lg";
@@ -47,10 +49,16 @@ interface TrilhaEditor {
   status_editorial: StatusEditorial;
 }
 
+interface ExercicioEditor {
+  id: number;
+  titulo: string;
+  tipo: TipoExercicio;
+}
+
 interface AulaEditor {
   id: number;
   titulo: string;
-  exercicios: { id: number; titulo: string }[];
+  exercicios: ExercicioEditor[];
   flashcards: Flashcard[];
   questoes: Questao[];
 }
@@ -416,6 +424,7 @@ function FormAula({ trilha, aoCriar }: { trilha: number; aoCriar: (a: NovaAula) 
         <AreaDeTexto
           id="aula-conteudo"
           rotulo="TEXTO (MARKDOWN)"
+          markdown
           rows={12}
           value={conteudo}
           onChange={(e) => setConteudo(e.target.value)}
@@ -469,7 +478,9 @@ function ItemAula({ numero, aula }: { numero: number; aula: AulaEditor }) {
           <ul className="m-0 flex list-none flex-col gap-1 p-0">
             {exercicios.map((ex) => (
               <li key={`ex-${ex.id}`} className="font-body text-base text-ink-body">
-                <span className={`mr-2 text-brand-light ${TIPO.etiqueta}`}>TEÓRICO</span>
+                <span className={`mr-2 text-brand-light ${TIPO.etiqueta}`}>
+                  {ex.tipo === "CODIGO" ? "CÓDIGO" : "TEÓRICO"}
+                </span>
                 {ex.titulo}
               </li>
             ))}
@@ -507,19 +518,26 @@ function ItemAula({ numero, aula }: { numero: number; aula: AulaEditor }) {
   );
 }
 
-// ponytail: só teórico e múltipla escolha por enquanto; um tipo novo entra
-// como mais uma opção do seletor e um formulário ao lado de FormTeorico.
+type TipoNovo = "TEORICO" | "MULTIPLA" | "CODIGO";
+
+const TIPOS_NOVOS: [TipoNovo, string][] = [
+  ["TEORICO", "TEÓRICO"],
+  ["MULTIPLA", "MÚLTIPLA ESCOLHA"],
+  ["CODIGO", "EXERCÍCIO DE CÓDIGO"],
+];
+
+// Um tipo novo entra como mais uma opção do seletor e um formulário ao lado.
 function FormExercicio({
   aula,
   aoCriarExercicio,
   aoCriarQuestao,
 }: {
   aula: number;
-  aoCriarExercicio: (ex: { id: number; titulo: string }) => void;
+  aoCriarExercicio: (ex: ExercicioEditor) => void;
   aoCriarQuestao: (q: Questao) => void;
 }) {
   const id = useId();
-  const [multipla, setMultipla] = useState(false);
+  const [tipo, setTipo] = useState<TipoNovo>("TEORICO");
 
   return (
     <div className="flex flex-col gap-5 border-2 border-dashed border-brand-shadow bg-panel-deep p-5">
@@ -529,52 +547,98 @@ function FormExercicio({
           TIPO DO EXERCÍCIO
         </span>
         <div role="radiogroup" aria-labelledby={`${id}-tipo`} className="flex flex-wrap gap-2">
-          {(
-            [
-              [false, "TEÓRICO"],
-              [true, "MÚLTIPLA ESCOLHA"],
-            ] as const
-          ).map(([valor, rotulo]) => (
+          {TIPOS_NOVOS.map(([valor, rotulo]) => (
             <button
-              key={rotulo}
+              key={valor}
               type="button"
               role="radio"
-              aria-checked={multipla === valor}
-              onClick={() => setMultipla(valor)}
-              className={opcao(multipla === valor)}
+              aria-checked={tipo === valor}
+              onClick={() => setTipo(valor)}
+              className={opcao(tipo === valor)}
             >
               {rotulo}
             </button>
           ))}
         </div>
       </div>
-      {multipla ? (
+      {tipo === "MULTIPLA" ? (
         <FormQuestao aula={aula} aoCriar={aoCriarQuestao} />
       ) : (
-        <FormTeorico aula={aula} aoCriar={aoCriarExercicio} />
+        // `key`: trocar entre teórico e código zera o formulário.
+        <FormTeorico
+          key={tipo}
+          aula={aula}
+          codigo={tipo === "CODIGO"}
+          aoCriar={aoCriarExercicio}
+        />
       )}
     </div>
   );
 }
 
+// O que o autor digita em cada caso, antes de virar JSON.
+interface CasoTexto {
+  argumentos: string;
+  esperado: string;
+}
+
+const CASO_VAZIO: CasoTexto = { argumentos: "", esperado: "" };
+
+const ERRO_CASO =
+  'Cada caso precisa de argumentos e esperado em JSON (ex.: 8, 6 e 7.0; texto vai entre aspas: "oi").';
+
+// Argumentos vêm sem colchetes ("8, 6") e viram a lista que o corretor espera.
+function lerCasos(casos: CasoTexto[]): NovoCaso[] | null {
+  try {
+    return casos.map((c) => ({
+      argumentos: JSON.parse(`[${c.argumentos}]`) as unknown[],
+      esperado: JSON.parse(c.esperado) as unknown,
+    }));
+  } catch {
+    return null;
+  }
+}
+
+// Teórico e código dividem título e enunciado; o de código pede também a
+// função que o aluno implementa e os casos que o corretor roda nela.
 function FormTeorico({
   aula,
+  codigo = false,
   aoCriar,
 }: {
   aula: number;
-  aoCriar: (ex: { id: number; titulo: string }) => void;
+  codigo?: boolean;
+  aoCriar: (ex: ExercicioEditor) => void;
 }) {
   const [titulo, setTitulo] = useState("");
   const [enunciado, setEnunciado] = useState("");
+  const [funcao, setFuncao] = useState("");
+  const [casos, setCasos] = useState<CasoTexto[]>([CASO_VAZIO]);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
+  const casosIncompletos = casos.some((c) => !c.esperado.trim());
+
+  function mudarCaso(i: number, campo: keyof CasoTexto, valor: string) {
+    setCasos((atual) => atual.map((c, j) => (j === i ? { ...c, [campo]: valor } : c)));
+  }
+
   async function enviar(evento: React.FormEvent) {
     evento.preventDefault();
-    setEnviando(true);
     setErro(null);
+    const testes = codigo ? lerCasos(casos) : [];
+    if (testes === null) {
+      setErro(ERRO_CASO);
+      return;
+    }
+    setEnviando(true);
     try {
-      aoCriar(await api.criarExercicio({ aula, titulo: titulo.trim(), enunciado }));
+      const base = { aula, titulo: titulo.trim(), enunciado };
+      aoCriar(
+        await api.criarExercicio(
+          codigo ? { ...base, funcao: funcao.trim(), testes } : base,
+        ),
+      );
     } catch (e) {
       setErro(mensagemDe(e));
       setEnviando(false);
@@ -596,12 +660,61 @@ function FormTeorico({
         value={enunciado}
         onChange={(e) => setEnunciado(e.target.value)}
       />
+      {codigo ? (
+        <>
+          <PixelField
+            rotulo="NOME DA FUNÇÃO (EX: MEDIA)"
+            value={funcao}
+            maxLength={60}
+            onChange={(e) => setFuncao(e.target.value)}
+          />
+          <fieldset className="m-0 flex flex-col gap-4 border-0 p-0">
+            <legend className={`mb-2 ${ROTULO}`}>CASOS DE TESTE</legend>
+            {casos.map((caso, i) => (
+              <div key={i} className="grid items-end gap-4 sm:grid-cols-[1fr_1fr_auto]">
+                <PixelField
+                  rotulo={`ARGUMENTOS ${i + 1} (EX: 8, 6)`}
+                  value={caso.argumentos}
+                  onChange={(e) => mudarCaso(i, "argumentos", e.target.value)}
+                />
+                <PixelField
+                  rotulo={`ESPERADO ${i + 1} (EX: 7.0)`}
+                  value={caso.esperado}
+                  onChange={(e) => mudarCaso(i, "esperado", e.target.value)}
+                />
+                <PixelButton
+                  type="button"
+                  variante="secundaria"
+                  aria-label={`Remover caso ${i + 1}`}
+                  disabled={casos.length === 1}
+                  onClick={() => setCasos((atual) => atual.filter((_, j) => j !== i))}
+                >
+                  REMOVER
+                </PixelButton>
+              </div>
+            ))}
+            <PixelButton
+              type="button"
+              variante="secundaria"
+              className="self-start"
+              onClick={() => setCasos((atual) => [...atual, CASO_VAZIO])}
+            >
+              + CASO DE TESTE
+            </PixelButton>
+          </fieldset>
+        </>
+      ) : null}
       <Erro texto={erro} />
       <PixelButton
         type="submit"
         variante="secundaria"
         className="self-end"
-        disabled={enviando || !titulo.trim() || !enunciado.trim()}
+        disabled={
+          enviando ||
+          !titulo.trim() ||
+          !enunciado.trim() ||
+          (codigo && (!funcao.trim() || casosIncompletos))
+        }
       >
         {enviando ? "SALVANDO..." : "SALVAR EXERCÍCIO"}
       </PixelButton>

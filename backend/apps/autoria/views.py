@@ -45,6 +45,7 @@ from .serializers import (
     NovaTrilhaSerializer,
     NovoExercicioSerializer,
     NovoFlashcardSerializer,
+    ParecerSerializer,
     RejeicaoSerializer,
     SolicitacaoAdminSerializer,
     SolicitacaoAutoriaSerializer,
@@ -54,6 +55,7 @@ from .serializers import (
 from .services import (
     MODELOS,
     Acao,
+    anexar_pareceres,
     decidir_solicitacao,
     eh_dono_ou_admin,
     excluir_rascunho,
@@ -144,9 +146,24 @@ class AprovarView(TransicaoEditorialView):
     permission_classes = [IsAuthenticated, HasPerm("trilhas.review")]
 
 
+@extend_schema(request=ParecerSerializer)
 class DevolverView(TransicaoEditorialView):
     acao = "devolver"
     permission_classes = [IsAuthenticated, HasPerm("trilhas.review")]
+
+    # O parecer é obrigatório: devolver sem dizer o motivo deixa o autor no
+    # escuro. Fica na auditoria, de onde a lista de rascunhos o lê.
+    def post(self, request: Request, tipo: str, pk: str) -> Response:
+        entrada = ParecerSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        conteudo = transicionar(
+            MODELOS[tipo],
+            int(pk),
+            self.acao,
+            request,
+            parecer=entrada.validated_data["parecer"],
+        )
+        return Response({"id": conteudo.pk, "status_editorial": conteudo.status})
 
 
 # O autor publica o que criou depois de aprovado; quem tem `trilhas.publish`
@@ -174,6 +191,8 @@ class FilaEditorialView(APIView):
         usuario = cast(User, request.user)
         autor = usuario if self.so_do_autor and not usuario.is_platform_admin else None
         itens = itens_no_status(self.status_listado, autor)
+        if self.status_listado == StatusEditorial.RASCUNHO:
+            itens = anexar_pareceres(itens)
         return Response(ItemEditorialSerializer(itens, many=True).data)
 
 

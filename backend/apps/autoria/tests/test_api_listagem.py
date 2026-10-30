@@ -49,12 +49,14 @@ def rascunhos_esperados(conteudos):
             "tipo": "trilhas",
             "titulo": "Trilha nova",
             "status_editorial": RASCUNHO,
+            "parecer": None,
         },
         {
             "id": conteudos["exercicio"].pk,
             "tipo": "exercicios",
             "titulo": "Soma",
             "status_editorial": RASCUNHO,
+            "parecer": None,
         },
     ]
 

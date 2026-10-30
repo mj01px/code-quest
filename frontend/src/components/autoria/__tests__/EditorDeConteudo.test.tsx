@@ -156,10 +156,11 @@ describe("EditorDeConteudo", () => {
     await u.click(await screen.findByRole("button", { name: "+ ADICIONAR EXERCÍCIO" }));
     await u.type(screen.getByLabelText("TÍTULO DO EXERCÍCIO"), "Soma");
     await u.type(screen.getByLabelText("ENUNCIADO"), "Some");
-    // Só teórico e múltipla escolha: nada de código ou função na tela.
-    expect(screen.getAllByRole("radio", { name: /TEÓRICO|MÚLTIPLA ESCOLHA/ })).toHaveLength(2);
-    expect(screen.queryByText(/CÓDIGO|FUNÇÃO/i)).toBeNull();
-    expect(screen.queryByLabelText(/CÓDIGO|FUNÇÃO|TESTES/i)).toBeNull();
+    expect(
+      screen.getAllByRole("radio", { name: /TEÓRICO|MÚLTIPLA ESCOLHA|EXERCÍCIO DE CÓDIGO/ }),
+    ).toHaveLength(3);
+    // Teórico não pede função nem testes: isso é só do exercício de código.
+    expect(screen.queryByLabelText(/FUNÇÃO|ARGUMENTOS|ESPERADO/i)).toBeNull();
     await u.click(screen.getByRole("button", { name: "SALVAR EXERCÍCIO" }));
 
     expect(mock.api.criarExercicio).toHaveBeenCalledWith({
@@ -214,6 +215,63 @@ describe("EditorDeConteudo", () => {
       resposta_correta: "B",
     });
     expect(await screen.findByText("Quanto é 1 + 1?")).toBeInTheDocument();
+  });
+
+  it("cria exercício de código com função e casos de teste em JSON", async () => {
+    const u = userEvent.setup();
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
+    mock.api.criarExercicio.mockResolvedValue({
+      id: 8,
+      aula: 4,
+      titulo: "Média",
+      slug: "media",
+      enunciado: "Calcule",
+      dificuldade: "INICIANTE",
+      tipo: "CODIGO",
+    });
+    montar(AUTOR, 9);
+
+    await u.click(await screen.findByRole("button", { name: "+ ADICIONAR EXERCÍCIO" }));
+    await u.click(screen.getByRole("radio", { name: "EXERCÍCIO DE CÓDIGO" }));
+    await u.type(screen.getByLabelText("TÍTULO DO EXERCÍCIO"), "Média");
+    await u.type(screen.getByLabelText("ENUNCIADO"), "Calcule");
+    await u.type(screen.getByLabelText(/NOME DA FUNÇÃO/), "media");
+    await u.type(screen.getByLabelText(/ARGUMENTOS 1/), "8, 6");
+    await u.type(screen.getByLabelText(/ESPERADO 1/), "7.5");
+    await u.click(screen.getByRole("button", { name: "+ CASO DE TESTE" }));
+    await u.type(screen.getByLabelText(/ARGUMENTOS 2/), "[[1], {{}"); // `[[` e `{{` digitam `[` e `{`
+    await u.type(screen.getByLabelText(/ESPERADO 2/), '"oi"');
+    await u.click(screen.getByRole("button", { name: "SALVAR EXERCÍCIO" }));
+
+    expect(mock.api.criarExercicio).toHaveBeenCalledWith({
+      aula: 4,
+      titulo: "Média",
+      enunciado: "Calcule",
+      funcao: "media",
+      testes: [
+        { argumentos: [8, 6], esperado: 7.5 },
+        { argumentos: [[1], {}], esperado: "oi" },
+      ],
+    });
+    expect(await screen.findByText("Média")).toBeInTheDocument();
+    expect(screen.getAllByText("CÓDIGO").length).toBeGreaterThan(0);
+  });
+
+  it("caso de teste que não é JSON não chega à API", async () => {
+    const u = userEvent.setup();
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
+    montar(AUTOR, 9);
+
+    await u.click(await screen.findByRole("button", { name: "+ ADICIONAR EXERCÍCIO" }));
+    await u.click(screen.getByRole("radio", { name: "EXERCÍCIO DE CÓDIGO" }));
+    await u.type(screen.getByLabelText("TÍTULO DO EXERCÍCIO"), "Média");
+    await u.type(screen.getByLabelText("ENUNCIADO"), "Calcule");
+    await u.type(screen.getByLabelText(/NOME DA FUNÇÃO/), "media");
+    await u.type(screen.getByLabelText(/ESPERADO 1/), "oi sem aspas");
+    await u.click(screen.getByRole("button", { name: "SALVAR EXERCÍCIO" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/JSON/);
+    expect(mock.api.criarExercicio).not.toHaveBeenCalled();
   });
 
   it("edita nome e descrição da trilha em rascunho", async () => {

@@ -239,6 +239,7 @@ def test_acessar_rascunhos_com_permissao_deve_retornar_200():
         "tipo": "trilhas",
         "titulo": trilha["nome"],
         "status_editorial": StatusEditorial.RASCUNHO,
+        "parecer": None,
     } in resposta.json()
 
 

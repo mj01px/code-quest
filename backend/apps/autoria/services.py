@@ -2,12 +2,13 @@ from typing import Literal, cast
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Model, QuerySet
+from django.db.models import Model, Q, QuerySet
 from django.http import Http404
 from django.utils.text import slugify
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.request import Request
 
+from apps.auditoria.models import RegistroDeAuditoria
 from apps.auditoria.services import AcaoAuditoria, registrar
 from apps.contas.models import NivelDeAcesso, User
 from apps.trilhas.models import Aula, Exercicio, StatusEditorial, Trilha
@@ -244,8 +245,36 @@ def excluir_rascunho(
         conteudo.delete()
 
 
+def anexar_pareceres(itens: list[dict[str, int | str]]) -> list[dict[str, int | str]]:
+    """Põe em cada item o parecer da devolução mais recente, ou None.
+
+    Uma consulta só na auditoria, que é onde o parecer mora: o model do
+    conteúdo não guarda histórico editorial.
+    """
+    alvos = Q()
+    for tipo, modelo in MODELOS.items():
+        ids = [str(i["id"]) for i in itens if i["tipo"] == tipo]
+        if ids:
+            alvos |= Q(alvo_tipo=modelo.__name__.lower(), alvo_id__in=ids)
+    if not alvos:
+        return itens
+    # Em ordem cronológica: a última devolução sobrescreve as anteriores.
+    pareceres = {
+        (alvo_tipo, alvo_id): metadata.get("parecer")
+        for alvo_tipo, alvo_id, metadata in RegistroDeAuditoria.objects.filter(
+            alvos, acao=AcaoAuditoria.CONTEUDO_DEVOLVIDO
+        )
+        .order_by("created_at")
+        .values_list("alvo_tipo", "alvo_id", "metadata")
+    }
+    for item in itens:
+        chave = (MODELOS[str(item["tipo"])].__name__.lower(), str(item["id"]))
+        item["parecer"] = pareceres.get(chave)
+    return itens
+
+
 def transicionar(
-    modelo: type[Conteudo], pk: int, acao: Acao, request: Request
+    modelo: type[Conteudo], pk: int, acao: Acao, request: Request, **metadata: str
 ) -> Conteudo:
     """Aplica `acao` ao conteúdo, ou recusa se o estado atual não a permite.
 
@@ -255,6 +284,7 @@ def transicionar(
     `request.user`), o alvo e os dois estados. `registrar` nunca quebra o
     fluxo: se a gravação da auditoria falhar, o erro é logado e a transição
     segue confirmada, sem registro. Disponibilidade vale mais que rastro aqui.
+    `metadata` vai junto para a auditoria (o parecer da devolução, por exemplo).
     """
     origem, destino, acao_auditoria = TRANSICOES[acao]
     with transaction.atomic():
@@ -294,5 +324,6 @@ def transicionar(
             alvo=conteudo,
             de=origem.value,
             para=destino.value,
+            **metadata,
         )
     return conteudo

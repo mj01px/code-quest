@@ -15,6 +15,7 @@ export function FilaRevisao({ aoDevolver }: { aoDevolver?: () => void }) {
           rotulo: "Devolver",
           executar: api.devolverConteudo,
           depois: aoDevolver,
+          pedirMotivo: "MOTIVO DA DEVOLUÇÃO (O AUTOR VAI VER)",
         },
       ]}
     />

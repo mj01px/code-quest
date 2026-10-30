@@ -185,6 +185,7 @@ export function AcoesRascunho({
               <AreaDeTexto
                 id={`${id}-texto`}
                 rotulo={TEXTO[noModal]}
+                markdown={noModal === "aulas"}
                 rows={noModal === "aulas" ? 8 : 4}
                 value={texto}
                 onChange={(e) => setTexto(e.target.value)}
