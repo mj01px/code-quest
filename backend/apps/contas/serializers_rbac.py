@@ -73,6 +73,8 @@ class UsuarioAdminSerializer(serializers.ModelSerializer):
     papel_rotulo = serializers.CharField(source="get_role_display", read_only=True)
     criado_em = serializers.DateTimeField(source="created_at", read_only=True)
     nivel = serializers.SerializerMethodField()
+    ativo = serializers.BooleanField(source="is_active", read_only=True)
+    anonimizado = serializers.BooleanField(source="is_anonymized", read_only=True)
 
     class Meta:
         model = User
@@ -84,6 +86,8 @@ class UsuarioAdminSerializer(serializers.ModelSerializer):
             "papel_rotulo",
             "criado_em",
             "nivel",
+            "ativo",
+            "anonimizado",
         )
 
     def get_nivel(self, obj) -> dict | None:
@@ -97,3 +101,7 @@ class AtribuirNivelSerializer(serializers.Serializer):
         queryset=NivelDeAcesso.objects.all(),
         allow_null=True,
     )
+
+
+class SituacaoContaSerializer(serializers.Serializer):
+    ativo = serializers.BooleanField()

@@ -12,7 +12,7 @@ from rest_framework.test import APITestCase
 from apps.auditoria.models import AcaoAuditoria, RegistroDeAuditoria
 from apps.contas.models import NivelDeAcesso, Permissao
 
-from .helpers import criar_admin, criar_aluno
+from .helpers import SENHA_PADRAO, criar_admin, criar_aluno
 
 
 class AcessoRestritoTest(APITestCase):
@@ -425,3 +425,53 @@ class AuditoriaDoPainelTest(APITestCase):
         alvo.refresh_from_db()
         self.assertEqual(alvo.nivel_de_acesso, so_view)
         self.assertTrue(self._sem_registro(AcaoAuditoria.NIVEL_ATRIBUIDO))
+
+
+class SuspenderContaTest(APITestCase):
+    """RF34: suspender e reativar conta pelo painel."""
+
+    def setUp(self):
+        self.admin = criar_admin()
+        self.client.force_authenticate(self.admin)
+
+    def _situacao(self, usuario, ativo):
+        return self.client.patch(
+            reverse("contas:admin-usuario-situacao", kwargs={"pk": usuario.pk}),
+            {"ativo": ativo},
+            format="json",
+        )
+
+    def test_suspensa_nao_autentica_e_reativada_volta(self):
+        alvo = criar_aluno("alvo")
+        r = self._situacao(alvo, False)
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+        self.assertFalse(r.data["ativo"])
+        self.assertTrue(
+            RegistroDeAuditoria.objects.filter(acao=AcaoAuditoria.CONTA_SUSPENSA).exists()
+        )
+
+        self.client.force_authenticate(None)
+        login = {"email": "alvo@example.com", "senha": SENHA_PADRAO}
+        r = self.client.post(reverse("contas:login"), login, format="json")
+        self.assertEqual(r.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        self.client.force_authenticate(self.admin)
+        self.assertTrue(self._situacao(alvo, True).data["ativo"])
+        self.assertTrue(
+            RegistroDeAuditoria.objects.filter(acao=AcaoAuditoria.CONTA_REATIVADA).exists()
+        )
+        self.client.force_authenticate(None)
+        r = self.client.post(reverse("contas:login"), login, format="json")
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+
+    def test_recusa_a_si_mesmo_a_equipe_e_conta_anonimizada(self):
+        self.assertEqual(self._situacao(self.admin, False).status_code, 400)
+        self.assertEqual(self._situacao(criar_admin("outro"), False).status_code, 400)
+        anon = criar_aluno("anon")
+        anon.anonimizar()
+        self.assertEqual(self._situacao(anon, True).status_code, 400)
+
+    def test_aluno_nao_suspende(self):
+        self.client.force_authenticate(criar_aluno("aluno"))
+        r = self._situacao(criar_aluno("alvo"), False)
+        self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN)

@@ -19,6 +19,7 @@ import type {
   Evolucao,
   ExercicioConcluido,
   ExercicioDetalhe,
+  FiltrosAuditoria,
   Flashcard,
   ItemEditorial,
   MeusEnvios,
@@ -31,6 +32,7 @@ import type {
   NovoCaso,
   NovoExercicio,
   Pagina,
+  PaginaAuditoria,
   PermissaoCatalogo,
   PreviaConvite,
   ProgressoAtual,
@@ -533,6 +535,33 @@ export const api = {
         corpo: { nivel_de_acesso: nivelId },
         autenticado: true,
       },
+    );
+  },
+
+  // RF34: suspende (false) ou reativa (true).
+  adminSituacaoUsuario(usuarioId: string, ativo: boolean) {
+    return requisicao<UsuarioAdmin>(
+      `/auth/admin/usuarios/${usuarioId}/situacao/`,
+      { metodo: "PATCH", corpo: { ativo }, autenticado: true },
+    );
+  },
+
+  // RF33: consulta completa, paginada (50 por página) e filtrada.
+  auditoria(filtros: FiltrosAuditoria = {}) {
+    const q = new URLSearchParams();
+    for (const [chave, valor] of Object.entries(filtros)) {
+      if (valor) q.set(chave, String(valor));
+    }
+    return requisicao<PaginaAuditoria>(`/auditoria/?${q}`, {
+      autenticado: true,
+    });
+  },
+
+  // RF16: só quem tem trilhas.view_solution; aluno recebe 403.
+  solucaoReferencia(trilhaSlug: string, exercicioSlug: string) {
+    return requisicao<{ solucao_autor: string; status_editorial: string }>(
+      `/autoria/exercicios/${trilhaSlug}/${exercicioSlug}/solucao/`,
+      { autenticado: true },
     );
   },
 

@@ -5,11 +5,12 @@ import { useEffect, useState } from "react";
 
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { AprovacoesAutoria } from "@/components/admin/AprovacoesAutoria";
+import { GestaoAuditoria } from "@/components/admin/GestaoAuditoria";
 import { GestaoNiveis } from "@/components/admin/GestaoNiveis";
 import { GestaoUsuarios } from "@/components/admin/GestaoUsuarios";
 import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 
-type Aba = "usuarios" | "niveis" | "aprovacoes" | "dashboard";
+type Aba = "usuarios" | "niveis" | "aprovacoes" | "dashboard" | "auditoria";
 
 // Guarda no cliente: sem `is_admin` (nível com acesso ao painel) ninguém
 // chega ao conteúdo. É de navegação: a proteção de verdade fica em cada
@@ -68,6 +69,10 @@ export function PainelAdmin() {
             ["niveis", "NÍVEIS DE ACESSO"],
             ["aprovacoes", "SOLICITAÇÕES DE AUTOR"],
             ["dashboard", "DASHBOARD"],
+            // A aba só aparece com a permissão; o endpoint também confere.
+            ...(usuario.permissoes.includes("auditoria.view")
+              ? [["auditoria", "AUDITORIA"]]
+              : []),
           ] as [Aba, string][]
         ).map(([chave, rotulo]) => (
           <button
@@ -90,6 +95,7 @@ export function PainelAdmin() {
       {aba === "niveis" ? <GestaoNiveis /> : null}
       {aba === "aprovacoes" ? <AprovacoesAutoria /> : null}
       {aba === "dashboard" ? <AdminDashboard /> : null}
+      {aba === "auditoria" ? <GestaoAuditoria /> : null}
     </div>
   );
 }

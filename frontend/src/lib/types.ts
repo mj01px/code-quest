@@ -92,6 +92,33 @@ export interface UsuarioAdmin {
   email: string;
   criado_em: string;
   nivel: { id: string; nome: string } | null;
+  ativo: boolean;
+  anonimizado: boolean;
+}
+
+// --- Trilha de auditoria (RF33) ---
+export interface RegistroAuditoria {
+  id: string;
+  created_at: string;
+  acao: string;
+  acao_rotulo: string;
+  detalhes: string;
+  actor: string | null;
+  actor_nickname: string | null;
+  actor_email_snapshot: string;
+  ip: string | null;
+}
+
+export interface PaginaAuditoria extends Pagina<RegistroAuditoria> {
+  acoes: { valor: string; rotulo: string }[];
+}
+
+export interface FiltrosAuditoria {
+  acao?: string;
+  actor?: string;
+  desde?: string;
+  ate?: string;
+  page?: number;
 }
 
 // --- Fluxo editorial (autoria) ---

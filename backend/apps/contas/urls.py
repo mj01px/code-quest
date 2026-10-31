@@ -33,6 +33,7 @@ from .views_rbac import (
     UsuarioDetailView,
     UsuarioListView,
     UsuarioNivelView,
+    UsuarioSituacaoView,
 )
 
 app_name = "contas"
@@ -102,6 +103,11 @@ urlpatterns = [
         "auth/admin/usuarios/<uuid:pk>/nivel/",
         UsuarioNivelView.as_view(),
         name="admin-usuario-nivel",
+    ),
+    path(
+        "auth/admin/usuarios/<uuid:pk>/situacao/",
+        UsuarioSituacaoView.as_view(),
+        name="admin-usuario-situacao",
     ),
     path("auth/eu/email/", TrocarEmailView.as_view(), name="trocar-email"),
     path(
