@@ -7,7 +7,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from apps.auditoria.services import AcaoAuditoria, registrar
+from apps.auditoria.services import AcaoAuditoria, ip_do_cliente, registrar
 from apps.autoria.models import SolicitacaoAutoria
 
 from .documentos import VERSAO_MAX_LENGTH, Documento, versao_vigente
@@ -28,12 +28,6 @@ CREDENCIAL_INVALIDA = (
     "E-mail ou senha incorretos. Se errou várias vezes, espere alguns minutos "
     "ou redefina sua senha."
 )
-
-
-def _ip_do_cliente(request) -> str | None:
-    if request is None:
-        return None
-    return request.META.get("REMOTE_ADDR") or None
 
 
 def _erro_link_ja_usado(mensagem: str) -> serializers.ValidationError:
@@ -210,7 +204,7 @@ class RegistroSerializer(serializers.ModelSerializer):
         return dados
 
     def create(self, dados):
-        ip = _ip_do_cliente(self.context.get("request"))
+        ip = ip_do_cliente(self.context.get("request"))
 
         with transaction.atomic():
             usuario = User.objects.create_user(

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
 import { useProgresso } from "@/components/progresso/ProvedorProgresso";
+import { ServicoIndisponivel } from "@/components/ui/ServicoIndisponivel";
 
 // Guarda de rota privada: espera a sessão e manda o visitante para /entrar.
 // Fica no layout de cada rota privada, não no `(app)` inteiro: o catálogo de
@@ -11,12 +12,13 @@ import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 // É barreira de navegação; quem barra de verdade é o backend.
 export function ExigeLogin({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { usuario, carregando } = useProgresso();
+  const { usuario, carregando, erro } = useProgresso();
 
   useEffect(() => {
-    if (!carregando && !usuario) router.replace("/entrar");
-  }, [carregando, usuario, router]);
+    if (!carregando && !erro && !usuario) router.replace("/entrar");
+  }, [carregando, erro, usuario, router]);
 
+  if (erro && !usuario) return <ServicoIndisponivel />;
   if (carregando || !usuario) return null;
   return children;
 }

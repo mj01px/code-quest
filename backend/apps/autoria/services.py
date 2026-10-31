@@ -427,6 +427,9 @@ def transicionar(
         )
         if exige_dono and not eh_dono_ou_admin(conteudo, usuario):
             raise PermissionDenied("Você só pode enviar para revisão ou publicar o que criou.")
+        # Quatro olhos: quem criou não aprova o próprio conteúdo, nem o admin.
+        if acao == "aprovar" and conteudo.autor_id == usuario.pk:
+            raise PermissionDenied("Você não pode aprovar o conteúdo que criou.")
 
         if conteudo.status != origem:
             raise ValidationError(

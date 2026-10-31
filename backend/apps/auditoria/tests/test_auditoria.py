@@ -1,18 +1,35 @@
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.auditoria.models import AcaoAuditoria, RegistroDeAuditoria
-from apps.auditoria.services import registrar
+from apps.auditoria.services import ip_do_cliente, registrar
 from apps.contas.tests.helpers import (
     SENHA_PADRAO,
     criar_admin,
     criar_aluno,
 )
 from apps.gamificacao.services import select_starter_creature
+
+
+class IpDoClienteTests(TestCase):
+    """Atrás do Next (NUM_PROXIES=1) vale o último item do X-Forwarded-For."""
+
+    def _ip(self, **meta):
+        return ip_do_cliente(RequestFactory().get("/", REMOTE_ADDR="10.0.0.9", **meta))
+
+    def test_usa_o_ip_que_o_proxy_acrescentou(self):
+        xff = "1.1.1.1, 203.0.113.7"
+        self.assertEqual(self._ip(HTTP_X_FORWARDED_FOR=xff), "203.0.113.7")
+
+    def test_sem_cabecalho_cai_no_remote_addr(self):
+        self.assertEqual(self._ip(), "10.0.0.9")
+
+    def test_valor_que_nao_e_ip_vira_none(self):
+        self.assertIsNone(self._ip(HTTP_X_FORWARDED_FOR="nao-e-ip"))
 
 
 class ServicoAuditoriaTests(TestCase):

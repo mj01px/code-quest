@@ -95,7 +95,9 @@ def quem_pode(acao):
 @pytest.mark.parametrize(("acao", "origem", "destino"), TRANSICOES)
 def test_transicao_valida_com_permissao(acao, origem, destino, tipo):
     usuario = quem_pode(acao)
-    conteudo = criar_conteudo(tipo, origem, autor=usuario)
+    # Quatro olhos: quem aprova não pode ser o autor do conteúdo.
+    dono = criar_autor() if acao == "aprovar" else usuario
+    conteudo = criar_conteudo(tipo, origem, autor=dono)
 
     resposta = agir(usuario, acao, tipo, conteudo.pk)
 
@@ -173,6 +175,20 @@ def test_transicao_invalida_recebe_400_no_envelope(acao, estado_atual):
     assert erro["details"][0]["code"] == "transicao_invalida"
     conteudo.refresh_from_db()
     assert conteudo.status == estado_atual
+    assert not RegistroDeAuditoria.objects.exists()
+
+
+@pytest.mark.parametrize("tipo", TIPOS)
+def test_quem_criou_nao_aprova_o_proprio_conteudo(tipo):
+    # Nem o admin, que tem trilhas.create e trilhas.review ao mesmo tempo.
+    admin = criar_admin()
+    conteudo = criar_conteudo(tipo, REVISAO, autor=admin)
+
+    resposta = agir(admin, "aprovar", tipo, conteudo.pk)
+
+    assert resposta.status_code == 403
+    conteudo.refresh_from_db()
+    assert conteudo.status == REVISAO
     assert not RegistroDeAuditoria.objects.exists()
 
 

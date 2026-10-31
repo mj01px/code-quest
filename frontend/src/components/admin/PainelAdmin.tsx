@@ -9,6 +9,7 @@ import { GestaoAuditoria } from "@/components/admin/GestaoAuditoria";
 import { GestaoNiveis } from "@/components/admin/GestaoNiveis";
 import { GestaoUsuarios } from "@/components/admin/GestaoUsuarios";
 import { useProgresso } from "@/components/progresso/ProvedorProgresso";
+import { ServicoIndisponivel } from "@/components/ui/ServicoIndisponivel";
 
 type Aba = "usuarios" | "niveis" | "aprovacoes" | "dashboard" | "auditoria";
 
@@ -18,13 +19,13 @@ type Aba = "usuarios" | "niveis" | "aprovacoes" | "dashboard" | "auditoria";
 // /eu não responde, segura a tela.
 export function PainelAdmin() {
   const router = useRouter();
-  const { usuario, carregando } = useProgresso();
+  const { usuario, carregando, erro } = useProgresso();
   const [aba, setAba] = useState<Aba>("usuarios");
 
   const ehAdmin = usuario?.is_admin === true;
 
   useEffect(() => {
-    if (carregando) return;
+    if (carregando || erro) return;
     if (!usuario) {
       router.replace("/entrar");
       return;
@@ -32,8 +33,9 @@ export function PainelAdmin() {
     if (!usuario.is_admin) {
       router.replace("/trilhas");
     }
-  }, [carregando, usuario, router]);
+  }, [carregando, erro, usuario, router]);
 
+  if (erro && !usuario) return <ServicoIndisponivel />;
   if (carregando || !usuario) {
     return (
       <p className="font-label text-[13px] tracking-[2px] text-brand-light">

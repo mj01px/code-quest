@@ -10,6 +10,7 @@ import { ListaRascunhos } from "@/components/autoria/ListaRascunhos";
 import { MeusEnvios } from "@/components/autoria/MeusEnvios";
 import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 import { IconeLapis } from "@/components/ui/Icone";
+import { ServicoIndisponivel } from "@/components/ui/ServicoIndisponivel";
 import { TIPO } from "@/lib/tipografia";
 
 type Lista = "rascunhos" | "aprovados" | "fila";
@@ -56,7 +57,7 @@ const RESUMO: Record<Exclude<Lista, "fila">, { titulo: string; vazio: string; co
 // da rota que ele consome. Quem barra de verdade é o backend (HasPerm).
 export function PainelAutoria() {
   const router = useRouter();
-  const { usuario, carregando } = useProgresso();
+  const { usuario, carregando, erro } = useProgresso();
   // Submeter leva o item para a fila e devolver o traz de volta. Trocar a
   // `key` remonta a outra lista, que busca de novo.
   // ponytail: remontar descarta uma ação em voo na outra lista (resposta e
@@ -99,11 +100,12 @@ export function PainelAutoria() {
   const totalFila = contagens.fila ?? 0;
 
   useEffect(() => {
-    if (carregando) return;
+    if (carregando || erro) return;
     if (!usuario) router.replace("/entrar");
     else if (!temAcesso) router.replace("/trilhas");
-  }, [carregando, usuario, temAcesso, router]);
+  }, [carregando, erro, usuario, temAcesso, router]);
 
+  if (erro && !usuario) return <ServicoIndisponivel />;
   if (carregando || !usuario) {
     return (
       <p className="font-label text-[13px] tracking-[2px] text-brand-light">

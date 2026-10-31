@@ -84,6 +84,17 @@ beforeEach(() => {
 });
 
 describe("PainelAdmin: guarda de papel", () => {
+  it("API fora com sessão viva mostra aviso, sem mandar para /entrar", async () => {
+    // Antes, falha virava "deslogado" e o aluno era expulso em loop.
+    mock.api.eu.mockRejectedValue(new Error("HTTP 500"));
+    montar();
+
+    expect(
+      await screen.findByText("Serviço indisponível, tente novamente em instantes."),
+    ).toBeInTheDocument();
+    expect(substituirRota).not.toHaveBeenCalled();
+  });
+
   it("mostra o painel para administrador", async () => {
     mock.api.eu.mockResolvedValue(usuario({ is_admin: true }));
     montar();

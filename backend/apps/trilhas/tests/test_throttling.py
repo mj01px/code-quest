@@ -55,11 +55,24 @@ class LimitePorIpTest(TestCase):
         self.assertEqual(resposta.status_code, 429)
 
     def test_x_forwarded_for_forjado_nao_zera_a_cota(self):
+        # NUM_PROXIES=1: vale o último item, o que o proxy acrescenta. O que o
+        # cliente forja vem antes e não troca o balde.
         url = reverse("trilhas:trilha-lista")
         for numero in range(3):
-            self.client.get(url, headers={"x-forwarded-for": f"9.9.9.{numero}"})
-        resposta = self.client.get(url, headers={"x-forwarded-for": "1.2.3.4"})
+            xff = f"9.9.9.{numero}, 203.0.113.7"
+            self.client.get(url, headers={"x-forwarded-for": xff})
+        resposta = self.client.get(
+            url, headers={"x-forwarded-for": "1.2.3.4, 203.0.113.7"}
+        )
         self.assertEqual(resposta.status_code, 429)
+
+    def test_alunos_atras_do_proxy_nao_dividem_o_balde(self):
+        # Com NUM_PROXIES=0 todo pedido via Next tinha o mesmo REMOTE_ADDR.
+        url = reverse("trilhas:trilha-lista")
+        for _ in range(3):
+            self.client.get(url, headers={"x-forwarded-for": "203.0.113.7"})
+        resposta = self.client.get(url, headers={"x-forwarded-for": "203.0.113.8"})
+        self.assertEqual(resposta.status_code, 200)
 
     def test_a_resposta_recusada_diz_quando_tentar_de_novo(self):
         url = reverse("trilhas:trilha-lista")

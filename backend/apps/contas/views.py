@@ -18,7 +18,7 @@ from rest_framework_simplejwt.token_blacklist.models import (
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from apps.auditoria.services import AcaoAuditoria, registrar
+from apps.auditoria.services import AcaoAuditoria, ip_do_cliente, registrar
 
 from . import mfa
 from .cadastro_alerta import avisar_tentativa_de_cadastro
@@ -397,7 +397,7 @@ class AceitarConsentimentosView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        ip = request.META.get("REMOTE_ADDR") or None
+        ip = ip_do_cliente(request)
         novos = AceiteDeTermos.registrar_pendentes(request.user, ip=ip)
         if novos:
             registrar(

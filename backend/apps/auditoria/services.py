@@ -11,10 +11,12 @@ do atomic() da ação, para que a falha do registro desfaça a ação.
 Regra de ouro: NUNCA passe senha, token ou conteúdo sensível em `metadata`.
 """
 
+import ipaddress
 import logging
 from typing import Any
 
 from django.db import transaction
+from rest_framework.throttling import BaseThrottle
 
 from .models import AcaoAuditoria, RegistroDeAuditoria
 
@@ -23,12 +25,18 @@ logger = logging.getLogger("apps.auditoria")
 __all__ = ["registrar", "AcaoAuditoria"]
 
 
-def _ip(request) -> str | None:
-    # Espelha apps.contas.serializers._ip_do_cliente: usa REMOTE_ADDR, coerente
-    # com NUM_PROXIES=0 (o cliente não consegue forjar via X-Forwarded-For).
+def ip_do_cliente(request) -> str | None:
+    """IP do aluno pela mesma regra do throttle do DRF (`NUM_PROXIES`).
+
+    Atrás do Next, REMOTE_ADDR é o do servidor Next; o IP real chega no
+    X-Forwarded-For. Valor que não é IP vira None: o campo é inet no banco.
+    """
     if request is None:
         return None
-    return request.META.get("REMOTE_ADDR") or None
+    try:
+        return str(ipaddress.ip_address(BaseThrottle().get_ident(request)))
+    except ValueError:
+        return None
 
 
 def _user_agent(request) -> str:
@@ -87,7 +95,7 @@ def registrar(
                 actor_email_snapshot=email,
                 alvo_tipo=alvo_tipo,
                 alvo_id=alvo_id,
-                ip=_ip(request),
+                ip=ip_do_cliente(request),
                 user_agent=_user_agent(request),
                 metadata=metadata or {},
             )

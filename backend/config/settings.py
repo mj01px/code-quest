@@ -193,9 +193,12 @@ REST_FRAMEWORK = {
         'convite': '10/min',
         'ranking': '60/min',
     },
-    # Sem NUM_PROXIES o DRF identifica o cliente por X-Forwarded-For, que o
-    # proprio cliente manda. Zero forca REMOTE_ADDR e fecha a burla do limite.
-    'NUM_PROXIES': 0,
+    # Um proxy na frente (o Next, pelo rewrite /api): REMOTE_ADDR e o do servidor
+    # Next e o IP do aluno e o ULTIMO item do X-Forwarded-For. Com 0 todo aluno
+    # dividia o mesmo balde. Premissas de producao: o Django escuta so em
+    # 127.0.0.1 e o Nginx SOBRESCREVE o X-Forwarded-For com $remote_addr, porque
+    # o Next so preenche o cabecalho quando ele chega vazio (repassa o forjado).
+    'NUM_PROXIES': env.int('NUM_PROXIES', default=1),
 }
 
 SIMPLE_JWT = {
