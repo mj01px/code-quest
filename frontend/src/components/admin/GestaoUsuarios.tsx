@@ -43,6 +43,7 @@ export function GestaoUsuarios() {
   // Linha da equipe: nível com acesso ao painel. O backend recusa excluí-la.
   const ehAdmin = (u: UsuarioAdmin) =>
     niveis.some((n) => n.id === u.nivel?.id && n.acesso_admin);
+  const podeSuspender = eu?.permissoes.includes("usuarios.suspend") ?? false;
 
   useEffect(() => {
     let ativo = true;
@@ -112,6 +113,27 @@ export function GestaoUsuarios() {
     } catch (e) {
       setErro(
         e instanceof ErroApi ? e.message : "Não foi possível trocar o nível.",
+      );
+    } finally {
+      setOcupado(null);
+    }
+  }
+
+  // RF34: reversível, então sem modal; o backend encerra as sessões ao suspender.
+  async function alternarSituacao(usuario: UsuarioAdmin) {
+    setOcupado(usuario.id);
+    setErro(null);
+    try {
+      const atualizado = await api.adminSituacaoUsuario(usuario.id, !usuario.ativo);
+      setUsuarios((atual) =>
+        atual.map((u) => (u.id === atualizado.id ? atualizado : u)),
+      );
+      setAviso(
+        `Conta de ${atualizado.nickname} ${atualizado.ativo ? "reativada" : "suspensa"}.`,
+      );
+    } catch (e) {
+      setErro(
+        e instanceof ErroApi ? e.message : "Não foi possível alterar a situação.",
       );
     } finally {
       setOcupado(null);
@@ -204,6 +226,11 @@ export function GestaoUsuarios() {
                   <span className="block font-body text-sm tracking-[1px] text-ink-muted">
                     {u.email}
                   </span>
+                  {u.ativo ? null : (
+                    <span className="mt-1 inline-block border-2 border-danger-deep px-2 py-0.5 font-label text-[10px] tracking-[2px] text-danger">
+                      {u.anonimizado ? "ANONIMIZADA" : "SUSPENSA"}
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3 align-top font-body text-base tracking-[1px] text-ink-muted">
                   {formatarData(u.criado_em)}
@@ -239,26 +266,42 @@ export function GestaoUsuarios() {
                   ) : null}
                 </td>
                 <td className="px-4 py-3 align-top">
-                  {/* Própria conta e contas da equipe sem lixeira; o backend também recusa. */}
+                  {/* Própria conta e contas da equipe sem ações; o backend também recusa. */}
                   {u.id === eu?.id || ehAdmin(u) ? null : (
-                    <button
-                      type="button"
-                      aria-label={`Excluir ${u.nickname}`}
-                      onClick={() => {
-                        setErroExclusao(null);
-                        setCodigo2fa("");
-                        setTemApp(null);
-                        setExcluir(u);
-                        api
-                          .mfaStatus()
-                          .then((s) => setTemApp(s.ativo && s.metodo === "APP"))
-                          // Na dúvida mostra o campo: quem decide é o backend.
-                          .catch(() => setTemApp(true));
-                      }}
-                      className="flex h-11 w-11 cursor-pointer items-center justify-center border-2 border-edge-soft text-ink-muted transition-colors hover:border-danger hover:text-danger"
-                    >
-                      <IconeLixeira />
-                    </button>
+                    <div className="flex gap-2">
+                      {podeSuspender && !u.anonimizado ? (
+                        <button
+                          type="button"
+                          disabled={ocupado === u.id}
+                          onClick={() => alternarSituacao(u)}
+                          className={`h-11 cursor-pointer border-2 px-3 font-label text-[10px] tracking-[2px] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                            u.ativo
+                              ? "border-edge-soft text-ink-muted hover:border-danger hover:text-danger"
+                              : "border-success text-success hover:opacity-80"
+                          }`}
+                        >
+                          {u.ativo ? "SUSPENDER" : "REATIVAR"}
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        aria-label={`Excluir ${u.nickname}`}
+                        onClick={() => {
+                          setErroExclusao(null);
+                          setCodigo2fa("");
+                          setTemApp(null);
+                          setExcluir(u);
+                          api
+                            .mfaStatus()
+                            .then((s) => setTemApp(s.ativo && s.metodo === "APP"))
+                            // Na dúvida mostra o campo: quem decide é o backend.
+                            .catch(() => setTemApp(true));
+                        }}
+                        className="flex h-11 w-11 cursor-pointer items-center justify-center border-2 border-edge-soft text-ink-muted transition-colors hover:border-danger hover:text-danger"
+                      >
+                        <IconeLixeira />
+                      </button>
+                    </div>
                   )}
                 </td>
               </tr>

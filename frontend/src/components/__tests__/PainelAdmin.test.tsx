@@ -23,6 +23,7 @@ jest.mock("@/lib/api", () => ({
     adminNiveis: jest.fn(),
     adminPermissoes: jest.fn(),
     adminDashboard: jest.fn(),
+    adminSolicitacoes: jest.fn(),
     adminExcluirUsuario: jest.fn(),
     mfaStatus: jest.fn(),
   },
@@ -46,6 +47,7 @@ const mock = jest.requireMock<{
     adminNiveis: jest.Mock;
     adminPermissoes: jest.Mock;
     adminDashboard: jest.Mock;
+    adminSolicitacoes: jest.Mock;
     adminExcluirUsuario: jest.Mock;
     mfaStatus: jest.Mock;
   };
@@ -90,6 +92,22 @@ describe("PainelAdmin: guarda de papel", () => {
     expect(substituirRota).not.toHaveBeenCalled();
   });
 
+  it("admin cuida de pessoas: a aba é Solicitações de Autor, sem revisão de conteúdo", async () => {
+    mock.api.eu.mockResolvedValue(usuario({ is_admin: true }));
+    mock.api.adminSolicitacoes.mockResolvedValue([]);
+    montar();
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "SOLICITAÇÕES DE AUTOR" }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Solicitações de Acesso à Autoria" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "APROVAÇÕES" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /REVISÃO DE CONTEÚDO/ })).toBeNull();
+  });
+
   it("redireciona aluno para /trilhas e não vaza o painel", async () => {
     montar();
 
@@ -118,6 +136,9 @@ describe("PainelAdmin: aba Dashboard", () => {
       trilhas_publicadas: 3,
       fila_revisao: 5,
       submissoes_judge: 1234,
+      media_xp_por_usuario: 150.5,
+      media_submissoes_por_usuario: 29.4,
+      taxa_aprovacao_submissoes: 75,
       novos_usuarios_semana: [
         { dia: "Seg", data: "2026-10-19", quantidade: 2 },
         { dia: "Ter", data: "2026-10-20", quantidade: 1 },
@@ -142,6 +163,12 @@ describe("PainelAdmin: aba Dashboard", () => {
     expect(await screen.findByText("42")).toBeInTheDocument();
     expect(screen.getByText("+3 na semana")).toBeInTheDocument();
     expect(screen.getByText("1.234")).toBeInTheDocument();
+    expect(screen.getByText("MÉDIA XP/USUÁRIO")).toBeInTheDocument();
+    expect(screen.getByText("150,5")).toBeInTheDocument();
+    expect(screen.getByText("MÉDIA SUBMISSÕES/USUÁRIO")).toBeInTheDocument();
+    expect(screen.getByText("29,4")).toBeInTheDocument();
+    expect(screen.getByText("TAXA DE APROVAÇÃO")).toBeInTheDocument();
+    expect(screen.getByText("%")).toBeInTheDocument();
     expect(
       screen.getByRole("img", { name: /Seg: 4 Aprovadas e 1 Rejeitadas/ }),
     ).toBeInTheDocument();

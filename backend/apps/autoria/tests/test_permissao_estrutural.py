@@ -23,10 +23,27 @@ PERMISSAO_POR_ROTA = {
     "submeter": "HasPerm[trilhas.submit_review]",
     "aprovar": "HasPerm[trilhas.review]",
     "devolver": "HasPerm[trilhas.review]",
-    "publicar": "HasPerm[trilhas.publish]",
+    # O autor publica o próprio conteúdo aprovado; o dono é cobrado no serviço.
+    "publicar": "HasAnyPerm[trilhas.publish,trilhas.submit_review]",
     "rascunhos": "HasPerm[trilhas.submit_review]",
+    "aprovados": "HasPerm[trilhas.submit_review]",
     "fila-revisao": "HasPerm[trilhas.review]",
+    "meus-envios": "HasPerm[trilhas.submit_review]",
     "detalhe": "HasAnyPerm[trilhas.submit_review,trilhas.review]",
+    "criar-trilha": "HasPerm[trilhas.create,trilhas.create_trilha]",
+    "criar-aula": "HasPerm[trilhas.create,trilhas.create_aula]",
+    "criar-exercicio": "HasPerm[trilhas.create,trilhas.create_exercicio]",
+    "rascunho": "HasPerm[trilhas.create]",
+    "criar-flashcard": "HasPerm[trilhas.create]",
+    "flashcard": "HasPerm[trilhas.create]",
+    "criar-questao": "HasPerm[trilhas.create,trilhas.create_exercicio]",
+    "questao": "HasPerm[trilhas.create]",
+    "admin-solicitacoes": "HasPerm[usuarios.grant_author]",
+    "admin-solicitacao-aprovar": "HasPerm[usuarios.grant_author]",
+    "admin-solicitacao-rejeitar": "HasPerm[usuarios.grant_author]",
+    # Pedir autoria é de qualquer conta logada: o login é a permissão.
+    "solicitacoes": "IsAuthenticated",
+    "minha-solicitacao": "IsAuthenticated",
 }
 
 

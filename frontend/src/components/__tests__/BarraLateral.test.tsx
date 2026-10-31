@@ -80,7 +80,6 @@ describe("BarraLateral: navegação", () => {
     const links = screen.getAllByRole("link");
     expect(links.map((l) => l.getAttribute("href"))).toEqual([
       "/trilhas", // a marca: leva ao app, nunca à landing pública
-      "/dashboard",
       "/trilhas",
       "/desafios",
       "/ranking",
@@ -88,6 +87,7 @@ describe("BarraLateral: navegação", () => {
       "/conquistas",
       "/clas",
       "/configuracoes",
+      "/ser-autor",
     ]);
   });
 
@@ -136,6 +136,36 @@ describe("BarraLateral: item de admin", () => {
       "href",
       "/admin",
     );
+  });
+});
+
+describe("BarraLateral: item SER AUTOR", () => {
+  it("mostra SER AUTOR para aluno sem pedido", async () => {
+    montar();
+    await waitFor(() => expect(bloco()).toHaveClass("opacity-100"));
+
+    expect(screen.getByRole("link", { name: /SER AUTOR/ })).toHaveAttribute(
+      "href",
+      "/ser-autor",
+    );
+  });
+
+  it("esconde SER AUTOR com pedido em análise", async () => {
+    mock.api.eu.mockResolvedValue(usuario({ solicitacao_pendente: true }));
+    montar();
+    await waitFor(() => expect(bloco()).toHaveClass("opacity-100"));
+
+    expect(screen.queryByRole("link", { name: /SER AUTOR/ })).toBeNull();
+  });
+
+  it("esconde SER AUTOR de quem já cria conteúdo", async () => {
+    mock.api.eu.mockResolvedValue(
+      usuario({ permissoes: [...usuario().permissoes, "trilhas.create"] }),
+    );
+    montar();
+    await waitFor(() => expect(bloco()).toHaveClass("opacity-100"));
+
+    expect(screen.queryByRole("link", { name: /SER AUTOR/ })).toBeNull();
   });
 });
 

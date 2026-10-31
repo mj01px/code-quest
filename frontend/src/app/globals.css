@@ -32,6 +32,8 @@
   --color-danger-deep: #7f1d1d;
 
   --color-success: #4fc98a;
+  /* Pedido em análise (tela /ser-autor). */
+  --color-warning: #f0b84a;
 
   /* As variaveis --fonte-* vem do next/font, definido em src/lib/tipografia.ts. */
   --font-display: var(--fonte-display), monospace;

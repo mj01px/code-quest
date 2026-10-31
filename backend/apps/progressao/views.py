@@ -14,16 +14,17 @@ from apps.correcao.judge0 import Judge0Error
 from apps.correcao.serializers import CorrecaoSerializer, EnvioDeCodigoSerializer
 from apps.correcao.services import corrigir_envio, tem_correcao_automatica
 from apps.correcao.views import PODE_SUBMETER_CODIGO, Judge0PorMinuto, codigo_enviado
-from apps.trilhas.models import Exercicio, Trilha
+from apps.trilhas.models import AlternativaExercicio, Exercicio, Tipo, Trilha
 
 from .models import TrilhaIniciada
 from .serializers import (
     ConclusaoSerializer,
     DashboardAdminSerializer,
-    DashboardSerializer,
+    EscolhaSerializer,
     ExercicioConcluidoSerializer,
     ProgressoSerializer,
     ResultadoXPSerializer,
+    RevelarFlashcardSerializer,
     SequenciaSerializer,
     TrilhaIniciadaSerializer,
 )
@@ -33,7 +34,6 @@ from .services import (
     exercicios_concluidos,
     iniciar_trilha,
     ler_sequencia,
-    montar_dashboard,
     montar_dashboard_admin,
     montar_progresso,
     obter_progresso,
@@ -70,16 +70,6 @@ class MinhaSequenciaView(APIView):
 
     def get(self, request):
         return Response(SequenciaSerializer(ler_sequencia(user=request.user)).data)
-
-
-@extend_schema(tags=["progressao"], responses=DashboardSerializer)
-class MeuDashboardView(APIView):
-    permission_classes = [IsAuthenticated]
-    throttle_classes = [ScopedRateThrottle]
-    throttle_scope = "eu_progresso"
-
-    def get(self, request):
-        return Response(DashboardSerializer(montar_dashboard(user=request.user)).data)
 
 
 @extend_schema(tags=["admin"], responses=DashboardAdminSerializer)
@@ -147,7 +137,8 @@ class MinhasTrilhasIniciadasView(APIView):
 
 
 @extend_schema(
-    tags=["progressao"], request=EnvioDeCodigoSerializer, responses=ConclusaoSerializer)
+    tags=["progressao"], request=EnvioDeCodigoSerializer, responses=ConclusaoSerializer
+)
 class ConcluirExercicioView(APIView):
     permission_classes = [IsAuthenticated, PODE_CONCLUIR_EXERCICIO]
     throttle_classes = [ScopedRateThrottle]
@@ -161,7 +152,40 @@ class ConcluirExercicioView(APIView):
         )
 
         correcao = None
-        if tem_correcao_automatica(exercicio):
+        # O texto devolvido ao aluno é `explicacao`, nunca `solucao_autor`: este
+        # monta a resposta à mão, fora da varredura transversal de serializers.
+        if exercicio.tipo == Tipo.ALTERNATIVA:
+            escolha = EscolhaSerializer(data=request.data)
+            escolha.is_valid(raise_exception=True)
+            alternativa = AlternativaExercicio.objects.filter(
+                exercicio=exercicio, pk=escolha.validated_data["alternativa_id"]
+            ).first()
+            if alternativa is None:
+                raise serializers.ValidationError(
+                    {
+                        "alternativa_id": serializers.ErrorDetail(
+                            "Escolha uma alternativa deste exercício.",
+                            code="alternativa_invalida",
+                        )
+                    }
+                )
+            if not alternativa.correta:
+                return Response(
+                    {
+                        "aprovado": False,
+                        "correcao": None,
+                        "explicacao": exercicio.explicacao,
+                        "alternativa_correta_id": exercicio.alternativas.get(
+                            correta=True
+                        ).pk,
+                    }
+                )
+
+        if exercicio.tipo == Tipo.FLASHCARD:
+            revelacao = RevelarFlashcardSerializer(data=request.data)
+            revelacao.is_valid(raise_exception=True)
+
+        if exercicio.tipo == Tipo.CODIGO and tem_correcao_automatica(exercicio):
             # Só o envio que chama o Judge0 gasta o balde dele, o mesmo de
             # executar/. Concluir exercício sem código segue em `conclusao`.
             # Permissão antes do balde: 403 não gasta a rajada de ninguém.
@@ -187,13 +211,16 @@ class ConcluirExercicioView(APIView):
         montar_progresso(resultado.progresso)
 
         dados = ResultadoXPSerializer(resultado, context={"request": request}).data
-        return Response(
-            {
-                **dados,
-                "aprovado": True,
-                "correcao": CorrecaoSerializer(correcao).data if correcao else None,
-            }
-        )
+        resposta = {
+            **dados,
+            "aprovado": True,
+            "correcao": CorrecaoSerializer(correcao).data if correcao else None,
+        }
+        if exercicio.tipo == Tipo.ALTERNATIVA:
+            resposta["explicacao"] = exercicio.explicacao
+        elif exercicio.tipo == Tipo.FLASHCARD:
+            resposta["resposta"] = exercicio.explicacao
+        return Response(resposta)
 
 
 @extend_schema(

@@ -9,6 +9,7 @@ desafio ou a regra de "a senha sozinha não basta", é aqui que aparece.
 import re
 
 import pyotp
+from django.conf import settings
 from django.core import mail
 from django.urls import reverse
 from rest_framework import status
@@ -290,6 +291,29 @@ class LoginComMfaTest(APITestCase):
         self.assertEqual(r2.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(r2.data["error"]["details"][0]["code"], "codigo_invalido")
         self.assertNotIn(ACCESS, r2.cookies)
+
+    def test_refazer_o_passo_1_nao_zera_as_falhas_do_codigo(self):
+        # Quem tem a senha não pode errar o código, refazer o login e ganhar
+        # novas tentativas: o contador só zera depois do 2º fator certo.
+        self._ativar_totp()
+        limite = settings.LOGIN_MAX_TENTATIVAS
+
+        def errar_codigo(vezes):
+            r1 = self.client.post(self.login, self._credenciais(), format="json")
+            for _ in range(vezes):
+                self.client.post(
+                    self.login_mfa,
+                    {"mfa_token": r1.data["mfa_token"], "codigo": "000000"},
+                    format="json",
+                )
+
+        errar_codigo(limite - 1)
+        errar_codigo(1)
+
+        self.usuario.refresh_from_db()
+        self.assertTrue(self.usuario.esta_bloqueado)
+        r = self.client.post(self.login, self._credenciais(), format="json")
+        self.assertEqual(r.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_login_mfa_recusa_token_invalido(self):
         self._ativar_totp()

@@ -35,17 +35,22 @@ def cliente(usuario=None):
 
 
 @pytest.fixture
-def conteudos():
+def autor():
+    return criar_autor()
+
+
+@pytest.fixture
+def conteudos(autor):
     """Trilha em rascunho com aula em revisão e exercício de código em rascunho."""
-    trilha = criar_trilha("nova", nome="Trilha nova", status=RASCUNHO)
-    aula = criar_aula(trilha, "laco", titulo="Laços", status=REVISAO)
-    exercicio = criar_exercicio(aula, "dobro", titulo="Dobro", status=RASCUNHO)
+    trilha = criar_trilha("nova", nome="Trilha nova", status=RASCUNHO, autor=autor)
+    aula = criar_aula(trilha, "laco", titulo="Laços", status=REVISAO, autor=autor)
+    exercicio = criar_exercicio(aula, "dobro", titulo="Dobro", status=RASCUNHO, autor=autor)
     criar_especificacao(exercicio)
     return {"trilhas": trilha, "aulas": aula, "exercicios": exercicio}
 
 
-def test_trilha_em_rascunho_vem_com_as_aulas_e_sem_solucao(conteudos):
-    resposta = cliente(criar_autor()).get(url("trilhas", conteudos["trilhas"].pk))
+def test_trilha_em_rascunho_vem_com_as_aulas_e_sem_solucao(conteudos, autor):
+    resposta = cliente(autor).get(url("trilhas", conteudos["trilhas"].pk))
 
     assert resposta.status_code == 200
     assert resposta.data["nome"] == "Trilha nova"
@@ -62,8 +67,8 @@ def test_aula_em_revisao_vem_com_o_conteudo(conteudos):
     assert resposta.data["conteudo"] == "Conteúdo da aula laco."
 
 
-def test_exercicio_vem_com_enunciado_e_codigo_inicial_sem_solucao(conteudos):
-    resposta = cliente(criar_autor()).get(url("exercicios", conteudos["exercicios"].pk))
+def test_exercicio_vem_com_enunciado_e_codigo_inicial_sem_solucao(conteudos, autor):
+    resposta = cliente(autor).get(url("exercicios", conteudos["exercicios"].pk))
 
     assert resposta.status_code == 200
     assert resposta.data["enunciado"] == "Enunciado do exercício dobro."
@@ -73,10 +78,11 @@ def test_exercicio_vem_com_enunciado_e_codigo_inicial_sem_solucao(conteudos):
 
 
 def test_exercicio_sem_especificacao_tem_codigo_inicial_nulo():
+    autor = criar_autor()
     aula = criar_aula(criar_trilha("teoria"), "conceitos")
-    exercicio = criar_exercicio(aula, "pergunta", status=RASCUNHO)
+    exercicio = criar_exercicio(aula, "pergunta", status=RASCUNHO, autor=autor)
 
-    resposta = cliente(criar_autor()).get(url("exercicios", exercicio.pk))
+    resposta = cliente(autor).get(url("exercicios", exercicio.pk))
 
     assert resposta.status_code == 200
     assert resposta.data["codigo_inicial"] is None

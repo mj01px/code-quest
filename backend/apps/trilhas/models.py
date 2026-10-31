@@ -1,5 +1,6 @@
 from typing import Any
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -17,6 +18,8 @@ class StatusEditorial(models.TextChoices):
 class Tipo(models.TextChoices):
     CODIGO = "CODIGO", _("Código")
     TEORICO = "TEORICO", _("Teórico")
+    ALTERNATIVA = "ALTERNATIVA", _("Múltipla escolha")
+    FLASHCARD = "FLASHCARD", _("Flashcard")
 
 
 class Dificuldade(models.TextChoices):
@@ -78,6 +81,23 @@ class Trilha(models.Model):
         default=0,
         verbose_name=_("ordem"),
         help_text=_("Posição na listagem de trilhas."),
+    )
+
+    dificuldade = models.CharField(
+        max_length=15,
+        choices=Dificuldade.choices,
+        default=Dificuldade.INICIANTE,
+        verbose_name=_("nível"),
+    )
+
+    autor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name=_("autor"),
+        help_text=_("Quem criou pela tela de autoria. Nulo no conteúdo semeado."),
     )
 
     status = models.CharField(
@@ -142,6 +162,16 @@ class Aula(models.Model):
         help_text=_("Aula que precisa ser concluída antes desta, na mesma trilha."),
     )
 
+    autor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name=_("autor"),
+        help_text=_("Quem criou pela tela de autoria. Nulo no conteúdo semeado."),
+    )
+
     status = models.CharField(
         max_length=10,
         choices=StatusEditorial.choices,
@@ -191,6 +221,87 @@ class Aula(models.Model):
             )
 
 
+class Flashcard(models.Model):
+    """Pergunta e resposta de revisão rápida, presas a uma aula.
+
+    Sem status nem autor próprios: herda os da aula, e só muda enquanto ela
+    está em rascunho.
+    """
+
+    aula = models.ForeignKey(
+        Aula,
+        on_delete=models.CASCADE,
+        related_name="flashcards",
+        verbose_name=_("aula"),
+    )
+
+    pergunta = models.TextField(max_length=500, verbose_name=_("pergunta"))
+
+    resposta = models.TextField(max_length=1000, verbose_name=_("resposta"))
+
+    class Meta:
+        verbose_name = _("flashcard")
+        verbose_name_plural = _("flashcards")
+        # Ordem de criação: é a ordem em que o autor montou o baralho.
+        ordering = ["id"]
+
+    def __str__(self) -> str:
+        return f"{self.aula.titulo} - {self.pergunta[:40]}"
+
+
+class Alternativa(models.TextChoices):
+    A = "A", "A"
+    B = "B", "B"
+    C = "C", "C"
+    D = "D", "D"
+
+
+def validar_opcoes(valor: Any) -> None:
+    """Exige uma lista de 4 textos não vazios, na ordem A, B, C e D."""
+    if not (
+        isinstance(valor, list)
+        and len(valor) == len(Alternativa.choices)
+        and all(isinstance(o, str) and o.strip() for o in valor)
+    ):
+        raise ValidationError(
+            _("Informe exatamente 4 alternativas preenchidas."), code="opcoes_invalidas"
+        )
+
+
+class Questao(models.Model):
+    """Questão de múltipla escolha presa a uma aula, como o flashcard.
+
+    Herda status e autor da aula e só muda enquanto ela está em rascunho.
+    """
+
+    aula = models.ForeignKey(
+        Aula,
+        on_delete=models.CASCADE,
+        related_name="questoes",
+        verbose_name=_("aula"),
+    )
+
+    enunciado = models.TextField(max_length=1000, verbose_name=_("enunciado"))
+
+    opcoes = models.JSONField(
+        validators=[validar_opcoes],
+        verbose_name=_("opções"),
+        help_text=_("Lista com as 4 alternativas, na ordem A, B, C e D."),
+    )
+
+    resposta_correta = models.CharField(
+        max_length=1, choices=Alternativa.choices, verbose_name=_("resposta correta")
+    )
+
+    class Meta:
+        verbose_name = _("questão")
+        verbose_name_plural = _("questões")
+        ordering = ["id"]
+
+    def __str__(self) -> str:
+        return f"{self.aula.titulo} - {self.enunciado[:40]}"
+
+
 class Exercicio(models.Model):
     aula = models.ForeignKey(
         Aula,
@@ -220,7 +331,7 @@ class Exercicio(models.Model):
     enunciado = models.TextField(verbose_name=_("enunciado"))
 
     tipo = models.CharField(
-        max_length=10,
+        max_length=11,
         choices=Tipo.choices,
         default=Tipo.CODIGO,
         verbose_name=_("tipo"),
@@ -243,6 +354,28 @@ class Exercicio(models.Model):
             "Solução de referência. Nunca é serializada pela API pública: só "
             "quem tem trilhas.view_solution pode ver, por rota própria."
         ),
+    )
+
+    # Texto que o aluno lê depois de responder: a explicação da múltipla
+    # escolha ou o verso do flashcard. Público, ao contrário de `solucao_autor`.
+    explicacao = models.TextField(
+        blank=True,
+        default="",
+        verbose_name=_("explicação"),
+        help_text=_(
+            "Mostrada ao aluno depois que ele responde (múltipla escolha) ou "
+            "revela (flashcard). Não ponha aqui nada que não possa ser público."
+        ),
+    )
+
+    autor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name=_("autor"),
+        help_text=_("Quem criou pela tela de autoria. Nulo no conteúdo semeado."),
     )
 
     status = models.CharField(
@@ -287,3 +420,25 @@ class Exercicio(models.Model):
     @property
     def publicado(self) -> bool:
         return self.status == StatusEditorial.PUBLICADO
+
+
+class AlternativaExercicio(models.Model):
+    exercicio = models.ForeignKey(
+        Exercicio, on_delete=models.CASCADE, related_name="alternativas"
+    )
+    texto = models.TextField()
+    correta = models.BooleanField(default=False)
+    ordem = models.PositiveSmallIntegerField()
+
+    class Meta:
+        ordering = ["ordem"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["exercicio", "ordem"], name="alternativa_ordem_unica"
+            ),
+            models.UniqueConstraint(
+                fields=["exercicio"],
+                condition=models.Q(correta=True),
+                name="alternativa_correta_unica",
+            ),
+        ]

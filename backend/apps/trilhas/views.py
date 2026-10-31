@@ -68,11 +68,11 @@ class TrilhaDetailView(generics.RetrieveAPIView[Trilha]):
             queryset=(
                 Aula.objects.publicados()
                 .select_related("pre_requisito")
-                .prefetch_related(exercicios)
+                .prefetch_related(exercicios, "flashcards", "questoes")
                 .order_by("ordem", "titulo")
             ),
         )
-        return Trilha.objects.publicados().prefetch_related(aulas)
+        return Trilha.objects.publicados().select_related("autor").prefetch_related(aulas)
 
 
 class ExercicioDetailView(generics.RetrieveAPIView[Exercicio]):
@@ -87,6 +87,7 @@ class ExercicioDetailView(generics.RetrieveAPIView[Exercicio]):
             return (
                 Exercicio.objects.publicados()
                 .select_related("aula", "trilha")
+                .prefetch_related("alternativas")
                 .get(
                     trilha__slug=self.kwargs["trilha_slug"],
                     trilha__status=PUBLICADO,

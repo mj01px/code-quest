@@ -46,18 +46,6 @@ class DiaSerializer(serializers.Serializer):
     data = serializers.DateField(read_only=True)
 
 
-class AtividadeDiaSerializer(DiaSerializer):
-    xp = serializers.IntegerField(read_only=True)
-
-
-class DashboardSerializer(serializers.Serializer):
-    xp_total = serializers.IntegerField(read_only=True)
-    exercicios_concluidos = serializers.IntegerField(read_only=True)
-    sequencia_atual = serializers.IntegerField(read_only=True)
-    trilhas_iniciadas = serializers.IntegerField(read_only=True)
-    atividade_semanal = AtividadeDiaSerializer(many=True, read_only=True)
-
-
 class NovosUsuariosDiaSerializer(DiaSerializer):
     quantidade = serializers.IntegerField(read_only=True)
 
@@ -87,6 +75,9 @@ class DashboardAdminSerializer(serializers.Serializer):
     trilhas_publicadas = serializers.IntegerField(read_only=True)
     fila_revisao = serializers.IntegerField(read_only=True)
     submissoes_judge = serializers.IntegerField(read_only=True)
+    media_xp_por_usuario = serializers.FloatField(read_only=True)
+    media_submissoes_por_usuario = serializers.FloatField(read_only=True)
+    taxa_aprovacao_submissoes = serializers.FloatField(read_only=True)
     novos_usuarios_semana = NovosUsuariosDiaSerializer(many=True, read_only=True)
     submissoes_semana = SubmissoesDiaSerializer(many=True, read_only=True)
     logs_recentes = LogRecenteSerializer(many=True, read_only=True)
@@ -96,6 +87,22 @@ class SequenciaConclusaoSerializer(serializers.Serializer):
     atual = serializers.IntegerField(read_only=True)
     recorde = serializers.IntegerField(read_only=True)
     aumentou = serializers.BooleanField(read_only=True)
+
+
+class EscolhaSerializer(serializers.Serializer):
+    alternativa_id = serializers.IntegerField(min_value=1)
+
+
+class RevelarFlashcardSerializer(serializers.Serializer):
+    revelar = serializers.BooleanField()
+
+    def validate_revelar(self, valor):
+        if not valor:
+            raise serializers.ValidationError(
+                "Revele a resposta para concluir o flashcard.",
+                code="resposta_nao_revelada",
+            )
+        return valor
 
 
 class ResultadoXPSerializer(serializers.Serializer):
@@ -112,6 +119,9 @@ class ResultadoXPSerializer(serializers.Serializer):
 class ConclusaoSerializer(ResultadoXPSerializer):
     aprovado = serializers.BooleanField(read_only=True)
     correcao = CorrecaoSerializer(read_only=True, allow_null=True)
+    explicacao = serializers.CharField(read_only=True, required=False)
+    alternativa_correta_id = serializers.IntegerField(read_only=True, required=False)
+    resposta = serializers.CharField(read_only=True, required=False)
 
 
 class TrilhaIniciadaSerializer(serializers.Serializer):

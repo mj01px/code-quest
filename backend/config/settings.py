@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'apps.clas',
     'apps.conquistas',
     'apps.ranking',
+    'apps.autoria',
 
 ]
 

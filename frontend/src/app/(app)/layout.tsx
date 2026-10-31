@@ -1,4 +1,5 @@
 import { AvisoDeConquista } from "@/components/conquistas/AvisoDeConquista";
+import { AvisoConsentimento } from "@/components/legal/AvisoConsentimento";
 import { LayoutDoApp } from "@/components/layout/LayoutDoApp";
 import { AvisoDeNivel } from "@/components/progresso/AvisoDeNivel";
 import { ProvedorProgresso } from "@/components/progresso/ProvedorProgresso";
@@ -10,6 +11,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
     <ProvedorProgresso>
       <AvisoDeNivel />
       <AvisoDeConquista />
+      <AvisoConsentimento />
       <LayoutDoApp>{children}</LayoutDoApp>
     </ProvedorProgresso>
   );

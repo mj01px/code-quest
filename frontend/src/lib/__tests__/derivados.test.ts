@@ -21,7 +21,7 @@ function trilhaDetalhe(aulas: Aula[]): TrilhaDetalhe {
   const { total_aulas, total_exercicios, ...resto } = trilhaResumo();
   void total_aulas;
   void total_exercicios;
-  return { ...resto, resumo: "", sobre: "", aulas };
+  return { ...resto, resumo: "", sobre: "", aulas, criado_por: null };
 }
 
 describe("derivados", () => {
@@ -29,18 +29,15 @@ describe("derivados", () => {
     expect(duracaoEmHoras(26)).toBe(26);
   });
 
-  it("arredonda o XP do módulo para a dezena de 50 mais próxima", () => {
-    const quatroIniciantes = aula({
-      exercicios: [1, 2, 3, 4].map((id) => exercicioResumo({ id })),
+  it("soma o XP que o backend credita por dificuldade (50/100/200)", () => {
+    const umDeCada = aula({
+      exercicios: [
+        exercicioResumo({ id: 1 }),
+        exercicioResumo({ id: 2, dificuldade: "INTERMEDIARIO" }),
+        exercicioResumo({ id: 3, dificuldade: "AVANCADO" }),
+      ],
     });
-    expect(xpDoModulo(quatroIniciantes)).toBe(400);
-
-    const quatroIntermediarios = aula({
-      exercicios: [1, 2, 3, 4].map((id) =>
-        exercicioResumo({ id, dificuldade: "INTERMEDIARIO" }),
-      ),
-    });
-    expect(xpDoModulo(quatroIntermediarios)).toBe(500);
+    expect(xpDoModulo(umDeCada)).toBe(50 + 100 + 200);
   });
 
   it("resolve o nível pela dificuldade mais frequente, empate para cima", () => {

@@ -69,6 +69,8 @@ class AulaSerializerTest(TestCase):
                 "ordem",
                 "pre_requisito",
                 "exercicios",
+                "flashcards",
+                "questoes",
             },
         )
 
@@ -121,6 +123,7 @@ class TrilhaSerializerTest(TestCase):
                 "sobre",
                 "ordem",
                 "aulas",
+                "criado_por",
             },
         )
 

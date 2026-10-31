@@ -83,6 +83,17 @@ class TrocaEmailTest(APITestCase):
         self.assertEqual(len(mail.outbox), 0)
         self.assertFalse(self._registros(AcaoAuditoria.TROCA_EMAIL_SOLICITADA).exists())
 
+    def test_senha_errada_com_email_em_uso_nao_revela_cadastro(self):
+        outro = criar_aluno("outro")
+
+        r = self._pedir(email=outro.email, senha="nao-e-a-senha-9")
+
+        self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(_codigo(r), "senha_incorreta")
+        self.assertEqual(self._recarregar().email_pendente, "")
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertFalse(self._registros(AcaoAuditoria.TROCA_EMAIL_SOLICITADA).exists())
+
     @override_settings(LOGIN_MAX_TENTATIVAS=2)
     def test_senha_atual_errada_conta_no_bloqueio_do_login(self):
         # Sem isto, a sessão roubada testaria senhas aqui sem limite de conta.

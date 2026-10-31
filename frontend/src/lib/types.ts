@@ -64,6 +64,8 @@ export interface Usuario {
   is_admin: boolean;
   nivel_id: string | null;
   criado_em: string;
+  /** Pedido de autoria em análise. */
+  solicitacao_pendente: boolean;
 }
 
 // --- RBAC (painel de admin) ---
@@ -90,6 +92,33 @@ export interface UsuarioAdmin {
   email: string;
   criado_em: string;
   nivel: { id: string; nome: string } | null;
+  ativo: boolean;
+  anonimizado: boolean;
+}
+
+// --- Trilha de auditoria (RF33) ---
+export interface RegistroAuditoria {
+  id: string;
+  created_at: string;
+  acao: string;
+  acao_rotulo: string;
+  detalhes: string;
+  actor: string | null;
+  actor_nickname: string | null;
+  actor_email_snapshot: string;
+  ip: string | null;
+}
+
+export interface PaginaAuditoria extends Pagina<RegistroAuditoria> {
+  acoes: { valor: string; rotulo: string }[];
+}
+
+export interface FiltrosAuditoria {
+  acao?: string;
+  actor?: string;
+  desde?: string;
+  ate?: string;
+  page?: number;
 }
 
 // --- Fluxo editorial (autoria) ---
@@ -102,6 +131,31 @@ export interface ItemEditorial {
   tipo: TipoConteudo;
   titulo: string;
   status_editorial: StatusEditorial;
+  /**
+   * Nickname de quem criou; null no conteúdo semeado, que não tem autor.
+   * Ausente no item que o editor monta no cliente.
+   */
+  criado_por?: string | null;
+  /** Só nos rascunhos e nos devolvidos: o motivo da última devolução, se houve. */
+  parecer?: string | null;
+}
+
+/** O que outra pessoa apagou do que o autor criou. */
+export interface ExclusaoSofrida {
+  tipo: TipoConteudo;
+  /** Null em registro antigo, de antes de a exclusão guardar o título. */
+  titulo: string | null;
+  motivo: string | null;
+  /** Nickname de quem excluiu; null se a conta já não existe. */
+  excluido_por: string | null;
+  excluido_em: string;
+}
+
+export interface MeusEnvios {
+  em_revisao: ItemEditorial[];
+  /** Rascunhos com o parecer da devolução. */
+  devolvidos: ItemEditorial[];
+  excluidos: ExclusaoSofrida[];
 }
 
 export interface TransicaoEditorial {
@@ -109,13 +163,85 @@ export interface TransicaoEditorial {
   status_editorial: StatusEditorial;
 }
 
+// --- Solicitação de autoria ---
+export type SituacaoSolicitacao = "PENDENTE" | "APROVADA" | "REJEITADA";
+
+export interface SolicitacaoAutoria {
+  id: number;
+  areas: number[];
+  areas_nomes: string[];
+  carta_apresentacao: string;
+  portfolio_link: string;
+  aceite_diretrizes: boolean;
+  situacao: SituacaoSolicitacao;
+  motivo_rejeicao: string;
+  criado_em: string;
+}
+
+export interface SolicitacaoAdmin extends SolicitacaoAutoria {
+  solicitante: { id: string; nickname: string; email: string };
+}
+
+// --- Criação de conteúdo (nasce em rascunho) ---
+export interface NovaTrilha {
+  id: number;
+  nome: string;
+  slug: string;
+  descricao: string;
+  dificuldade: Dificuldade;
+  /** Slug da criatura que ganha o dobro de XP na trilha, ou null. */
+  criatura_bonus?: string | null;
+}
+
+export interface NovaAula {
+  id: number;
+  trilha: number;
+  titulo: string;
+  slug: string;
+  conteudo: string;
+}
+
+/** Caso de teste na criação de exercício de código. */
+export interface NovoCaso {
+  argumentos: unknown[];
+  esperado: unknown;
+  /** Omitido, o backend grava visível. */
+  visivel?: boolean;
+}
+
+export interface NovoExercicio {
+  id: number;
+  aula: number;
+  titulo: string;
+  slug: string;
+  enunciado: string;
+  dificuldade: Dificuldade;
+  tipo: TipoExercicio;
+}
+
 /** Exercício na leitura editorial. `codigo_inicial` é null no teórico. */
 export interface ExercicioEditorial extends ExercicioDetalhe {
   codigo_inicial: string | null;
+  /** A mesma que o aluno recebe; null no teórico. */
+  especificacao: EspecificacaoDeCodigo | null;
+  /** Todos os casos, ocultos inclusive; null no teórico. */
+  testes: CasoEditorial[] | null;
+}
+
+export interface CasoEditorial {
+  argumentos: unknown[];
+  esperado: unknown;
+  visivel: boolean;
+}
+
+/** Trilha na leitura editorial: o editor precisa do status para oferecer o "publicar". */
+export interface TrilhaEditorial extends TrilhaDetalhe {
+  status_editorial: StatusEditorial;
+  criatura_bonus: string | null;
 }
 
 /** Um por tipo: a trilha tem `nome`, a aula tem `conteudo`, o exercício `enunciado`. */
-export type DetalheEditorial = TrilhaDetalhe | Aula | ExercicioEditorial;
+export type DetalheEditorial = TrilhaEditorial | Aula | ExercicioEditorial;
 
 export type DocumentoLegal = "TERMOS" | "PRIVACIDADE";
 
@@ -133,7 +259,12 @@ export interface DocumentosLegais {
 }
 
 export type Dificuldade = "INICIANTE" | "INTERMEDIARIO" | "AVANCADO";
-export type TipoExercicio = "CODIGO" | "TEORICO";
+export type TipoExercicio = "CODIGO" | "TEORICO" | "ALTERNATIVA" | "FLASHCARD";
+
+export interface AlternativaExercicio {
+  id: number;
+  texto: string;
+}
 
 export interface ExercicioResumo {
   id: number;
@@ -154,7 +285,31 @@ export interface Aula {
   ordem: number;
   pre_requisito: string | null;
   exercicios: ExercicioResumo[];
+  flashcards: Flashcard[];
+  questoes: Questao[];
 }
+
+export interface Flashcard {
+  id: number;
+  pergunta: string;
+  resposta: string;
+}
+
+export type Alternativa = "A" | "B" | "C" | "D";
+
+/** Múltipla escolha da aula. `opcoes` vem na ordem A, B, C e D. */
+export interface Questao {
+  id: number;
+  enunciado: string;
+  opcoes: string[];
+  resposta_correta: Alternativa;
+}
+
+/** Corpo do PUT de rascunho: só os campos básicos de cada tipo. */
+export type EdicaoRascunho =
+  | { nome: string; descricao: string; criatura_bonus?: string | null }
+  | { titulo: string; conteudo: string }
+  | { titulo: string; enunciado: string; funcao?: string; testes?: NovoCaso[] };
 
 export interface TrilhaResumo {
   id: number;
@@ -178,6 +333,8 @@ export interface TrilhaDetalhe {
   sobre: string;
   ordem: number;
   aulas: Aula[];
+  /** Nickname de quem criou; null no conteúdo semeado. */
+  criado_por: string | null;
 }
 
 export interface ExercicioDetalhe {
@@ -194,6 +351,7 @@ export interface ExercicioDetalhe {
   aula_slug: string;
   trilha_nome: string;
   trilha_slug: string;
+  alternativas?: AlternativaExercicio[];
 }
 
 export interface BonusXp {
@@ -227,25 +385,14 @@ export interface Sequencia {
   ultimo_dia: string | null;
 }
 
-export interface AtividadeDia {
-  dia: string;
-  data: string;
-  xp: number;
-}
-
-export interface Dashboard {
-  xp_total: number;
-  exercicios_concluidos: number;
-  sequencia_atual: number;
-  trilhas_iniciadas: number;
-  atividade_semanal: AtividadeDia[];
-}
-
 export interface DashboardAdmin {
   total_usuarios: number;
   trilhas_publicadas: number;
   fila_revisao: number;
   submissoes_judge: number;
+  media_xp_por_usuario: number;
+  media_submissoes_por_usuario: number;
+  taxa_aprovacao_submissoes: number;
   novos_usuarios_semana: { dia: string; data: string; quantidade: number }[];
   submissoes_semana: {
     dia: string;
@@ -355,6 +502,20 @@ export interface Correcao {
 export type RespostaConclusao =
   | ({ aprovado: true; correcao: Correcao | null } & ResultadoConclusao)
   | { aprovado: false; correcao: Correcao };
+
+export type RespostaAlternativa =
+  | (Extract<RespostaConclusao, { aprovado: true }> & { explicacao: string })
+  | {
+      aprovado: false;
+      correcao: null;
+      explicacao: string;
+      alternativa_correta_id: number;
+    };
+
+export type RespostaFlashcard = Extract<RespostaConclusao, { aprovado: true }> & {
+  resposta: string;
+};
+
 // Uma linha do histórico de atividade do próprio titular, como o backend
 // devolve em /auth/eu/atividade/. O rótulo já vem legível, em pt-BR.
 export interface AtividadeItem {
@@ -469,4 +630,3 @@ export interface RankingMensal {
   topo: LinhaDoRanking[];
   voce: MinhaPosicao;
 }
-

@@ -93,6 +93,7 @@ export default async function TrilhaPage({
         totalDeModulos={trilha.aulas.length}
         totalDeFases={fases}
         primeiraFaseSlug={primeiraFase?.slug ?? null}
+        criadoPor={trilha.criado_por}
         selo={<SeloBonusXp trilhaSlug={trilha.slug} />}
       />
 

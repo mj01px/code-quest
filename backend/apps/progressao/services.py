@@ -288,22 +288,6 @@ def trilhas_iniciadas(*, user):
 DIAS_DA_SEMANA = ("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom")
 
 
-def montar_dashboard(*, user):
-    """Os big numbers e a atividade dos últimos 7 dias, lidos do banco na hora.
-
-    Exercício concluído vem de `EventoXP` e não de `Submissao`: só exercício
-    com correção automática gera submissão, e o resto também conclui.
-    """
-    eventos = EventoXP.objects.filter(user=user)
-    return {
-        "xp_total": eventos.aggregate(total=Sum("xp"))["total"] or 0,
-        "exercicios_concluidos": exercicios_concluidos(user=user).count(),
-        "sequencia_atual": ler_sequencia(user=user)["atual"],
-        "trilhas_iniciadas": len(trilhas_iniciadas(user=user)),
-        "atividade_semanal": por_dia(eventos, "criado_em", xp=Sum("xp")),
-    }
-
-
 def montar_dashboard_admin(*, com_logs=True):
     """Métricas de gestão da plataforma para a aba Dashboard do /admin."""
     aprovada = Q(veredito=Veredito.APROVADO)
@@ -316,13 +300,21 @@ def montar_dashboard_admin(*, com_logs=True):
         .exclude(acao=AcaoAuditoria.ACESSO_AUDITORIA)
         .order_by("-created_at")[:10]
     )
+    total_usuarios = get_user_model().objects.count()
+    total_submissoes = Submissao.objects.count()
+    xp_total = EventoXP.objects.aggregate(t=Sum("xp"))["t"] or 0
+    total_aprovadas = Submissao.objects.filter(aprovada).count()
     return {
-        "total_usuarios": get_user_model().objects.count(),
+        "total_usuarios": total_usuarios,
         "trilhas_publicadas": Trilha.objects.filter(
             status=StatusEditorial.PUBLICADO
         ).count(),
         "fila_revisao": len(itens_no_status(StatusEditorial.REVISAO)),
-        "submissoes_judge": Submissao.objects.count(),
+        "submissoes_judge": total_submissoes,
+        # Divisão por zero vira 0: plataforma vazia não é erro.
+        "media_xp_por_usuario": _razao(xp_total, total_usuarios),
+        "media_submissoes_por_usuario": _razao(total_submissoes, total_usuarios),
+        "taxa_aprovacao_submissoes": _razao(total_aprovadas * 100, total_submissoes),
         "novos_usuarios_semana": por_dia(
             get_user_model().objects.all(), "created_at", quantidade=Count("pk")
         ),
@@ -334,6 +326,10 @@ def montar_dashboard_admin(*, com_logs=True):
         ),
         "logs_recentes": list(logs) if com_logs else [],
     }
+
+
+def _razao(numerador, denominador):
+    return round(numerador / denominador, 1) if denominador else 0
 
 
 def por_dia(queryset, campo, **agregados):

@@ -10,7 +10,6 @@ import { api } from "@/lib/api";
 
 // `perm` null = sempre visível; senão só aparece se o usuário tiver a permissão.
 export const ITENS = [
-  { rotulo: "DASHBOARD", href: "/dashboard", perm: null },
   { rotulo: "TRILHAS", href: "/trilhas", perm: "trilhas.view" },
   { rotulo: "DESAFIO DO DIA", href: "/desafios", perm: "trilhas.view" },
   { rotulo: "RANKING", href: "/ranking", perm: null },
@@ -27,6 +26,9 @@ export const ITEM_ADMIN = { rotulo: "ADMIN", href: "/admin" } as const;
 // Quem envia para revisão ou revisa. Como o ADMIN, a rota se guarda sozinha.
 export const ITEM_AUTORIA = { rotulo: "AUTORIA", href: "/autoria" } as const;
 const PERMISSOES_AUTORIA = ["trilhas.submit_review", "trilhas.review"];
+
+// Quem ainda não cria conteúdo e não tem pedido em análise.
+export const ITEM_SER_AUTOR = { rotulo: "SER AUTOR", href: "/ser-autor" } as const;
 
 const BLOCOS = 10;
 
@@ -54,8 +56,13 @@ export function BarraLateral() {
   const veAutoria = PERMISSOES_AUTORIA.some((p) =>
     usuario?.permissoes.includes(p),
   );
+  const vePedido =
+    usuario !== null &&
+    !usuario.permissoes.includes("trilhas.create") &&
+    !usuario.solicitacao_pendente;
   const itens = [
     ...permitidos,
+    ...(vePedido ? [ITEM_SER_AUTOR] : []),
     ...(veAutoria ? [ITEM_AUTORIA] : []),
     ...(usuario?.is_admin ? [ITEM_ADMIN] : []),
   ];

@@ -58,6 +58,17 @@ class AcaoAuditoria(models.TextChoices):
     CONTEUDO_APROVADO = "CONTEUDO_APROVADO", _("Conteúdo aprovado")
     CONTEUDO_DEVOLVIDO = "CONTEUDO_DEVOLVIDO", _("Conteúdo devolvido ao rascunho")
     CONTEUDO_PUBLICADO = "CONTEUDO_PUBLICADO", _("Conteúdo publicado")
+    CONTEUDO_CRIADO = "CONTEUDO_CRIADO", _("Conteúdo criado")
+    CONTEUDO_EDITADO = "CONTEUDO_EDITADO", _("Rascunho editado")
+    CONTEUDO_EXCLUIDO = "CONTEUDO_EXCLUIDO", _("Rascunho excluído")
+    # Nome curto: a coluna `acao` tem 32 caracteres.
+    CONTEUDO_PUBLICADO_EXCLUIDO = (
+        "CONTEUDO_PUBLICADO_EXCLUIDO",
+        _("Conteúdo publicado excluído pelo admin"),
+    )
+    # Pedido de autoria (apps.autoria.SolicitacaoAutoria).
+    AUTORIA_APROVADA = "AUTORIA_APROVADA", _("Solicitação de autoria aprovada")
+    AUTORIA_REJEITADA = "AUTORIA_REJEITADA", _("Solicitação de autoria rejeitada")
     # Definidos para uso futuro (administração):
     PAPEL_CONCEDIDO = "PAPEL_CONCEDIDO", _("Papel concedido")
     PAPEL_REMOVIDO = "PAPEL_REMOVIDO", _("Papel removido")

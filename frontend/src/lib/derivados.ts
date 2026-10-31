@@ -8,10 +8,12 @@ export function duracaoEmHoras(totalDeFases: number): number {
   return totalDeFases;
 }
 
+// Espelho de XP_POR_DIFICULDADE em backend/apps/progressao/services.py, que é
+// quem credita. Mudou lá, muda aqui.
 const XP_POR_DIFICULDADE: Record<Dificuldade, number> = {
-  INICIANTE: 100,
-  INTERMEDIARIO: 125,
-  AVANCADO: 150,
+  INICIANTE: 50,
+  INTERMEDIARIO: 100,
+  AVANCADO: 200,
 };
 
 /** XP bruto de uma fase, antes de qualquer bônus de criatura. */
@@ -20,11 +22,10 @@ export function xpDaFase(dificuldade: Dificuldade): number {
 }
 
 export function xpDoModulo(aula: Aula): number {
-  const bruto = aula.exercicios.reduce(
+  return aula.exercicios.reduce(
     (soma, exercicio) => soma + XP_POR_DIFICULDADE[exercicio.dificuldade],
     0,
   );
-  return Math.round(bruto / 50) * 50;
 }
 
 const ORDEM_DIFICULDADE: Dificuldade[] = [

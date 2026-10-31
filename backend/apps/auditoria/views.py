@@ -75,7 +75,12 @@ class AuditoriaListView(generics.ListAPIView):
                 if chave in {"acao", "actor", "desde", "ate"}
             },
         )
-        return super().list(request, *args, **kwargs)
+        resposta = super().list(request, *args, **kwargs)
+        # O filtro por ação da tela usa este catálogo: uma fonte só, a do modelo.
+        resposta.data["acoes"] = [
+            {"valor": valor, "rotulo": str(rotulo)} for valor, rotulo in AcaoAuditoria.choices
+        ]
+        return resposta
 
 
 @extend_schema(tags=["auditoria"])

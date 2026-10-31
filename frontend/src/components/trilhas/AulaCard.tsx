@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { BaralhoFlashcards } from "@/components/trilhas/CartaoFlashcard";
+import { QuizQuestao } from "@/components/trilhas/QuizQuestao";
 import { Badge, BadgeDificuldade } from "@/components/ui/Badge";
 import { IconeCheck } from "@/components/ui/Icone";
 import { plural, resumoDoModulo, xpDoModulo } from "@/lib/derivados";
@@ -30,6 +32,10 @@ export function AulaCard({
     fasesConcluidas.has(e.slug),
   ).length;
   const moduloCompleto = temFases && feitas === aula.exercicios.length;
+  // O catálogo vem do cache do Next (60s): um payload gravado antes do campo
+  // existir chega sem ele, e a página inteira cairia no error boundary.
+  const flashcards = aula.flashcards ?? [];
+  const questoes = aula.questoes ?? [];
 
   const cabecalho = (
     <>
@@ -73,7 +79,8 @@ export function AulaCard({
     </>
   );
 
-  if (!temFases) {
+  // Módulo sem fases, cards nem questões não tem o que abrir.
+  if (!temFases && flashcards.length === 0 && questoes.length === 0) {
     return (
       <li className="flex items-center gap-5 border-2 border-edge bg-panel p-5 sm:px-6">
         {cabecalho}
@@ -88,54 +95,71 @@ export function AulaCard({
           {cabecalho}
         </summary>
 
-        <ul className="m-0 list-none divide-y-2 divide-edge border-t-2 border-edge p-0">
-          {aula.exercicios.map((exercicio, posicaoDaFase) => {
-            const feita = fasesConcluidas.has(exercicio.slug);
+        {temFases ? (
+          <ul className="m-0 list-none divide-y-2 divide-edge border-t-2 border-edge p-0">
+            {aula.exercicios.map((exercicio, posicaoDaFase) => {
+              const feita = fasesConcluidas.has(exercicio.slug);
 
-            return (
-              <li key={exercicio.id}>
-                <Link
-                  href={`/trilhas/${trilhaSlug}/exercicios/${exercicio.slug}`}
-                  className="group flex cursor-pointer flex-wrap items-center gap-4 px-5 py-4 transition-colors hover:bg-panel-soft sm:px-6"
-                >
-                  {/* O mesmo quadro numerado do módulo, um tamanho abaixo: é
-                      ele que diz que a fase está feita, sem gastar uma coluna
-                      só para isso. */}
-                  <span
-                    aria-hidden="true"
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center border-2 font-display text-[10px] ${
-                      feita
-                        ? "border-success bg-panel-deep text-success"
-                        : "border-edge-soft bg-panel-deep text-ink-muted group-hover:border-brand group-hover:text-brand-light"
-                    }`}
+              return (
+                <li key={exercicio.id}>
+                  <Link
+                    href={`/trilhas/${trilhaSlug}/exercicios/${exercicio.slug}`}
+                    className="group flex cursor-pointer flex-wrap items-center gap-4 px-5 py-4 transition-colors hover:bg-panel-soft sm:px-6"
                   >
-                    {feita ? (
-                      <IconeCheck className="h-3.5 w-3.5" />
-                    ) : (
-                      String(posicaoDaFase + 1).padStart(2, "0")
-                    )}
-                  </span>
-
-                  <span className="min-w-0 flex-1 font-body text-base tracking-[1px] text-ink-body">
-                    <span className="sr-only">
-                      Fase {posicaoDaFase + 1}
-                      {feita ? ", concluída" : ""}:{" "}
+                    {/* O mesmo quadro numerado do módulo, um tamanho abaixo: é
+                        ele que diz que a fase está feita, sem gastar uma coluna
+                        só para isso. */}
+                    <span
+                      aria-hidden="true"
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center border-2 font-display text-[10px] ${
+                        feita
+                          ? "border-success bg-panel-deep text-success"
+                          : "border-edge-soft bg-panel-deep text-ink-muted group-hover:border-brand group-hover:text-brand-light"
+                      }`}
+                    >
+                      {feita ? (
+                        <IconeCheck className="h-3.5 w-3.5" />
+                      ) : (
+                        String(posicaoDaFase + 1).padStart(2, "0")
+                      )}
                     </span>
-                    {exercicio.titulo}
-                  </span>
 
-                  <span className="flex shrink-0 items-center gap-2">
-                    <BadgeDificuldade
-                      dificuldade={exercicio.dificuldade}
-                      rotulo={exercicio.dificuldade_label}
-                    />
-                    <Badge>{exercicio.tipo_label}</Badge>
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+                    <span className="min-w-0 flex-1 font-body text-base tracking-[1px] text-ink-body">
+                      <span className="sr-only">
+                        Fase {posicaoDaFase + 1}
+                        {feita ? ", concluída" : ""}:{" "}
+                      </span>
+                      {exercicio.titulo}
+                    </span>
+
+                    <span className="flex shrink-0 items-center gap-2">
+                      <BadgeDificuldade
+                        dificuldade={exercicio.dificuldade}
+                        rotulo={exercicio.dificuldade_label}
+                      />
+                      <Badge>{exercicio.tipo_label}</Badge>
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+        {flashcards.length > 0 ? (
+          <div className="border-t-2 border-edge p-5 sm:px-6">
+            <BaralhoFlashcards cards={flashcards} />
+          </div>
+        ) : null}
+        {questoes.length > 0 ? (
+          <div className="flex flex-col gap-3 border-t-2 border-edge p-5 sm:px-6">
+            <span className="font-label text-[11px] tracking-[2px] text-brand-light uppercase">
+              Quiz · {questoes.length}
+            </span>
+            {questoes.map((questao) => (
+              <QuizQuestao key={questao.id} questao={questao} />
+            ))}
+          </div>
+        ) : null}
       </details>
     </li>
   );

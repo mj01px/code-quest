@@ -2,9 +2,19 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
+import { PreviaMarkdown } from "@/components/autoria/PreviaMarkdown";
+import { PainelDeCodigo } from "@/components/exercicio/PainelDeCodigo";
+import { BaralhoFlashcards } from "@/components/trilhas/CartaoFlashcard";
+import { QuizQuestao } from "@/components/trilhas/QuizQuestao";
 import { ErroApi, api } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
-import type { DetalheEditorial, ItemEditorial } from "@/lib/types";
+import type {
+  Aula,
+  DetalheEditorial,
+  ExercicioEditorial,
+  ExercicioResumo,
+  ItemEditorial,
+} from "@/lib/types";
 
 const BOTAO =
   "cursor-pointer border-2 border-brand-light bg-brand-deep px-4 py-2 font-label text-[11px] tracking-[2px] text-ink uppercase transition duration-150 hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-60";
@@ -165,15 +175,7 @@ function Corpo({ detalhe }: { detalhe: DetalheEditorial }) {
         <span className={`text-ink-muted ${TIPO.etiqueta}`}>
           {`${detalhe.trilha_nome} / ${detalhe.aula_titulo} · ${detalhe.dificuldade_label}`.toUpperCase()}
         </span>
-        <p className={TEXTO}>{detalhe.enunciado}</p>
-        {detalhe.codigo_inicial ? (
-          <pre
-            aria-label="Código inicial"
-            className="m-0 overflow-x-auto border-2 border-edge bg-void p-4 font-terminal text-lg text-ink"
-          >
-            <code>{detalhe.codigo_inicial}</code>
-          </pre>
-        ) : null}
+        <ExercicioPrevia detalhe={detalhe} />
       </div>
     );
   }
@@ -182,7 +184,8 @@ function Corpo({ detalhe }: { detalhe: DetalheEditorial }) {
     return (
       <div className="flex flex-col gap-4">
         <p className={TEXTO}>{detalhe.conteudo}</p>
-        <Filhos rotulo="EXERCÍCIOS" itens={detalhe.exercicios} />
+        <ExerciciosDaAula aula={detalhe} />
+        <BaralhoFlashcards cards={detalhe.flashcards} />
       </div>
     );
   }
@@ -196,29 +199,119 @@ function Corpo({ detalhe }: { detalhe: DetalheEditorial }) {
             {texto}
           </p>
         ))}
-      <Filhos rotulo="AULAS" itens={detalhe.aulas} />
+      {detalhe.aulas.map((aula, i) => (
+        <AulaNaTrilha key={aula.id} numero={i + 1} aula={aula} />
+      ))}
     </div>
   );
 }
 
-function Filhos({
-  rotulo,
-  itens,
-}: {
-  rotulo: string;
-  itens: { id: number; titulo: string }[];
-}) {
-  if (itens.length === 0) return null;
+// A trilha inteira como o revisor a lê: cada aula com texto, cards e exercícios.
+function AulaNaTrilha({ numero, aula }: { numero: number; aula: Aula }) {
   return (
-    <div className="flex flex-col gap-2">
-      <span className={`text-brand-light ${TIPO.etiqueta}`}>{rotulo}</span>
-      <ul className="m-0 flex list-disc flex-col gap-1 pl-6">
-        {itens.map((filho) => (
-          <li key={filho.id} className={`text-ink-body ${TIPO.corpo}`}>
-            {filho.titulo}
+    <section
+      aria-label={`Aula ${numero}: ${aula.titulo}`}
+      className="flex flex-col gap-4 border-2 border-edge-soft border-l-4 border-l-brand bg-panel-deep p-4"
+    >
+      <h3 className={`m-0 text-brand-light ${TIPO.etiqueta}`}>
+        {`AULA ${numero}: ${aula.titulo}`.toUpperCase()}
+      </h3>
+      <PreviaMarkdown markdown={aula.conteudo} />
+      <BaralhoFlashcards cards={aula.flashcards} />
+      <ExerciciosDaAula aula={aula} />
+    </section>
+  );
+}
+
+// Os exercícios como o aluno os vê: a questão já responde ao clique, e o de
+// código abre o editor e executa contra os casos visíveis.
+function ExerciciosDaAula({ aula }: { aula: Aula }) {
+  if (aula.exercicios.length === 0 && aula.questoes.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-3">
+      <span className={`text-brand-light ${TIPO.etiqueta}`}>EXERCÍCIOS</span>
+      <ul className="m-0 flex list-none flex-col gap-3 p-0">
+        {aula.exercicios.map((ex) => (
+          <ExercicioNaPrevia key={`ex-${ex.id}`} exercicio={ex} />
+        ))}
+        {aula.questoes.map((q) => (
+          <li key={`q-${q.id}`}>
+            <QuizQuestao questao={q} />
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+// A lista da aula só traz o resumo: o detalhe vem ao abrir. Fechado por padrão
+// para não subir um editor por exercício nem gastar o balde `editorial`.
+function ExercicioNaPrevia({ exercicio }: { exercicio: ExercicioResumo }) {
+  const [aberto, setAberto] = useState(false);
+  const [detalhe, setDetalhe] = useState<ExercicioEditorial | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!aberto || detalhe !== null) return;
+    let ativo = true;
+    api
+      .detalheEditorial("exercicios", exercicio.id)
+      .then((d) => {
+        if (ativo && "enunciado" in d) setDetalhe(d);
+      })
+      .catch(() => {
+        if (ativo) setErro("Não foi possível abrir o exercício.");
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [aberto, detalhe, exercicio.id]);
+
+  return (
+    <li className="flex flex-col gap-4 border-2 border-edge bg-panel-deep p-4">
+      <button
+        type="button"
+        aria-expanded={aberto}
+        onClick={() => {
+          setAberto((a) => !a);
+          setErro(null);
+        }}
+        className="flex min-h-11 w-full cursor-pointer items-center gap-3 text-left text-ink-body transition-colors duration-150 hover:text-ink"
+      >
+        <span className={`text-brand-light ${TIPO.etiqueta}`}>
+          {exercicio.tipo === "CODIGO" ? "CÓDIGO" : "TEÓRICO"}
+        </span>
+        <span className={`min-w-0 flex-1 ${TIPO.corpo}`}>{exercicio.titulo}</span>
+        <span aria-hidden="true" className={`text-brand-light ${TIPO.etiqueta}`}>
+          {aberto ? "FECHAR" : "ABRIR"}
+        </span>
+      </button>
+      {!aberto ? null : erro ? (
+        <p role="alert" className={`m-0 text-danger ${TIPO.corpo}`}>
+          {erro}
+        </p>
+      ) : detalhe === null ? (
+        <p className={`m-0 text-brand-light ${TIPO.etiqueta}`}>&gt; CARREGANDO...</p>
+      ) : (
+        <ExercicioPrevia detalhe={detalhe} />
+      )}
+    </li>
+  );
+}
+
+// Teórico é só o enunciado; o de código traz o mesmo painel do aluno, sem ENVIAR.
+function ExercicioPrevia({ detalhe }: { detalhe: ExercicioEditorial }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <p className={TEXTO}>{detalhe.enunciado}</p>
+      {detalhe.especificacao ? (
+        <PainelDeCodigo
+          trilhaSlug={detalhe.trilha_slug}
+          exercicioSlug={detalhe.slug}
+          especificacao={detalhe.especificacao}
+          previa
+        />
+      ) : null}
     </div>
   );
 }

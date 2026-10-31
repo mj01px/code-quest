@@ -60,6 +60,15 @@ code-quest/
 
 ---
 
+## Arquitetura
+
+Aplicação desacoplada Cliente-Servidor, comunicando-se via API REST.
+
+- **Backend (Django + DRF):** Segue o padrão MVC (Model-View-Controller) adaptado pelo Django (MVT). Models representam o banco; Views do DRF atuam como Controllers; Serializers atuam como ViewModels.
+- **Frontend (Next.js + React):** Baseado em Componentes. Utiliza App Router com Server Components e Client Components, consumindo a API REST do backend.
+
+---
+
 ## `~/recursos`
 
 <table>
@@ -528,8 +537,8 @@ DigitalOcean Droplet
 ## `~/testes`
 
 ```bash
-cd backend && pytest                 # 650 testes, mais 504 subtests
-cd frontend && npm test              # 281 testes (Jest + React Testing Library)
+cd backend && pytest                 # 1140 testes, mais 869 subtests
+cd frontend && npm test              # 435 testes (Jest + React Testing Library)
 ```
 
 A suíte do backend cobre a API de conteúdo, o fluxo editorial, a tabela de RBAC, os

@@ -16,7 +16,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 
 from apps.auditoria.services import AcaoAuditoria, registrar
-from apps.core.permissions import IsAdmin
+from apps.core.permissions import HasPerm, IsAdmin
 
 from .lgpd import anonimizar_conta
 from .mfa import mfa_ativo, verificar_codigo
@@ -25,8 +25,10 @@ from .serializers_rbac import (
     AtribuirNivelSerializer,
     NivelDeAcessoSerializer,
     PermissaoSerializer,
+    SituacaoContaSerializer,
     UsuarioAdminSerializer,
 )
+from .views import _encerrar_sessoes
 
 
 def _niveis_com_contagem():
@@ -283,6 +285,52 @@ class UsuarioNivelView(generics.GenericAPIView):
                 nivel_novo=_ref_nivel(novo_nivel),
             )
         usuario.invalidar_cache_permissoes()
+
+        return Response(
+            UsuarioAdminSerializer(usuario).data, status=status.HTTP_200_OK
+        )
+
+
+@extend_schema(tags=["admin"], responses=UsuarioAdminSerializer)
+class UsuarioSituacaoView(generics.GenericAPIView):
+    """Suspende (`ativo: false`) ou reativa (`ativo: true`) uma conta (RF34).
+
+    Conta suspensa não autentica e perde as sessões abertas na hora.
+    """
+
+    permission_classes = [IsAdmin, HasPerm("usuarios.suspend")]
+    serializer_class = SituacaoContaSerializer
+    queryset = User.objects.select_related("nivel_de_acesso")
+
+    def patch(self, request, *args, **kwargs):
+        usuario = self.get_object()
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        ativo = serializer.validated_data["ativo"]
+
+        # Mesmas travas da exclusão: ninguém se tranca fora nem tranca a equipe.
+        if usuario.pk == request.user.pk:
+            _recusar("Você não pode suspender a própria conta.", "auto_suspensao")
+        if usuario.nivel_de_acesso_id and usuario.nivel_de_acesso.acesso_admin:
+            _recusar(
+                "Administradores não podem ser suspensos. Rebaixe o nível antes.",
+                "alvo_admin",
+            )
+        # Conta anonimizada também é inativa, mas reativá-la não devolve o titular.
+        if usuario.is_anonymized:
+            _recusar("Conta anonimizada não pode ser reativada.", "conta_anonimizada")
+
+        if usuario.is_active != ativo:
+            with transaction.atomic():
+                usuario.is_active = ativo
+                usuario.save(update_fields=["is_active", "updated_at"])
+                if not ativo:
+                    _encerrar_sessoes(usuario)
+                registrar(
+                    AcaoAuditoria.CONTA_REATIVADA if ativo else AcaoAuditoria.CONTA_SUSPENSA,
+                    request=request,
+                    alvo=usuario,
+                )
 
         return Response(
             UsuarioAdminSerializer(usuario).data, status=status.HTTP_200_OK

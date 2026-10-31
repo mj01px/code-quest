@@ -37,6 +37,8 @@ export function aula(extra: Partial<Aula> = {}): Aula {
     ordem: 1,
     pre_requisito: null,
     exercicios: [exercicioResumo()],
+    flashcards: [],
+    questoes: [],
     ...extra,
   };
 }
@@ -80,6 +82,7 @@ export function trilhaDetalhe(
     sobre: "Programar é quebrar um problema em passos pequenos.",
     ordem: 1,
     aulas: [aula()],
+    criado_por: null,
     ...extra,
   };
 }
@@ -179,6 +182,7 @@ export function usuario(extra: Partial<Usuario> = {}): Usuario {
     is_admin: false,
     nivel_id: null,
     criado_em: "2026-09-01T12:00:00Z",
+    solicitacao_pendente: false,
     ...extra,
   };
 }

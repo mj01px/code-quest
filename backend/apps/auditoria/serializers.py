@@ -7,6 +7,8 @@ class RegistroDeAuditoriaSerializer(serializers.ModelSerializer):
     actor_nickname = serializers.CharField(
         source="actor.nickname", read_only=True, default=None
     )
+    acao_rotulo = serializers.CharField(source="get_acao_display", read_only=True)
+    detalhes = serializers.CharField(read_only=True)
 
     class Meta:
         model = RegistroDeAuditoria
@@ -14,6 +16,8 @@ class RegistroDeAuditoriaSerializer(serializers.ModelSerializer):
             "id",
             "created_at",
             "acao",
+            "acao_rotulo",
+            "detalhes",
             "actor",
             "actor_nickname",
             "actor_email_snapshot",

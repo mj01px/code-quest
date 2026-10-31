@@ -1,12 +1,27 @@
 from django.urls import path, re_path
 
 from .views import (
+    AprovadosView,
+    AprovarSolicitacaoView,
     AprovarView,
+    CriarAulaView,
+    CriarExercicioView,
+    CriarFlashcardView,
+    CriarQuestaoView,
+    CriarTrilhaView,
     DetalheEditorialView,
     DevolverView,
     FilaRevisaoView,
+    FlashcardView,
+    MeusEnviosView,
+    MinhaSolicitacaoView,
     PublicarView,
+    QuestaoView,
     RascunhosView,
+    RascunhoView,
+    RejeitarSolicitacaoView,
+    SolicitacoesPendentesView,
+    SolicitacoesView,
     SolucaoAutorView,
     SubmeterRevisaoView,
 )
@@ -21,8 +36,38 @@ app_name = "autoria"
 CONTEUDO = r"^autoria/(?P<tipo>trilhas|aulas|exercicios)/(?P<pk>[0-9]+)"
 
 urlpatterns = [
+    path("autoria/solicitacoes/", SolicitacoesView.as_view(), name="solicitacoes"),
+    path(
+        "autoria/solicitacoes/minha/",
+        MinhaSolicitacaoView.as_view(),
+        name="minha-solicitacao",
+    ),
+    path(
+        "admin/solicitacoes/",
+        SolicitacoesPendentesView.as_view(),
+        name="admin-solicitacoes",
+    ),
+    path(
+        "admin/solicitacoes/<int:pk>/aprovar/",
+        AprovarSolicitacaoView.as_view(),
+        name="admin-solicitacao-aprovar",
+    ),
+    path(
+        "admin/solicitacoes/<int:pk>/rejeitar/",
+        RejeitarSolicitacaoView.as_view(),
+        name="admin-solicitacao-rejeitar",
+    ),
+    path("autoria/trilhas/", CriarTrilhaView.as_view(), name="criar-trilha"),
+    path("autoria/aulas/", CriarAulaView.as_view(), name="criar-aula"),
+    path("autoria/exercicios/", CriarExercicioView.as_view(), name="criar-exercicio"),
+    path("autoria/flashcards/", CriarFlashcardView.as_view(), name="criar-flashcard"),
+    path("autoria/flashcards/<int:pk>/", FlashcardView.as_view(), name="flashcard"),
+    path("autoria/questoes/", CriarQuestaoView.as_view(), name="criar-questao"),
+    path("autoria/questoes/<int:pk>/", QuestaoView.as_view(), name="questao"),
     path("autoria/rascunhos/", RascunhosView.as_view(), name="rascunhos"),
+    path("autoria/aprovados/", AprovadosView.as_view(), name="aprovados"),
     path("autoria/fila-revisao/", FilaRevisaoView.as_view(), name="fila-revisao"),
+    path("autoria/meus-envios/", MeusEnviosView.as_view(), name="meus-envios"),
     path(
         "autoria/exercicios/<slug:trilha_slug>/<slug:exercicio_slug>/solucao/",
         SolucaoAutorView.as_view(),
@@ -35,4 +80,6 @@ urlpatterns = [
     re_path(rf"{CONTEUDO}/devolver/$", DevolverView.as_view(), name="devolver"),
     re_path(rf"{CONTEUDO}/publicar/$", PublicarView.as_view(), name="publicar"),
     re_path(rf"{CONTEUDO}/detalhe/$", DetalheEditorialView.as_view(), name="detalhe"),
+    # PUT edita e DELETE exclui, os dois só em rascunho.
+    re_path(rf"{CONTEUDO}/$", RascunhoView.as_view(), name="rascunho"),
 ]

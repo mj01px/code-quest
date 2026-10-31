@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { SeloBonusXp } from "@/components/gamificacao/SeloBonusXp";
 import { AreaDeResolucao } from "@/components/exercicio/AreaDeResolucao";
+import { BotaoSolucao } from "@/components/exercicio/BotaoSolucao";
 import { BotaoProximoExercicio } from "@/components/trilhas/BotaoProximoExercicio";
 import { Badge, BadgeDificuldade } from "@/components/ui/Badge";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
@@ -116,6 +117,13 @@ export default async function ExercicioPage({
       </article>
 
       <AreaDeResolucao
+        trilhaSlug={exercicio.trilha_slug}
+        exercicioSlug={exercicio.slug}
+        tipo={exercicio.tipo}
+        alternativas={exercicio.alternativas}
+      />
+
+      <BotaoSolucao
         trilhaSlug={exercicio.trilha_slug}
         exercicioSlug={exercicio.slug}
       />

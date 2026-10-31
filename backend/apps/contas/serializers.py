@@ -8,6 +8,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from apps.auditoria.services import AcaoAuditoria, registrar
+from apps.autoria.models import SolicitacaoAutoria
 
 from .documentos import VERSAO_MAX_LENGTH, Documento, versao_vigente
 from .exclusao import ler_token as ler_token_exclusao
@@ -79,6 +80,8 @@ class UsuarioSerializer(serializers.ModelSerializer):
         source="nivel_de_acesso_id", read_only=True, allow_null=True
     )
     criado_em = serializers.DateTimeField(source="created_at", read_only=True)
+    # Pedido de autoria em análise: a barra lateral esconde o "SER AUTOR".
+    solicitacao_pendente = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -92,11 +95,17 @@ class UsuarioSerializer(serializers.ModelSerializer):
             "is_admin",
             "nivel_id",
             "criado_em",
+            "solicitacao_pendente",
         )
         read_only_fields = ("id", "email")
 
     def get_permissoes(self, obj) -> list[str]:
         return sorted(obj.get_role_permissions())
+
+    def get_solicitacao_pendente(self, obj) -> bool:
+        return obj.solicitacoes_autoria.filter(
+            status=SolicitacaoAutoria.Status.PENDENTE
+        ).exists()
 
     def validate_nickname(self, valor):
         existente = User.objects.filter(nickname__iexact=valor)
@@ -259,7 +268,12 @@ class LoginSerializer(TokenObtainPairSerializer):
                 CREDENCIAL_INVALIDA, "credencial_invalida"
             ) from None
 
-        self.user.registrar_login_valido()
+        # Com 2FA ativo, quem zera o contador é o 2º passo (LoginMfaView), depois
+        # do código certo. Zerar aqui deixaria quem tem a senha errar o código,
+        # refazer o passo 1 e nunca chegar ao bloqueio.
+        com_mfa = mfa_ativo(self.user) is not None
+        if not com_mfa:
+            self.user.registrar_login_valido()
 
         if not self.user.email_verificado:
             registrar(
@@ -280,7 +294,7 @@ class LoginSerializer(TokenObtainPairSerializer):
 
         # Com 2FA ativo o login só se completa no 2º passo (LoginMfaView), que
         # é quem registra o LOGIN_OK. Aqui a senha apenas passou.
-        if mfa_ativo(self.user) is None:
+        if not com_mfa:
             registrar(AcaoAuditoria.LOGIN_OK, request=request, actor=self.user)
 
         dados["usuario"] = UsuarioSerializer(self.user).data

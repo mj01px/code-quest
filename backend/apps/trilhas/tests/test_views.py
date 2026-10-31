@@ -109,7 +109,8 @@ class DetalheDaTrilhaTest(TestCase):
         self.assertNotIn("SEGREDO", self.client.get(self.url).content.decode())
 
     def test_numero_de_queries_nao_cresce_com_o_conteudo(self):
-        with self.assertNumQueries(3):
+        # Trilha, aulas, exercícios, flashcards e questões: uma consulta cada.
+        with self.assertNumQueries(5):
             self.client.get(self.url)
 
 

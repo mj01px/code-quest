@@ -198,6 +198,10 @@ class RenovarView(TokenRefreshView):
             serializer.is_valid(raise_exception=True)
         except TokenError as exc:
             raise InvalidToken(exc.args[0]) from exc
+        except User.DoesNotExist as exc:
+            # O simplejwt busca o dono do token com `.get()` sem tratar a
+            # ausência: conta apagada depois do login viraria 500, não 401.
+            raise InvalidToken("Sessão inválida. Entre de novo.") from exc
 
         dados = serializer.validated_data
         resposta = Response(status=status.HTTP_204_NO_CONTENT)

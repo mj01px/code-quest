@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { BarraSegmentada } from "@/components/ui/BarraSegmentada";
 import { duracaoEmHoras } from "@/lib/derivados";
@@ -18,10 +19,14 @@ export function TrilhaCard({
   // Iniciada sem fase concluída é um estado real: zero por cento, mas dentro.
   // Não dá para deduzir isso do progresso, porque ali também é zero.
   iniciada = false,
+  // Botão ao lado do card (a lixeira da moderação): fora do link, que não
+  // pode conter outro elemento interativo.
+  acao = null,
 }: {
   trilha: TrilhaResumo;
   progresso?: number | null;
   iniciada?: boolean;
+  acao?: ReactNode;
 }) {
   const valor = progresso ?? 0;
   const horas = duracaoEmHoras(trilha.total_exercicios);
@@ -55,10 +60,10 @@ export function TrilhaCard({
           : "text-ink-muted";
 
   return (
-    <li>
+    <li className="flex items-center gap-3">
       <Link
         href={`/trilhas/${trilha.slug}`}
-        className="group flex cursor-pointer items-center gap-4 border-2 border-edge bg-panel p-4 shadow-pixel transition duration-150 hover:translate-x-0.5 hover:translate-y-0.5 hover:border-brand hover:shadow-pixel-sm sm:gap-5 sm:p-5"
+        className="group flex min-w-0 flex-1 cursor-pointer items-center gap-4 border-2 border-edge bg-panel p-4 shadow-pixel transition duration-150 hover:translate-x-0.5 hover:translate-y-0.5 hover:border-brand hover:shadow-pixel-sm sm:gap-5 sm:p-5"
       >
         <span
           aria-hidden="true"
@@ -101,6 +106,7 @@ export function TrilhaCard({
           </span>
         </span>
       </Link>
+      {acao}
     </li>
   );
 }

@@ -1,4 +1,5 @@
 import type {
+  Alternativa,
   AtividadeItem,
   Bandeira,
   BonusXp,
@@ -9,26 +10,40 @@ import type {
   ConviteGerado,
   Correcao,
   Criatura,
-  Dashboard,
   DashboardAdmin,
   DetalheEditorial,
+  Dificuldade,
   DocumentosLegais,
+  EdicaoRascunho,
   EspecificacaoDeCodigo,
   Evolucao,
   ExercicioConcluido,
   ExercicioDetalhe,
+  FiltrosAuditoria,
+  Flashcard,
   ItemEditorial,
+  MeusEnvios,
   MembroDoCla,
   MeuCla,
   MinhaCriatura,
   NivelDeAcesso,
+  NovaAula,
+  NovaTrilha,
+  NovoCaso,
+  NovoExercicio,
   Pagina,
+  PaginaAuditoria,
   PermissaoCatalogo,
   PreviaConvite,
   ProgressoAtual,
+  Questao,
   RankingMensal,
   RespostaConclusao,
+  RespostaAlternativa,
+  RespostaFlashcard,
   Sequencia,
+  SolicitacaoAdmin,
+  SolicitacaoAutoria,
   TipoConteudo,
   TipoDeCla,
   TransicaoEditorial,
@@ -523,6 +538,33 @@ export const api = {
     );
   },
 
+  // RF34: suspende (false) ou reativa (true).
+  adminSituacaoUsuario(usuarioId: string, ativo: boolean) {
+    return requisicao<UsuarioAdmin>(
+      `/auth/admin/usuarios/${usuarioId}/situacao/`,
+      { metodo: "PATCH", corpo: { ativo }, autenticado: true },
+    );
+  },
+
+  // RF33: consulta completa, paginada (50 por página) e filtrada.
+  auditoria(filtros: FiltrosAuditoria = {}) {
+    const q = new URLSearchParams();
+    for (const [chave, valor] of Object.entries(filtros)) {
+      if (valor) q.set(chave, String(valor));
+    }
+    return requisicao<PaginaAuditoria>(`/auditoria/?${q}`, {
+      autenticado: true,
+    });
+  },
+
+  // RF16: só quem tem trilhas.view_solution; aluno recebe 403.
+  solucaoReferencia(trilhaSlug: string, exercicioSlug: string) {
+    return requisicao<{ solucao_autor: string; status_editorial: string }>(
+      `/autoria/exercicios/${trilhaSlug}/${exercicioSlug}/solucao/`,
+      { autenticado: true },
+    );
+  },
+
   eu() {
     return requisicao<Usuario>("/auth/eu/", { autenticado: true });
   },
@@ -654,10 +696,6 @@ export const api = {
     return requisicao<Sequencia>("/eu/sequencia/", { autenticado: true });
   },
 
-  meuDashboard() {
-    return requisicao<Dashboard>("/eu/dashboard/", { autenticado: true });
-  },
-
   // Marca a trilha como iniciada. Idempotente no servidor: clicar duas vezes
   // devolve 200 em vez de 201, e o corpo e o mesmo.
   iniciarTrilha(trilhaSlug: string) {
@@ -717,6 +755,28 @@ export const api = {
       corpo: codigo === undefined ? undefined : { codigo },
       autenticado: true,
     });
+  },
+
+  concluirAlternativa(
+    trilhaSlug: string,
+    exercicioSlug: string,
+    alternativaId: number,
+  ) {
+    return requisicao<RespostaAlternativa>(
+      `/exercicios/${encodeURIComponent(trilhaSlug)}/${encodeURIComponent(exercicioSlug)}/concluir/`,
+      {
+        metodo: "POST",
+        corpo: { alternativa_id: alternativaId },
+        autenticado: true,
+      },
+    );
+  },
+
+  revelarFlashcard(trilhaSlug: string, exercicioSlug: string) {
+    return requisicao<RespostaFlashcard>(
+      `/exercicios/${encodeURIComponent(trilhaSlug)}/${encodeURIComponent(exercicioSlug)}/concluir/`,
+      { metodo: "POST", corpo: { revelar: true }, autenticado: true },
+    );
   },
 
   listarClas(params: { busca?: string; pagina?: number } = {}) {
@@ -863,6 +923,20 @@ export const api = {
     });
   },
 
+  // Só os do próprio autor (o admin vê todos), esperando o "publicar".
+  autoriaAprovados() {
+    return requisicao<ItemEditorial[]>("/autoria/aprovados/", {
+      autenticado: true,
+    });
+  },
+
+  // O retorno da revisão para o próprio autor: em revisão, devolvidos e excluídos.
+  autoriaMeusEnvios() {
+    return requisicao<MeusEnvios>("/autoria/meus-envios/", {
+      autenticado: true,
+    });
+  },
+
   // Qualquer status: é a leitura antes de submeter, aprovar ou devolver.
   detalheEditorial(tipo: TipoConteudo, id: number) {
     return requisicao<DetalheEditorial>(`/autoria/${tipo}/${id}/detalhe/`, {
@@ -884,9 +958,168 @@ export const api = {
     });
   },
 
-  devolverConteudo(tipo: TipoConteudo, id: number) {
+  // O parecer é obrigatório no backend: é o que o autor lê no rascunho.
+  devolverConteudo(tipo: TipoConteudo, id: number, parecer: string) {
     return requisicao<TransicaoEditorial>(`/autoria/${tipo}/${id}/devolver/`, {
       metodo: "POST",
+      corpo: { parecer },
+      autenticado: true,
+    });
+  },
+
+  // O autor publica o que criou depois de aprovado; o admin publica qualquer um.
+  publicarConteudo(tipo: TipoConteudo, id: number) {
+    return requisicao<TransicaoEditorial>(`/autoria/${tipo}/${id}/publicar/`, {
+      metodo: "POST",
+      autenticado: true,
+    });
+  },
+
+  // Edição e exclusão valem só para rascunho do próprio autor (ou admin).
+  editarRascunho(tipo: TipoConteudo, id: number, dados: EdicaoRascunho) {
+    return requisicao<unknown>(`/autoria/${tipo}/${id}/`, {
+      metodo: "PUT",
+      corpo: dados,
+      autenticado: true,
+    });
+  },
+
+  // `motivo` só conta ao excluir publicado (moderação), e lá é obrigatório.
+  excluirRascunho(tipo: TipoConteudo, id: number, motivo?: string) {
+    return requisicao<null>(`/autoria/${tipo}/${id}/`, {
+      metodo: "DELETE",
+      ...(motivo === undefined ? {} : { corpo: { motivo } }),
+      autenticado: true,
+    });
+  },
+
+  criarFlashcard(dados: { aula: number; pergunta: string; resposta: string }) {
+    return requisicao<Flashcard>("/autoria/flashcards/", {
+      metodo: "POST",
+      corpo: dados,
+      autenticado: true,
+    });
+  },
+
+  editarFlashcard(id: number, dados: { pergunta: string; resposta: string }) {
+    return requisicao<Flashcard>(`/autoria/flashcards/${id}/`, {
+      metodo: "PUT",
+      corpo: dados,
+      autenticado: true,
+    });
+  },
+
+  excluirFlashcard(id: number) {
+    return requisicao<null>(`/autoria/flashcards/${id}/`, {
+      metodo: "DELETE",
+      autenticado: true,
+    });
+  },
+
+  criarQuestao(dados: {
+    aula: number;
+    enunciado: string;
+    opcoes: string[];
+    resposta_correta: Alternativa;
+  }) {
+    return requisicao<Questao>("/autoria/questoes/", {
+      metodo: "POST",
+      corpo: dados,
+      autenticado: true,
+    });
+  },
+
+  editarQuestao(id: number, dados: Omit<Questao, "id">) {
+    return requisicao<Questao>(`/autoria/questoes/${id}/`, {
+      metodo: "PUT",
+      corpo: dados,
+      autenticado: true,
+    });
+  },
+
+  excluirQuestao(id: number) {
+    return requisicao<null>(`/autoria/questoes/${id}/`, {
+      metodo: "DELETE",
+      autenticado: true,
+    });
+  },
+
+  // --- Solicitação de autoria ---
+  solicitarAutoria(dados: {
+    areas: number[];
+    carta_apresentacao: string;
+    portfolio_link: string;
+    aceite_diretrizes: boolean;
+  }) {
+    return requisicao<SolicitacaoAutoria>("/autoria/solicitacoes/", {
+      metodo: "POST",
+      corpo: dados,
+      autenticado: true,
+    });
+  },
+
+  // 404 quando o usuário nunca pediu.
+  minhaSolicitacao() {
+    return requisicao<SolicitacaoAutoria>("/autoria/solicitacoes/minha/", {
+      autenticado: true,
+    });
+  },
+
+  adminSolicitacoes() {
+    return requisicao<SolicitacaoAdmin[]>("/admin/solicitacoes/", {
+      autenticado: true,
+    });
+  },
+
+  aprovarSolicitacao(id: number) {
+    return requisicao<SolicitacaoAdmin>(`/admin/solicitacoes/${id}/aprovar/`, {
+      metodo: "POST",
+      autenticado: true,
+    });
+  },
+
+  rejeitarSolicitacao(id: number, motivo: string) {
+    return requisicao<SolicitacaoAdmin>(`/admin/solicitacoes/${id}/rejeitar/`, {
+      metodo: "POST",
+      corpo: { motivo },
+      autenticado: true,
+    });
+  },
+
+  // --- Criação de conteúdo ---
+  criarTrilha(dados: {
+    nome: string;
+    descricao: string;
+    dificuldade: Dificuldade;
+    criatura_bonus?: string;
+  }) {
+    return requisicao<NovaTrilha>("/autoria/trilhas/", {
+      metodo: "POST",
+      corpo: dados,
+      autenticado: true,
+    });
+  },
+
+  criarAula(dados: { trilha: number; titulo: string; conteudo: string }) {
+    return requisicao<NovaAula>("/autoria/aulas/", {
+      metodo: "POST",
+      corpo: dados,
+      autenticado: true,
+    });
+  },
+
+  // O editor só cria exercícios teóricos.
+  // Com `funcao` e `testes`, o backend cria o exercício como de código.
+  criarExercicio(dados: {
+    aula: number;
+    titulo: string;
+    enunciado: string;
+    funcao?: string;
+    testes?: NovoCaso[];
+  }) {
+    return requisicao<NovoExercicio>("/autoria/exercicios/", {
+      metodo: "POST",
+      corpo: dados,
       autenticado: true,
     });
   },

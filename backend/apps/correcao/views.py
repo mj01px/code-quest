@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
@@ -9,7 +10,7 @@ from rest_framework.views import APIView
 
 from apps.core.auth import usuario_atual
 from apps.core.permissions import HasPerm
-from apps.trilhas.models import Exercicio
+from apps.trilhas.models import Exercicio, StatusEditorial
 
 from .excecoes import CorretorIndisponivel
 from .judge0 import Judge0Error
@@ -40,12 +41,16 @@ def codigo_enviado(request: Request) -> object:
     return dados.get("codigo") if isinstance(dados, dict) else None
 
 
-def _exercicio(trilha_slug: str, exercicio_slug: str) -> Exercicio:
-    return get_object_or_404(
-        Exercicio.objects.publicados(),
-        trilha__slug=trilha_slug,
-        slug=exercicio_slug,
-    )
+def _exercicio(request: Request, trilha_slug: str, exercicio_slug: str) -> Exercicio:
+    # O não publicado só abre para quem o testa na prévia editorial: o autor
+    # dele, quem revisa e o admin. Para o resto, 404 como se não existisse.
+    usuario = usuario_atual(request)
+    visiveis = Exercicio.objects.all()
+    if not (usuario.is_platform_admin or usuario.has_perm("trilhas.review")):
+        visiveis = visiveis.filter(
+            Q(status=StatusEditorial.PUBLICADO) | Q(autor=usuario)
+        )
+    return get_object_or_404(visiveis, trilha__slug=trilha_slug, slug=exercicio_slug)
 
 
 @extend_schema(tags=["correcao"], responses=EspecificacaoSerializer)
@@ -55,7 +60,9 @@ class EspecificacaoView(APIView):
     throttle_scope = "eu_progresso"
 
     def get(self, request: Request, trilha_slug: str, exercicio_slug: str) -> Response:
-        especificacao = especificacao_de(_exercicio(trilha_slug, exercicio_slug))
+        especificacao = especificacao_de(
+            _exercicio(request, trilha_slug, exercicio_slug)
+        )
         if especificacao is None:
             raise Http404
         return Response(
@@ -73,7 +80,7 @@ class ExecutarCodigoView(APIView):
     def post(
         self, request: Request, trilha_slug: str, exercicio_slug: str
     ) -> Response:
-        exercicio = _exercicio(trilha_slug, exercicio_slug)
+        exercicio = _exercicio(request, trilha_slug, exercicio_slug)
         try:
             correcao = executar_codigo(
                 user=usuario_atual(request),
