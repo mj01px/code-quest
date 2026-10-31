@@ -6,16 +6,19 @@ import { api } from "@/lib/api";
 export function FilaRevisao({
   aoDevolver,
   aoAprovar,
+  aoContar,
 }: {
   aoDevolver?: () => void;
   /** O aprovado vai para "Prontos para publicar": o painel recarrega a lista. */
   aoAprovar?: () => void;
+  /** Total da lista, para o resumo do painel. */
+  aoContar?: (total: number) => void;
 }) {
   return (
     <ListaEditorial
-      titulo="Fila de revisão"
-      vazio="Nada esperando revisão."
+      titulo="Revisão de conteúdo"
       status="REVISAO"
+      aoContar={aoContar}
       carregar={api.autoriaFilaRevisao}
       acoes={[
         { rotulo: "Aprovar", executar: api.aprovarConteudo, depois: aoAprovar },

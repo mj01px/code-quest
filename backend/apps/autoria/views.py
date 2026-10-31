@@ -41,6 +41,7 @@ from .serializers import (
     EdicaoQuestaoSerializer,
     ExercicioEditorialSerializer,
     ItemEditorialSerializer,
+    MeusEnviosSerializer,
     MotivoExclusaoSerializer,
     NovaAulaSerializer,
     NovaQuestaoSerializer,
@@ -61,6 +62,7 @@ from .services import (
     decidir_solicitacao,
     eh_dono_ou_admin,
     excluir_rascunho,
+    exclusoes_sofridas,
     exercicios_para_autoria,
     itens_no_status,
     rascunho_editavel,
@@ -217,6 +219,29 @@ class AprovadosView(FilaEditorialView):
 class FilaRevisaoView(FilaEditorialView):
     status_listado = StatusEditorial.REVISAO
     permission_classes = [IsAuthenticated, HasPerm("trilhas.review")]
+
+
+# O retorno da revisão, sempre do próprio usuário (o admin também vê só o
+# dele). Devolvido é o rascunho com parecer: a tela o tira da lista de
+# rascunhos e o mostra aqui, até ser reenviado.
+@extend_schema(tags=["autoria"], responses=MeusEnviosSerializer)
+class MeusEnviosView(APIView):
+    permission_classes = [IsAuthenticated, HasPerm("trilhas.submit_review")]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = ESCOPO_EDITORIAL
+
+    def get(self, request: Request) -> Response:
+        usuario = cast(User, request.user)
+        # Só trilhas, como em RascunhosView: é o que o autor envia e corrige.
+        rascunhos = anexar_pareceres(
+            itens_no_status(StatusEditorial.RASCUNHO, usuario, ("trilhas",))
+        )
+        envios = {
+            "em_revisao": itens_no_status(StatusEditorial.REVISAO, usuario),
+            "devolvidos": [i for i in rascunhos if i["parecer"]],
+            "excluidos": exclusoes_sofridas(usuario),
+        }
+        return Response(MeusEnviosSerializer(envios).data)
 
 
 # Serializer e consulta por tipo, sem filtro de status: ler o rascunho antes de

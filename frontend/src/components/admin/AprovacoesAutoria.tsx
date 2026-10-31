@@ -69,8 +69,8 @@ export function AprovacoesAutoria() {
   }
 
   return (
-    <section aria-label="Solicitações de autoria" className="flex flex-col gap-4">
-      <h2 className={`m-0 text-ink ${TIPO.tituloSecao}`}>Solicitações de autoria</h2>
+    <section aria-label="Solicitações de Acesso à Autoria" className="flex flex-col gap-4">
+      <h2 className={`m-0 text-ink ${TIPO.tituloSecao}`}>Solicitações de Acesso à Autoria</h2>
 
       {erro ? (
         <p role="alert" className={`m-0 text-danger ${TIPO.corpo}`}>

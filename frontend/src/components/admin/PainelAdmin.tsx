@@ -66,7 +66,7 @@ export function PainelAdmin() {
           [
             ["usuarios", "USUÁRIOS"],
             ["niveis", "NÍVEIS DE ACESSO"],
-            ["aprovacoes", "APROVAÇÕES"],
+            ["aprovacoes", "SOLICITAÇÕES DE AUTOR"],
             ["dashboard", "DASHBOARD"],
           ] as [Aba, string][]
         ).map(([chave, rotulo]) => (

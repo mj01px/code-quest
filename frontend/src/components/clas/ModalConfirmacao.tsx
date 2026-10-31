@@ -13,13 +13,14 @@ const CONFIRMAR_PERIGO =
 interface Props {
   rotulo?: string;
   titulo: string;
-  textoConfirmar: string;
+  /** Sem `onConfirmar`, o modal não tem rodapé: o conteúdo traz o próprio envio. */
+  textoConfirmar?: string;
   perigo?: boolean;
   carregando?: boolean;
   // Para quando a confirmação depende de um campo do próprio modal.
   confirmarDesabilitado?: boolean;
   erro?: string | null;
-  onConfirmar: () => void;
+  onConfirmar?: () => void;
   onFechar: () => void;
   children: ReactNode;
 }
@@ -143,24 +144,26 @@ export function ModalConfirmacao({
           </p>
         ) : null}
 
-        <div className="flex flex-wrap justify-end gap-4">
-          <button
-            type="button"
-            onClick={onFechar}
-            disabled={carregando}
-            className={BTN_SECUNDARIO}
-          >
-            CANCELAR
-          </button>
-          <button
-            type="button"
-            onClick={onConfirmar}
-            disabled={carregando || confirmarDesabilitado}
-            className={perigo ? CONFIRMAR_PERIGO : CONFIRMAR_NEUTRO}
-          >
-            {carregando ? "..." : textoConfirmar}
-          </button>
-        </div>
+        {onConfirmar ? (
+          <div className="flex flex-wrap justify-end gap-4">
+            <button
+              type="button"
+              onClick={onFechar}
+              disabled={carregando}
+              className={BTN_SECUNDARIO}
+            >
+              CANCELAR
+            </button>
+            <button
+              type="button"
+              onClick={onConfirmar}
+              disabled={carregando || confirmarDesabilitado}
+              className={perigo ? CONFIRMAR_PERIGO : CONFIRMAR_NEUTRO}
+            >
+              {carregando ? "..." : textoConfirmar}
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

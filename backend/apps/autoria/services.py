@@ -2,7 +2,7 @@ from typing import Literal, cast
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Model, Q, QuerySet
+from django.db.models import Exists, Model, OuterRef, Q, QuerySet
 from django.http import Http404
 from django.utils.text import slugify
 from rest_framework.exceptions import PermissionDenied
@@ -293,8 +293,14 @@ def excluir_rascunho(
                 code="filho_avancado",
             )
         # Antes do delete: depois dele o objeto não tem mais pk para o alvo.
+        # Título e motivo ficam para o autor ler em "meus envios".
         registrar(
-            AcaoAuditoria.CONTEUDO_EXCLUIDO, request=request, alvo=conteudo, tipo=tipo
+            AcaoAuditoria.CONTEUDO_EXCLUIDO,
+            request=request,
+            alvo=conteudo,
+            tipo=tipo,
+            titulo=_nome(conteudo),
+            motivo=motivo,
         )
         conteudo.delete()
 
@@ -310,16 +316,58 @@ def _excluir_publicado(
     if not motivo:
         raise ValidationError("Informe o motivo da exclusão.", code="sem_motivo")
     # O nome some com o delete; sem ele o registro não diz o que saiu do ar.
-    nome = conteudo.nome if isinstance(conteudo, Trilha) else conteudo.titulo
     registrar(
         AcaoAuditoria.CONTEUDO_PUBLICADO_EXCLUIDO,
         request=request,
         alvo=conteudo,
         tipo=tipo,
-        titulo=nome,
+        titulo=_nome(conteudo),
         motivo=motivo,
     )
     conteudo.delete()
+
+
+def _nome(conteudo: Conteudo) -> str:
+    return conteudo.nome if isinstance(conteudo, Trilha) else conteudo.titulo
+
+
+EXCLUSOES = (AcaoAuditoria.CONTEUDO_EXCLUIDO, AcaoAuditoria.CONTEUDO_PUBLICADO_EXCLUIDO)
+
+
+def exclusoes_sofridas(autor: User, limite: int = 20) -> list[dict[str, object]]:
+    """Exclusões que outra pessoa fez no que `autor` criou, da mais recente.
+
+    O conteúdo já não existe, então o dono sai do registro de criação do mesmo
+    alvo. Conteúdo sem esse registro (o semeado) não entra. Registro antigo,
+    de antes de a exclusão de rascunho guardar o título, vem com título null.
+    """
+    criado_por_ele = RegistroDeAuditoria.objects.filter(
+        acao=AcaoAuditoria.CONTEUDO_CRIADO,
+        actor=autor,
+        alvo_tipo=OuterRef("alvo_tipo"),
+        alvo_id=OuterRef("alvo_id"),
+    )
+    # ponytail: só as `limite` mais recentes, sem paginação; paginar se o
+    # autor precisar do histórico inteiro.
+    registros = (
+        RegistroDeAuditoria.objects.filter(Exists(criado_por_ele), acao__in=EXCLUSOES)
+        # Apagar o próprio rascunho não é retorno de ninguém. Ator null (conta
+        # apagada) fica: foi outra pessoa.
+        .exclude(actor=autor)
+        # O id é uuid7, crescente no tempo: desempata o mesmo instante.
+        .order_by("-created_at", "-id")
+        .values_list("metadata", "actor__nickname", "created_at")[:limite]
+    )
+    return [
+        {
+            "tipo": metadata.get("tipo"),
+            "titulo": metadata.get("titulo"),
+            "motivo": metadata.get("motivo") or None,
+            "excluido_por": quem,
+            "excluido_em": quando,
+        }
+        for metadata, quem, quando in registros
+    ]
 
 
 def anexar_pareceres(itens: list[dict[str, int | str]]) -> list[dict[str, int | str]]:

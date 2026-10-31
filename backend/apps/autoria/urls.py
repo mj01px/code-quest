@@ -13,6 +13,7 @@ from .views import (
     DevolverView,
     FilaRevisaoView,
     FlashcardView,
+    MeusEnviosView,
     MinhaSolicitacaoView,
     PublicarView,
     QuestaoView,
@@ -66,6 +67,7 @@ urlpatterns = [
     path("autoria/rascunhos/", RascunhosView.as_view(), name="rascunhos"),
     path("autoria/aprovados/", AprovadosView.as_view(), name="aprovados"),
     path("autoria/fila-revisao/", FilaRevisaoView.as_view(), name="fila-revisao"),
+    path("autoria/meus-envios/", MeusEnviosView.as_view(), name="meus-envios"),
     path(
         "autoria/exercicios/<slug:trilha_slug>/<slug:exercicio_slug>/solucao/",
         SolucaoAutorView.as_view(),

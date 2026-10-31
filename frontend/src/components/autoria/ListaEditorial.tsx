@@ -6,12 +6,11 @@ import { useEffect, useState, type ReactNode } from "react";
 import { AreaDeTexto } from "@/components/autoria/AreaDeTexto";
 import { ModalVisualizacao } from "@/components/autoria/ModalVisualizacao";
 import { ModalConfirmacao } from "@/components/clas/ModalConfirmacao";
-import { IconeCheck } from "@/components/ui/Icone";
 import { ErroApi } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
 import type { ItemEditorial, StatusEditorial, TipoConteudo } from "@/lib/types";
 
-const ROTULO_TIPO: Record<TipoConteudo, string> = {
+export const ROTULO_TIPO: Record<TipoConteudo, string> = {
   trilhas: "TRILHA",
   aulas: "AULA",
   exercicios: "EXERCÍCIO",
@@ -20,7 +19,7 @@ const ROTULO_TIPO: Record<TipoConteudo, string> = {
 // Cor de cada status, na borda do card e na moldura da seção que o lista:
 // o autor reconhece a fila de relance, sem ler o título. Classes literais: o
 // Tailwind só gera o que encontra escrito por inteiro no código.
-const COR_STATUS: Record<
+export const COR_STATUS: Record<
   StatusEditorial,
   { secao: string; card: string; selo: string }
 > = {
@@ -61,7 +60,6 @@ export interface AcaoEditorial {
 
 interface Props {
   titulo: string;
-  vazio: string;
   /** Status que a lista mostra: dá a cor da seção e dos cards. */
   status: StatusEditorial;
   /** Referência estável (ex.: `api.autoriaRascunhos`); uma arrow nova a cada render refaz o fetch em laço. */
@@ -71,6 +69,8 @@ interface Props {
   extras?: (item: ItemEditorial) => ReactNode;
   /** Com ele, o título vira link para essa rota em vez de abrir o modal de leitura. */
   hrefDoItem?: (item: ItemEditorial) => string;
+  /** Recebe o total a cada carga e a cada item que sai; o painel monta o resumo com ele. */
+  aoContar?: (total: number) => void;
 }
 
 // O id só é único dentro do tipo: trilha 3 e aula 3 convivem na mesma fila.
@@ -80,19 +80,22 @@ function mensagemDe(erro: unknown, padrao: string): string {
   return erro instanceof ErroApi ? erro.message : padrao;
 }
 
-// Base das duas filas: busca a lista ao montar e tira da tela o item que a
-// ação moveu. Recarregar é com `key` no painel, não com efeito aqui dentro.
+// Base das filas: busca a lista ao montar e tira da tela o item que a ação
+// moveu. Recarregar é com `key` no painel, não com efeito aqui dentro. Vazia,
+// some: o painel mostra o total dela no resumo do topo.
 export function ListaEditorial({
   titulo,
-  vazio,
   status,
   carregar,
   acoes,
   extras,
   hrefDoItem,
+  aoContar,
 }: Props) {
   const [itens, setItens] = useState<ItemEditorial[]>([]);
   const [carregando, setCarregando] = useState(true);
+  // Lista que falhou ao carregar não está vazia: não conta para o resumo.
+  const [carregou, setCarregou] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [aberto, setAberto] = useState<ItemEditorial | null>(null);
@@ -106,7 +109,9 @@ export function ListaEditorial({
     let ativo = true;
     carregar()
       .then((lista) => {
-        if (ativo) setItens(lista);
+        if (!ativo) return;
+        setItens(lista);
+        setCarregou(true);
       })
       .catch((e: unknown) => {
         if (ativo) setErro(mensagemDe(e, "Não foi possível carregar a lista."));
@@ -118,6 +123,11 @@ export function ListaEditorial({
       ativo = false;
     };
   }, [carregar]);
+
+  // Sincroniza com o painel, que é outro componente: não dá para derivar lá.
+  useEffect(() => {
+    if (carregou) aoContar?.(itens.length);
+  }, [carregou, itens, aoContar]);
 
   // Devolve se deu certo: o modal só fecha no sucesso, para o erro aparecer nele.
   async function agir(
@@ -172,6 +182,8 @@ export function ListaEditorial({
 
   const cor = COR_STATUS[status];
 
+  if (carregou && itens.length === 0) return null;
+
   return (
     <section
       aria-label={titulo}
@@ -202,20 +214,8 @@ export function ListaEditorial({
         <p className={`m-0 text-brand-light ${TIPO.etiqueta}`}>
           &gt; CARREGANDO...
         </p>
-      ) : itens.length === 0 ? (
-        // Lista que não carregou não está vazia: o alerta acima já explica.
-        erro ? null : (
-          <div className="flex flex-col items-center gap-3 border-2 border-dashed border-edge-soft px-4 py-8 text-center">
-            <span
-              className={`flex h-12 w-12 items-center justify-center border-2 ${cor.selo}`}
-            >
-              <IconeCheck className="h-6 w-6" />
-            </span>
-            <p className={`m-0 text-ink ${TIPO.etiqueta}`}>TUDO EM DIA!</p>
-            <p className={`m-0 text-ink-muted ${TIPO.corpo}`}>{vazio}</p>
-          </div>
-        )
-      ) : (
+      ) : itens.length === 0 ? null : (
+        // O `null` acima é a carga que falhou: o alerta já explica.
         <ul className="m-0 flex list-none flex-col gap-3 p-0">
           {itens.map((item) => (
             <li
@@ -252,16 +252,6 @@ export function ListaEditorial({
                 {item.criado_por ? (
                   <span className={`mt-1 block break-words text-ink-muted ${TIPO.etiqueta}`}>
                     CRIADO POR: {item.criado_por}
-                  </span>
-                ) : null}
-                {item.status_editorial === "RASCUNHO" && item.parecer ? (
-                  <span
-                    role="note"
-                    aria-label="Motivo da devolução"
-                    className={`mt-2 block border-2 border-danger-deep bg-panel-soft px-3 py-2 text-danger ${TIPO.corpo}`}
-                  >
-                    <span className={`block ${TIPO.etiqueta}`}>DEVOLVIDO PELA REVISÃO</span>
-                    <span className="block whitespace-pre-wrap">{item.parecer}</span>
                   </span>
                 ) : null}
               </span>

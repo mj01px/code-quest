@@ -109,8 +109,26 @@ export interface ItemEditorial {
    * Ausente no item que o editor monta no cliente.
    */
   criado_por?: string | null;
-  /** Só na lista de rascunhos: o motivo da última devolução, se houve. */
+  /** Só nos rascunhos e nos devolvidos: o motivo da última devolução, se houve. */
   parecer?: string | null;
+}
+
+/** O que outra pessoa apagou do que o autor criou. */
+export interface ExclusaoSofrida {
+  tipo: TipoConteudo;
+  /** Null em registro antigo, de antes de a exclusão guardar o título. */
+  titulo: string | null;
+  motivo: string | null;
+  /** Nickname de quem excluiu; null se a conta já não existe. */
+  excluido_por: string | null;
+  excluido_em: string;
+}
+
+export interface MeusEnvios {
+  em_revisao: ItemEditorial[];
+  /** Rascunhos com o parecer da devolução. */
+  devolvidos: ItemEditorial[];
+  excluidos: ExclusaoSofrida[];
 }
 
 export interface TransicaoEditorial {

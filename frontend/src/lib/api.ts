@@ -21,6 +21,7 @@ import type {
   ExercicioDetalhe,
   Flashcard,
   ItemEditorial,
+  MeusEnvios,
   MembroDoCla,
   MeuCla,
   MinhaCriatura,
@@ -896,6 +897,13 @@ export const api = {
   // Só os do próprio autor (o admin vê todos), esperando o "publicar".
   autoriaAprovados() {
     return requisicao<ItemEditorial[]>("/autoria/aprovados/", {
+      autenticado: true,
+    });
+  },
+
+  // O retorno da revisão para o próprio autor: em revisão, devolvidos e excluídos.
+  autoriaMeusEnvios() {
+    return requisicao<MeusEnvios>("/autoria/meus-envios/", {
       autenticado: true,
     });
   },

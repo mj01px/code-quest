@@ -28,6 +28,7 @@ PERMISSAO_POR_ROTA = {
     "rascunhos": "HasPerm[trilhas.submit_review]",
     "aprovados": "HasPerm[trilhas.submit_review]",
     "fila-revisao": "HasPerm[trilhas.review]",
+    "meus-envios": "HasPerm[trilhas.submit_review]",
     "detalhe": "HasAnyPerm[trilhas.submit_review,trilhas.review]",
     "criar-trilha": "HasPerm[trilhas.create,trilhas.create_trilha]",
     "criar-aula": "HasPerm[trilhas.create,trilhas.create_aula]",

@@ -11,12 +11,19 @@ import { api } from "@/lib/api";
 // no editor, onde dá para ver o que ainda falta antes de publicar. Aprovado não
 // se edita (só rascunho), mas se exclui: `aoAlterar` liga a lixeira e o painel
 // recarrega a lista.
-export function ListaAprovados({ aoAlterar }: { aoAlterar?: () => void }) {
+export function ListaAprovados({
+  aoAlterar,
+  aoContar,
+}: {
+  aoAlterar?: () => void;
+  /** Total da lista, para o resumo do painel. */
+  aoContar?: (total: number) => void;
+}) {
   return (
     <ListaEditorial
       titulo="Prontos para publicar"
-      vazio="Nada aprovado esperando publicação."
       status="APROVADO"
+      aoContar={aoContar}
       carregar={api.autoriaAprovados}
       acoes={[{ rotulo: "Publicar", executar: api.publicarConteudo }]}
       extras={(item) => (

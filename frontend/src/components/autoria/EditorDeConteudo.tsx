@@ -904,7 +904,8 @@ function FormExercicio({
 
 // Teórico e código dividem título e enunciado; o de código pede também a
 // função que o aluno implementa e os casos que o corretor roda nela.
-function FormTeorico({
+// Exportado: a criação rápida do painel usa o mesmo formulário.
+export function FormTeorico({
   aula,
   codigo = false,
   aoCriar,
@@ -983,7 +984,7 @@ function FormTeorico({
   );
 }
 
-function FormQuestao({ aula, aoCriar }: { aula: number; aoCriar: (q: Questao) => void }) {
+export function FormQuestao({ aula, aoCriar }: { aula: number; aoCriar: (q: Questao) => void }) {
   const [dados, setDados] = useState(QUESTAO_VAZIA);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);

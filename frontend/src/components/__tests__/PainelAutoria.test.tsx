@@ -23,6 +23,7 @@ jest.mock("@/lib/api", () => ({
     autoriaRascunhos: jest.fn(),
     autoriaFilaRevisao: jest.fn(),
     autoriaAprovados: jest.fn(),
+    autoriaMeusEnvios: jest.fn(),
     publicarConteudo: jest.fn(),
     detalheEditorial: jest.fn(),
     submeterRevisao: jest.fn(),
@@ -31,6 +32,9 @@ jest.mock("@/lib/api", () => ({
     editarRascunho: jest.fn(),
     excluirRascunho: jest.fn(),
     criarFlashcard: jest.fn(),
+    criarAula: jest.fn(),
+    criarExercicio: jest.fn(),
+    criarQuestao: jest.fn(),
   },
 }));
 
@@ -78,6 +82,11 @@ function montar(permissoes: string[]) {
   );
 }
 
+// A fila mora na segunda aba: quem revisa precisa abri-la antes de agir.
+async function irParaFila() {
+  await userEvent.click(await screen.findByRole("tab", { name: /REVISÃO DE CONTEÚDO/ }));
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   mock.temSessao.mockReturnValue(true);
@@ -94,36 +103,60 @@ beforeEach(() => {
   mock.api.autoriaRascunhos.mockResolvedValue([rascunho]);
   mock.api.autoriaFilaRevisao.mockResolvedValue([emRevisao]);
   mock.api.autoriaAprovados.mockResolvedValue([]);
+  mock.api.autoriaMeusEnvios.mockResolvedValue({
+    em_revisao: [],
+    devolvidos: [],
+    excluidos: [],
+  });
 });
 
 describe("PainelAutoria: RBAC", () => {
-  it("botão NOVO CONTEÚDO só para quem cria conteúdo", async () => {
-    const { unmount } = montar(AUTOR);
+  it("sem trilhas.create nenhum botão de criação aparece", async () => {
+    montar(AUTOR);
     await screen.findByRole("button", { name: "Enviar para Revisão: Trilha nova" });
-    expect(screen.queryByRole("link", { name: "NOVO CONTEÚDO" })).toBeNull();
-    unmount();
+    expect(screen.queryByRole("group", { name: "Criar conteúdo" })).toBeNull();
+  });
 
+  it.each([
+    ["trilhas.create_trilha", "+ NOVA TRILHA"],
+    ["trilhas.create_aula", "+ NOVA AULA"],
+    ["trilhas.create_exercicio", "+ NOVO EXERCÍCIO"],
+  ])("com %s aparece só o botão %s", async (granular, rotulo) => {
+    montar([...AUTOR, "trilhas.create", granular]);
+
+    const grupo = await screen.findByRole("group", { name: "Criar conteúdo" });
+    const botoes = within(grupo).getAllByText(/^\+ /).map((b) => b.textContent);
+    expect(botoes).toEqual([rotulo]);
+  });
+
+  it("nova trilha segue para o editor completo", async () => {
     montar([...AUTOR, "trilhas.create", "trilhas.create_trilha"]);
-    expect(await screen.findByRole("link", { name: "NOVO CONTEÚDO" })).toHaveAttribute(
+
+    expect(await screen.findByRole("link", { name: "+ NOVA TRILHA" })).toHaveAttribute(
       "href",
       "/autoria/novo",
     );
   });
 
-  it("sem create_trilha, quem cria aula ou exercício não vê NOVO CONTEÚDO", async () => {
-    montar([...AUTOR, "trilhas.create", "trilhas.create_aula"]);
-    await screen.findByRole("button", { name: "Enviar para Revisão: Trilha nova" });
-    expect(screen.queryByRole("link", { name: "NOVO CONTEÚDO" })).toBeNull();
-  });
-
-  it("mostra quem criou cada item e um estado vazio amigável", async () => {
+  it("mostra quem criou cada item e resume a lista vazia no topo", async () => {
     mock.api.autoriaRascunhos.mockResolvedValue([{ ...rascunho, criado_por: "ana" }]);
     montar(AUTOR);
 
     expect(await screen.findByText("CRIADO POR: ana")).toBeInTheDocument();
-    // Aprovados vem vazio no beforeEach.
-    const aprovados = screen.getByRole("region", { name: "Prontos para publicar" });
-    expect(await within(aprovados).findByText("TUDO EM DIA!")).toBeInTheDocument();
+    // Aprovados vem vazio no beforeEach: some como seção e fica só no resumo.
+    const resumo = await screen.findByRole("list", { name: "Resumo" });
+    expect(within(resumo).getByText("Prontos para publicar")).toBeInTheDocument();
+    expect(within(resumo).getByText("Nada aprovado esperando publicação.")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Prontos para publicar" })).toBeNull();
+  });
+
+  it("tudo vazio vira uma tela só, que convida a criar a primeira trilha", async () => {
+    mock.api.autoriaRascunhos.mockResolvedValue([]);
+    montar([...AUTOR, "trilhas.create", "trilhas.create_trilha"]);
+
+    expect(await screen.findByText("Seu espaço de criação está pronto!")).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Resumo" })).toBeNull();
+    expect(screen.queryByRole("region")).toBeNull();
   });
 
   it("autor vê os rascunhos e não vê a fila de revisão", async () => {
@@ -135,13 +168,19 @@ describe("PainelAutoria: RBAC", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("region", { name: "Fila de revisão" }),
+      screen.queryByRole("region", { name: "Revisão de conteúdo" }),
     ).not.toBeInTheDocument();
+    // Sem a fila, sobram produção e meus envios.
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual([
+      "CRIAÇÃO E PUBLICAÇÃO",
+      "MEUS ENVIOS",
+    ]);
     expect(mock.api.autoriaFilaRevisao).not.toHaveBeenCalled();
   });
 
   it("quem revisa vê Aprovar e Devolver na fila", async () => {
     montar(ADMIN);
+    await irParaFila();
 
     expect(
       await screen.findByRole("button", { name: "Aprovar: Laços" }),
@@ -156,6 +195,105 @@ describe("PainelAutoria: RBAC", () => {
 
     await waitFor(() => expect(substituirRota).toHaveBeenCalledWith("/trilhas"));
     expect(screen.queryByRole("region")).not.toBeInTheDocument();
+    expect(mock.api.autoriaRascunhos).not.toHaveBeenCalled();
+  });
+});
+
+describe("PainelAutoria: abas", () => {
+  const CRIADOR_REVISOR = [...ADMIN, "trilhas.create", "trilhas.create_trilha"];
+
+  it("a aba de revisão só existe com trilhas.review", async () => {
+    const { unmount } = montar(AUTOR);
+    await screen.findByRole("button", { name: "Enviar para Revisão: Trilha nova" });
+    expect(screen.queryByRole("tab", { name: /REVISÃO DE CONTEÚDO/ })).toBeNull();
+    unmount();
+
+    montar(ADMIN);
+    expect(await screen.findByRole("tab", { name: /REVISÃO DE CONTEÚDO/ })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /CRIAÇÃO E PUBLICAÇÃO/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("o selo da aba conta a fila sem abri-la", async () => {
+    montar(ADMIN);
+
+    const aba = await screen.findByRole("tab", { name: /REVISÃO DE CONTEÚDO/ });
+    await waitFor(() => expect(within(aba).getByText("1")).toBeInTheDocument());
+  });
+
+  it("as três abas seguem a ordem produção, fila, envios", async () => {
+    montar(ADMIN);
+
+    await screen.findByRole("tab", { name: /REVISÃO DE CONTEÚDO/ });
+    expect(screen.getAllByRole("tab").map((t) => t.textContent?.replace(/\d+$/, ""))).toEqual([
+      "CRIAÇÃO E PUBLICAÇÃO",
+      "REVISÃO DE CONTEÚDO",
+      "MEUS ENVIOS",
+    ]);
+  });
+
+  it("topo em ordem: título, subtítulo, abas e só então os botões de criação", async () => {
+    montar(CRIADOR_REVISOR);
+
+    const grupo = await screen.findByRole("group", { name: "Criar conteúdo" });
+    const ordem = [
+      screen.getByRole("heading", { name: "Produção de Conteúdo" }),
+      screen.getByText(/^Crie conteúdo, envie rascunhos/),
+      screen.getByRole("tablist"),
+      grupo,
+    ];
+    for (let i = 1; i < ordem.length; i++) {
+      expect(
+        ordem[i - 1].compareDocumentPosition(ordem[i]) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+  });
+
+  it("trocar de aba troca o conteúdo, os botões de criação só ficam na primeira, e volta", async () => {
+    montar(CRIADOR_REVISOR);
+
+    expect(await screen.findByRole("group", { name: "Criar conteúdo" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Produção de Conteúdo" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Aprovar: Laços" })).toBeNull();
+
+    await irParaFila();
+
+    // Os botões de criação são da aba 1: na fila somem da tela.
+    expect(screen.queryByRole("group", { name: "Criar conteúdo" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "+ NOVA TRILHA" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "+ NOVA TRILHA" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Enviar para Revisão: Trilha nova" })).toBeNull();
+    expect(screen.getByRole("heading", { name: "Revisão de Conteúdo" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Aprovar: Laços" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("tab", { name: /CRIAÇÃO E PUBLICAÇÃO/ }));
+
+    expect(screen.getByRole("group", { name: "Criar conteúdo" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Enviar para Revisão: Trilha nova" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Aprovar: Laços" })).toBeNull();
+  });
+
+  it("fila vazia mostra que está tudo em dia", async () => {
+    mock.api.autoriaFilaRevisao.mockResolvedValue([]);
+    montar(ADMIN);
+    await irParaFila();
+
+    expect(
+      await screen.findByText("Tudo em dia! Nenhum conteúdo pendente para revisão."),
+    ).toBeInTheDocument();
+    expect(within(screen.getByRole("tab", { name: /REVISÃO DE CONTEÚDO/ })).queryByText("0")).toBeNull();
+  });
+
+  it("quem só revisa cai direto na fila, sem abas", async () => {
+    montar([...ALUNO, "trilhas.review"]);
+
+    expect(await screen.findByRole("button", { name: "Aprovar: Laços" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab")).toBeNull();
+    expect(screen.getByRole("heading", { name: "Revisão de Conteúdo" })).toBeInTheDocument();
     expect(mock.api.autoriaRascunhos).not.toHaveBeenCalled();
   });
 });
@@ -175,7 +313,7 @@ describe("PainelAutoria: ações", () => {
     );
 
     expect(mock.api.submeterRevisao).toHaveBeenCalledWith("trilhas", 3);
-    expect(await screen.findByText("Nenhum rascunho esperando envio.")).toBeInTheDocument();
+    expect(await screen.findByText("Tudo em dia! Nenhum conteúdo pendente.")).toBeInTheDocument();
   });
 
   it("devolver tira o item da fila e recarrega os rascunhos", async () => {
@@ -184,6 +322,7 @@ describe("PainelAutoria: ações", () => {
       status_editorial: "RASCUNHO",
     });
     montar(ADMIN);
+    await irParaFila();
 
     await userEvent.click(
       await screen.findByRole("button", { name: "Devolver: Laços" }),
@@ -201,19 +340,22 @@ describe("PainelAutoria: ações", () => {
 
     expect(mock.api.devolverConteudo).toHaveBeenCalledWith("aulas", 3, "Faltou exemplo.");
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(await screen.findByText("Nada esperando revisão.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Tudo em dia! Nenhum conteúdo pendente para revisão."),
+    ).toBeInTheDocument();
     await waitFor(() => expect(mock.api.autoriaRascunhos).toHaveBeenCalledTimes(2));
   });
 
-  it("rascunho devolvido mostra o motivo da revisão", async () => {
+  it("rascunho devolvido sai da criação: lá só fica o rascunho puro", async () => {
     mock.api.autoriaRascunhos.mockResolvedValue([
-      { ...rascunho, parecer: "Faltou um exemplo." },
+      rascunho,
+      { ...rascunho, id: 4, titulo: "Trilha devolvida", parecer: "Faltou um exemplo." },
     ]);
     montar(AUTOR);
 
-    expect(
-      await screen.findByRole("note", { name: "Motivo da devolução" }),
-    ).toHaveTextContent("Faltou um exemplo.");
+    await screen.findByRole("button", { name: "Enviar para Revisão: Trilha nova" });
+    expect(screen.queryByText("Trilha devolvida")).toBeNull();
+    expect(screen.queryByRole("note", { name: "Motivo da devolução" })).toBeNull();
   });
 
   it("falha ao carregar mostra o erro sem dizer que a lista está vazia", async () => {
@@ -235,6 +377,7 @@ describe("PainelAutoria: ações", () => {
       new ErroApi(400, "transicao_invalida", "Só conteúdo em revisão aceita esta ação."),
     );
     montar(ADMIN);
+    await irParaFila();
 
     await userEvent.click(
       await screen.findByRole("button", { name: "Aprovar: Laços" }),
@@ -303,6 +446,7 @@ describe("PainelAutoria: modal de visualização", () => {
       status_editorial: "APROVADO",
     });
     montar(ADMIN);
+    await irParaFila();
 
     const modal = await abrir("Laços");
 
@@ -318,7 +462,9 @@ describe("PainelAutoria: modal de visualização", () => {
 
     expect(mock.api.aprovarConteudo).toHaveBeenCalledWith("aulas", 3);
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(screen.getByText("Nada esperando revisão.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Tudo em dia! Nenhum conteúdo pendente para revisão."),
+    ).toBeInTheDocument();
   });
 
   it("abre o exercício em rascunho com enunciado e código e submete", async () => {
@@ -347,13 +493,14 @@ describe("PainelAutoria: modal de visualização", () => {
     expect(mock.api.submeterRevisao).toHaveBeenCalledWith("exercicios", 7);
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(
-      screen.getByText("Nenhum rascunho esperando envio."),
+      await screen.findByText("Tudo em dia! Nenhum conteúdo pendente."),
     ).toBeInTheDocument();
   });
 
   it("fecha no Esc e no clique fora, sem agir", async () => {
     mock.api.detalheEditorial.mockResolvedValue(detalheAula);
     montar(ADMIN);
+    await irParaFila();
 
     await abrir("Laços");
     await userEvent.keyboard("{Escape}");
@@ -374,6 +521,7 @@ describe("PainelAutoria: modal de visualização", () => {
       new ErroApi(400, "transicao_invalida", "O status atual é Aprovado."),
     );
     montar(ADMIN);
+    await irParaFila();
 
     const visualizacao = await abrir("Laços");
     await within(visualizacao).findByText("Um laço repete um bloco.");
@@ -416,7 +564,7 @@ describe("PainelAutoria: editar e excluir rascunho", () => {
     await userEvent.click(within(modal).getByRole("button", { name: "EXCLUIR" }));
 
     expect(mock.api.excluirRascunho).toHaveBeenCalledWith("trilhas", 3);
-    expect(await screen.findByText("Nenhum rascunho esperando envio.")).toBeInTheDocument();
+    expect(await screen.findByText("Tudo em dia! Nenhum conteúdo pendente.")).toBeInTheDocument();
   });
 
   it("erro ao excluir fica no modal", async () => {
@@ -582,5 +730,195 @@ describe("PainelAutoria: prontos para publicar", () => {
     expect(
       await screen.findByText("Nada aprovado esperando publicação."),
     ).toBeInTheDocument();
+  });
+});
+
+describe("PainelAutoria: criação rápida", () => {
+  const CRIA_TUDO = [
+    ...AUTOR,
+    "trilhas.create",
+    "trilhas.create_aula",
+    "trilhas.create_exercicio",
+  ];
+
+  it("nova aula escolhe a trilha em rascunho, cria e recarrega os rascunhos", async () => {
+    const u = userEvent.setup();
+    mock.api.criarAula.mockResolvedValue({
+      id: 9,
+      trilha: 3,
+      titulo: "Laços",
+      slug: "lacos",
+      conteudo: "# Laços",
+    });
+    montar(CRIA_TUDO);
+
+    await u.click(await screen.findByRole("button", { name: "+ NOVA AULA" }));
+    const modal = screen.getByRole("dialog", { name: "Nova aula" });
+    await within(modal).findByRole("option", { name: "Trilha nova" });
+    await u.selectOptions(within(modal).getByLabelText("VINCULAR À TRILHA"), "3");
+    await u.type(within(modal).getByLabelText("TÍTULO DA AULA"), "Laços");
+    await u.type(within(modal).getByLabelText("TEXTO (MARKDOWN)"), "# Laços");
+    const chamadasAntes = mock.api.autoriaRascunhos.mock.calls.length;
+    await u.click(within(modal).getByRole("button", { name: "CRIAR AULA" }));
+
+    expect(mock.api.criarAula).toHaveBeenCalledWith({
+      trilha: 3,
+      titulo: "Laços",
+      conteudo: "# Laços",
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      'Aula "Laços" criada em Trilha nova.',
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await waitFor(() =>
+      expect(mock.api.autoriaRascunhos.mock.calls.length).toBeGreaterThan(chamadasAntes),
+    );
+  });
+
+  it("novo exercício escolhe trilha, aula e tipo, e cria o teórico", async () => {
+    const u = userEvent.setup();
+    mock.api.detalheEditorial.mockResolvedValue({
+      id: 3,
+      nome: "Trilha nova",
+      aulas: [{ id: 4, titulo: "Laços" }],
+    });
+    mock.api.criarExercicio.mockResolvedValue({ id: 11, titulo: "Soma", tipo: "TEORICO" });
+    montar(CRIA_TUDO);
+
+    await u.click(await screen.findByRole("button", { name: "+ NOVO EXERCÍCIO" }));
+    const modal = screen.getByRole("dialog", { name: "Novo exercício" });
+    await within(modal).findByRole("option", { name: "Trilha nova" });
+    await u.selectOptions(within(modal).getByLabelText("VINCULAR À TRILHA"), "3");
+    expect(mock.api.detalheEditorial).toHaveBeenCalledWith("trilhas", 3);
+    await within(modal).findByRole("option", { name: "Laços" });
+    await u.selectOptions(within(modal).getByLabelText("VINCULAR À AULA"), "4");
+
+    // Quiz troca o formulário pelo de múltipla escolha; teórico volta ao de exercício.
+    await u.click(within(modal).getByRole("button", { name: "QUIZ" }));
+    expect(within(modal).getByRole("form", { name: "Nova questão" })).toBeInTheDocument();
+    await u.click(within(modal).getByRole("button", { name: "TEÓRICO" }));
+
+    await u.type(within(modal).getByLabelText("TÍTULO DO EXERCÍCIO"), "Soma");
+    await u.type(within(modal).getByLabelText("ENUNCIADO"), "Some dois números.");
+    await u.click(within(modal).getByRole("button", { name: "SALVAR EXERCÍCIO" }));
+
+    expect(mock.api.criarExercicio).toHaveBeenCalledWith({
+      aula: 4,
+      titulo: "Soma",
+      enunciado: "Some dois números.",
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      'Exercício "Soma" criado em Trilha nova.',
+    );
+  });
+
+  it.each([
+    ["link", "+ NOVA TRILHA", /^Cria uma trilha completa do zero/],
+    ["button", "+ NOVA AULA", /^Adiciona uma aula avulsa/],
+    ["button", "+ NOVO EXERCÍCIO", /^Cria um exercício \(Teórico, Múltipla Escolha ou Código\)/],
+  ])("o ? é um ícone dentro do %s %s, que o descreve", async (papel, nome, dica) => {
+    montar([...CRIA_TUDO, "trilhas.create_trilha"]);
+
+    const botao = await screen.findByRole(papel, { name: nome });
+    expect(botao).toHaveAccessibleDescription(dica);
+    // O ícone mora dentro do botão e não captura o clique.
+    const icone = botao.querySelector("svg");
+    expect(icone).not.toBeNull();
+    expect(icone!.parentElement).toHaveClass("pointer-events-none");
+    expect(screen.queryByRole("button", { name: /^Ajuda/ })).toBeNull();
+  });
+
+  it("sem trilha em rascunho, o modal explica o que fazer primeiro", async () => {
+    mock.api.autoriaRascunhos.mockResolvedValue([]);
+    montar(CRIA_TUDO);
+
+    await userEvent.click(await screen.findByRole("button", { name: "+ NOVA AULA" }));
+
+    expect(
+      await within(screen.getByRole("dialog")).findByText(/Crie uma trilha primeiro/),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("PainelAutoria: meus envios", () => {
+  async function irParaEnvios() {
+    await userEvent.click(await screen.findByRole("tab", { name: "MEUS ENVIOS" }));
+  }
+
+  it("mostra as três seções com o parecer, o atalho de correção e a exclusão", async () => {
+    mock.api.autoriaMeusEnvios.mockResolvedValue({
+      em_revisao: [{ ...emRevisao, status_editorial: "REVISAO" }],
+      devolvidos: [
+        { ...rascunho, id: 4, titulo: "Trilha devolvida", parecer: "Faltou um exemplo." },
+      ],
+      excluidos: [
+        {
+          tipo: "trilhas",
+          titulo: "Lógica",
+          motivo: "Conteúdo duplicado.",
+          excluido_por: "admin",
+          excluido_em: "2026-10-29T12:00:00Z",
+        },
+      ],
+    });
+    montar(AUTOR);
+    await irParaEnvios();
+
+    expect(await screen.findByRole("heading", { name: "Meus Envios e Feedback" })).toBeInTheDocument();
+    const espera = await screen.findByRole("region", { name: "Aguardando Revisão" });
+    expect(within(espera).getByText("Laços")).toBeInTheDocument();
+    // Só informativo: nenhum botão no card de quem espera.
+    expect(within(espera).queryByRole("button")).toBeNull();
+
+    const devolvidos = screen.getByRole("region", { name: "Devolvidos para Correção" });
+    expect(within(devolvidos).getByRole("note", { name: "Motivo da devolução" })).toHaveTextContent(
+      "Faltou um exemplo.",
+    );
+    expect(
+      within(devolvidos).getByRole("link", { name: "Corrigir Rascunho: Trilha devolvida" }),
+    ).toHaveAttribute("href", "/autoria/novo?trilha_id=4");
+
+    const historico = screen.getByRole("region", { name: "Histórico de Exclusão" });
+    expect(historico).toHaveTextContent(
+      'O admin admin excluiu sua trilha "Lógica" pelo motivo: Conteúdo duplicado.',
+    );
+  });
+
+  it("exclusão sem motivo e sem autor conhecido ainda se explica", async () => {
+    mock.api.autoriaMeusEnvios.mockResolvedValue({
+      em_revisao: [],
+      devolvidos: [],
+      excluidos: [
+        {
+          tipo: "aulas",
+          titulo: null,
+          motivo: null,
+          excluido_por: null,
+          excluido_em: "2026-10-29T12:00:00Z",
+        },
+      ],
+    });
+    montar(AUTOR);
+    await irParaEnvios();
+
+    expect(
+      await screen.findByText("Um administrador excluiu sua aula sem informar o motivo."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Nada esperando revisão no momento.")).toBeInTheDocument();
+  });
+
+  it("busca de novo a cada visita à aba e mostra o erro da API", async () => {
+    const { ErroApi } = jest.requireActual("@/lib/api");
+    montar(AUTOR);
+    expect(mock.api.autoriaMeusEnvios).not.toHaveBeenCalled();
+
+    await irParaEnvios();
+    await screen.findByText("Nenhum conteúdo seu foi excluído.");
+    mock.api.autoriaMeusEnvios.mockRejectedValue(new ErroApi(429, "throttled", "Calma."));
+    await userEvent.click(screen.getByRole("tab", { name: /CRIAÇÃO E PUBLICAÇÃO/ }));
+    await irParaEnvios();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Calma.");
+    expect(mock.api.autoriaMeusEnvios).toHaveBeenCalledTimes(2);
   });
 });

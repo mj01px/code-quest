@@ -80,3 +80,20 @@ export function IconeCheck({ className = "" }: { className?: string }) {
     </svg>
   );
 }
+
+export function IconeAjuda({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+      className={`${BASE} ${className}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
+      <rect x="1.5" y="1.5" width="13" height="13" />
+      <path d="M6 6V4.75h4V8H8v2" />
+      <rect x="7.25" y="11.25" width="1.5" height="1.5" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}

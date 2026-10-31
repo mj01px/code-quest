@@ -59,6 +59,22 @@ class ItemEditorialSerializer(serializers.Serializer[object]):
     parecer = serializers.CharField(read_only=True, required=False)
 
 
+class ExclusaoSofridaSerializer(serializers.Serializer[object]):
+    tipo = serializers.ChoiceField(choices=list(MODELOS), read_only=True)
+    titulo = serializers.CharField(read_only=True, allow_null=True)
+    motivo = serializers.CharField(read_only=True, allow_null=True)
+    # Nickname de quem excluiu; null se a conta dele já não existe.
+    excluido_por = serializers.CharField(read_only=True, allow_null=True)
+    excluido_em = serializers.DateTimeField(read_only=True)
+
+
+# O retorno da revisão para o autor: o que espera, o que voltou e o que saiu.
+class MeusEnviosSerializer(serializers.Serializer[object]):
+    em_revisao = ItemEditorialSerializer(many=True, read_only=True)
+    devolvidos = ItemEditorialSerializer(many=True, read_only=True)
+    excluidos = ExclusaoSofridaSerializer(many=True, read_only=True)
+
+
 class CasoEditorialSerializer(serializers.ModelSerializer[CasoDeTeste]):
     class Meta:
         model = CasoDeTeste
