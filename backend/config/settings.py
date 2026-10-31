@@ -229,6 +229,8 @@ CSRF_TRUSTED_ORIGINS = env.list(
 CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SECURE = AUTH_COOKIE_SECURE
+# Cookie de sessão do /admin/ do Django: mesma regra dos cookies de autenticação.
+SESSION_COOKIE_SECURE = AUTH_COOKIE_SECURE
 
 CORS_ALLOWED_ORIGINS = env.list(
     'CORS_ALLOWED_ORIGINS',

@@ -13,6 +13,7 @@ from rest_framework.test import APIClient
 from apps.contas.tests.helpers import criar_aluno
 from apps.gamificacao.services import select_starter_creature
 from apps.progressao.models import EventoXP
+from apps.trilhas.models import StatusEditorial
 
 from .test_credito_xp import criar_exercicio
 
@@ -129,6 +130,16 @@ class ApiProgressoTest(TestCase):
         )
 
         self.assertEqual(resposta.status_code, 404)
+
+    def test_exercicio_publicado_sob_aula_nao_publicada_devolve_404(self):
+        # O catálogo esconde esse exercício; a conclusão não pode creditar XP.
+        select_starter_creature(user=self.user, creature_slug="shellby")
+        exercicio = criar_exercicio()
+        exercicio.aula.status = StatusEditorial.REVISAO
+        exercicio.aula.save(update_fields=["status"])
+
+        self.assertEqual(self._concluir(exercicio).status_code, 404)
+        self.assertEqual(EventoXP.objects.count(), 0)
 
     def test_sem_criatura_ativa_devolve_400_e_nao_credita(self):
         resposta = self._concluir(criar_exercicio())

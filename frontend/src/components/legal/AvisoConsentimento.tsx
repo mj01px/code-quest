@@ -68,6 +68,7 @@ export function AvisoConsentimento() {
             <Link
               href={c.caminho}
               target="_blank"
+              rel="noopener noreferrer"
               className="text-brand-light underline underline-offset-4"
             >
               {c.rotulo}

@@ -65,7 +65,7 @@ def itens_no_status(
     status: StatusEditorial,
     autor: User | None = None,
     tipos: tuple[str, ...] = tuple(MODELOS),
-) -> list[dict[str, int | str]]:
+) -> list[dict[str, int | str | None]]:
     """Itens de `tipos` em `status`, num formato único para as filas.
 
     Uma consulta por model, só com as colunas usadas (o nickname do autor vem
@@ -370,7 +370,7 @@ def exclusoes_sofridas(autor: User, limite: int = 20) -> list[dict[str, object]]
     ]
 
 
-def anexar_pareceres(itens: list[dict[str, int | str]]) -> list[dict[str, int | str]]:
+def anexar_pareceres(itens: list[dict[str, int | str | None]]) -> list[dict[str, int | str | None]]:
     """Põe em cada item o parecer da devolução mais recente, ou None.
 
     Uma consulta só na auditoria, que é onde o parecer mora: o model do

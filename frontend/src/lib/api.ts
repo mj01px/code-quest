@@ -170,7 +170,18 @@ async function garantirCsrf(prazo: AbortSignal): Promise<string | null> {
 
 async function interpretar(resposta: Response) {
   const texto = await resposta.text();
-  const corpo = texto ? JSON.parse(texto) : null;
+  let corpo = null;
+  try {
+    corpo = texto ? JSON.parse(texto) : null;
+  } catch {
+    // Página HTML de 500 do Django ou texto puro do rewrite com a API fora:
+    // vira ErroApi com o status real, não SyntaxError sem status.
+    throw new ErroApi(
+      resposta.status,
+      "resposta_invalida",
+      `Falha inesperada (HTTP ${resposta.status}).`,
+    );
+  }
 
   if (resposta.ok) return corpo;
 

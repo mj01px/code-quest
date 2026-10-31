@@ -145,6 +145,13 @@ class EndpointAuditoriaTests(APITestCase):
         acoes = {linha["acao"] for linha in resposta.data["results"]}
         self.assertEqual(acoes, {AcaoAuditoria.LOGIN_OK})
 
+    def test_data_impossivel_no_filtro_devolve_400(self):
+        self.client.force_authenticate(criar_admin())
+
+        resposta = self.client.get(self.url, {"desde": "2026-02-30T00:00"})
+
+        self.assertEqual(resposta.status_code, status.HTTP_400_BAD_REQUEST)
+
 
 class MinhaAtividadeTests(APITestCase):
     def setUp(self):

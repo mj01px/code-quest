@@ -14,7 +14,13 @@ from apps.correcao.judge0 import Judge0Error
 from apps.correcao.serializers import CorrecaoSerializer, EnvioDeCodigoSerializer
 from apps.correcao.services import corrigir_envio, tem_correcao_automatica
 from apps.correcao.views import PODE_SUBMETER_CODIGO, Judge0PorMinuto, codigo_enviado
-from apps.trilhas.models import AlternativaExercicio, Exercicio, Tipo, Trilha
+from apps.trilhas.models import (
+    AlternativaExercicio,
+    Exercicio,
+    StatusEditorial,
+    Tipo,
+    Trilha,
+)
 
 from .models import TrilhaIniciada
 from .serializers import (
@@ -145,9 +151,13 @@ class ConcluirExercicioView(APIView):
     throttle_scope = "conclusao"
 
     def post(self, request, trilha_slug, exercicio_slug):
+        # Aula e trilha publicadas também, como no detalhe do catálogo: um
+        # exercício publicado sob pai em revisão não pode creditar XP.
         exercicio = get_object_or_404(
             Exercicio.objects.publicados(),
             trilha__slug=trilha_slug,
+            trilha__status=StatusEditorial.PUBLICADO,
+            aula__status=StatusEditorial.PUBLICADO,
             slug=exercicio_slug,
         )
 

@@ -2,8 +2,8 @@
 
 from django.test import TestCase
 
-from apps.contas.tests.helpers import criar_aluno
 from apps.conquistas.tests.helpers import submeter
+from apps.contas.tests.helpers import criar_aluno
 from apps.correcao.models import Veredito
 from apps.gamificacao.services import select_starter_creature
 from apps.progressao.services import creditar_exercicio, montar_dashboard_admin
