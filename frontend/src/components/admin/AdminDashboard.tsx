@@ -13,7 +13,6 @@ type Carga =
   | { tipo: "erro" }
   | { tipo: "pronto"; dados: DashboardAdmin };
 
-/** Métricas da plataforma inteira, na aba Dashboard do /admin. */
 export function AdminDashboard() {
   const [carga, setCarga] = useState<Carga>({ tipo: "carregando" });
 
@@ -83,39 +82,6 @@ export function AdminDashboard() {
         </section>
       </div>
 
-      <section className={CARD}>
-        <h2 className={`${TIPO.tituloSecao} m-0 text-ink`}>Logs recentes</h2>
-        {dados.logs_recentes.length === 0 ? (
-          <p className={`${TIPO.corpo} m-0 text-ink-muted`}>Nenhum registro ainda.</p>
-        ) : (
-          <ul className="m-0 flex list-none flex-col gap-2 p-0">
-            {dados.logs_recentes.map((log) => (
-              <li
-                key={log.id}
-                className="flex flex-wrap gap-x-3 border-b border-edge pb-2 font-body text-base tracking-[1px] last:border-b-0"
-              >
-                <time dateTime={log.criado_em} className="text-ink-muted">
-                  [{formatarDataHora(log.criado_em)}]
-                </time>
-                <span className="text-ink">{log.usuario}</span>
-                <span className="text-ink-body">{log.acao_rotulo}</span>
-                {log.detalhes ? (
-                  <span className="w-full text-sm text-ink-muted">{log.detalhes}</span>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
     </div>
   );
-}
-
-function formatarDataHora(iso: string): string {
-  return new Date(iso).toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }

@@ -239,14 +239,15 @@ export interface DashboardAdmin {
     aprovadas: number;
     rejeitadas: number;
   }[];
-  logs_recentes: {
-    id: string;
-    criado_em: string;
-    usuario: string;
-    acao: string;
-    acao_rotulo: string;
-    detalhes: string;
-  }[];
+}
+
+export interface LogAdmin {
+  id: string;
+  criado_em: string;
+  usuario: string;
+  acao: string;
+  acao_rotulo: string;
+  detalhes: string;
 }
 
 export interface SequenciaConclusao {

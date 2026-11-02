@@ -17,6 +17,7 @@ import type {
   ExercicioConcluido,
   ExercicioDetalhe,
   ItemEditorial,
+  LogAdmin,
   MembroDoCla,
   MeuCla,
   MinhaCriatura,
@@ -450,6 +451,12 @@ export const api = {
 
   adminDashboard() {
     return requisicao<DashboardAdmin>("/admin/dashboard/", { autenticado: true });
+  },
+
+  adminLogs(pagina = 1) {
+    return requisicao<Pagina<LogAdmin>>(`/admin/logs/?page=${pagina}`, {
+      autenticado: true,
+    });
   },
 
   adminNiveis() {
