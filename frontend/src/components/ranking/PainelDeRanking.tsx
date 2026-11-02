@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { IconeConquista } from "@/components/conquistas/IconeConquista";
 import { api } from "@/lib/api";
 import { dicaDaPosicao, nomeDoMes, tempoAteFechar } from "@/lib/ranking";
-import type { CriaturaDoRanking, RankingMensal } from "@/lib/types";
+import type { CriaturaDoRanking, LinhaDoRanking, RankingMensal } from "@/lib/types";
 
 type Carga =
   | { tipo: "carregando" }
@@ -20,10 +20,34 @@ const MEDALHA: Record<number, string> = {
   3: "text-[#d97706]",
 };
 
-const CARTAO_DO_PODIO: Record<number, string> = {
-  1: "border-[#facc15] text-[#facc15]",
-  2: "border-[#cbd5e1] text-[#cbd5e1]",
-  3: "border-[#d97706] text-[#d97706]",
+const DEGRAU: Record<
+  number,
+  { ordem: string; base: string; sprite: number; cartao: string; moldura: string; texto: string }
+> = {
+  1: {
+    ordem: "md:order-2",
+    base: "pb-16",
+    sprite: 72,
+    cartao: "border-[#facc15] bg-[#facc15]/10",
+    moldura: "border-[#facc15]",
+    texto: "text-[#facc15]",
+  },
+  2: {
+    ordem: "md:order-1",
+    base: "pb-10",
+    sprite: 52,
+    cartao: "border-[#cbd5e1] bg-[#cbd5e1]/5",
+    moldura: "border-[#cbd5e1]/70",
+    texto: "text-[#cbd5e1]",
+  },
+  3: {
+    ordem: "md:order-3",
+    base: "pb-6",
+    sprite: 52,
+    cartao: "border-[#d97706] bg-[#d97706]/5",
+    moldura: "border-[#d97706]/70",
+    texto: "text-[#d97706]",
+  },
 };
 
 export function PainelDeRanking() {
@@ -48,16 +72,23 @@ export function PainelDeRanking() {
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-wrap items-end justify-between gap-6">
-        <div className="flex flex-col gap-3">
-          <span className="rotulo text-brand-light">
-            {ranking ? nomeDoMes(ranking.mes.inicio) : "Mês atual"}
-          </span>
-          <h1 className="titulo m-0 font-display text-xl leading-[1.7] text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)]">
-            Ranking
-          </h1>
-        </div>
-        {ranking ? <Contagem fechaEm={ranking.mes.fecha_em} /> : null}
+      <header className="flex flex-col items-center gap-4 text-center">
+        <span className="font-label text-[11px] tracking-[4px] text-brand uppercase">
+          {"// RANKING"}
+        </span>
+        <h1 className="titulo m-0 font-display text-2xl leading-[1.5] text-ink [text-shadow:3px_3px_0_var(--color-brand-dark)]">
+          Ranking
+        </h1>
+        <p className="m-0 font-body text-lg tracking-[1px] text-ink-body">
+          Os codificadores mais lendários e seus companheiros no topo.
+          <span
+            aria-hidden="true"
+            className="ml-2 inline-block h-4 w-2.5 bg-brand-light align-middle animate-blink"
+          />
+        </p>
+        <span className="rotulo mt-2 text-brand-light">
+          {ranking ? nomeDoMes(ranking.mes.inicio) : "Mês atual"}
+        </span>
       </header>
 
       {carga.tipo === "carregando" ? (
@@ -80,56 +111,35 @@ export function PainelDeRanking() {
       {carga.tipo === "pronto" ? (
         <>
           {carga.ranking.topo.length === 0 ? (
-            <MesVazio />
+            <div className="flex flex-col gap-3">
+              <Contagem fechaEm={carga.ranking.mes.fecha_em} />
+              <MesVazio />
+            </div>
           ) : (
             <section aria-label="Top 10 do mês" className="flex flex-col gap-6">
-              <ol className="m-0 grid list-none grid-cols-1 gap-4 p-0 md:grid-cols-3">
-                {carga.ranking.topo.slice(0, 3).map((linha) => (
-                  <li
-                    key={linha.nickname}
-                    className={`flex flex-col items-center gap-3 border-4 p-5 shadow-[0_6px_0_#000] ${
-                      CARTAO_DO_PODIO[linha.posicao]
-                    } ${linha.voce ? "bg-brand-void" : "bg-panel"}`}
-                  >
-                    <span className="font-display text-lg leading-none">
-                      {linha.posicao}º
-                    </span>
-                    <span className="flex h-16 w-16 items-center justify-center border-2 border-brand-shadow bg-panel-deep">
-                      {linha.criatura?.sprite ? (
-                        <Image
-                          src={linha.criatura.sprite}
-                          alt=""
-                          width={52}
-                          height={52}
-                          className="block"
-                        />
-                      ) : null}
-                    </span>
-                    <span className="titulo max-w-full truncate font-display text-[12px] leading-[1.5] text-ink">
-                      {linha.nickname}
-                    </span>
-                    <span className="font-body text-lg tracking-[1px] text-ink-body">
-                      {linha.xp} XP
-                    </span>
-                  </li>
-                ))}
-              </ol>
+              <Podio linhas={carga.ranking.topo.slice(0, 3)} />
 
-              {carga.ranking.topo.length > 3 ? (
-                <ol start={4} className="m-0 flex list-none flex-col gap-3 p-0">
-                  {carga.ranking.topo.slice(3).map((linha) => (
-                    <li key={linha.nickname}>
-                      <Linha
-                        posicao={linha.posicao}
-                        nickname={linha.nickname}
-                        xp={linha.xp}
-                        criatura={linha.criatura}
-                        destaque={linha.voce}
-                      />
-                    </li>
-                  ))}
-                </ol>
-              ) : null}
+              <div className="flex flex-col gap-3">
+                <Contagem fechaEm={carga.ranking.mes.fecha_em} />
+                {carga.ranking.topo.length > 3 ? (
+                  <ol
+                    start={4}
+                    className="m-0 flex list-none flex-col gap-3 p-0"
+                  >
+                    {carga.ranking.topo.slice(3).map((linha) => (
+                      <li key={linha.nickname}>
+                        <Linha
+                          posicao={linha.posicao}
+                          nickname={linha.nickname}
+                          xp={linha.xp}
+                          criatura={linha.criatura}
+                          destaque={linha.voce}
+                        />
+                      </li>
+                    ))}
+                  </ol>
+                ) : null}
+              </div>
             </section>
           )}
 
@@ -142,6 +152,65 @@ export function PainelDeRanking() {
   );
 }
 
+function Podio({ linhas }: { linhas: LinhaDoRanking[] }) {
+  return (
+    <ol className="m-0 grid list-none grid-cols-1 items-end gap-4 p-0 md:grid-cols-[1fr_1.15fr_1fr]">
+      {linhas.map((linha) => {
+        const lider = linha.posicao === 1;
+        const degrau = DEGRAU[linha.posicao];
+        return (
+          <li
+            key={linha.nickname}
+            className={`flex flex-col items-center gap-3 border-4 px-5 pt-6 shadow-[6px_6px_0_#000] ${degrau.ordem} ${degrau.base} ${degrau.cartao}`}
+          >
+            <span
+              className={`flex items-center justify-center border-2 bg-panel-deep ${degrau.moldura} ${
+                lider ? "h-28 w-28" : "h-20 w-20"
+              }`}
+            >
+              {linha.criatura?.sprite ? (
+                <Image
+                  src={linha.criatura.sprite}
+                  alt=""
+                  width={degrau.sprite}
+                  height={degrau.sprite}
+                  className="block"
+                />
+              ) : null}
+            </span>
+            {lider ? (
+              <span className="bg-[#facc15] px-3 py-1 font-label text-[10px] tracking-[2px] text-panel-deep uppercase">
+                MVP do mês
+              </span>
+            ) : null}
+            <span
+              className={`font-display leading-none [text-shadow:2px_2px_0_#000] ${degrau.texto} ${
+                lider ? "text-xl" : "text-base"
+              }`}
+            >
+              #{linha.posicao}
+            </span>
+            <span className="max-w-full truncate font-label text-[12px] tracking-[3px] text-ink uppercase">
+              {linha.nickname}
+            </span>
+            <span
+              className={`font-label text-[10px] tracking-[2px] uppercase ${degrau.texto}`}
+            >
+              {linha.criatura ? `${linha.criatura.nome} · ` : ""}
+              {linha.xp} XP
+            </span>
+            {linha.voce ? (
+              <span className="border-2 border-brand-light px-2 py-0.5 font-label text-[10px] tracking-[2px] text-brand-light uppercase">
+                Você
+              </span>
+            ) : null}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 function Contagem({ fechaEm }: { fechaEm: string }) {
   const [agora, setAgora] = useState(() => new Date());
 
@@ -151,14 +220,10 @@ function Contagem({ fechaEm }: { fechaEm: string }) {
   }, []);
 
   return (
-    <div className="flex items-center gap-3 border-[3px] border-edge-soft bg-panel px-4 py-3 shadow-[6px_6px_0_#000]">
-      <span className="font-label text-[11px] tracking-[2px] text-ink-muted uppercase">
-        Fecha em
-      </span>
-      <span className="font-display text-[13px] leading-none text-ink">
-        {tempoAteFechar(fechaEm, agora)}
-      </span>
-    </div>
+    <p className="m-0 self-end font-label text-[10px] tracking-[2px] text-ink-muted uppercase">
+      Fecha em{" "}
+      <span className="text-brand-light">{tempoAteFechar(fechaEm, agora)}</span>
+    </p>
   );
 }
 
