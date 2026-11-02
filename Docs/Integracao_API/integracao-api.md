@@ -347,7 +347,8 @@ Caminhos relativos a `/api/v1`.
 | GET | `/auth/admin/usuarios/` (aceita `?q=`: nickname, e-mail ou nível) | admin | `user` |
 | PATCH | `/auth/admin/usuarios/{id}/nivel/` | admin | `user` |
 | DELETE | `/auth/admin/usuarios/{id}/` | admin, com `totp_code` no corpo | `verificacao` |
-| GET | `/admin/dashboard/` | admin (logs só com `auditoria.view`) | `user` |
+| GET | `/admin/dashboard/` | admin | `user` |
+| GET | `/admin/logs/?page=N` | admin com `auditoria.view` | `user` |
 | GET | `/auditoria/` | permissão `auditoria.view` | `user` |
 
 `/auditoria/` aceita os filtros `acao`, `actor`, `desde` e `ate`, e pagina com
