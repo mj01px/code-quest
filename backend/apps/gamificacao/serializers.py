@@ -4,7 +4,7 @@ from rest_framework import serializers
 from .models import Creature, CreatureStage, UserCreature, XpBonus
 
 
-def _url_sprite(nome):
+def _url_sprite(nome: str | None) -> str | None:
     if not nome:
         return None
     return f"{settings.SPRITE_BASE_URL}{nome}"

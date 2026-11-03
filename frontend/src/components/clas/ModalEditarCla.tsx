@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 
+import { useModal } from "@/components/ui/useModal";
 import { ErroApi, api } from "@/lib/api";
 import {
   BANDEIRAS,
@@ -45,17 +46,7 @@ export function ModalEditarCla({
   const [errosCampo, setErrosCampo] = useState<Record<string, string>>({});
   const [erroGeral, setErroGeral] = useState<string | null>(null);
 
-  useEffect(() => {
-    painel.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    function aoTeclar(evento: KeyboardEvent) {
-      if (evento.key === "Escape" && !salvando) onFechar();
-    }
-    document.addEventListener("keydown", aoTeclar);
-    return () => document.removeEventListener("keydown", aoTeclar);
-  }, [salvando, onFechar]);
+  useModal(painel, onFechar, salvando);
 
   async function salvar(evento: React.FormEvent) {
     evento.preventDefault();

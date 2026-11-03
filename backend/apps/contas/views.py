@@ -3,8 +3,8 @@ from django.db import IntegrityError
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
-from drf_spectacular.utils import extend_schema
-from rest_framework import generics, status
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import generics, serializers, status
 from rest_framework.exceptions import ErrorDetail, NotAuthenticated, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -18,7 +18,7 @@ from rest_framework_simplejwt.token_blacklist.models import (
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from apps.auditoria.services import AcaoAuditoria, registrar
+from apps.auditoria.services import AcaoAuditoria, ip_do_cliente, registrar
 
 from . import mfa
 from .cadastro_alerta import avisar_tentativa_de_cadastro
@@ -397,7 +397,7 @@ class AceitarConsentimentosView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        ip = request.META.get("REMOTE_ADDR") or None
+        ip = ip_do_cliente(request)
         novos = AceiteDeTermos.registrar_pendentes(request.user, ip=ip)
         if novos:
             registrar(
@@ -545,7 +545,13 @@ class MfaConfirmarView(generics.GenericAPIView):
         )
 
 
-@extend_schema(tags=["auth"], responses=None)
+@extend_schema(
+    tags=["auth"],
+    request=None,
+    responses=inline_serializer(
+        "MfaDesativarIniciar", {"email_enviado": serializers.BooleanField()}
+    ),
+)
 class MfaDesativarIniciarView(APIView):
     """Dispara o código por e-mail para confirmar a desativação, quando o
     método ativo é e-mail. Para app/recuperação não há nada a enviar."""

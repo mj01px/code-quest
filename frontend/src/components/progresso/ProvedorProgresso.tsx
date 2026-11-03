@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -40,9 +41,17 @@ export interface ValorProgresso {
   trilhasIniciadas: ReadonlySet<string>;
   /** Verdadeiro até a primeira resposta chegar. Quem desenha número espera. */
   carregando: boolean;
-  /** Relê tudo. Chamado após o POST de conclusão. */
+  /**
+   * A API falhou com a sessão ainda viva (500, rede, prazo). Não é "deslogado":
+   * as guardas mostram o aviso em vez de mandar para /entrar, que entraria em loop.
+   */
+  erro: boolean;
+  /** Relê tudo. Chamado após o POST de conclusão e pelo "tentar de novo". */
   recarregar: () => void;
 }
+
+// Releituras automáticas depois de uma falha; passado isso, só o botão.
+const TENTATIVAS_AUTOMATICAS = 2;
 
 const ProgressoContext = createContext<ValorProgresso | null>(null);
 
@@ -67,14 +76,18 @@ const SEM_DADOS: Dados = Object.freeze({
 export function ProvedorProgresso({ children }: { children: ReactNode }) {
   const [dados, setDados] = useState<Dados>(SEM_DADOS);
   const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState(false);
   const [versao, setVersao] = useState(0); // gatilho do recarregar()
+  const falhas = useRef(0);
 
   const recarregar = useCallback(() => {
+    falhas.current = 0;
     setVersao((n) => n + 1);
   }, []);
 
   useEffect(() => {
     let ativo = true;
+    let espera: ReturnType<typeof setTimeout> | undefined;
 
     // Sem sessão, resolve direto pra null.
     const pedido = temSessao()
@@ -91,6 +104,8 @@ export function ProvedorProgresso({ children }: { children: ReactNode }) {
     pedido
       .then((resposta) => {
         if (!ativo) return;
+        falhas.current = 0;
+        setErro(false);
         if (resposta === null) {
           setDados(SEM_DADOS);
           return;
@@ -107,8 +122,23 @@ export function ProvedorProgresso({ children }: { children: ReactNode }) {
         });
       })
       .catch(() => {
-        // Erro cai no estado neutro pra não derrubar a tela.
-        if (ativo) setDados(SEM_DADOS);
+        if (!ativo) return;
+        // Sessão morta: o api.ts já tentou renovar e apagou o cookie-sinal.
+        // Aí é visitante de fato, e mandar para /entrar uma vez está certo.
+        if (!temSessao()) {
+          setErro(false);
+          setDados(SEM_DADOS);
+          return;
+        }
+        // API fora com sessão viva: mantém o que já havia e avisa.
+        setErro(true);
+        if (falhas.current < TENTATIVAS_AUTOMATICAS) {
+          falhas.current += 1;
+          espera = setTimeout(
+            () => setVersao((n) => n + 1),
+            2000 * falhas.current,
+          );
+        }
       })
       .finally(() => {
         // Garante que o loading sai mesmo com erro.
@@ -117,6 +147,7 @@ export function ProvedorProgresso({ children }: { children: ReactNode }) {
 
     return () => {
       ativo = false;
+      clearTimeout(espera);
     };
   }, [versao]);
 
@@ -133,9 +164,10 @@ export function ProvedorProgresso({ children }: { children: ReactNode }) {
           : SEM_CHAVES,
       trilhasIniciadas: dados.trilhasIniciadas,
       carregando,
+      erro,
       recarregar,
     }),
-    [dados, carregando, recarregar],
+    [dados, carregando, erro, recarregar],
   );
 
   return (

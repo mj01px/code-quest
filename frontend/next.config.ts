@@ -46,7 +46,16 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
-      { source: "/:path*", headers: [{ key: "Content-Security-Policy", value: CSP }] },
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: CSP },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          // Os links de e-mail levam token na query (/redefinir-senha?token=):
+          // um link externo dessas páginas não pode carregar o caminho completo.
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        ],
+      },
     ];
   },
 };

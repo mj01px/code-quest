@@ -158,14 +158,41 @@ describe("BarraLateral: item SER AUTOR", () => {
     expect(screen.queryByRole("link", { name: /SER AUTOR/ })).toBeNull();
   });
 
-  it("esconde SER AUTOR de quem já cria conteúdo", async () => {
+  it("esconde SER AUTOR de quem já é Autor Completo", async () => {
     mock.api.eu.mockResolvedValue(
-      usuario({ permissoes: [...usuario().permissoes, "trilhas.create"] }),
+      usuario({
+        permissoes: [
+          ...usuario().permissoes,
+          "trilhas.create",
+          "trilhas.create_trilha",
+          "trilhas.create_aula",
+          "trilhas.create_exercicio",
+        ],
+      }),
     );
     montar();
     await waitFor(() => expect(bloco()).toHaveClass("opacity-100"));
 
     expect(screen.queryByRole("link", { name: /SER AUTOR/ })).toBeNull();
+  });
+
+  it("mostra SER AUTOR para autor parcial, que pode pedir upgrade", async () => {
+    mock.api.eu.mockResolvedValue(
+      usuario({
+        permissoes: [
+          ...usuario().permissoes,
+          "trilhas.create",
+          "trilhas.create_exercicio",
+        ],
+      }),
+    );
+    montar();
+    await waitFor(() => expect(bloco()).toHaveClass("opacity-100"));
+
+    expect(screen.getByRole("link", { name: /SER AUTOR/ })).toHaveAttribute(
+      "href",
+      "/ser-autor",
+    );
   });
 });
 

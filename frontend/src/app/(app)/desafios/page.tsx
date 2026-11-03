@@ -46,6 +46,9 @@ export default async function DesafiosPage() {
   if (desafios.length === 0) {
     return (
       <PortaDeAcesso perm="trilhas.view">
+        <span className="mb-3 block font-label text-[11px] tracking-[2px] text-brand">
+          {"// DESAFIO DO DIA"}
+        </span>
         <h1 className={`${TIPO.tituloPagina} text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)] sm:text-[22px]`}>
           Desafio do dia
         </h1>

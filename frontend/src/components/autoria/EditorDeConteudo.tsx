@@ -28,6 +28,7 @@ import { ModalConfirmacao } from "@/components/clas/ModalConfirmacao";
 import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelField } from "@/components/ui/PixelField";
+import { ServicoIndisponivel } from "@/components/ui/ServicoIndisponivel";
 import { ErroApi, api } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
 import type {
@@ -119,7 +120,7 @@ const opcao = (ativa: boolean) =>
 // retoma uma trilha já salva de onde o autor parou.
 export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null }) {
   const router = useRouter();
-  const { usuario, carregando } = useProgresso();
+  const { usuario, carregando, erro } = useProgresso();
   const [trilha, setTrilha] = useState<TrilhaEditor | null>(null);
   const [aulas, setAulas] = useState<AulaEditor[]>([]);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
@@ -142,10 +143,10 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
     usuario?.permissoes.includes("trilhas.create_exercicio") ?? false;
 
   useEffect(() => {
-    if (carregando) return;
+    if (carregando || erro) return;
     if (!usuario) router.replace("/entrar");
     else if (!podeCriar) router.replace("/autoria");
-  }, [carregando, usuario, podeCriar, router]);
+  }, [carregando, erro, usuario, podeCriar, router]);
 
   // Dá tempo de ler o aviso antes de voltar à lista.
   useEffect(() => {
@@ -179,6 +180,7 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
     };
   }, [trilhaId, podeCriar]);
 
+  if (erro && !usuario) return <ServicoIndisponivel />;
   if (carregando || !usuario || !podeCriar) {
     return (
       <p className={`m-0 text-brand-light ${TIPO.etiqueta}`}>&gt; VERIFICANDO ACESSO...</p>

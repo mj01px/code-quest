@@ -182,10 +182,7 @@ export function GestaoNiveis() {
         </p>
       ) : null}
 
-      <div className="flex items-center justify-between gap-4">
-        <span className="font-label text-[11px] tracking-[2px] text-ink-label">
-          NÍVEIS DE ACESSO
-        </span>
+      <div className="flex items-center justify-end gap-4">
         <button
           type="button"
           onClick={abrirNovo}

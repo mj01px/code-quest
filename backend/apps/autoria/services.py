@@ -10,7 +10,8 @@ from rest_framework.request import Request
 
 from apps.auditoria.models import RegistroDeAuditoria
 from apps.auditoria.services import AcaoAuditoria, registrar
-from apps.contas.models import NivelDeAcesso, User
+from apps.contas.models import NivelDeAcesso, Permissao, User
+from apps.contas.rbac import permissions_for_role
 from apps.trilhas.models import Aula, Exercicio, StatusEditorial, Trilha
 
 from .models import SolicitacaoAutoria
@@ -65,7 +66,7 @@ def itens_no_status(
     status: StatusEditorial,
     autor: User | None = None,
     tipos: tuple[str, ...] = tuple(MODELOS),
-) -> list[dict[str, int | str]]:
+) -> list[dict[str, int | str | None]]:
     """Itens de `tipos` em `status`, num formato único para as filas.
 
     Uma consulta por model, só com as colunas usadas (o nickname do autor vem
@@ -119,18 +120,50 @@ def slug_livre(texto: str, ocupados: QuerySet[Model]) -> str:
     return slug
 
 
-def promover_a_autor(usuario: User) -> None:
-    """Dá o papel e o nível de sistema "Autor" a quem ainda não cria conteúdo.
+GRANULARES = ("trilhas.create_trilha", "trilhas.create_aula", "trilhas.create_exercicio")
+Tipo = SolicitacaoAutoria.Tipo
+GRANULARES_DO_TIPO: dict[str, tuple[str, ...]] = {
+    Tipo.TRILHA: ("trilhas.create_trilha",),
+    Tipo.AULA: ("trilhas.create_aula",),
+    Tipo.EXERCICIO: ("trilhas.create_exercicio",),
+    Tipo.COMPLETO: GRANULARES,
+}
 
-    Quem já tem `trilhas.create` (um admin, por exemplo) fica como está: trocar
-    o nível dele por "Autor" seria um rebaixamento.
+
+def ja_cria(usuario: User, tipo: str) -> bool:
+    """O usuário já cria tudo o que `tipo` concederia."""
+    return all(usuario.has_perm(p) for p in ("trilhas.create", *GRANULARES_DO_TIPO[tipo]))
+
+
+def nivel_de_autor(tipo: str) -> NivelDeAcesso | None:
+    """Nível com as permissões de autor e só as granulares de `tipo`.
+
+    Completo é o nível de sistema "Autor". Os parciais nascem na primeira
+    aprovação daquele tipo; depois disso o admin pode ajustá-los no painel.
     """
-    if usuario.has_perm("trilhas.create"):
+    if tipo == Tipo.COMPLETO:
+        return NivelDeAcesso.objects.filter(nome="Autor", sistema=True).first()
+    nivel, criado = NivelDeAcesso.objects.get_or_create(
+        nome=f"Autor ({Tipo(tipo).label})",
+        defaults={"sistema": True, "descricao": "Concedido por solicitação de autoria."},
+    )
+    if criado:
+        fora = set(GRANULARES) - set(GRANULARES_DO_TIPO[tipo])
+        codenames = permissions_for_role(User.Role.AUTHOR) - fora
+        nivel.permissoes.set(Permissao.objects.filter(codename__in=codenames))
+    return nivel
+
+
+def promover_a_autor(usuario: User, tipo: str = Tipo.COMPLETO) -> None:
+    """Dá o papel "Autor" e o nível com as granulares de `tipo`.
+
+    Quem já cria o que foi pedido (um admin, ou autor completo pedindo só
+    exercícios) fica como está: trocar o nível dele seria um rebaixamento.
+    """
+    if ja_cria(usuario, tipo):
         return
     usuario.role = User.Role.AUTHOR
-    usuario.nivel_de_acesso = NivelDeAcesso.objects.filter(
-        nome="Autor", sistema=True
-    ).first()
+    usuario.nivel_de_acesso = nivel_de_autor(tipo)
     # `update()`, como no sinal de nível padrão: não redispara o post_save.
     User.objects.filter(pk=usuario.pk).update(
         role=usuario.role, nivel_de_acesso=usuario.nivel_de_acesso
@@ -163,7 +196,7 @@ def decidir_solicitacao(
 
         if aprovar:
             solicitacao.status = SolicitacaoAutoria.Status.APROVADA
-            promover_a_autor(solicitacao.usuario)
+            promover_a_autor(solicitacao.usuario, solicitacao.tipo_pretendido)
         else:
             solicitacao.status = SolicitacaoAutoria.Status.REJEITADA
             solicitacao.motivo_rejeicao = motivo
@@ -370,7 +403,7 @@ def exclusoes_sofridas(autor: User, limite: int = 20) -> list[dict[str, object]]
     ]
 
 
-def anexar_pareceres(itens: list[dict[str, int | str]]) -> list[dict[str, int | str]]:
+def anexar_pareceres(itens: list[dict[str, int | str | None]]) -> list[dict[str, int | str | None]]:
     """Põe em cada item o parecer da devolução mais recente, ou None.
 
     Uma consulta só na auditoria, que é onde o parecer mora: o model do
@@ -427,6 +460,9 @@ def transicionar(
         )
         if exige_dono and not eh_dono_ou_admin(conteudo, usuario):
             raise PermissionDenied("Você só pode enviar para revisão ou publicar o que criou.")
+        # Quatro olhos: quem criou não aprova o próprio conteúdo, nem o admin.
+        if acao == "aprovar" and conteudo.autor_id == usuario.pk:
+            raise PermissionDenied("Você não pode aprovar o conteúdo que criou.")
 
         if conteudo.status != origem:
             raise ValidationError(

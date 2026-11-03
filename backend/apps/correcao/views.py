@@ -48,7 +48,12 @@ def _exercicio(request: Request, trilha_slug: str, exercicio_slug: str) -> Exerc
     visiveis = Exercicio.objects.all()
     if not (usuario.is_platform_admin or usuario.has_perm("trilhas.review")):
         visiveis = visiveis.filter(
-            Q(status=StatusEditorial.PUBLICADO) | Q(autor=usuario)
+            Q(
+                status=StatusEditorial.PUBLICADO,
+                aula__status=StatusEditorial.PUBLICADO,
+                trilha__status=StatusEditorial.PUBLICADO,
+            )
+            | Q(autor=usuario)
         )
     return get_object_or_404(visiveis, trilha__slug=trilha_slug, slug=exercicio_slug)
 

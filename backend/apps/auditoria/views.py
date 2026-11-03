@@ -1,6 +1,7 @@
 from django.utils.dateparse import parse_datetime
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 
@@ -15,6 +16,15 @@ class AuditoriaPagination(PageNumberPagination):
     page_size = 50
     page_size_query_param = "tamanho"
     max_page_size = 200
+
+
+def _data_do_filtro(params, nome):
+    # Formato válido com data impossível (30/02) faz parse_datetime lançar
+    # ValueError, que viraria 500; aqui vira 400 no padrão de erro da API.
+    try:
+        return parse_datetime(params.get(nome) or "")
+    except ValueError:
+        raise ValidationError({nome: "Data/hora inválida."}) from None
 
 
 class AtividadePagination(PageNumberPagination):
@@ -55,11 +65,11 @@ class AuditoriaListView(generics.ListAPIView):
         if actor:
             consulta = consulta.filter(actor_id=actor)
 
-        desde = parse_datetime(params.get("desde") or "")
+        desde = _data_do_filtro(params, "desde")
         if desde:
             consulta = consulta.filter(created_at__gte=desde)
 
-        ate = parse_datetime(params.get("ate") or "")
+        ate = _data_do_filtro(params, "ate")
         if ate:
             consulta = consulta.filter(created_at__lte=ate)
 

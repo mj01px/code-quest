@@ -27,8 +27,14 @@ export const ITEM_ADMIN = { rotulo: "ADMIN", href: "/admin" } as const;
 export const ITEM_AUTORIA = { rotulo: "AUTORIA", href: "/autoria" } as const;
 const PERMISSOES_AUTORIA = ["trilhas.submit_review", "trilhas.review"];
 
-// Quem ainda não cria conteúdo e não tem pedido em análise.
+// Quem ainda não é Autor Completo e não tem pedido em análise. O autor parcial
+// (só exercícios, por exemplo) continua vendo o item para pedir upgrade.
 export const ITEM_SER_AUTOR = { rotulo: "SER AUTOR", href: "/ser-autor" } as const;
+const AUTOR_COMPLETO = [
+  "trilhas.create_trilha",
+  "trilhas.create_aula",
+  "trilhas.create_exercicio",
+];
 
 const BLOCOS = 10;
 
@@ -58,7 +64,7 @@ export function BarraLateral() {
   );
   const vePedido =
     usuario !== null &&
-    !usuario.permissoes.includes("trilhas.create") &&
+    !AUTOR_COMPLETO.every((p) => usuario.permissoes.includes(p)) &&
     !usuario.solicitacao_pendente;
   const itens = [
     ...permitidos,

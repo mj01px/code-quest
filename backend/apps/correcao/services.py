@@ -7,6 +7,7 @@ from typing import NotRequired, TypedDict
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -156,6 +157,25 @@ def _checar_cota_diaria(user: User) -> None:
     # chamadas já em voo.
     if pagas_hoje.count() >= settings.JUDGE0_LIMITE_DIARIO * DISJUNTOR:
         raise CotaDiariaEsgotada()
+
+
+def _reservar_chamada(submissao: Submissao) -> None:
+    """Confere a cota e grava a tentativa, como um passo só (RNF17).
+
+    A tentativa entra ANTES da chamada paga. Sem hash ela não serve de cache,
+    mas já conta na cota: chamada que falha (timeout, 5xx) também gasta o
+    RapidAPI. A trava na linha do usuário enfileira as requisições simultâneas
+    dele, e cada uma conta já enxergando a tentativa da anterior; sem ela, duas
+    leriam o mesmo total e passariam juntas pelo teto. A chamada ao Judge0 fica
+    fora da transação, para a trava não durar o tempo da execução.
+    """
+    # ponytail: o disjuntor global ainda pode passar por pouco com usuários
+    # diferentes em paralelo; a folga de 10% do DISJUNTOR cobre isso.
+    with transaction.atomic():
+        User.objects.select_for_update().only("pk").get(pk=submissao.user.pk)
+        _checar_cota_diaria(submissao.user)
+        submissao.veredito = Veredito.ERRO_DE_EXECUCAO
+        submissao.save()
 
 
 def _normalizar(codigo: str) -> str:
@@ -336,12 +356,7 @@ def _corrigir(
         submissao.em_cache = True
     else:
         cliente = obter_cliente()  # sem configuração não há chamada a contar
-        _checar_cota_diaria(user)
-        # Grava a tentativa ANTES da chamada paga. Sem hash ela não serve de
-        # cache, mas já conta na cota: chamada que falha (timeout, 5xx) também
-        # gasta o RapidAPI, e chamadas simultâneas passam a se enxergar.
-        submissao.veredito = Veredito.ERRO_DE_EXECUCAO
-        submissao.save()
+        _reservar_chamada(submissao)
         execucao = cliente.executar(
             codigo=harness.montar_programa(codigo=codigo, funcao=especificacao.funcao),
             stdin=harness.montar_entrada(casos),

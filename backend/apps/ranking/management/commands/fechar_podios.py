@@ -1,4 +1,6 @@
-from django.core.management.base import BaseCommand
+from typing import Any
+
+from django.core.management.base import BaseCommand, CommandParser
 
 from apps.ranking.services import fechar_mes, mes_anterior, mes_atual
 
@@ -9,7 +11,7 @@ class Command(BaseCommand):
         "Idempotente: mês fechado é pulado."
     )
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--meses",
             type=int,
@@ -17,7 +19,7 @@ class Command(BaseCommand):
             help="Quantos meses para trás conferir (padrão: só o anterior).",
         )
 
-    def handle(self, *args, **opcoes):
+    def handle(self, *args: Any, **opcoes: Any) -> None:
         meses = []
         mes = mes_atual()
         for _ in range(opcoes["meses"]):

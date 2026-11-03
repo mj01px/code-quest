@@ -22,6 +22,7 @@ import type {
   FiltrosAuditoria,
   Flashcard,
   ItemEditorial,
+  LogAdmin,
   MeusEnvios,
   MembroDoCla,
   MeuCla,
@@ -33,6 +34,7 @@ import type {
   NovoExercicio,
   Pagina,
   PaginaAuditoria,
+  PerfilPublico,
   PermissaoCatalogo,
   PreviaConvite,
   ProgressoAtual,
@@ -46,6 +48,7 @@ import type {
   SolicitacaoAutoria,
   TipoConteudo,
   TipoDeCla,
+  TipoPretendido,
   TransicaoEditorial,
   TrilhaDetalhe,
   TrilhaResumo,
@@ -170,7 +173,18 @@ async function garantirCsrf(prazo: AbortSignal): Promise<string | null> {
 
 async function interpretar(resposta: Response) {
   const texto = await resposta.text();
-  const corpo = texto ? JSON.parse(texto) : null;
+  let corpo = null;
+  try {
+    corpo = texto ? JSON.parse(texto) : null;
+  } catch {
+    // Página HTML de 500 do Django ou texto puro do rewrite com a API fora:
+    // vira ErroApi com o status real, não SyntaxError sem status.
+    throw new ErroApi(
+      resposta.status,
+      "resposta_invalida",
+      `Falha inesperada (HTTP ${resposta.status}).`,
+    );
+  }
 
   if (resposta.ok) return corpo;
 
@@ -466,6 +480,12 @@ export const api = {
 
   adminDashboard() {
     return requisicao<DashboardAdmin>("/admin/dashboard/", { autenticado: true });
+  },
+
+  adminLogs(pagina = 1) {
+    return requisicao<Pagina<LogAdmin>>(`/admin/logs/?page=${pagina}`, {
+      autenticado: true,
+    });
   },
 
   adminNiveis() {
@@ -1050,6 +1070,7 @@ export const api = {
     carta_apresentacao: string;
     portfolio_link: string;
     aceite_diretrizes: boolean;
+    tipo_pretendido: TipoPretendido;
   }) {
     return requisicao<SolicitacaoAutoria>("/autoria/solicitacoes/", {
       metodo: "POST",
@@ -1126,6 +1147,13 @@ export const api = {
 
   rankingMensal() {
     return requisicao<RankingMensal>("/ranking/mensal/", { autenticado: true });
+  },
+
+  perfilPublico(nickname: string) {
+    return requisicao<PerfilPublico>(
+      `/perfil/${encodeURIComponent(nickname)}/`,
+      { autenticado: true },
+    );
   },
 };
 

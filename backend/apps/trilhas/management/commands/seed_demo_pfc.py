@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
@@ -13,7 +15,7 @@ from apps.trilhas.models import (
 )
 
 CODIGOS_PYTHON = ("iniciais-do-nome", "limpar-entrada")
-CONTEUDO = {
+CONTEUDO: dict[str, dict[str, Any]] = {
     "python": {
         "aula": "texto-e-formatacao",
         "exercicios": [
@@ -100,18 +102,17 @@ class Command(BaseCommand):
     help = "Publica os nove exercícios alternativos da demonstração do PFC."
 
     @transaction.atomic
-    def handle(self, *args, **options):
-        trilhas = {}
-        aulas = {}
+    def handle(self, *args: Any, **options: Any) -> None:
+        trilhas: dict[str, Trilha] = {}
+        aulas: dict[str, Aula] = {}
         for slug, dados in CONTEUDO.items():
-            trilhas[slug] = Trilha.objects.filter(slug=slug).first()
-            if trilhas[slug] is None:
+            trilha = Trilha.objects.filter(slug=slug).first()
+            if trilha is None:
                 raise CommandError("Execute seed_trilhas antes de seed_demo_pfc.")
-            aulas[slug] = Aula.objects.filter(
-                trilha=trilhas[slug], slug=dados["aula"]
-            ).first()
-            if aulas[slug] is None:
+            aula = Aula.objects.filter(trilha=trilha, slug=dados["aula"]).first()
+            if aula is None:
                 raise CommandError("Execute seed_trilhas antes de seed_demo_pfc.")
+            trilhas[slug], aulas[slug] = trilha, aula
 
         codigos = list(
             Exercicio.objects.filter(trilha=trilhas["python"], slug__in=CODIGOS_PYTHON)

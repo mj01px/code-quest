@@ -6,11 +6,10 @@ nível a um usuário. Tudo protegido por `IsAdmin`, já que o painel inteiro é 
 
 import logging
 
-from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Count, Q
-from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework import generics, status
+from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
+from rest_framework import generics, serializers, status
 from rest_framework.exceptions import ErrorDetail, ValidationError
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -52,9 +51,6 @@ def _ref_nivel(nivel):
 
 
 logger = logging.getLogger(__name__)
-
-# Passo do TOTP (30 s) vezes a janela aceita (±1) em mfa.verificar_totp.
-TOTP_JANELA_S = 90
 
 
 def _recusar(mensagem, codigo):
@@ -181,7 +177,13 @@ class UsuarioListView(generics.ListAPIView):
         return usuarios
 
 
-@extend_schema(tags=["admin"])
+@extend_schema(
+    tags=["admin"],
+    request=inline_serializer(
+        "ExclusaoDeUsuario", {"totp_code": serializers.CharField()}
+    ),
+    responses={204: None},
+)
 class UsuarioDetailView(generics.DestroyAPIView):
     """Exclusão de usuário pelo admin, por anonimização (LGPD), nunca DELETE.
 
@@ -225,10 +227,8 @@ class UsuarioDetailView(generics.DestroyAPIView):
         if not verificar_codigo(admin, codigo, permitir_recuperacao=False):
             logger.warning("2FA inválido na exclusão de usuário (admin=%s)", admin.pk)
             _recusar("Código do autenticador inválido.", "totp_invalido")
-        # O TOTP vale ~90 s: sem isto o mesmo código autorizaria outras exclusões.
-        # ponytail: cache local por processo; com vários workers, use cache compartilhado.
-        if not cache.add(f"totp-exclusao:{admin.pk}:{codigo}", 1, timeout=TOTP_JANELA_S):
-            _recusar("Este código já foi usado. Aguarde o próximo.", "totp_invalido")
+        # Código já usado não passa: verificar_codigo consome o passo do TOTP no
+        # banco, então ele não autoriza uma segunda exclusão.
 
         with transaction.atomic():
             # A prova obrigatória já diz qual admin pediu; a linha abaixo põe o

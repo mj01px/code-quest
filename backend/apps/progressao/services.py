@@ -288,18 +288,21 @@ def trilhas_iniciadas(*, user):
 DIAS_DA_SEMANA = ("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom")
 
 
-def montar_dashboard_admin(*, com_logs=True):
-    """Métricas de gestão da plataforma para a aba Dashboard do /admin."""
-    aprovada = Q(veredito=Veredito.APROVADO)
+def logs_do_dashboard():
     # Dentro da retenção mesmo se o limpar_auditoria atrasar no cron.
     retencao = timezone.now() - timedelta(days=settings.AUDITORIA_RETENCAO_DIAS)
-    logs = (
+    return (
         RegistroDeAuditoria.objects.select_related("actor")
         .filter(created_at__gte=retencao)
-        # A consulta do próprio dashboard é registrada e cairia sempre no topo.
+        # Cada página consultada é registrada e cairia sempre no topo.
         .exclude(acao=AcaoAuditoria.ACESSO_AUDITORIA)
-        .order_by("-created_at")[:10]
+        .order_by("-created_at", "-id")
     )
+
+
+def montar_dashboard_admin():
+    """Métricas de gestão da plataforma para o /admin."""
+    aprovada = Q(veredito=Veredito.APROVADO)
     total_usuarios = get_user_model().objects.count()
     total_submissoes = Submissao.objects.count()
     xp_total = EventoXP.objects.aggregate(t=Sum("xp"))["t"] or 0
@@ -324,7 +327,6 @@ def montar_dashboard_admin(*, com_logs=True):
             aprovadas=Count("pk", filter=aprovada),
             rejeitadas=Count("pk", filter=~aprovada),
         ),
-        "logs_recentes": list(logs) if com_logs else [],
     }
 
 

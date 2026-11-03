@@ -1,3 +1,5 @@
+from typing import Any
+
 from rest_framework import serializers
 
 from .models import Aula, Exercicio, Flashcard, Questao, Tipo, Trilha
@@ -118,7 +120,7 @@ class ExercicioDetalheSerializer(serializers.ModelSerializer[Exercicio]):
     trilha_slug = serializers.SlugField(source="trilha.slug", read_only=True)
     alternativas = serializers.SerializerMethodField()
 
-    def get_alternativas(self, obj):
+    def get_alternativas(self, obj: Exercicio) -> list[dict[str, int | str]]:
         if obj.tipo != Tipo.ALTERNATIVA:
             return []
         return [
@@ -126,7 +128,7 @@ class ExercicioDetalheSerializer(serializers.ModelSerializer[Exercicio]):
             for alternativa in obj.alternativas.all()
         ]
 
-    def to_representation(self, instance):
+    def to_representation(self, instance: Exercicio) -> dict[str, Any]:
         dados = super().to_representation(instance)
         if instance.tipo != Tipo.ALTERNATIVA:
             dados.pop("alternativas", None)

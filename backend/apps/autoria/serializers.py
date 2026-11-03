@@ -20,7 +20,13 @@ from apps.trilhas.models import (
 from apps.trilhas.serializers import ExercicioDetalheSerializer, TrilhaDetalheSerializer
 
 from .models import SolicitacaoAutoria
-from .services import MODELOS, bonus_da_trilha, exigir_rascunho_do_dono, slug_livre
+from .services import (
+    MODELOS,
+    bonus_da_trilha,
+    exigir_rascunho_do_dono,
+    ja_cria,
+    slug_livre,
+)
 
 # Mesmo dobro que o seed dá às criaturas de domínio afim.
 BONUS_DO_AUTOR = Decimal("2.00")
@@ -152,6 +158,7 @@ class SolicitacaoAutoriaSerializer(serializers.ModelSerializer[SolicitacaoAutori
             "carta_apresentacao",
             "portfolio_link",
             "aceite_diretrizes",
+            "tipo_pretendido",
             "situacao",
             "motivo_rejeicao",
             "criado_em",
@@ -170,7 +177,9 @@ class SolicitacaoAutoriaSerializer(serializers.ModelSerializer[SolicitacaoAutori
 
     def validate(self, dados: dict[str, Any]) -> dict[str, Any]:
         usuario = self.context["request"].user
-        if usuario.has_perm("trilhas.create"):
+        # Autor parcial pode pedir mais; só barra quem já cria o que pediu.
+        tipo = dados.get("tipo_pretendido", SolicitacaoAutoria.Tipo.COMPLETO)
+        if ja_cria(usuario, tipo):
             raise serializers.ValidationError(
                 "Você já pode criar conteúdo.", code="ja_autor"
             )
@@ -224,13 +233,23 @@ class MotivoExclusaoSerializer(serializers.Serializer[None]):
 
 # --- Criação de conteúdo ---
 # Todo conteúdo nasce em RASCUNHO (default do model) e com o autor da request,
-# preenchido na view. Filho só entra em pai do próprio autor, salvo admin.
+# preenchido na view. Filho entra em pai do próprio autor (ou qualquer um, se
+# admin) e em pai já publicado: quem só cria aulas ou exercícios não tem trilha
+# própria, e o filho novo nasce rascunho, invisível até passar pela revisão.
 
 
 def _exigir_dono(conteudo: Trilha | Aula, request: Any) -> None:
     if request.user.is_platform_admin or conteudo.autor_id == request.user.pk:
         return
-    raise PermissionDenied("Você só pode adicionar conteúdo ao que criou.")
+    # Aula publicada em trilha fora do ar não conta: a trilha ainda é do dono.
+    trilhas: list[Trilha | Aula] = (
+        [conteudo] if isinstance(conteudo, Trilha) else [conteudo, conteudo.trilha]
+    )
+    if all(c.status == StatusEditorial.PUBLICADO for c in trilhas):
+        return
+    raise PermissionDenied(
+        "Você só pode adicionar conteúdo ao que criou ou ao que já está publicado."
+    )
 
 
 class _BonusDaTrilha(serializers.ModelSerializer[Trilha]):

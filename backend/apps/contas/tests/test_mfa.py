@@ -7,6 +7,7 @@ desafio ou a regra de "a senha sozinha não basta", é aqui que aparece.
 """
 
 import re
+import time
 
 import pyotp
 from django.conf import settings
@@ -163,9 +164,11 @@ class MfaSetupTest(APITestCase):
         self.assertEqual(errado.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertTrue(ConfiguracaoMFA.objects.get(user=self.usuario).ativo)
 
+        # O código atual já foi gasto na ativação (não vale duas vezes): usa o
+        # do próximo passo, ainda dentro da janela de ±1.
         certo = self.client.post(
             reverse("contas:mfa-desativar"),
-            {"codigo": pyotp.TOTP(secret).now()},
+            {"codigo": pyotp.TOTP(secret).at(int(time.time()), 1)},
             format="json",
         )
         self.assertEqual(certo.status_code, status.HTTP_204_NO_CONTENT)

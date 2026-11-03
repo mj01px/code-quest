@@ -414,13 +414,17 @@ class AuditoriaDoPainelTest(APITestCase):
         self.assertTrue(self._sem_registro(AcaoAuditoria.NIVEL_ATRIBUIDO))
 
     def test_falha_real_no_save_da_auditoria_nao_desfaz_a_acao(self):
-        # Falha real, não mock: o IP inválido quebra dentro do save() do
+        # Falha real no banco: o IP inválido quebra dentro do save() do
         # registro. O save() marca para rollback o atomic() da view; sem o
-        # savepoint do registrar(), a troca some com resposta 200.
+        # savepoint do registrar(), a troca some com resposta 200. O IP entra
+        # pelo helper porque ip_do_cliente já descarta valor que não é IP.
         alvo = criar_aluno("alvo")
         so_view = NivelDeAcesso.objects.create(nome="so_view")
-        with self.assertLogs("apps.auditoria", "WARNING"):
-            r = self._atribuir(alvo, so_view, REMOTE_ADDR="nao-e-ip")
+        with (
+            patch("apps.auditoria.services.ip_do_cliente", return_value="nao-e-ip"),
+            self.assertLogs("apps.auditoria", "WARNING"),
+        ):
+            r = self._atribuir(alvo, so_view)
         self.assertEqual(r.status_code, status.HTTP_200_OK)
         alvo.refresh_from_db()
         self.assertEqual(alvo.nivel_de_acesso, so_view)

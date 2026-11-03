@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     AdminDashboardView,
+    AdminLogsView,
     ConcluirExercicioView,
     IniciarTrilhaView,
     MeuProgressoView,
@@ -15,6 +16,7 @@ app_name = "progressao"
 urlpatterns = [
     path("eu/progresso/", MeuProgressoView.as_view(), name="meu-progresso"),
     path("admin/dashboard/", AdminDashboardView.as_view(), name="admin-dashboard"),
+    path("admin/logs/", AdminLogsView.as_view(), name="admin-logs"),
     path("eu/sequencia/", MinhaSequenciaView.as_view(), name="minha-sequencia"),
     path(
         "eu/trilhas/",

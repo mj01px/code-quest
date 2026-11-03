@@ -6,6 +6,7 @@ import { PreviaMarkdown } from "@/components/autoria/PreviaMarkdown";
 import { PainelDeCodigo } from "@/components/exercicio/PainelDeCodigo";
 import { BaralhoFlashcards } from "@/components/trilhas/CartaoFlashcard";
 import { QuizQuestao } from "@/components/trilhas/QuizQuestao";
+import { useModal } from "@/components/ui/useModal";
 import { ErroApi, api } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
 import type {
@@ -47,20 +48,7 @@ export function ModalVisualizacao({
   const [detalhe, setDetalhe] = useState<DetalheEditorial | null>(null);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Devolve o foco ao título que abriu o modal, para o teclado não se perder.
-    const origem = document.activeElement as HTMLElement | null;
-    painel.current?.focus();
-    return () => origem?.focus();
-  }, []);
-
-  useEffect(() => {
-    function aoTeclar(evento: KeyboardEvent) {
-      if (evento.key === "Escape" && !ocupado) onFechar();
-    }
-    document.addEventListener("keydown", aoTeclar);
-    return () => document.removeEventListener("keydown", aoTeclar);
-  }, [ocupado, onFechar]);
+  useModal(painel, onFechar, ocupado);
 
   useEffect(() => {
     let ativo = true;

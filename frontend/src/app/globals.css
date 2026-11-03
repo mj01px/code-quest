@@ -25,8 +25,9 @@
   --color-ink-label: #ece7f7;
   --color-ink-body: #cfc8e0;
   --color-ink-muted: #a79fbc;
-  --color-ink-dim: #6e6880;
-  --color-ink-ghost: #7d7691;
+  /* Ambos >= 4.5:1 sobre --color-panel (AA): eram 3.6:1 e 4.4:1. */
+  --color-ink-dim: #857f99;
+  --color-ink-ghost: #8c86a0;
 
   --color-danger: #f87171;
   --color-danger-deep: #7f1d1d;

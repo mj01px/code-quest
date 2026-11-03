@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useId, useRef, type ReactNode } from "react";
+
+import { useModal } from "@/components/ui/useModal";
 
 import { BTN_SECUNDARIO } from "./estilos";
 
@@ -40,43 +42,7 @@ export function ModalConfirmacao({
   const painel = useRef<HTMLDivElement>(null);
   const tituloId = useId();
 
-  useEffect(() => {
-    // Ao fechar, o foco volta para quem abriu o modal (se ainda existir).
-    const origem = document.activeElement as HTMLElement | null;
-    painel.current?.focus();
-    return () => {
-      if (origem?.isConnected) origem.focus();
-    };
-  }, []);
-
-  useEffect(() => {
-    function aoTeclar(evento: KeyboardEvent) {
-      if (evento.key === "Escape" && !carregando) onFechar();
-      // aria-modal não prende o Tab sozinho: dá a volta dentro do painel.
-      if (evento.key !== "Tab" || !painel.current) return;
-      const focaveis = painel.current.querySelectorAll<HTMLElement>(
-        "button:not(:disabled), [href], input, select, textarea",
-      );
-      const primeiro = focaveis[0];
-      const ultimo = focaveis[focaveis.length - 1];
-      const ativo = document.activeElement;
-      // Carregando, os botões ficam disabled e o foco pode ter caído no body.
-      if (!primeiro || !ultimo || !painel.current.contains(ativo)) {
-        evento.preventDefault();
-        (primeiro ?? painel.current).focus();
-        return;
-      }
-      if (evento.shiftKey && (ativo === primeiro || ativo === painel.current)) {
-        evento.preventDefault();
-        ultimo.focus();
-      } else if (!evento.shiftKey && ativo === ultimo) {
-        evento.preventDefault();
-        primeiro.focus();
-      }
-    }
-    document.addEventListener("keydown", aoTeclar);
-    return () => document.removeEventListener("keydown", aoTeclar);
-  }, [carregando, onFechar]);
+  useModal(painel, onFechar, carregando);
 
   return (
     <div

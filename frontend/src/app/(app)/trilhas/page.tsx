@@ -16,7 +16,10 @@ export default async function TrilhasPage() {
   if (trilhas.length === 0) {
     return (
       <PortaDeAcesso perm="trilhas.view">
-        <h1 className="titulo text-xl text-ink-soft">Trilhas</h1>
+        <div className="mb-8 flex flex-col gap-3">
+          <span className="font-label text-[11px] tracking-[2px] text-brand">{"// TRILHAS"}</span>
+          <h1 className="m-0 font-display text-[15px] leading-[1.7] tracking-[1px] text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)] sm:text-[20px]">Trilhas</h1>
+        </div>
         <p className="mt-6 border border-edge bg-panel p-6 text-xs text-ink-muted">
           Nenhuma trilha publicada por enquanto. Volte em breve.
         </p>
@@ -30,7 +33,10 @@ export default async function TrilhasPage() {
 
   return (
     <PortaDeAcesso perm="trilhas.view">
-      <h1 className="sr-only">Trilhas</h1>
+      <div className="mb-8 flex flex-col gap-3">
+        <span className="font-label text-[11px] tracking-[2px] text-brand">{"// TRILHAS"}</span>
+        <h1 className="m-0 font-display text-[15px] leading-[1.7] tracking-[1px] text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)] sm:text-[20px]">Trilhas</h1>
+      </div>
       <PainelDeTrilhas trilhas={trilhas} destaque={destaque} />
     </PortaDeAcesso>
   );

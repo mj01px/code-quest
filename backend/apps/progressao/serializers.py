@@ -55,7 +55,7 @@ class SubmissoesDiaSerializer(DiaSerializer):
     rejeitadas = serializers.IntegerField(read_only=True)
 
 
-class LogRecenteSerializer(serializers.Serializer):
+class LogDoDashboardSerializer(serializers.Serializer):
     """Só data, quem e o quê: IP, user agent e metadata ficam na auditoria."""
 
     id = serializers.UUIDField(read_only=True)
@@ -80,7 +80,6 @@ class DashboardAdminSerializer(serializers.Serializer):
     taxa_aprovacao_submissoes = serializers.FloatField(read_only=True)
     novos_usuarios_semana = NovosUsuariosDiaSerializer(many=True, read_only=True)
     submissoes_semana = SubmissoesDiaSerializer(many=True, read_only=True)
-    logs_recentes = LogRecenteSerializer(many=True, read_only=True)
 
 
 class SequenciaConclusaoSerializer(serializers.Serializer):

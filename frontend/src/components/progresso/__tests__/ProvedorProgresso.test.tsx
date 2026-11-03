@@ -1,4 +1,10 @@
-import { render, renderHook, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 
@@ -132,6 +138,45 @@ describe("ProvedorProgresso", () => {
     await waitFor(() => expect(result.current.carregando).toBe(false));
     expect(result.current.progresso).toBeNull();
     expect(result.current.concluidos).toEqual([]);
+  });
+
+  it("API fora com sessão viva vira erro, não visitante", async () => {
+    eu.mockRejectedValue(new Error("HTTP 500"));
+
+    const { result } = renderHook(() => useProgresso(), { wrapper: envolver });
+
+    await waitFor(() => expect(result.current.erro).toBe(true));
+    expect(result.current.usuario).toBeNull();
+  });
+
+  it("sessão morta depois da falha é visitante, sem aviso de erro", async () => {
+    // O api.ts apaga o cookie-sinal quando o refresh também falha.
+    eu.mockImplementation(async () => {
+      temSessao.mockReturnValue(false);
+      throw new Error("HTTP 401");
+    });
+
+    const { result } = renderHook(() => useProgresso(), { wrapper: envolver });
+
+    await waitFor(() => expect(result.current.carregando).toBe(false));
+    expect(result.current.erro).toBe(false);
+    expect(result.current.usuario).toBeNull();
+  });
+
+  it("tenta de novo sozinho só duas vezes", async () => {
+    jest.useFakeTimers();
+    eu.mockRejectedValue(new Error("HTTP 500"));
+
+    renderHook(() => useProgresso(), { wrapper: envolver });
+
+    for (let i = 0; i < 5; i++) {
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(10_000);
+      });
+    }
+    // A leitura inicial mais as duas automáticas; depois disso, só o botão.
+    expect(eu).toHaveBeenCalledTimes(3);
+    jest.useRealTimers();
   });
 
   it("recarregar relê tudo, que é o que o POST de conclusão invalida", async () => {

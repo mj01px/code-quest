@@ -737,6 +737,7 @@ describe("PainelAutoria: criação rápida", () => {
   const CRIA_TUDO = [
     ...AUTOR,
     "trilhas.create",
+    "trilhas.create_trilha",
     "trilhas.create_aula",
     "trilhas.create_exercicio",
   ];
@@ -817,7 +818,7 @@ describe("PainelAutoria: criação rápida", () => {
     ["button", "+ NOVA AULA", /^Adiciona uma aula avulsa/],
     ["button", "+ NOVO EXERCÍCIO", /^Cria um exercício \(Teórico, Múltipla Escolha ou Código\)/],
   ])("o ? é um ícone dentro do %s %s, que o descreve", async (papel, nome, dica) => {
-    montar([...CRIA_TUDO, "trilhas.create_trilha"]);
+    montar(CRIA_TUDO);
 
     const botao = await screen.findByRole(papel, { name: nome });
     expect(botao).toHaveAccessibleDescription(dica);

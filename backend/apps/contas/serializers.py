@@ -7,7 +7,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from apps.auditoria.services import AcaoAuditoria, registrar
+from apps.auditoria.services import AcaoAuditoria, ip_do_cliente, registrar
 from apps.autoria.models import SolicitacaoAutoria
 
 from .documentos import VERSAO_MAX_LENGTH, Documento, versao_vigente
@@ -28,12 +28,6 @@ CREDENCIAL_INVALIDA = (
     "E-mail ou senha incorretos. Se errou várias vezes, espere alguns minutos "
     "ou redefina sua senha."
 )
-
-
-def _ip_do_cliente(request) -> str | None:
-    if request is None:
-        return None
-    return request.META.get("REMOTE_ADDR") or None
 
 
 def _erro_link_ja_usado(mensagem: str) -> serializers.ValidationError:
@@ -82,6 +76,8 @@ class UsuarioSerializer(serializers.ModelSerializer):
     criado_em = serializers.DateTimeField(source="created_at", read_only=True)
     # Pedido de autoria em análise: a barra lateral esconde o "SER AUTOR".
     solicitacao_pendente = serializers.SerializerMethodField()
+    # Último pedido aprovado: o app mostra os parabéns uma vez (localStorage).
+    criacao_aprovada = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -96,6 +92,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
             "nivel_id",
             "criado_em",
             "solicitacao_pendente",
+            "criacao_aprovada",
         )
         read_only_fields = ("id", "email")
 
@@ -106,6 +103,10 @@ class UsuarioSerializer(serializers.ModelSerializer):
         return obj.solicitacoes_autoria.filter(
             status=SolicitacaoAutoria.Status.PENDENTE
         ).exists()
+
+    def get_criacao_aprovada(self, obj) -> bool:
+        ultima = obj.solicitacoes_autoria.values_list("status", flat=True).first()
+        return ultima == SolicitacaoAutoria.Status.APROVADA
 
     def validate_nickname(self, valor):
         existente = User.objects.filter(nickname__iexact=valor)
@@ -210,7 +211,7 @@ class RegistroSerializer(serializers.ModelSerializer):
         return dados
 
     def create(self, dados):
-        ip = _ip_do_cliente(self.context.get("request"))
+        ip = ip_do_cliente(self.context.get("request"))
 
         with transaction.atomic():
             usuario = User.objects.create_user(

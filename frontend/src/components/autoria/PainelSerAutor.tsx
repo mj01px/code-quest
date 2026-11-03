@@ -9,9 +9,19 @@ import { PixelCheckbox } from "@/components/ui/PixelCheckbox";
 import { PixelField } from "@/components/ui/PixelField";
 import { ErroApi, api, listarTrilhas } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
-import type { SolicitacaoAutoria, TrilhaResumo } from "@/lib/types";
+import type { SolicitacaoAutoria, TipoPretendido, TrilhaResumo } from "@/lib/types";
 
 export const CARTA_MINIMA = 80;
+
+// Rótulo de cada tipo no formulário e no badge da fila do admin.
+export const TIPOS_PRETENDIDOS: [TipoPretendido, string][] = [
+  ["COMPLETO", "Trilha completa (trilhas, aulas e exercícios)"],
+  ["TRILHA", "Apenas trilhas"],
+  ["AULA", "Apenas aulas"],
+  ["EXERCICIO", "Apenas exercícios"],
+];
+
+const GRANULARES = ["trilhas.create_trilha", "trilhas.create_aula", "trilhas.create_exercicio"];
 
 const CAMPO_TEXTO =
   "resize-y border-2 border-brand-strong bg-field px-3.5 py-3 font-body text-[15px] leading-[1.6] text-ink shadow-pixel outline-none focus:border-brand-pale";
@@ -50,7 +60,9 @@ export function PainelSerAutor() {
     };
   }, []);
 
-  const jaAutor = usuario?.permissoes.includes("trilhas.create") ?? false;
+  // Autor parcial (só aulas, por exemplo) ainda pode pedir o resto.
+  const permissoes = usuario?.permissoes ?? [];
+  const jaAutor = ["trilhas.create", ...GRANULARES].every((p) => permissoes.includes(p));
 
   function aoEnviar(nova: SolicitacaoAutoria) {
     setPedido(nova);
@@ -90,7 +102,13 @@ export function PainelSerAutor() {
   } else if (pedido !== "nenhuma" && pedido.situacao === "REJEITADA" && !refazendo) {
     corpo = (
       <Aviso cor="border-danger text-danger" marca="X" titulo="SOLICITAÇÃO RECUSADA">
-        <span className="block">Motivo: {pedido.motivo_rejeicao}</span>
+        <span className={`block text-ink-muted ${TIPO.etiqueta}`}>MOTIVO DO ADMIN</span>
+        <span className="mt-2 block border-l-4 border-danger bg-panel-deep px-4 py-3 whitespace-pre-wrap text-ink">
+          {pedido.motivo_rejeicao}
+        </span>
+        <span className="mt-3 block">
+          Ajuste o que foi apontado e envie uma nova solicitação.
+        </span>
         <span className="mt-4 block">
           <PixelButton variante="secundaria" onClick={() => setRefazendo(true)}>
             TENTAR NOVAMENTE
@@ -181,6 +199,7 @@ function Formulario({ aoEnviar }: { aoEnviar: (s: SolicitacaoAutoria) => void })
   const [areas, setAreas] = useState<number[]>([]);
   const [carta, setCarta] = useState("");
   const [portfolio, setPortfolio] = useState("");
+  const [tipo, setTipo] = useState<TipoPretendido>("COMPLETO");
   const [aceite, setAceite] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -225,6 +244,7 @@ function Formulario({ aoEnviar }: { aoEnviar: (s: SolicitacaoAutoria) => void })
           carta_apresentacao: carta.trim(),
           portfolio_link: portfolio.trim(),
           aceite_diretrizes: aceite,
+          tipo_pretendido: tipo,
         }),
       );
     } catch (e) {
@@ -237,6 +257,31 @@ function Formulario({ aoEnviar }: { aoEnviar: (s: SolicitacaoAutoria) => void })
     <form onSubmit={enviar} className="flex flex-col gap-8" noValidate>
       <div className="flex flex-col gap-6 border-2 border-edge bg-panel p-7 shadow-pixel-lg">
         <h2 className={`m-0 text-ink ${TIPO.tituloSecao}`}>Sua candidatura</h2>
+
+        <div className="flex flex-col gap-2">
+          <label
+            htmlFor="tipo-pretendido"
+            className="font-label text-[12px] tracking-[2px] text-ink-label"
+          >
+            O QUE VOCÊ DESEJA CRIAR?
+          </label>
+          <select
+            id="tipo-pretendido"
+            value={tipo}
+            onChange={(e) => setTipo(e.target.value as TipoPretendido)}
+            aria-describedby="tipo-dica"
+            className="cursor-pointer border-2 border-brand-strong bg-field px-3.5 py-3 font-body text-[15px] text-ink shadow-pixel outline-none focus:border-brand-pale"
+          >
+            {TIPOS_PRETENDIDOS.map(([valor, rotulo]) => (
+              <option key={valor} value={valor}>
+                {rotulo}
+              </option>
+            ))}
+          </select>
+          <span id="tipo-dica" className="font-body text-sm text-ink-muted">
+            Aulas e exercícios avulsos entram em trilhas já publicadas.
+          </span>
+        </div>
 
         <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
           <legend className="mb-2 font-label text-[12px] tracking-[2px] text-ink-label">

@@ -41,6 +41,7 @@ function pedido(extra: Partial<SolicitacaoAutoria> = {}): SolicitacaoAutoria {
     carta_apresentacao: "x".repeat(CARTA_MINIMA),
     portfolio_link: "",
     aceite_diretrizes: true,
+    tipo_pretendido: "COMPLETO",
     situacao: "PENDENTE",
     motivo_rejeicao: "",
     criado_em: "2026-10-28T12:00:00Z",
@@ -88,6 +89,10 @@ describe("PainelSerAutor", () => {
     await usuarioAuto.click(await screen.findByRole("button", { name: "Python" }));
     await usuarioAuto.type(screen.getByLabelText(/POR QUE VOCÊ/), "a".repeat(CARTA_MINIMA));
     await usuarioAuto.click(screen.getByRole("checkbox"));
+    await usuarioAuto.selectOptions(
+      screen.getByLabelText("O QUE VOCÊ DESEJA CRIAR?"),
+      "Apenas exercícios",
+    );
     expect(enviar).toBeEnabled();
 
     await usuarioAuto.click(enviar);
@@ -97,6 +102,7 @@ describe("PainelSerAutor", () => {
       carta_apresentacao: "a".repeat(CARTA_MINIMA),
       portfolio_link: "",
       aceite_diretrizes: true,
+      tipo_pretendido: "EXERCICIO",
     });
     expect(await screen.findByText("EM ANÁLISE")).toBeInTheDocument();
   });
@@ -115,11 +121,22 @@ describe("PainelSerAutor", () => {
     );
     montar();
 
-    expect(await screen.findByText("Motivo: Carta genérica.")).toBeInTheDocument();
+    expect(await screen.findByText("MOTIVO DO ADMIN")).toBeInTheDocument();
+    expect(screen.getByText("Carta genérica.")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "TENTAR NOVAMENTE" }));
 
     expect(
       await screen.findByRole("button", { name: "ENVIAR SOLICITAÇÃO" }),
     ).toBeInTheDocument();
+  });
+
+  it("autor parcial ainda vê o formulário para pedir o resto", async () => {
+    mock.api.eu.mockResolvedValue(
+      usuario({ permissoes: ["trilhas.create", "trilhas.create_exercicio"] }),
+    );
+    montar();
+
+    expect(await screen.findByRole("button", { name: "ENVIAR SOLICITAÇÃO" })).toBeInTheDocument();
+    expect(screen.queryByText("VOCÊ JÁ É AUTOR")).toBeNull();
   });
 });

@@ -9,9 +9,8 @@ import { ModalConfirmacao } from "@/components/clas/ModalConfirmacao";
 import { IconeAjuda } from "@/components/ui/Icone";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelField } from "@/components/ui/PixelField";
-import { ErroApi, api } from "@/lib/api";
+import { ErroApi, api, buscarTrilha, listarTrilhas } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
-import type { ItemEditorial } from "@/lib/types";
 
 const BOTAO =
   "inline-flex cursor-pointer items-center justify-center border-[3px] border-brand-light bg-brand-deep px-4 py-3 font-display text-[10px] leading-[1.7] tracking-[1px] text-ink shadow-[0_0_0_3px_var(--color-brand-void),4px_4px_0_rgba(0,0,0,0.7)] transition-colors duration-150 hover:bg-brand-strong";
@@ -98,12 +97,14 @@ export function CriacaoRapida({
   aoCriar: () => void;
 }) {
   const [modo, setModo] = useState<Modo | null>(null);
-  const [aviso, setAviso] = useState<{ texto: string; trilha: number } | null>(null);
+  const [aviso, setAviso] = useState<{ texto: string; trilha: number | null } | null>(null);
 
   const cria = permissoes.includes("trilhas.create");
   const pode = (granular: string) => cria && permissoes.includes(granular);
+  // Sem trilha própria, aula e exercício entram nas trilhas publicadas.
+  const publicadas = !pode("trilhas.create_trilha");
 
-  function criado(texto: string, trilha: number) {
+  function criado(texto: string, trilha: number | null) {
     setModo(null);
     setAviso({ texto, trilha });
     aoCriar();
@@ -136,12 +137,14 @@ export function CriacaoRapida({
       {aviso ? (
         <p role="status" className={`m-0 text-success ${TIPO.corpo}`}>
           {aviso.texto}{" "}
-          <Link
-            href={`/autoria/novo?trilha_id=${aviso.trilha}`}
-            className="text-brand-light underline underline-offset-4"
-          >
-            Abrir a trilha
-          </Link>
+          {aviso.trilha !== null ? (
+            <Link
+              href={`/autoria/novo?trilha_id=${aviso.trilha}`}
+              className="text-brand-light underline underline-offset-4"
+            >
+              Abrir a trilha
+            </Link>
+          ) : null}
         </p>
       ) : null}
       {modo ? (
@@ -150,22 +153,32 @@ export function CriacaoRapida({
           titulo={modo === "aula" ? "Nova aula" : "Novo exercício"}
           onFechar={() => setModo(null)}
         >
-          <ConteudoDoModal modo={modo} aoCriar={criado} />
+          <ConteudoDoModal
+            modo={modo}
+            publicadas={publicadas}
+            // A trilha publicada é de outro: não há editor dela para abrir.
+            aoCriar={(texto, trilha) => criado(texto, publicadas ? null : trilha)}
+          />
         </ModalConfirmacao>
       ) : null}
     </div>
   );
 }
 
+type TrilhaAlvo = { id: number; titulo: string; slug?: string };
+
 function ConteudoDoModal({
   modo,
+  publicadas,
   aoCriar,
 }: {
   modo: Modo;
+  /** Lista as trilhas publicadas do sistema em vez dos rascunhos do autor. */
+  publicadas: boolean;
   aoCriar: (texto: string, trilha: number) => void;
 }) {
   const id = useId();
-  const [trilhas, setTrilhas] = useState<ItemEditorial[] | null>(null);
+  const [trilhas, setTrilhas] = useState<TrilhaAlvo[] | null>(null);
   const [trilha, setTrilha] = useState<number | null>(null);
   const [aulas, setAulas] = useState<{ id: number; titulo: string }[] | null>(null);
   const [aula, setAula] = useState<number | null>(null);
@@ -177,8 +190,11 @@ function ConteudoDoModal({
   useEffect(() => {
     let ativo = true;
     // A lista de rascunhos só traz trilhas: é exatamente o que dá para vincular.
-    api
-      .autoriaRascunhos()
+    // O catálogo público só traz publicadas, o que o backend aceita de terceiros.
+    const carga: Promise<TrilhaAlvo[]> = publicadas
+      ? listarTrilhas().then((l) => l.map((t) => ({ id: t.id, titulo: t.nome, slug: t.slug })))
+      : api.autoriaRascunhos();
+    carga
       .then((lista) => {
         if (ativo) setTrilhas(lista);
       })
@@ -188,7 +204,7 @@ function ConteudoDoModal({
     return () => {
       ativo = false;
     };
-  }, []);
+  }, [publicadas]);
 
   async function escolherTrilha(valor: string) {
     const escolhida = valor ? Number(valor) : null;
@@ -197,8 +213,12 @@ function ConteudoDoModal({
     setAulas(null);
     if (modo !== "exercicio" || escolhida === null) return;
     const meu = ++pedido.current;
+    const slug = trilhas?.find((t) => t.id === escolhida)?.slug;
     try {
-      const lida = await api.detalheEditorial("trilhas", escolhida);
+      // Na publicada, o detalhe do catálogo já traz só as aulas no ar.
+      const lida = slug
+        ? await buscarTrilha(slug)
+        : await api.detalheEditorial("trilhas", escolhida);
       if (meu === pedido.current) setAulas("aulas" in lida ? lida.aulas : []);
     } catch (e) {
       if (meu === pedido.current) setErro(mensagemDe(e));
@@ -210,8 +230,11 @@ function ConteudoDoModal({
   if (trilhas !== null && trilhas.length === 0) {
     return (
       <p className={`m-0 text-ink-muted ${TIPO.corpo}`}>
-        Você não tem trilha em rascunho. Crie uma trilha primeiro para vincular{" "}
-        {modo === "aula" ? "a aula" : "o exercício"}.
+        {publicadas
+          ? "Ainda não há trilha publicada para vincular."
+          : `Você não tem trilha em rascunho. Crie uma trilha primeiro para vincular ${
+              modo === "aula" ? "a aula" : "o exercício"
+            }.`}
       </p>
     );
   }
@@ -266,7 +289,8 @@ function ConteudoDoModal({
             </select>
           </div>
           <div role="group" aria-label="Tipo do exercício" className="flex flex-wrap gap-2">
-            {TIPOS.map(([valor, rotulo]) => (
+            {/* Quiz entra direto na aula, sem revisão: só na aula própria em rascunho. */}
+            {TIPOS.filter(([valor]) => !publicadas || valor !== "MULTIPLA").map(([valor, rotulo]) => (
               <button
                 key={valor}
                 type="button"

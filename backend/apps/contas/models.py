@@ -265,17 +265,19 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.locked_until is not None and self.locked_until > timezone.now()
 
     def registrar_falha_de_login(self) -> None:
-        self.failed_logins += 1
-        campos = ["failed_logins", "updated_at"]
+        # Incremento no banco: tentativas paralelas leriam o mesmo contador em
+        # memória e gravariam todas 1, e o bloqueio nunca dispararia.
+        type(self).objects.filter(pk=self.pk).update(
+            failed_logins=models.F("failed_logins") + 1, updated_at=timezone.now()
+        )
+        self.refresh_from_db(fields=["failed_logins", "updated_at"])
 
         if self.failed_logins >= settings.LOGIN_MAX_TENTATIVAS:
             self.locked_until = timezone.now() + timedelta(
                 seconds=settings.LOGIN_BLOQUEIO_SEGUNDOS
             )
             self.failed_logins = 0
-            campos.append("locked_until")
-
-        self.save(update_fields=campos)
+            self.save(update_fields=["failed_logins", "locked_until", "updated_at"])
 
     def registrar_login_valido(self) -> None:
         if self.failed_logins or self.locked_until:
@@ -508,6 +510,8 @@ class ConfiguracaoMFA(models.Model):
     )
     # Segredo base32 do TOTP. Em branco quando o método é e-mail.
     totp_secret = models.CharField(max_length=64, blank=True, default="")
+    # Último passo de 30 s aceito: o mesmo código TOTP não vale duas vezes.
+    totp_ultimo_passo = models.BigIntegerField(default=0)
     confirmado_em = models.DateTimeField(null=True, blank=True)
 
     # Desafio de e-mail transitório: hash do código atual e sua expiração.
