@@ -438,7 +438,7 @@ atribua a cada um o nível de acesso que define suas permissões.
 - CA01: Dado um administrador movido para o nível Aluno, quando tentar abrir o painel, então o sistema deverá recusar o acesso.
 - CA02: Dado um aluno movido para o nível Autor, quando pedir a solução de referência (RF16), então o sistema deverá atendê-lo.
 
-**Fonte:** `backend/apps/contas/views_rbac.py` (`UsuarioListView`, `UsuarioNivelView`), `backend/apps/contas/models.py` (`has_perm`), `frontend/src/components/admin/GestaoUsuarios.tsx`.
+**Fonte:** `backend/apps/contas/views_rbac.py` (`UsuarioListView`, `UsuarioNivelView`), `backend/apps/contas/models.py` (`has_perm`), `frontend/src/components/admin/ModalAtribuirNivel.tsx`.
 
 ## 3. Conteúdo de aprendizado
 
@@ -1117,11 +1117,9 @@ e período.
 - CA01: Dado um aluno, quando consultar a auditoria, então o sistema deverá responder 403.
 - CA02: Dado o filtro `acao=LOGIN_FALHA`, quando aplicado, então só deverão vir falhas de login.
 
-**O que existe na tela:** a aba DASHBOARD do `/admin` lista os 10 registros mais recentes (`AdminDashboard.tsx`, `montar_dashboard_admin`), com a ação em texto legível, e registra o acesso como `ACESSO_AUDITORIA`.
+**O que existe na tela:** abaixo do dashboard do `/admin`, a lista dos registros mais recentes, 10 por página (`LogsAuditoria.tsx`, `GET /admin/logs/`), com a ação em texto legível; cada página consultada é registrada como `ACESSO_AUDITORIA`. O botão AUDITORIA COMPLETA abre em modal a consulta completa, paginada e com os filtros por ação, autor e período (`GestaoAuditoria.tsx`). As duas exigem `auditoria.view`.
 
-**O que falta:** a consulta completa, paginada e com os filtros por ação, autor e período, existe só na API.
-
-**Fonte:** `backend/apps/auditoria/views.py` (`AuditoriaListView`).
+**Fonte:** `backend/apps/auditoria/views.py` (`AuditoriaListView`), `backend/apps/progressao/views.py` (`AdminLogsView`).
 
 ### RF34. Suspender e reativar conta
 

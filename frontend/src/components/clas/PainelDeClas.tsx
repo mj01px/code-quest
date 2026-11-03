@@ -126,7 +126,7 @@ export function PainelDeClas() {
     <div className="flex flex-col gap-8">
       <header className="flex flex-wrap items-end justify-between gap-6">
         <div className="flex max-w-xl flex-col gap-3">
-          <span className="rotulo text-brand-light">Comunidade</span>
+          <span className="font-label text-[11px] tracking-[2px] text-brand">{"// CLÃS"}</span>
           <h1 className="titulo m-0 font-display text-xl leading-[1.7] text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)]">
             Clãs
           </h1>

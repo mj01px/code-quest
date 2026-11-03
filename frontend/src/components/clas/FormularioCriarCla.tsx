@@ -123,7 +123,7 @@ export function FormularioCriarCla() {
       </Link>
 
       <div className="flex max-w-xl flex-col gap-3">
-        <span className="rotulo text-brand-light">Novo clã</span>
+        <span className="font-label text-[11px] tracking-[2px] text-brand">{"// NOVO CLÃ"}</span>
         <h1 className="titulo m-0 font-display text-xl leading-[1.6] text-ink [text-shadow:3px_3px_0_var(--color-brand-dark)]">
           Fundar um clã
         </h1>

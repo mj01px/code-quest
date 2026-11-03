@@ -22,6 +22,7 @@ import type {
   FiltrosAuditoria,
   Flashcard,
   ItemEditorial,
+  LogAdmin,
   MeusEnvios,
   MembroDoCla,
   MeuCla,
@@ -478,6 +479,12 @@ export const api = {
 
   adminDashboard() {
     return requisicao<DashboardAdmin>("/admin/dashboard/", { autenticado: true });
+  },
+
+  adminLogs(pagina = 1) {
+    return requisicao<Pagina<LogAdmin>>(`/admin/logs/?page=${pagina}`, {
+      autenticado: true,
+    });
   },
 
   adminNiveis() {

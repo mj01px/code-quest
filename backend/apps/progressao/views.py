@@ -1,6 +1,7 @@
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics, serializers, status
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -28,6 +29,7 @@ from .serializers import (
     DashboardAdminSerializer,
     EscolhaSerializer,
     ExercicioConcluidoSerializer,
+    LogDoDashboardSerializer,
     ProgressoSerializer,
     ResultadoXPSerializer,
     RevelarFlashcardSerializer,
@@ -40,6 +42,7 @@ from .services import (
     exercicios_concluidos,
     iniciar_trilha,
     ler_sequencia,
+    logs_do_dashboard,
     montar_dashboard_admin,
     montar_progresso,
     obter_progresso,
@@ -80,22 +83,38 @@ class MinhaSequenciaView(APIView):
 
 @extend_schema(tags=["admin"], responses=DashboardAdminSerializer)
 class AdminDashboardView(APIView):
-    """Métricas de gestão. Traz os últimos logs, então a consulta é registrada
-    como acesso à auditoria, igual à listagem completa em `apps/auditoria`."""
-
     permission_classes = [IsAdmin]
 
     def get(self, request):
-        # Logs seguem a mesma permissão da trilha completa: painel não basta.
-        ve_auditoria = request.user.has_perm("auditoria.view")
-        dados = DashboardAdminSerializer(
-            montar_dashboard_admin(com_logs=ve_auditoria)
-        ).data
-        if ve_auditoria:
-            registrar(
-                AcaoAuditoria.ACESSO_AUDITORIA, request=request, origem="dashboard"
-            )
-        return Response(dados)
+        return Response(DashboardAdminSerializer(montar_dashboard_admin()).data)
+
+
+class LogsDoDashboardPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = "tamanho"
+    max_page_size = 50
+
+
+@extend_schema(tags=["admin"])
+class AdminLogsView(generics.ListAPIView):
+    # Logs seguem a mesma permissão da trilha completa: painel não basta.
+    permission_classes = [IsAdmin, HasPerm("auditoria.view")]
+    serializer_class = LogDoDashboardSerializer
+    pagination_class = LogsDoDashboardPagination
+
+    def get_queryset(self):
+        return logs_do_dashboard()
+
+    def list(self, request, *args, **kwargs):
+        # Antes de listar, como em `AuditoriaListView`: página inválida (404)
+        # também é uma tentativa de consulta e entra na trilha.
+        registrar(
+            AcaoAuditoria.ACESSO_AUDITORIA,
+            request=request,
+            origem="dashboard",
+            pagina=request.query_params.get("page", "1"),
+        )
+        return super().list(request, *args, **kwargs)
 
 
 @extend_schema(tags=["progressao"], responses=TrilhaIniciadaSerializer)

@@ -31,13 +31,16 @@ export function PainelDeDesafios({
 
   return (
     <>
+      <span className="mb-4 block font-label text-[11px] tracking-[2px] text-brand">
+        {"// DESAFIO DO DIA"}
+      </span>
       <section
         aria-labelledby="desafio-do-dia"
         className="halo-brand animate-surgir border-2 border-brand bg-panel p-6 sm:p-8"
       >
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="rotulo text-ink-muted">Desafio do dia · {dia}</p>
+            <p className="rotulo text-ink-muted">{dia}</p>
 
             <h1
               id="desafio-do-dia"
