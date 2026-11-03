@@ -66,6 +66,8 @@ export interface Usuario {
   criado_em: string;
   /** Pedido de autoria em análise. */
   solicitacao_pendente: boolean;
+  /** Último pedido de autoria aprovado: o app dá os parabéns uma vez. */
+  criacao_aprovada: boolean;
 }
 
 // --- RBAC (painel de admin) ---
@@ -165,6 +167,7 @@ export interface TransicaoEditorial {
 
 // --- Solicitação de autoria ---
 export type SituacaoSolicitacao = "PENDENTE" | "APROVADA" | "REJEITADA";
+export type TipoPretendido = "TRILHA" | "AULA" | "EXERCICIO" | "COMPLETO";
 
 export interface SolicitacaoAutoria {
   id: number;
@@ -173,6 +176,7 @@ export interface SolicitacaoAutoria {
   carta_apresentacao: string;
   portfolio_link: string;
   aceite_diretrizes: boolean;
+  tipo_pretendido: TipoPretendido;
   situacao: SituacaoSolicitacao;
   motivo_rejeicao: string;
   criado_em: string;

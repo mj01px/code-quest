@@ -14,6 +14,12 @@ class SolicitacaoAutoria(models.Model):
         APROVADA = "APROVADA", _("Aprovada")
         REJEITADA = "REJEITADA", _("Rejeitada")
 
+    class Tipo(models.TextChoices):
+        TRILHA = "TRILHA", _("Trilhas")
+        AULA = "AULA", _("Aulas")
+        EXERCICIO = "EXERCICIO", _("Exercícios")
+        COMPLETO = "COMPLETO", _("Trilhas, aulas e exercícios")
+
     usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -36,6 +42,14 @@ class SolicitacaoAutoria(models.Model):
         blank=True,
         default="",
         verbose_name=_("portfólio"),
+    )
+
+    # Decide o nível concedido na aprovação: só as granulares do que foi pedido.
+    tipo_pretendido = models.CharField(
+        max_length=10,
+        choices=Tipo.choices,
+        default=Tipo.COMPLETO,
+        verbose_name=_("o que pretende criar"),
     )
 
     aceite_diretrizes = models.BooleanField(

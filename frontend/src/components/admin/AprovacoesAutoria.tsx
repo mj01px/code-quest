@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { ModalConfirmacao } from "@/components/clas/ModalConfirmacao";
 import { ErroApi, api } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
-import type { SolicitacaoAdmin } from "@/lib/types";
+import type { SolicitacaoAdmin, TipoPretendido } from "@/lib/types";
 
 const BOTAO =
   "cursor-pointer border-2 px-4 py-2 font-label text-[11px] tracking-[2px] uppercase transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-60";
@@ -16,8 +16,18 @@ function mensagemDe(erro: unknown, padrao: string): string {
   return erro instanceof ErroApi ? erro.message : padrao;
 }
 
-// Fila de pedidos de autoria. Aprovar dá o nível "Autor" ao aluno; rejeitar
-// exige motivo, que o aluno vê na tela /ser-autor.
+const ROTULO_TIPO: Record<TipoPretendido, string> = {
+  COMPLETO: "Trilhas, aulas e exercícios",
+  TRILHA: "Trilhas",
+  AULA: "Aulas",
+  EXERCICIO: "Exercícios",
+};
+
+// Pedido anterior à escolha do tipo chega sem o campo: era sempre completo.
+const rotuloDoTipo = (tipo: TipoPretendido | undefined) => ROTULO_TIPO[tipo ?? "COMPLETO"];
+
+// Fila de pedidos de autoria. Aprovar dá ao aluno só as granulares do tipo
+// pedido; rejeitar exige motivo, que o aluno vê na tela /ser-autor.
 export function AprovacoesAutoria() {
   const [pedidos, setPedidos] = useState<SolicitacaoAdmin[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -98,9 +108,16 @@ export function AprovacoesAutoria() {
                   {new Date(pedido.criado_em).toLocaleDateString("pt-BR")}
                 </span>
               </div>
-              <span className={`text-brand-light ${TIPO.etiqueta}`}>
-                {pedido.areas_nomes.join(" · ").toUpperCase()}
-              </span>
+              <div className="flex flex-wrap items-center gap-3">
+                <span
+                  className={`border-2 border-warning bg-panel-deep px-2.5 py-1 text-warning ${TIPO.etiqueta}`}
+                >
+                  QUER CRIAR: {rotuloDoTipo(pedido.tipo_pretendido).toUpperCase()}
+                </span>
+                <span className={`text-brand-light ${TIPO.etiqueta}`}>
+                  {pedido.areas_nomes.join(" · ").toUpperCase()}
+                </span>
+              </div>
               <p className={`m-0 whitespace-pre-wrap text-ink-body ${TIPO.corpo}`}>
                 {pedido.carta_apresentacao}
               </p>
@@ -155,8 +172,9 @@ export function AprovacoesAutoria() {
         >
           {decisao.tipo === "aprovar" ? (
             <p className="m-0">
-              O usuário passa a ter o nível Autor e pode criar trilhas, aulas e
-              exercícios. Todo conteúdo dele ainda passa pela revisão.
+              O usuário passa a ser autor e pode criar{" "}
+              {rotuloDoTipo(decisao.pedido.tipo_pretendido).toLowerCase()}. Todo
+              conteúdo dele ainda passa pela revisão.
             </p>
           ) : (
             <div className="flex flex-col gap-2">

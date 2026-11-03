@@ -76,6 +76,8 @@ class UsuarioSerializer(serializers.ModelSerializer):
     criado_em = serializers.DateTimeField(source="created_at", read_only=True)
     # Pedido de autoria em análise: a barra lateral esconde o "SER AUTOR".
     solicitacao_pendente = serializers.SerializerMethodField()
+    # Último pedido aprovado: o app mostra os parabéns uma vez (localStorage).
+    criacao_aprovada = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -90,6 +92,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
             "nivel_id",
             "criado_em",
             "solicitacao_pendente",
+            "criacao_aprovada",
         )
         read_only_fields = ("id", "email")
 
@@ -100,6 +103,10 @@ class UsuarioSerializer(serializers.ModelSerializer):
         return obj.solicitacoes_autoria.filter(
             status=SolicitacaoAutoria.Status.PENDENTE
         ).exists()
+
+    def get_criacao_aprovada(self, obj) -> bool:
+        ultima = obj.solicitacoes_autoria.values_list("status", flat=True).first()
+        return ultima == SolicitacaoAutoria.Status.APROVADA
 
     def validate_nickname(self, valor):
         existente = User.objects.filter(nickname__iexact=valor)

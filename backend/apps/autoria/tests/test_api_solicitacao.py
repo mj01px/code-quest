@@ -14,7 +14,7 @@ from apps.auditoria.models import AcaoAuditoria, RegistroDeAuditoria
 from apps.autoria.models import SolicitacaoAutoria
 from apps.contas.models import User
 from apps.contas.tests.helpers import criar_admin, criar_aluno, criar_autor
-from apps.trilhas.models import StatusEditorial
+from apps.trilhas.models import StatusEditorial, Trilha
 from apps.trilhas.tests.helpers import criar_trilha
 
 pytestmark = pytest.mark.django_db
@@ -32,12 +32,13 @@ def cliente(usuario=None):
 
 def payload(**extra):
     dados = {
-        "areas": [criar_trilha("python").pk],
         "carta_apresentacao": CARTA,
         "portfolio_link": "https://github.com/aluno",
         "aceite_diretrizes": True,
+        **extra,
     }
-    dados.update(extra)
+    if "areas" not in dados:
+        dados["areas"] = [criar_trilha("python").pk]
     return dados
 
 
@@ -249,3 +250,96 @@ def test_solicitacao_inexistente_recebe_404():
     resposta = cliente(criar_admin()).post(url_decisao("aprovar", 999))
 
     assert resposta.status_code == 404
+
+
+# --- Tipo pretendido: o nível concedido segue o pedido ---
+
+GRANULARES = {"trilhas.create_trilha", "trilhas.create_aula", "trilhas.create_exercicio"}
+TIPO = SolicitacaoAutoria.Tipo
+
+
+def aprovar_pedido(usuario, tipo):
+    pedido = pedido_de(usuario)
+    pedido.tipo_pretendido = tipo
+    pedido.save()
+    cliente(criar_admin(f"adm{usuario.nickname}")).post(url_decisao("aprovar", pedido.pk))
+    return User.objects.get(pk=usuario.pk)
+
+
+@pytest.mark.parametrize(
+    ("tipo", "esperadas"),
+    [
+        (TIPO.TRILHA, {"trilhas.create_trilha"}),
+        (TIPO.AULA, {"trilhas.create_aula"}),
+        (TIPO.EXERCICIO, {"trilhas.create_exercicio"}),
+        (TIPO.COMPLETO, GRANULARES),
+    ],
+)
+def test_aprovar_concede_so_as_granulares_do_tipo(tipo, esperadas):
+    aluno = aprovar_pedido(criar_aluno(), tipo)
+
+    perms = aluno.get_role_permissions()
+    assert aluno.role == User.Role.AUTHOR
+    assert "trilhas.create" in perms
+    assert perms & GRANULARES == esperadas
+
+
+def test_segundo_aprovado_do_mesmo_tipo_reusa_o_nivel():
+    um = aprovar_pedido(criar_aluno("um"), TIPO.EXERCICIO)
+    dois = aprovar_pedido(criar_aluno("dois"), TIPO.EXERCICIO)
+
+    assert um.nivel_de_acesso_id == dois.nivel_de_acesso_id
+
+
+def test_pedido_guarda_o_tipo():
+    resposta = pedir(criar_aluno(), tipo_pretendido="AULA")
+
+    assert resposta.status_code == 201
+    assert SolicitacaoAutoria.objects.get().tipo_pretendido == TIPO.AULA
+
+
+def test_autor_parcial_pode_pedir_o_resto_mas_nao_o_que_ja_tem():
+    autor = aprovar_pedido(criar_aluno(), TIPO.EXERCICIO)
+
+    repetido = pedir(autor, tipo_pretendido="EXERCICIO")
+    assert repetido.status_code == 400
+    assert codigo_do_erro(repetido) == "ja_autor"
+
+    areas = [Trilha.objects.get(slug="python").pk]
+    assert pedir(autor, tipo_pretendido="COMPLETO", areas=areas).status_code == 201
+
+
+def test_autor_completo_pedindo_menos_nao_e_rebaixado():
+    autor = criar_autor()
+    pedido = pedido_de(autor)
+    pedido.tipo_pretendido = TIPO.EXERCICIO
+    pedido.save()
+
+    cliente(criar_admin()).post(url_decisao("aprovar", pedido.pk))
+
+    assert User.objects.get(pk=autor.pk).get_role_permissions() >= GRANULARES
+
+
+@pytest.mark.parametrize("corpo", [{}, {"motivo": ""}, {"motivo": "   "}])
+def test_rejeitar_sem_motivo_recebe_400(corpo):
+    pedido = pedido_de(criar_aluno())
+
+    resposta = cliente(criar_admin()).post(
+        url_decisao("rejeitar", pedido.pk), corpo, format="json"
+    )
+
+    assert resposta.status_code == 400
+    pedido.refresh_from_db()
+    assert (pedido.status, pedido.motivo_rejeicao) == (PENDENTE, "")
+
+
+def test_eu_avisa_quando_o_ultimo_pedido_foi_aprovado():
+    aluno = criar_aluno()
+    eu = reverse("contas:eu")
+    assert cliente(aluno).get(eu).data["criacao_aprovada"] is False
+
+    aluno = aprovar_pedido(aluno, TIPO.AULA)
+
+    dados = cliente(aluno).get(eu).data
+    assert dados["criacao_aprovada"] is True
+    assert "trilhas.create_aula" in dados["permissoes"]

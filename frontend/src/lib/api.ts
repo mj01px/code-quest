@@ -46,6 +46,7 @@ import type {
   SolicitacaoAutoria,
   TipoConteudo,
   TipoDeCla,
+  TipoPretendido,
   TransicaoEditorial,
   TrilhaDetalhe,
   TrilhaResumo,
@@ -1061,6 +1062,7 @@ export const api = {
     carta_apresentacao: string;
     portfolio_link: string;
     aceite_diretrizes: boolean;
+    tipo_pretendido: TipoPretendido;
   }) {
     return requisicao<SolicitacaoAutoria>("/autoria/solicitacoes/", {
       metodo: "POST",

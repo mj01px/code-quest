@@ -89,8 +89,8 @@ def test_autor_cria_aula_na_propria_trilha():
     assert aula.status == StatusEditorial.RASCUNHO
 
 
-def test_autor_nao_mexe_na_trilha_de_outro():
-    trilha = criar_trilha("alheia", autor=criar_autor("dono"))
+def test_autor_nao_mexe_na_trilha_de_outro_fora_do_ar():
+    trilha = criar_trilha("alheia", autor=criar_autor("dono"), status=StatusEditorial.RASCUNHO)
 
     resposta = post(
         criar_autor(), "criar-aula", {"trilha": trilha.pk, "titulo": "X", "conteudo": "y"}
@@ -176,3 +176,68 @@ def test_funcao_e_testes_andam_juntos(aula_do_autor, extra):
 
     assert resposta.status_code == 400
     assert not Exercicio.objects.exists()
+
+
+# --- Permissão cruzada: quem só cria aulas ou exercícios usa trilha publicada ---
+
+
+def autor_so_de(tipo):
+    from apps.autoria.models import SolicitacaoAutoria
+    from apps.autoria.services import promover_a_autor
+    from apps.contas.models import User
+
+    aluno = criar_aluno("parcial")
+    promover_a_autor(aluno, SolicitacaoAutoria.Tipo(tipo))
+    return User.objects.get(pk=aluno.pk)
+
+
+EXERCICIO = {"titulo": "Soma", "enunciado": "Some dois números."}
+
+
+def test_autor_de_exercicios_cria_em_aula_publicada_de_outro():
+    aula = criar_aula(criar_trilha("alheia", autor=criar_autor("dono")))
+    autor = autor_so_de("EXERCICIO")
+
+    resposta = post(autor, "criar-exercicio", {**EXERCICIO, "aula": aula.pk})
+
+    assert resposta.status_code == 201
+    exercicio = Exercicio.objects.get(pk=resposta.data["id"])
+    assert (exercicio.autor, exercicio.status) == (autor, StatusEditorial.RASCUNHO)
+
+
+@pytest.mark.parametrize(
+    ("trilha_status", "aula_status"),
+    [
+        (StatusEditorial.PUBLICADO, StatusEditorial.RASCUNHO),
+        (StatusEditorial.RASCUNHO, StatusEditorial.PUBLICADO),
+    ],
+)
+def test_autor_de_exercicios_nao_entra_no_que_nao_esta_no_ar(trilha_status, aula_status):
+    trilha = criar_trilha("alheia", autor=criar_autor("dono"), status=trilha_status)
+    aula = criar_aula(trilha, status=aula_status)
+
+    resposta = post(autor_so_de("EXERCICIO"), "criar-exercicio", {**EXERCICIO, "aula": aula.pk})
+
+    assert resposta.status_code == 403
+    assert not Exercicio.objects.exists()
+
+
+def test_autor_de_exercicios_nao_cria_trilha_nem_aula():
+    autor = autor_so_de("EXERCICIO")
+    trilha = criar_trilha("publicada")
+
+    assert post(autor, "criar-trilha", TRILHA).status_code == 403
+    assert (
+        post(autor, "criar-aula", {"trilha": trilha.pk, "titulo": "X", "conteudo": "y"}).status_code
+        == 403
+    )
+
+
+def test_autor_de_aulas_adiciona_aula_em_trilha_publicada():
+    trilha = criar_trilha("alheia", autor=criar_autor("dono"))
+
+    resposta = post(
+        autor_so_de("AULA"), "criar-aula", {"trilha": trilha.pk, "titulo": "X", "conteudo": "y"}
+    )
+
+    assert resposta.status_code == 201

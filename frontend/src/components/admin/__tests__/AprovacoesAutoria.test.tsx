@@ -22,6 +22,7 @@ const pedido: SolicitacaoAdmin = {
   carta_apresentacao: "Quero ensinar laços e funções.",
   portfolio_link: "https://github.com/ana",
   aceite_diretrizes: true,
+  tipo_pretendido: "EXERCICIO",
   situacao: "PENDENTE",
   motivo_rejeicao: "",
   criado_em: "2026-10-28T12:00:00Z",
@@ -60,5 +61,13 @@ describe("AprovacoesAutoria", () => {
     await userEvent.click(confirmar);
 
     expect(mock.api.rejeitarSolicitacao).toHaveBeenCalledWith(5, "Carta genérica.");
+  });
+
+  it("mostra o tipo pretendido no badge e no texto da aprovação", async () => {
+    render(<AprovacoesAutoria />);
+
+    expect(await screen.findByText("QUER CRIAR: EXERCÍCIOS")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Aprovar: ana" }));
+    expect(screen.getByText(/pode criar exercícios/)).toBeInTheDocument();
   });
 });
