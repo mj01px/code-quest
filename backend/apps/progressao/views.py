@@ -117,7 +117,11 @@ class AdminLogsView(generics.ListAPIView):
         return super().list(request, *args, **kwargs)
 
 
-@extend_schema(tags=["progressao"], responses=TrilhaIniciadaSerializer)
+@extend_schema(
+    tags=["progressao"],
+    request=None,
+    responses={201: TrilhaIniciadaSerializer, 200: TrilhaIniciadaSerializer},
+)
 class IniciarTrilhaView(APIView):
     """Marca a trilha como iniciada para o aluno.
 

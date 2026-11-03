@@ -218,6 +218,14 @@ SPECTACULAR_SETTINGS = {
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
+    # Vários campos se chamam "tipo" ou "cargo" com escolhas diferentes: sem
+    # nome fixo, o spectacular inventa sufixos de hash e avisa.
+    'ENUM_NAME_OVERRIDES': {
+        'TipoDeClaEnum': 'apps.clas.models.TipoDeCla',
+        'CargoEnum': 'apps.clas.models.Cargo',
+        'TipoDeExercicioEnum': 'apps.trilhas.models.Tipo',
+        'TipoDeConteudoEnum': ['trilhas', 'aulas', 'exercicios'],
+    },
 }
 
 AUTH_COOKIE_SECURE = env.bool('AUTH_COOKIE_SECURE', default=not DEBUG)

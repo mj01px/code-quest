@@ -635,3 +635,19 @@ export interface RankingMensal {
   topo: LinhaDoRanking[];
   voce: MinhaPosicao;
 }
+
+export interface ConquistaDoPerfil {
+  slug: string;
+  nome: string;
+  descricao: string;
+  icone: string;
+  desbloqueada_em: string;
+}
+
+export interface PerfilPublico {
+  nickname: string;
+  criatura: CriaturaDoRanking | null;
+  nivel: number | null;
+  xp_total: number;
+  conquistas: ConquistaDoPerfil[];
+}

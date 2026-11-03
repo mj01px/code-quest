@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 
+import { useModal } from "@/components/ui/useModal";
 import { ErroApi, api } from "@/lib/api";
 import { formatarData } from "@/lib/clas";
 
@@ -31,17 +32,7 @@ export function ModalConvite({
   const [copiado, setCopiado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
-  useEffect(() => {
-    painel.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    function aoTeclar(evento: KeyboardEvent) {
-      if (evento.key === "Escape") onFechar();
-    }
-    document.addEventListener("keydown", aoTeclar);
-    return () => document.removeEventListener("keydown", aoTeclar);
-  }, [onFechar]);
+  useModal(painel, onFechar);
 
   const ocupado = gerando || revogando;
 

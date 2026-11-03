@@ -242,7 +242,9 @@ def _exigir_dono(conteudo: Trilha | Aula, request: Any) -> None:
     if request.user.is_platform_admin or conteudo.autor_id == request.user.pk:
         return
     # Aula publicada em trilha fora do ar não conta: a trilha ainda é do dono.
-    trilhas = [conteudo] if isinstance(conteudo, Trilha) else [conteudo, conteudo.trilha]
+    trilhas: list[Trilha | Aula] = (
+        [conteudo] if isinstance(conteudo, Trilha) else [conteudo, conteudo.trilha]
+    )
     if all(c.status == StatusEditorial.PUBLICADO for c in trilhas):
         return
     raise PermissionDenied(

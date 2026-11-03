@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 import { acoesDeMembro, ehGestor, formatarData, iniciais, type AcaoDeMembro } from "@/lib/clas";
+import { rotaDoPerfil } from "@/lib/ranking";
 import type { Cargo, MembroDoCla } from "@/lib/types";
 
 import { BadgeCargo } from "./BadgeCargo";
@@ -94,9 +96,12 @@ export function ListaDeMembros({
                       {iniciais(membro.nickname)}
                     </span>
                     <span className="flex min-w-0 flex-col gap-1">
-                      <span className="truncate font-label text-[13px] tracking-[2px] text-ink">
+                      <Link
+                        href={rotaDoPerfil(membro.nickname)}
+                        className="truncate font-label text-[13px] tracking-[2px] text-ink hover:text-brand-light hover:underline focus-visible:text-brand-light focus-visible:underline"
+                      >
                         {membro.nickname}
-                      </span>
+                      </Link>
                       {souEu ? (
                         <span className="font-label text-[10px] tracking-[2px] text-brand-light">
                           VOCÊ

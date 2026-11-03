@@ -1,11 +1,12 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { IconeConquista } from "@/components/conquistas/IconeConquista";
 import { api } from "@/lib/api";
-import { dicaDaPosicao, nomeDoMes, tempoAteFechar } from "@/lib/ranking";
+import { dicaDaPosicao, nomeDoMes, rotaDoPerfil, tempoAteFechar } from "@/lib/ranking";
 import type { CriaturaDoRanking, LinhaDoRanking, RankingMensal } from "@/lib/types";
 
 type Carga =
@@ -190,9 +191,12 @@ function Podio({ linhas }: { linhas: LinhaDoRanking[] }) {
             >
               #{linha.posicao}
             </span>
-            <span className="max-w-full truncate font-label text-[12px] tracking-[3px] text-ink uppercase">
+            <Link
+              href={rotaDoPerfil(linha.nickname)}
+              className="max-w-full truncate font-label text-[12px] tracking-[3px] text-ink uppercase hover:text-brand-light hover:underline focus-visible:text-brand-light focus-visible:underline"
+            >
               {linha.nickname}
-            </span>
+            </Link>
             <span
               className={`font-label text-[10px] tracking-[2px] uppercase ${degrau.texto}`}
             >
@@ -272,9 +276,12 @@ function Linha({
           <Image src={criatura.sprite} alt="" width={32} height={32} className="block" />
         ) : null}
       </span>
-      <span className="min-w-0 flex-1 truncate font-label text-[12px] tracking-[1px] text-ink uppercase">
+      <Link
+        href={rotaDoPerfil(nickname)}
+        className="min-w-0 flex-1 truncate font-label text-[12px] tracking-[1px] text-ink uppercase hover:text-brand-light hover:underline focus-visible:text-brand-light focus-visible:underline"
+      >
         {nickname}
-      </span>
+      </Link>
       <span className="shrink-0 font-body text-lg text-ink-body">{xp} XP</span>
     </div>
   );

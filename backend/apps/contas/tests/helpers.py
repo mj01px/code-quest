@@ -6,6 +6,11 @@ projeto usam `TestCase` do Django, que roda tanto por `manage.py test` quanto
 por `pytest`. Fixture só funcionaria no segundo.
 """
 
+import threading
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
+
+from django.db import connection
 from django.utils import timezone
 
 from apps.contas.documentos import Documento, versao_vigente
@@ -51,3 +56,23 @@ def payload_aceite() -> dict:
         "versao_termos": versao_vigente(Documento.TERMOS),
         "versao_privacidade": versao_vigente(Documento.PRIVACIDADE),
     }
+
+
+def ao_mesmo_tempo(chamada: Callable[[], object], vezes: int = 5) -> list[object]:
+    """Roda a chamada em `vezes` threads soltas juntas, cada uma com sua
+    conexão. Devolve o retorno de cada uma, ou a exceção que ela levantou.
+    Só faz sentido em TransactionTestCase: no TestCase as threads não enxergam
+    os dados da transação do teste."""
+    largada = threading.Barrier(vezes)
+
+    def rodar(_: int) -> object:
+        try:
+            largada.wait()
+            return chamada()
+        except Exception as erro:
+            return erro
+        finally:
+            connection.close()
+
+    with ThreadPoolExecutor(vezes) as pool:
+        return list(pool.map(rodar, range(vezes)))

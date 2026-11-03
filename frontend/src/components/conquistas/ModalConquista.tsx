@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { useId, useRef } from "react";
 
 import { BarraSegmentada } from "@/components/ui/BarraSegmentada";
+import { useModal } from "@/components/ui/useModal";
 import {
   formatarDataDaConquista,
   fracaoDoProgresso,
@@ -32,21 +33,7 @@ export function ModalConquista({ conquista, onFechar }: Props) {
   const estado = estadoDa(conquista);
   const fracao = conquista.desbloqueada ? null : fracaoDoProgresso(conquista);
 
-  useEffect(() => {
-    const anterior = document.activeElement;
-    painel.current?.focus();
-    return () => {
-      if (anterior instanceof HTMLElement) anterior.focus();
-    };
-  }, []);
-
-  useEffect(() => {
-    function aoTeclar(evento: KeyboardEvent) {
-      if (evento.key === "Escape") onFechar();
-    }
-    document.addEventListener("keydown", aoTeclar);
-    return () => document.removeEventListener("keydown", aoTeclar);
-  }, [onFechar]);
+  useModal(painel, onFechar);
 
   return (
     <div

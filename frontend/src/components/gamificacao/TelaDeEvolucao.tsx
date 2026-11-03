@@ -3,6 +3,8 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
+import { useModal } from "@/components/ui/useModal";
+
 /**
  * A animação de evolução, em cima de um relógio só.
  *
@@ -159,6 +161,7 @@ export function TelaDeEvolucao({
   aoFechar: () => void;
 }) {
   const t = useRelogio(true);
+  const painel = useRef<HTMLDivElement>(null);
 
   const carga = limitar((t - CARGA) / (CLARAO - CARGA));
   const clarao =
@@ -193,6 +196,8 @@ export function TelaDeEvolucao({
     entre(t, REVELACAO + 0.25, ASSENTA + 0.2, 0, 1, estoura),
   );
   const terminou = t >= FIM;
+  // Esc só fecha depois da animação, junto com o botão Continuar.
+  useModal(painel, aoFechar, !terminou);
 
   const sprite = (src: string | null, opacidade: number, filtro: string) =>
     src ? (
@@ -214,10 +219,12 @@ export function TelaDeEvolucao({
 
   return (
     <div
+      ref={painel}
       role="dialog"
       aria-modal="true"
       aria-label={`${nome} evoluiu para o estágio ${estagioDepois}`}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-void/95 p-4"
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-void/95 p-4 outline-none"
     >
       <div
         className="relative flex w-full max-w-[640px] flex-col items-center gap-6 border-[6px] border-brand bg-panel-deep px-6 py-10 sm:px-10"

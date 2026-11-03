@@ -510,6 +510,8 @@ class ConfiguracaoMFA(models.Model):
     )
     # Segredo base32 do TOTP. Em branco quando o método é e-mail.
     totp_secret = models.CharField(max_length=64, blank=True, default="")
+    # Último passo de 30 s aceito: o mesmo código TOTP não vale duas vezes.
+    totp_ultimo_passo = models.BigIntegerField(default=0)
     confirmado_em = models.DateTimeField(null=True, blank=True)
 
     # Desafio de e-mail transitório: hash do código atual e sua expiração.

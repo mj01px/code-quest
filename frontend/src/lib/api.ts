@@ -34,6 +34,7 @@ import type {
   NovoExercicio,
   Pagina,
   PaginaAuditoria,
+  PerfilPublico,
   PermissaoCatalogo,
   PreviaConvite,
   ProgressoAtual,
@@ -1146,6 +1147,13 @@ export const api = {
 
   rankingMensal() {
     return requisicao<RankingMensal>("/ranking/mensal/", { autenticado: true });
+  },
+
+  perfilPublico(nickname: string) {
+    return requisicao<PerfilPublico>(
+      `/perfil/${encodeURIComponent(nickname)}/`,
+      { autenticado: true },
+    );
   },
 };
 

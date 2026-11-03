@@ -59,10 +59,28 @@ def uri_provisionamento(user, secret: str) -> str:
     return pyotp.TOTP(secret).provisioning_uri(name=user.email, issuer_name=ISSUER)
 
 
-def verificar_totp(secret: str, codigo: str) -> bool:
+def _passo_totp(secret: str, codigo: str) -> int | None:
+    """Passo de 30 s em que o código bate, com janela de ±1 passo."""
     if not secret:
+        return None
+    totp = pyotp.TOTP(secret)
+    agora = timezone.now()
+    for desvio in (-1, 0, 1):
+        if hmac.compare_digest(totp.at(agora, desvio), codigo.strip()):
+            return totp.timecode(agora) + desvio
+    return None
+
+
+def _consumir_totp(config: ConfiguracaoMFA, codigo: str) -> bool:
+    # UPDATE condicional: entre duas requisições com o mesmo código, só uma
+    # avança o passo. A outra atualiza 0 linhas e é recusada (RFC 6238, 5.2).
+    passo = _passo_totp(config.totp_secret, codigo)
+    if passo is None or not ConfiguracaoMFA.objects.filter(
+        pk=config.pk, totp_ultimo_passo__lt=passo
+    ).update(totp_ultimo_passo=passo):
         return False
-    return pyotp.TOTP(secret).verify(codigo.strip(), valid_window=1)
+    config.totp_ultimo_passo = passo
+    return True
 
 
 def qr_data_uri(uri: str) -> str:
@@ -131,10 +149,15 @@ def _verificar_codigo_email(config: ConfiguracaoMFA, codigo: str) -> bool:
         return False
     if timezone.now() > config.email_codigo_expira:
         return False
-    if _confere(config.email_codigo_hash, codigo):
-        config.limpar_desafio_email()  # uso único
-        return True
-    return False
+    if not _confere(config.email_codigo_hash, codigo):
+        return False
+    # Uso único no banco: só quem ainda encontra o hash consegue apagá-lo.
+    consumido = ConfiguracaoMFA.objects.filter(
+        pk=config.pk, email_codigo_hash=config.email_codigo_hash
+    ).update(email_codigo_hash="", email_codigo_expira=None)
+    config.email_codigo_hash = ""
+    config.email_codigo_expira = None
+    return bool(consumido)
 
 
 # --------------------------------------------------------- códigos de recuperação
@@ -151,15 +174,13 @@ def gerar_codigos_recuperacao(user) -> list[str]:
 
 
 def consumir_codigo_recuperacao(user, codigo: str) -> bool:
-    alvo = _hash(codigo)
-    registro = CodigoRecuperacaoMFA.objects.filter(
-        user=user, usado_em__isnull=True, codigo_hash=alvo
-    ).first()
-    if registro is None:
-        return False
-    registro.usado_em = timezone.now()
-    registro.save(update_fields=["usado_em"])
-    return True
+    # Ler e depois gravar deixaria duas requisições simultâneas usarem o mesmo
+    # código. O UPDATE com usado_em nulo no filtro marca só uma vez.
+    return bool(
+        CodigoRecuperacaoMFA.objects.filter(
+            user=user, usado_em__isnull=True, codigo_hash=_hash(codigo)
+        ).update(usado_em=timezone.now())
+    )
 
 
 # ------------------------------------------------------------ token do login
@@ -206,7 +227,7 @@ def verificar_codigo(user, codigo: str, permitir_recuperacao: bool = True) -> bo
         return False
 
     if config.metodo == ConfiguracaoMFA.Metodo.APP:
-        if verificar_totp(config.totp_secret, codigo):
+        if _consumir_totp(config, codigo):
             return True
     elif config.metodo == ConfiguracaoMFA.Metodo.EMAIL:
         if _verificar_codigo_email(config, codigo):

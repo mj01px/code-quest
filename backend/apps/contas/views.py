@@ -3,8 +3,8 @@ from django.db import IntegrityError
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
-from drf_spectacular.utils import extend_schema
-from rest_framework import generics, status
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import generics, serializers, status
 from rest_framework.exceptions import ErrorDetail, NotAuthenticated, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -545,7 +545,13 @@ class MfaConfirmarView(generics.GenericAPIView):
         )
 
 
-@extend_schema(tags=["auth"], responses=None)
+@extend_schema(
+    tags=["auth"],
+    request=None,
+    responses=inline_serializer(
+        "MfaDesativarIniciar", {"email_enviado": serializers.BooleanField()}
+    ),
+)
 class MfaDesativarIniciarView(APIView):
     """Dispara o código por e-mail para confirmar a desativação, quando o
     método ativo é e-mail. Para app/recuperação não há nada a enviar."""

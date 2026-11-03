@@ -1,13 +1,18 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
+from typing import TypedDict
+from uuid import UUID
 
 from django.db import IntegrityError, transaction
 from django.db.models import Max, Sum
 from django.utils import timezone
 
+from apps.conquistas.models import ConquistaDesbloqueada
+from apps.contas.models import User
 from apps.gamificacao.models import UserCreature
 from apps.gamificacao.serializers import _url_sprite
-from apps.progressao.models import EventoXP
+from apps.progressao.models import EventoXP, ProgressoCriatura
 
 from .models import PodioMensal
 
@@ -18,9 +23,60 @@ TAMANHO_DO_PODIO = 3
 @dataclass(frozen=True)
 class Linha:
     posicao: int
-    user_id: int
+    user_id: UUID
     nickname: str
     xp: int
+
+
+class CriaturaDoRanking(TypedDict):
+    nome: str
+    sprite: str | None
+
+
+class Periodo(TypedDict):
+    inicio: date
+    fim: date
+    fecha_em: datetime
+
+
+class LinhaDoTopo(TypedDict):
+    posicao: int
+    nickname: str
+    xp: int
+    criatura: CriaturaDoRanking | None
+    voce: bool
+
+
+class MinhaPosicao(TypedDict):
+    nickname: str
+    criatura: CriaturaDoRanking | None
+    posicao: int | None
+    xp: int
+    faltam_para_subir: int | None
+    podios: int
+    vitorias: int
+
+
+class RankingMensal(TypedDict):
+    mes: Periodo
+    topo: list[LinhaDoTopo]
+    voce: MinhaPosicao
+
+
+class ConquistaDoPerfil(TypedDict):
+    slug: str
+    nome: str
+    descricao: str
+    icone: str
+    desbloqueada_em: datetime
+
+
+class PerfilPublico(TypedDict):
+    nickname: str
+    criatura: CriaturaDoRanking | None
+    nivel: int | None
+    xp_total: int
+    conquistas: list[ConquistaDoPerfil]
 
 
 def primeiro_dia(dia: date) -> date:
@@ -111,13 +167,13 @@ def fechar_mes(mes: date) -> list[PodioMensal]:
         return []
 
 
-def _criaturas_ativas(user_ids) -> dict[int, dict]:
+def _criaturas_ativas(user_ids: Iterable[UUID]) -> dict[UUID, CriaturaDoRanking]:
     posses = (
         UserCreature.objects.filter(user_id__in=user_ids, is_active=True)
         .select_related("creature")
         .prefetch_related("creature__stages")
     )
-    criaturas = {}
+    criaturas: dict[UUID, CriaturaDoRanking] = {}
     for posse in posses:
         estagio = next(
             (e for e in posse.creature.stages.all() if e.stage == posse.current_stage),
@@ -130,14 +186,14 @@ def _criaturas_ativas(user_ids) -> dict[int, dict]:
     return criaturas
 
 
-def _contar_podios(user) -> tuple[int, int]:
+def _contar_podios(user: User) -> tuple[int, int]:
     posicoes = list(
         PodioMensal.objects.filter(user=user).values_list("posicao", flat=True)
     )
     return len(posicoes), posicoes.count(1)
 
 
-def ranking_mensal(user) -> dict:
+def ranking_mensal(user: User) -> RankingMensal:
     mes = mes_atual()
     fechar_mes(mes_anterior(mes))
 
@@ -180,3 +236,47 @@ def ranking_mensal(user) -> dict:
         },
     }
 
+
+
+def perfil_publico(nickname: str) -> PerfilPublico | None:
+    """Vitrine de outro aluno: criatura ativa, nível, XP e conquistas obtidas.
+
+    Conta inativa ou anonimizada some como se não existisse (None vira 404).
+    Só leitura: não cria ProgressoCriatura para quem ainda não pontuou.
+    """
+    user = User.objects.filter(
+        nickname__iexact=nickname, is_active=True, anonymized_at__isnull=True
+    ).first()
+    if user is None:
+        return None
+
+    posse = UserCreature.objects.filter(user=user, is_active=True).first()
+    progresso = (
+        ProgressoCriatura.objects.filter(user_creature=posse).first() if posse else None
+    )
+    nivel = None
+    if posse is not None:
+        # criatura sem progresso ainda está no nível 1
+        nivel = progresso.nivel_id if progresso else 1
+
+    desbloqueios = (
+        ConquistaDesbloqueada.objects.filter(user=user, conquista__ativa=True)
+        .select_related("conquista")
+        .order_by("-desbloqueada_em")
+    )
+    return {
+        "nickname": user.nickname,
+        "criatura": _criaturas_ativas([user.pk]).get(user.pk),
+        "nivel": nivel,
+        "xp_total": progresso.xp_total if progresso else 0,
+        "conquistas": [
+            {
+                "slug": d.conquista.slug,
+                "nome": d.conquista.nome,
+                "descricao": d.conquista.descricao,
+                "icone": d.conquista.icone,
+                "desbloqueada_em": d.desbloqueada_em,
+            }
+            for d in desbloqueios
+        ],
+    }

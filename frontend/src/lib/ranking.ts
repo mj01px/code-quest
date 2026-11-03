@@ -44,3 +44,7 @@ export function dicaDaPosicao(voce: MinhaPosicao): string {
   if (voce.faltam_para_subir === null) return "Ninguém na sua frente";
   return `Faltam ${voce.faltam_para_subir} XP pro ${voce.posicao - 1}º`;
 }
+
+export function rotaDoPerfil(nickname: string): string {
+  return `/perfil/${encodeURIComponent(nickname)}`;
+}

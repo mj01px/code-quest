@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useId, useRef, type ReactNode } from "react";
+
+import { useModal } from "@/components/ui/useModal";
 
 interface Props {
   rotulo: string;
@@ -29,43 +31,7 @@ export function ModalAdmin({
   const painel = useRef<HTMLDivElement>(null);
   const tituloId = useId();
 
-  useEffect(() => {
-    const origem = document.activeElement as HTMLElement | null;
-    painel.current?.focus();
-    return () => {
-      if (origem?.isConnected) origem.focus();
-    };
-  }, []);
-
-  useEffect(() => {
-    function aoTeclar(evento: KeyboardEvent) {
-      // Confirmação aberta dentro deste modal cuida do Esc e do Tab: sem isso o
-      // Esc fecharia os dois e desmontaria o pedido em andamento.
-      if (painel.current?.querySelector('[role="dialog"]')) return;
-      if (evento.key === "Escape" && !bloqueado) onFechar();
-      if (evento.key !== "Tab" || !painel.current) return;
-      const focaveis = painel.current.querySelectorAll<HTMLElement>(
-        "button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea",
-      );
-      const primeiro = focaveis[0];
-      const ultimo = focaveis[focaveis.length - 1];
-      const ativo = document.activeElement;
-      if (!primeiro || !ultimo || !painel.current.contains(ativo)) {
-        evento.preventDefault();
-        (primeiro ?? painel.current).focus();
-        return;
-      }
-      if (evento.shiftKey && (ativo === primeiro || ativo === painel.current)) {
-        evento.preventDefault();
-        ultimo.focus();
-      } else if (!evento.shiftKey && ativo === ultimo) {
-        evento.preventDefault();
-        primeiro.focus();
-      }
-    }
-    document.addEventListener("keydown", aoTeclar);
-    return () => document.removeEventListener("keydown", aoTeclar);
-  }, [bloqueado, onFechar]);
+  useModal(painel, onFechar, bloqueado);
 
   return (
     <div
