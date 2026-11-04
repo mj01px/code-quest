@@ -54,3 +54,48 @@ class PerfilPublicoTest(TestCase):
 
     def test_exige_login(self):
         self.assertEqual(APIClient().get(_rota("ana")).status_code, 401)
+
+
+class PerfilCompletoTest(TestCase):
+    def setUp(self):
+        from apps.progressao.models import EtapaConcluida, TipoDeEtapa
+        from apps.trilhas.tests.helpers import criar_aula, criar_trilha
+
+        self.cliente = APIClient()
+        self.cliente.force_authenticate(user=criar_aluno("visitante"))
+        self.ana = criar_aluno("ana")
+        select_starter_creature(user=self.ana, creature_slug="shellby")
+        trilha = criar_trilha("logica")
+        aula = criar_aula(trilha, "variaveis")
+        criar_aula(trilha, "condicionais", ordem=2)
+        EtapaConcluida.objects.create(user=self.ana, aula=aula, tipo=TipoDeEtapa.LEITURA)
+
+    def test_traz_os_dados_da_vitrine(self):
+        resposta = self.cliente.get(_rota("ana"))
+
+        dados = resposta.data
+        self.assertEqual(resposta.status_code, 200)
+        self.assertIn("titulo_do_nivel", dados)
+        self.assertIsNotNone(dados["membro_desde"])
+        self.assertIsNone(dados["cla"])
+        self.assertEqual(dados["sequencia_atual"], 0)
+        self.assertEqual(
+            dados["total_conquistas"],
+            len(dados["conquistas"]) + len(dados["conquistas_bloqueadas"]),
+        )
+        self.assertEqual(
+            dados["trilhas"], [{"slug": "logica", "nome": "Logica", "percentual": 50}]
+        )
+
+    def test_conquista_secreta_nao_revela_o_nome(self):
+        secreta = Conquista.objects.filter(ativa=True).first()
+        Conquista.objects.filter(pk=secreta.pk).update(oculta=True)
+
+        resposta = self.cliente.get(_rota("ana"))
+
+        bloqueada = next(
+            c for c in resposta.data["conquistas_bloqueadas"] if c["slug"] == secreta.slug
+        )
+        self.assertEqual(bloqueada["nome"], "???")
+        self.assertEqual(bloqueada["icone"], "")
+        self.assertNotIn(secreta.nome, str(resposta.data))
