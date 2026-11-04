@@ -36,6 +36,7 @@ CASOS_PYTHON: dict[str, EspecificacaoSeed] = {
     "boletim-formatado": {
         "funcao": "linha_do_boletim",
         "codigo_inicial": "def linha_do_boletim(nome, nota):\n    ...\n",
+        "requisitos": [{"regra": "exigir", "construcao": "fstring"}],
         "casos": [
             (["Ana", 8.456], "Ana: 8.46", True),
             (["Bia", 10], "Bia: 10.00", True),
