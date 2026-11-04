@@ -10,7 +10,7 @@ from .models import Aula, Exercicio, Flashcard, Questao, Tipo, Trilha
 class FlashcardSerializer(serializers.ModelSerializer[Flashcard]):
     class Meta:
         model = Flashcard
-        fields = ["id", "pergunta", "resposta"]
+        fields = ["id", "pergunta", "resposta", "dica"]
         read_only_fields = fields
 
 
@@ -71,6 +71,9 @@ class AulaSerializer(serializers.ModelSerializer[Aula]):
 class TrilhaListaSerializer(serializers.ModelSerializer[Trilha]):
     total_aulas = serializers.IntegerField(read_only=True)
     total_exercicios = serializers.IntegerField(read_only=True)
+    total_etapas = serializers.IntegerField(
+        read_only=True, help_text="Leituras e quizzes publicados da trilha."
+    )
 
     class Meta:
         model = Trilha
@@ -82,6 +85,7 @@ class TrilhaListaSerializer(serializers.ModelSerializer[Trilha]):
             "ordem",
             "total_aulas",
             "total_exercicios",
+            "total_etapas",
         ]
         read_only_fields = fields
 
@@ -141,6 +145,8 @@ class ExercicioDetalheSerializer(serializers.ModelSerializer[Exercicio]):
             "titulo",
             "slug",
             "enunciado",
+            "contexto",
+            "exemplo",
             "tipo",
             "tipo_label",
             "dificuldade",
