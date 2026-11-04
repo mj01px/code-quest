@@ -182,5 +182,6 @@ class ApiProgressoTest(TestCase):
                 "sequencia",
                 "aprovado",
                 "correcao",
+                "explicacao",
             },
         )

@@ -17,7 +17,9 @@ import type {
   EdicaoRascunho,
   EspecificacaoDeCodigo,
   Evolucao,
+  EtapaConcluida,
   ExercicioConcluido,
+  PassoDaTrilha,
   ExercicioDetalhe,
   FiltrosAuditoria,
   Flashcard,
@@ -35,6 +37,7 @@ import type {
   Pagina,
   PaginaAuditoria,
   PerfilPublico,
+  PeriodoAdmin,
   PermissaoCatalogo,
   PreviaConvite,
   ProgressoAtual,
@@ -55,6 +58,7 @@ import type {
   Usuario,
   UsuarioAdmin,
 } from "./types";
+import { esquecerProgresso } from "@/lib/cacheDeProgresso";
 
 // No navegador tudo passa pela mesma origem, via rewrite do Next: e o que
 // permite cookie httpOnly com SameSite=Lax. Nos Server Components nao existe
@@ -205,6 +209,7 @@ async function interpretar(resposta: Response) {
  * cookie morto seguiria em toda requisição, quebrando até telas públicas.
  */
 async function purgarSessao(prazo: AbortSignal): Promise<void> {
+  esquecerProgresso();
   try {
     await fetch(`${BASE}/auth/sair/`, {
       method: "POST",
@@ -217,7 +222,34 @@ async function purgarSessao(prazo: AbortSignal): Promise<void> {
   }
 }
 
-async function renovar(prazo: AbortSignal): Promise<boolean> {
+const ESPERA_MAXIMA_429_MS = 3000;
+
+function esperarLiberar(resposta: Response, prazo: AbortSignal): Promise<void> {
+  const segundos = Number(resposta.headers.get("Retry-After"));
+  const ms = Number.isFinite(segundos) && segundos > 0 ? segundos * 1000 : 1000;
+  return new Promise((resolver) => {
+    const timer = setTimeout(resolver, Math.min(ms, ESPERA_MAXIMA_429_MS));
+    prazo.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        resolver();
+      },
+      { once: true },
+    );
+  });
+}
+
+let renovacaoEmVoo: Promise<boolean> | null = null;
+
+function renovar(prazo: AbortSignal): Promise<boolean> {
+  renovacaoEmVoo ??= renovarUmaVez(prazo).finally(() => {
+    renovacaoEmVoo = null;
+  });
+  return renovacaoEmVoo;
+}
+
+async function renovarUmaVez(prazo: AbortSignal): Promise<boolean> {
   const csrf = await garantirCsrf(prazo);
 
   try {
@@ -258,6 +290,7 @@ async function requisicao<T>(
   // csrf + pedido + renovação + repetição, e o botão ficaria preso muito além
   // do teto que este módulo promete.
   prazo: AbortSignal = AbortSignal.timeout(TEMPO_LIMITE_MS),
+  jaEsperou = false,
 ): Promise<T> {
   const headers: Record<string, string> = {};
   if (corpo !== undefined) headers["Content-Type"] = "application/json";
@@ -310,6 +343,26 @@ async function requisicao<T>(
         prazo,
       );
     }
+  }
+
+  if (
+    resposta.status === 429 &&
+    noNavegador &&
+    !jaEsperou &&
+    METODOS_SEGUROS.has(metodo)
+  ) {
+    await esperarLiberar(resposta, prazo);
+    return requisicao<T>(
+      caminho,
+      { metodo, corpo, autenticado, revalidacao, etiquetas },
+      jaRenovou,
+      prazo,
+      true,
+    );
+  }
+
+  if (caminho.startsWith("/auth/") && !METODOS_SEGUROS.has(metodo)) {
+    esquecerProgresso();
   }
 
   return interpretar(resposta) as Promise<T>;
@@ -478,8 +531,10 @@ export const api = {
     });
   },
 
-  adminDashboard() {
-    return requisicao<DashboardAdmin>("/admin/dashboard/", { autenticado: true });
+  adminDashboard(periodo: PeriodoAdmin = "7d") {
+    return requisicao<DashboardAdmin>(`/admin/dashboard/?periodo=${periodo}`, {
+      autenticado: true,
+    });
   },
 
   adminLogs(pagina = 1) {
@@ -738,6 +793,43 @@ export const api = {
     return requisicao<ExercicioConcluido[]>(
       `/eu/exercicios-concluidos/${busca}`,
       { autenticado: true },
+    );
+  },
+
+  trilhaAtual() {
+    return requisicao<{ trilha: string | null }>("/eu/trilha-atual/", {
+      autenticado: true,
+    });
+  },
+
+  passosDaTrilha(trilhaSlug: string) {
+    return requisicao<PassoDaTrilha[]>(
+      `/eu/trilhas/${encodeURIComponent(trilhaSlug)}/passos/`,
+      { autenticado: true },
+    );
+  },
+
+  etapasConcluidas() {
+    return requisicao<EtapaConcluida[]>("/eu/etapas-concluidas/", {
+      autenticado: true,
+    });
+  },
+
+  concluirLeitura(trilhaSlug: string, aulaSlug: string) {
+    return requisicao<EtapaConcluida>(
+      `/aulas/${trilhaSlug}/${aulaSlug}/leitura/concluir/`,
+      { metodo: "POST", autenticado: true },
+    );
+  },
+
+  concluirQuiz(
+    trilhaSlug: string,
+    aulaSlug: string,
+    respostas: Record<number, Alternativa>,
+  ) {
+    return requisicao<EtapaConcluida>(
+      `/aulas/${trilhaSlug}/${aulaSlug}/quiz/concluir/`,
+      { metodo: "POST", autenticado: true, corpo: { respostas } },
     );
   },
 

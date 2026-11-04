@@ -199,3 +199,71 @@ class TrilhaIniciada(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user.nickname} iniciou {self.trilha.slug}"
+
+
+class TipoDeEtapa(models.TextChoices):
+    LEITURA = "LEITURA", _("Leitura da lição")
+    QUIZ = "QUIZ", _("Quiz de fixação")
+
+
+class EtapaConcluida(models.Model):
+    """Leitura ou quiz de uma aula que o aluno terminou.
+
+    Conta na porcentagem da trilha junto com os exercícios. Não dá XP: o XP
+    continua vindo só de exercício, porque leitura e quiz não têm como ser
+    verificados com o mesmo rigor de uma correção.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="etapas_concluidas",
+        verbose_name=_("aluno"),
+    )
+
+    aula = models.ForeignKey(
+        "trilhas.Aula",
+        on_delete=models.CASCADE,
+        related_name="etapas_concluidas",
+        verbose_name=_("aula"),
+    )
+
+    tipo = models.CharField(
+        max_length=10, choices=TipoDeEtapa.choices, verbose_name=_("tipo")
+    )
+
+    acertos = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name=_("acertos"),
+        help_text=_("Melhor resultado no quiz. Nulo na leitura."),
+    )
+
+    total = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name=_("total de perguntas"),
+        help_text=_("Perguntas do quiz quando o melhor resultado foi gravado."),
+    )
+
+    concluida_em = models.DateTimeField(
+        auto_now_add=True, verbose_name=_("concluída em")
+    )
+
+    class Meta:
+        verbose_name = _("etapa concluída")
+        verbose_name_plural = _("etapas concluídas")
+        ordering = ["-concluida_em"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "aula", "tipo"],
+                name="etapaconcluida_uma_por_aula_e_tipo",
+                violation_error_message=_("Esta etapa já foi concluída."),
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["user"], name="etapaconcluida_user_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user} - {self.aula} - {self.get_tipo_display()}"

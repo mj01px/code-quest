@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta
 from decimal import Decimal
+from typing import Any
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -18,13 +19,16 @@ from apps.gamificacao.models import UserCreature, XpBonus
 from apps.trilhas.models import Dificuldade, StatusEditorial, Trilha
 
 from .models import (
+    EtapaConcluida,
     EventoXP,
     Nivel,
     Origem,
     ProgressoCriatura,
     Sequencia,
+    TipoDeEtapa,
     TrilhaIniciada,
 )
+from .painel_admin import PERIODO_PADRAO, montar_painel
 
 # O valor do XP vem diretamente do back
 # Nenhum endpoint pode aceitar input de xp vinda do usuario.
@@ -282,7 +286,114 @@ def trilhas_iniciadas(*, user):
         .values_list("exercicio__trilha__slug", flat=True)
         .distinct()
     )
-    return sorted(set(marcadas) | set(resolvidas))
+    etapas = (
+        EtapaConcluida.objects.filter(user=user)
+        .values_list("aula__trilha__slug", flat=True)
+        .distinct()
+    )
+    return sorted(set(marcadas) | set(resolvidas) | set(etapas))
+
+
+def trilha_atual(*, user):
+    """Slug da trilha em que o aluno mexeu por último, ou None.
+
+    A atividade mais recente decide: exercício concluído, leitura ou quiz feito,
+    ou a entrada na trilha. Só trilhas publicadas contam.
+    """
+    exercicio = (
+        EventoXP.objects.filter(
+            user=user,
+            origem=Origem.EXERCICIO,
+            exercicio__isnull=False,
+            exercicio__trilha__status=StatusEditorial.PUBLICADO,
+        )
+        .order_by("-criado_em")
+        .values_list("criado_em", "exercicio__trilha__slug")
+        .first()
+    )
+    etapa = (
+        EtapaConcluida.objects.filter(
+            user=user, aula__trilha__status=StatusEditorial.PUBLICADO
+        )
+        .order_by("-concluida_em")
+        .values_list("concluida_em", "aula__trilha__slug")
+        .first()
+    )
+    entrada = (
+        TrilhaIniciada.objects.filter(
+            user=user, trilha__status=StatusEditorial.PUBLICADO
+        )
+        .order_by("-iniciada_em")
+        .values_list("iniciada_em", "trilha__slug")
+        .first()
+    )
+    candidatos = [c for c in (exercicio, etapa, entrada) if c is not None]
+    if not candidatos:
+        return None
+    return max(candidatos, key=lambda par: par[0])[1]
+
+
+def _validar_aula_para_etapa(*, user, aula):
+    if not user.is_active or user.is_anonymized:
+        raise ValidationError({"usuario": _conta_inativa_trilha()})
+    if not aula.publicada or not aula.trilha.publicada:
+        raise ValidationError(
+            {"aula": _("Esta aula não está publicada.")}, code="aula_nao_publicada"
+        )
+
+
+def concluir_leitura(*, user, aula):
+    """Marca a leitura da aula como feita. Idempotente, como iniciar trilha."""
+    _validar_aula_para_etapa(user=user, aula=aula)
+    if not aula.conteudo.strip():
+        raise ValidationError(
+            {"aula": _("Esta aula ainda não tem texto para ler.")},
+            code="aula_sem_licao",
+        )
+    return EtapaConcluida.objects.get_or_create(
+        user=user, aula=aula, tipo=TipoDeEtapa.LEITURA
+    )
+
+
+def concluir_quiz(*, user, aula, respostas):
+    """Corrige o quiz no servidor e guarda o melhor resultado.
+
+    Exige resposta para todas as perguntas: terminar o quiz é a condição para
+    a etapa contar. A nota não bloqueia a conclusão, só fica registrada.
+    """
+    _validar_aula_para_etapa(user=user, aula=aula)
+    gabarito = dict(aula.questoes.values_list("id", "resposta_correta"))
+    if not gabarito:
+        raise ValidationError(
+            {"aula": _("Esta aula não tem quiz.")}, code="aula_sem_quiz"
+        )
+    if set(respostas) != set(gabarito):
+        raise ValidationError(
+            {"respostas": _("Responda todas as perguntas do quiz.")},
+            code="quiz_incompleto",
+        )
+
+    acertos = sum(
+        1 for questao, letra in respostas.items() if gabarito[questao] == letra
+    )
+    total = len(gabarito)
+
+    with transaction.atomic():
+        etapa, criada = EtapaConcluida.objects.select_for_update().get_or_create(
+            user=user,
+            aula=aula,
+            tipo=TipoDeEtapa.QUIZ,
+            defaults={"acertos": acertos, "total": total},
+        )
+        if not criada and (etapa.acertos is None or acertos > etapa.acertos):
+            etapa.acertos = acertos
+            etapa.total = total
+            etapa.save(update_fields=["acertos", "total"])
+    return etapa, criada, acertos, total
+
+
+def etapas_concluidas(*, user):
+    return EtapaConcluida.objects.filter(user=user).select_related("aula__trilha")
 
 
 DIAS_DA_SEMANA = ("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom")
@@ -300,7 +411,7 @@ def logs_do_dashboard():
     )
 
 
-def montar_dashboard_admin():
+def montar_dashboard_admin(periodo: str = PERIODO_PADRAO):
     """Métricas de gestão da plataforma para o /admin."""
     aprovada = Q(veredito=Veredito.APROVADO)
     total_usuarios = get_user_model().objects.count()
@@ -327,6 +438,7 @@ def montar_dashboard_admin():
             aprovadas=Count("pk", filter=aprovada),
             rejeitadas=Count("pk", filter=~aprovada),
         ),
+        **montar_painel(periodo),
     }
 
 
@@ -376,7 +488,7 @@ def montar_progresso(progresso):
     return progresso
 
 
-def ler_sequencia(*, user):
+def ler_sequencia(*, user) -> dict[str, Any]:
     hoje = timezone.localdate()
     sequencia = Sequencia.objects.filter(user=user).first()
     if sequencia is None:
@@ -522,3 +634,34 @@ def creditar_exercicio(*, user, exercicio):
         ja_concluido=False,
         sequencia=sequencia,
     )
+
+
+def progresso_das_trilhas(*, user) -> list[Any]:
+    """Trilhas publicadas com algum passo feito, e quanto de cada uma."""
+    from apps.trilhas.models import Trilha
+
+    from .sequencia import estado_da_trilha
+
+    ativas = set(
+        EtapaConcluida.objects.filter(user=user).values_list(
+            "aula__trilha_id", flat=True
+        )
+    ) | set(
+        EventoXP.objects.filter(
+            user=user, origem=Origem.EXERCICIO, exercicio__isnull=False
+        ).values_list("exercicio__trilha_id", flat=True)
+    )
+    resultado = []
+    for trilha in Trilha.objects.publicados().filter(pk__in=ativas).order_by("ordem"):
+        estados = estado_da_trilha(user, trilha)
+        if not estados:
+            continue
+        feitos = sum(1 for e in estados if e.estado == "concluido")
+        resultado.append(
+            {
+                "slug": trilha.slug,
+                "nome": trilha.nome,
+                "percentual": round(100 * feitos / len(estados)),
+            }
+        )
+    return resultado

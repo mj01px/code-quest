@@ -295,4 +295,20 @@ describe("BotaoConclusao invalida o Context", () => {
     await waitFor(() => expect(exerciciosConcluidos).toHaveBeenCalledTimes(2));
     expect(meuProgresso).toHaveBeenCalledTimes(2);
   });
+
+  it("ao remontar mostra o último progresso na hora e não perde o usuário se a releitura falhar", async () => {
+    const primeiro = renderHook(() => useProgresso(), { wrapper: envolver });
+    await waitFor(() => expect(primeiro.result.current.carregando).toBe(false));
+    const geracao = primeiro.result.current.geracao;
+    primeiro.unmount();
+
+    eu.mockRejectedValue(new Error("HTTP 429"));
+    const segundo = renderHook(() => useProgresso(), { wrapper: envolver });
+
+    expect(segundo.result.current.carregando).toBe(false);
+    expect(segundo.result.current.usuario?.nickname).toBe(usuario().nickname);
+    await waitFor(() => expect(segundo.result.current.erro).toBe(true));
+    expect(segundo.result.current.usuario?.nickname).toBe(usuario().nickname);
+    expect(segundo.result.current.geracao).toBe(geracao);
+  });
 });

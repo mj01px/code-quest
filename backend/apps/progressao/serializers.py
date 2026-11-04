@@ -3,7 +3,7 @@ from rest_framework import serializers
 from apps.correcao.serializers import CorrecaoSerializer
 from apps.gamificacao.serializers import MinhaCriaturaSerializer
 
-from .models import EventoXP, Nivel, ProgressoCriatura
+from .models import EtapaConcluida, EventoXP, Nivel, ProgressoCriatura
 
 
 class NivelSerializer(serializers.ModelSerializer):
@@ -70,6 +70,54 @@ class LogDoDashboardSerializer(serializers.Serializer):
         return obj.actor.nickname if obj.actor else "Anônimo"
 
 
+class UsuariosDoPeriodoSerializer(serializers.Serializer):
+    total = serializers.IntegerField(read_only=True)
+    novos = serializers.IntegerField(read_only=True)
+
+
+class AtivosDoPeriodoSerializer(serializers.Serializer):
+    total = serializers.IntegerField(read_only=True)
+    percentual = serializers.IntegerField(read_only=True)
+
+
+class SubmissoesDoPeriodoSerializer(serializers.Serializer):
+    total = serializers.IntegerField(read_only=True)
+    percentual_aprovadas = serializers.IntegerField(read_only=True)
+
+
+class TrilhasDoPainelSerializer(serializers.Serializer):
+    publicadas = serializers.IntegerField(read_only=True)
+    em_revisao = serializers.IntegerField(read_only=True)
+
+
+class AtivosDiaSerializer(serializers.Serializer):
+    data = serializers.DateField(read_only=True)
+    alunos = serializers.IntegerField(read_only=True)
+
+
+class SubmissoesDoPeriodoDiaSerializer(serializers.Serializer):
+    data = serializers.DateField(read_only=True)
+    aprovadas = serializers.IntegerField(read_only=True)
+    rejeitadas = serializers.IntegerField(read_only=True)
+
+
+class EtapaDoFunilSerializer(serializers.Serializer):
+    chave = serializers.CharField(read_only=True)
+    rotulo = serializers.CharField(read_only=True)
+    alunos = serializers.IntegerField(read_only=True)
+
+
+class FunilSerializer(serializers.Serializer):
+    slug = serializers.CharField(read_only=True)
+    nome = serializers.CharField(read_only=True)
+    etapas = EtapaDoFunilSerializer(many=True, read_only=True)
+
+
+class FaixaDeSequenciaSerializer(serializers.Serializer):
+    faixa = serializers.CharField(read_only=True)
+    alunos = serializers.IntegerField(read_only=True)
+
+
 class DashboardAdminSerializer(serializers.Serializer):
     total_usuarios = serializers.IntegerField(read_only=True)
     trilhas_publicadas = serializers.IntegerField(read_only=True)
@@ -80,6 +128,15 @@ class DashboardAdminSerializer(serializers.Serializer):
     taxa_aprovacao_submissoes = serializers.FloatField(read_only=True)
     novos_usuarios_semana = NovosUsuariosDiaSerializer(many=True, read_only=True)
     submissoes_semana = SubmissoesDiaSerializer(many=True, read_only=True)
+    periodo = serializers.CharField(read_only=True)
+    usuarios = UsuariosDoPeriodoSerializer(read_only=True)
+    ativos = AtivosDoPeriodoSerializer(read_only=True)
+    submissoes = SubmissoesDoPeriodoSerializer(read_only=True)
+    trilhas = TrilhasDoPainelSerializer(read_only=True)
+    ativos_por_dia = AtivosDiaSerializer(many=True, read_only=True)
+    submissoes_por_dia = SubmissoesDoPeriodoDiaSerializer(many=True, read_only=True)
+    funis = FunilSerializer(many=True, read_only=True)
+    sequencias = FaixaDeSequenciaSerializer(many=True, read_only=True)
 
 
 class SequenciaConclusaoSerializer(serializers.Serializer):
@@ -147,3 +204,36 @@ class ExercicioConcluidoSerializer(serializers.ModelSerializer):
     class Meta:
         model = EventoXP
         fields = ["trilha_slug", "exercicio_slug", "xp", "criado_em"]
+
+
+class EtapaConcluidaSerializer(serializers.ModelSerializer):
+    trilha_slug = serializers.SlugField(source="aula.trilha.slug", read_only=True)
+    aula_slug = serializers.SlugField(source="aula.slug", read_only=True)
+
+    class Meta:
+        model = EtapaConcluida
+        fields = [
+            "trilha_slug",
+            "aula_slug",
+            "tipo",
+            "acertos",
+            "total",
+            "concluida_em",
+        ]
+        read_only_fields = fields
+
+
+class RespostasDoQuizSerializer(serializers.Serializer):
+    respostas = serializers.DictField(
+        child=serializers.ChoiceField(choices=["A", "B", "C", "D"]),
+        allow_empty=False,
+        help_text="Mapa do id da questão para a letra escolhida.",
+    )
+
+    def validate_respostas(self, valor):
+        try:
+            return {int(chave): letra for chave, letra in valor.items()}
+        except (TypeError, ValueError) as erro:
+            raise serializers.ValidationError(
+                "As chaves precisam ser ids de questão.", code="questao_invalida"
+            ) from erro

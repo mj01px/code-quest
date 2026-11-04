@@ -4,11 +4,16 @@ from .views import (
     AdminDashboardView,
     AdminLogsView,
     ConcluirExercicioView,
+    ConcluirLeituraView,
+    ConcluirQuizView,
     IniciarTrilhaView,
     MeuProgressoView,
     MeusExerciciosConcluidosView,
     MinhaSequenciaView,
+    MinhasEtapasConcluidasView,
     MinhasTrilhasIniciadasView,
+    PassosDaTrilhaView,
+    TrilhaAtualView,
 )
 
 app_name = "progressao"
@@ -38,4 +43,25 @@ urlpatterns = [
         ConcluirExercicioView.as_view(),
         name="concluir-exercicio",
     ),
+    path(
+        "aulas/<slug:trilha_slug>/<slug:aula_slug>/leitura/concluir/",
+        ConcluirLeituraView.as_view(),
+        name="concluir-leitura",
+    ),
+    path(
+        "aulas/<slug:trilha_slug>/<slug:aula_slug>/quiz/concluir/",
+        ConcluirQuizView.as_view(),
+        name="concluir-quiz",
+    ),
+    path(
+        "eu/etapas-concluidas/",
+        MinhasEtapasConcluidasView.as_view(),
+        name="minhas-etapas-concluidas",
+    ),
+    path(
+        "eu/trilhas/<slug:trilha_slug>/passos/",
+        PassosDaTrilhaView.as_view(),
+        name="passos-da-trilha",
+    ),
+    path("eu/trilha-atual/", TrilhaAtualView.as_view(), name="trilha-atual"),
 ]
