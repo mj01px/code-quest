@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -10,20 +9,14 @@ import { ErroApi, api } from "@/lib/api";
 import { avisarConquistas } from "@/lib/conquistas";
 import {
   LIMITE_MEMBROS,
-  bandeira,
   ehGestor,
-  formatarData,
   type AcaoDeMembro,
 } from "@/lib/clas";
 import type { Cargo, Cla, MembroDoCla, MeuCla } from "@/lib/types";
 
 import { BTN_PRIMARIO } from "./estilos";
-import {
-  IconeCopiar,
-  IconeElo,
-  IconeLapis,
-  IconeSetaEsquerda,
-} from "./icones";
+import { CabecalhoDoCla } from "./CabecalhoDoCla";
+import { IconeElo, IconeLapis, IconeSetaEsquerda } from "./icones";
 import { ListaDeMembros } from "./ListaDeMembros";
 import { ModalConfirmacao } from "./ModalConfirmacao";
 import { ModalConvite } from "./ModalConvite";
@@ -62,7 +55,6 @@ export function PainelDoCla({ tag }: { tag: string }) {
   const [processando, setProcessando] = useState(false);
   const [erroModal, setErroModal] = useState<string | null>(null);
 
-  const [copiado, setCopiado] = useState(false);
   const [editando, setEditando] = useState(false);
   const [convidando, setConvidando] = useState(false);
 
@@ -137,7 +129,6 @@ export function PainelDoCla({ tag }: { tag: string }) {
     );
   }
 
-  const info = bandeira(cla.bandeira);
   const cheio = cla.total_membros >= LIMITE_MEMBROS;
   const nivelOk = maiorNivel >= cla.nivel_minimo;
   const semOutroCla = outroCla === null;
@@ -153,16 +144,6 @@ export function PainelDoCla({ tag }: { tag: string }) {
         : "Você não pode entrar em clãs agora.";
   const liderComTurma = meuCargo === "LIDER" && membros.length > 1;
   const sozinho = membros.length <= 1;
-
-  async function copiarTag() {
-    try {
-      await navigator.clipboard.writeText(`#${cla!.tag}`);
-      setCopiado(true);
-      setTimeout(() => setCopiado(false), 2000);
-    } catch {
-      setCopiado(false);
-    }
-  }
 
   async function entrar() {
     setEntrando(true);
@@ -238,68 +219,34 @@ export function PainelDoCla({ tag }: { tag: string }) {
         <IconeSetaEsquerda size={14} /> CLÃS
       </Link>
 
-      <section
-        aria-labelledby="nome-cla"
-        className="relative flex flex-col border-[3px] border-brand bg-panel shadow-frame"
-      >
-        {souMembro && meuCargo && ehGestor(meuCargo) ? (
-          <div className="absolute right-4 top-4 z-10 flex gap-2">
-            {cla.tipo === "PRIVADO" ? (
+      <CabecalhoDoCla
+        cla={cla}
+        acoes={
+          souMembro && meuCargo && ehGestor(meuCargo) ? (
+            <>
+              {cla.tipo === "PRIVADO" ? (
+                <button
+                  type="button"
+                  onClick={() => setConvidando(true)}
+                  aria-label="Link de convite"
+                  className="flex h-11 w-11 items-center justify-center border-2 border-brand-shadow bg-void/80 text-brand-light hover:border-brand"
+                >
+                  <IconeElo size={18} />
+                </button>
+              ) : null}
               <button
                 type="button"
-                onClick={() => setConvidando(true)}
-                aria-label="Link de convite"
+                onClick={() => setEditando(true)}
+                aria-label="Editar clã"
                 className="flex h-11 w-11 items-center justify-center border-2 border-brand-shadow bg-void/80 text-brand-light hover:border-brand"
               >
-                <IconeElo size={18} />
+                <IconeLapis size={18} />
               </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => setEditando(true)}
-              aria-label="Editar clã"
-              className="flex h-11 w-11 items-center justify-center border-2 border-brand-shadow bg-void/80 text-brand-light hover:border-brand"
-            >
-              <IconeLapis size={18} />
-            </button>
-          </div>
-        ) : null}
-        <div className="flex flex-wrap items-center gap-7 border-b-2 border-edge bg-[#15101f] p-8">
-          <span className="flex h-[120px] w-[120px] shrink-0 items-center justify-center border-2 border-brand-shadow bg-void shadow-[0_0_0_4px_rgba(168,85,247,0.22)]">
-            <Image
-              src={info.src}
-              alt={`Bandeira de ${cla.nome}`}
-              width={104}
-              height={104}
-              className="block h-[104px] w-[104px]"
-            />
-          </span>
-          <div className="flex min-w-0 flex-1 basis-80 flex-col gap-3.5">
-            <span className="self-start border-2 border-brand-shadow bg-void px-3 py-1.5 font-label text-[11px] tracking-[2px] text-brand-light">
-              CLÃ {cla.tipo_rotulo.toUpperCase()} · {cla.total_membros}/
-              {LIMITE_MEMBROS} MEMBROS
-            </span>
-            <h1
-              id="nome-cla"
-              className="titulo m-0 font-display text-2xl leading-[1.7] text-ink text-balance [text-shadow:2px_2px_0_var(--color-brand-dark)]"
-            >
-              {cla.nome}
-            </h1>
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="font-label text-[12px] tracking-[2px] text-ink-body">
-                #{cla.tag}
-              </span>
-              <button
-                type="button"
-                onClick={copiarTag}
-                aria-label="Copiar tag"
-                className="inline-flex items-center gap-1.5 border-2 border-edge-soft px-2 py-1 font-label text-[10px] tracking-[2px] text-ink-muted hover:text-ink-soft"
-              >
-                <IconeCopiar size={14} /> {copiado ? "COPIADO" : "COPIAR"}
-              </button>
-            </div>
-          </div>
-          {!souMembro && podeEntrar ? (
+            </>
+          ) : null
+        }
+        cta={
+          !souMembro && podeEntrar ? (
             <button
               type="button"
               onClick={entrar}
@@ -308,22 +255,9 @@ export function PainelDoCla({ tag }: { tag: string }) {
             >
               {entrando ? "ENTRANDO..." : "ENTRAR NO CLÃ"}
             </button>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-4 bg-panel-deep px-8 py-5">
-          <p className="m-0 flex-1 basis-80 font-body text-base leading-[1.6] text-ink-body">
-            {cla.descricao || "Este clã ainda não tem descrição."}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <span className="inline-flex items-center border-2 border-brand px-2.5 py-1 font-label text-[10px] tracking-[2px] text-brand-light uppercase">
-              Nível mín. {cla.nivel_minimo}
-            </span>
-            <span className="inline-flex items-center border-2 border-edge-soft px-2.5 py-1 font-label text-[10px] tracking-[2px] text-ink-muted uppercase">
-              Desde {formatarData(cla.criado_em)}
-            </span>
-          </div>
-        </div>
-      </section>
+          ) : null
+        }
+      />
 
       {erroAcao ? (
         <p role="alert" className="m-0 font-body text-base text-danger">
