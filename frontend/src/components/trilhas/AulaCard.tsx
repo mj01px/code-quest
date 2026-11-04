@@ -1,13 +1,106 @@
 import Link from "next/link";
 
-import { BaralhoFlashcards } from "@/components/trilhas/CartaoFlashcard";
-import { QuizQuestao } from "@/components/trilhas/QuizQuestao";
 import { Badge, BadgeDificuldade } from "@/components/ui/Badge";
-import { IconeCheck } from "@/components/ui/Icone";
+import { IconeCadeado, IconeCheck } from "@/components/ui/Icone";
+import { chaveDoPasso } from "@/lib/passos";
 import { plural, resumoDoModulo, xpDoModulo } from "@/lib/derivados";
-import type { Aula } from "@/lib/types";
+import { minutosDeLeitura } from "@/lib/licao";
+import type { Aula, EstadoDoPasso } from "@/lib/types";
+import type { ReactNode } from "react";
 
 const VAZIO: ReadonlySet<string> = Object.freeze(new Set<string>());
+
+const LINHA = "group flex flex-wrap items-center gap-4 px-5 py-4 sm:px-6";
+
+function LinkOuTrava({
+  href,
+  bloqueado,
+  children,
+}: {
+  href: string;
+  bloqueado: boolean;
+  children: ReactNode;
+}) {
+  if (bloqueado) {
+    return (
+      <div
+        aria-disabled="true"
+        title="Conclua a etapa anterior para liberar"
+        className={`${LINHA} cursor-not-allowed opacity-45`}
+      >
+        <span className="sr-only">Bloqueado: </span>
+        {children}
+      </div>
+    );
+  }
+  return (
+    <Link
+      href={href}
+      className={`${LINHA} cursor-pointer transition-colors hover:bg-panel-soft`}
+    >
+      {children}
+    </Link>
+  );
+}
+
+function CabecalhoDaParte({
+  numero,
+  titulo,
+}: {
+  numero: number;
+  titulo: string;
+}) {
+  return (
+    <p className="m-0 flex items-center gap-3 border-t-2 border-edge bg-panel-deep px-5 py-2.5 font-label text-[10px] tracking-[2px] text-brand-light uppercase first:border-t-0 sm:px-6">
+      <span aria-hidden="true" className="h-2 w-2 bg-brand" />
+      Parte {numero} · {titulo}
+    </p>
+  );
+}
+
+function LinhaDidatica({
+  href,
+  marca,
+  titulo,
+  selo,
+  feita = false,
+  bloqueado = false,
+}: {
+  href: string;
+  marca: string;
+  titulo: string;
+  selo: string;
+  feita?: boolean;
+  bloqueado?: boolean;
+}) {
+  return (
+    <li>
+      <LinkOuTrava href={href} bloqueado={bloqueado}>
+        <span
+          aria-hidden="true"
+          className={`flex h-8 w-8 shrink-0 items-center justify-center border-2 bg-panel-deep font-display text-[8px] ${
+            feita
+              ? "border-success text-success"
+              : "border-brand-shadow text-brand-light group-hover:border-brand"
+          }`}
+        >
+          {feita ? (
+            <IconeCheck className="h-3.5 w-3.5" />
+          ) : bloqueado ? (
+            <IconeCadeado className="h-3.5 w-3.5" />
+          ) : (
+            marca
+          )}
+        </span>
+        <span className="min-w-0 flex-1 font-body text-base tracking-[1px] text-ink">
+          {feita ? <span className="sr-only">Concluído: </span> : null}
+          {titulo}
+        </span>
+        <Badge>{selo}</Badge>
+      </LinkOuTrava>
+    </li>
+  );
+}
 
 export function AulaCard({
   aula,
@@ -18,24 +111,35 @@ export function AulaCard({
   // Slugs das fases deste módulo que o aluno já concluiu. Vem vazio no render
   // do servidor e no de quem não tem sessão: o card só ganha a marca depois.
   fasesConcluidas = VAZIO,
+  leituraFeita = false,
+  quizFeito = false,
+  estadoDe = () => "liberado",
 }: {
   aula: Aula;
   trilhaSlug: string;
   posicao: number;
   preRequisitoTitulo?: string;
   fasesConcluidas?: ReadonlySet<string>;
+  leituraFeita?: boolean;
+  quizFeito?: boolean;
+  estadoDe?: (chave: string) => EstadoDoPasso;
 }) {
   const numero = String(posicao).padStart(2, "0");
   const resumo = resumoDoModulo(aula);
   const temFases = aula.exercicios.length > 0;
-  const feitas = aula.exercicios.filter((e) =>
-    fasesConcluidas.has(e.slug),
-  ).length;
-  const moduloCompleto = temFases && feitas === aula.exercicios.length;
   // O catálogo vem do cache do Next (60s): um payload gravado antes do campo
   // existir chega sem ele, e a página inteira cairia no error boundary.
-  const flashcards = aula.flashcards ?? [];
   const questoes = aula.questoes ?? [];
+  const temLicao = (aula.conteudo ?? "").trim() !== "";
+  const temQuiz = questoes.length > 0;
+  const totalDoModulo =
+    aula.exercicios.length + (temLicao ? 1 : 0) + (temQuiz ? 1 : 0);
+  const feitas =
+    aula.exercicios.filter((e) => fasesConcluidas.has(e.slug)).length +
+    (temLicao && leituraFeita ? 1 : 0) +
+    (temQuiz && quizFeito ? 1 : 0);
+  const moduloCompleto = totalDoModulo > 0 && feitas === totalDoModulo;
+  const rotaDaLicao = `/trilhas/${trilhaSlug}/aulas/${aula.slug}`;
 
   const cabecalho = (
     <>
@@ -60,16 +164,16 @@ export function AulaCard({
         </span>
       </span>
 
-      {temFases ? (
+      {temFases || temLicao ? (
         <span className="shrink-0 font-label text-[11px] tracking-[2px] text-brand-light uppercase">
           {feitas > 0 ? (
             <span
               className={moduloCompleto ? "text-success" : "text-ink-muted"}
             >
-              {feitas}/{aula.exercicios.length} ·{" "}
+              {feitas}/{totalDoModulo} ·{" "}
             </span>
           ) : null}
-          +{xpDoModulo(aula)} XP
+          {temFases ? `+${xpDoModulo(aula)} XP` : "Lição"}
         </span>
       ) : (
         <span className="shrink-0 font-label text-[11px] tracking-[2px] text-ink-dim uppercase">
@@ -79,8 +183,7 @@ export function AulaCard({
     </>
   );
 
-  // Módulo sem fases, cards nem questões não tem o que abrir.
-  if (!temFases && flashcards.length === 0 && questoes.length === 0) {
+  if (!temFases && !temLicao && questoes.length === 0) {
     return (
       <li className="flex items-center gap-5 border-2 border-edge bg-panel p-5 sm:px-6">
         {cabecalho}
@@ -95,16 +198,57 @@ export function AulaCard({
           {cabecalho}
         </summary>
 
+        {temLicao || questoes.length > 0 ? (
+          <div className="border-t-2 border-edge">
+            <CabecalhoDaParte numero={1} titulo="Aprender" />
+            <ul className="m-0 list-none divide-y-2 divide-edge p-0">
+              {temLicao ? (
+                <LinhaDidatica
+                  href={rotaDaLicao}
+                  marca="LI"
+                  titulo={`Lição: ${aula.titulo}`}
+                  selo={`Leitura · ${minutosDeLeitura(aula.conteudo)} min`}
+                  feita={leituraFeita}
+                  bloqueado={
+                    estadoDe(chaveDoPasso("LEITURA", aula.slug)) === "bloqueado"
+                  }
+                />
+              ) : null}
+              {questoes.length > 0 ? (
+                <LinhaDidatica
+                  href={`${rotaDaLicao}/quiz`}
+                  marca="QZ"
+                  titulo="Quiz de fixação"
+                  selo={plural(questoes.length, "pergunta", "perguntas")}
+                  feita={quizFeito}
+                  bloqueado={
+                    estadoDe(chaveDoPasso("QUIZ", aula.slug)) === "bloqueado"
+                  }
+                />
+              ) : null}
+            </ul>
+          </div>
+        ) : null}
+
+        {temFases && (temLicao || questoes.length > 0) ? (
+          <CabecalhoDaParte numero={2} titulo="Praticar" />
+        ) : null}
+
         {temFases ? (
           <ul className="m-0 list-none divide-y-2 divide-edge border-t-2 border-edge p-0">
             {aula.exercicios.map((exercicio, posicaoDaFase) => {
               const feita = fasesConcluidas.has(exercicio.slug);
+              const bloqueada =
+                !feita &&
+                estadoDe(
+                  chaveDoPasso("EXERCICIO", aula.slug, exercicio.slug),
+                ) === "bloqueado";
 
               return (
                 <li key={exercicio.id}>
-                  <Link
+                  <LinkOuTrava
                     href={`/trilhas/${trilhaSlug}/exercicios/${exercicio.slug}`}
-                    className="group flex cursor-pointer flex-wrap items-center gap-4 px-5 py-4 transition-colors hover:bg-panel-soft sm:px-6"
+                    bloqueado={bloqueada}
                   >
                     {/* O mesmo quadro numerado do módulo, um tamanho abaixo: é
                         ele que diz que a fase está feita, sem gastar uma coluna
@@ -119,6 +263,8 @@ export function AulaCard({
                     >
                       {feita ? (
                         <IconeCheck className="h-3.5 w-3.5" />
+                      ) : bloqueada ? (
+                        <IconeCadeado className="h-3.5 w-3.5" />
                       ) : (
                         String(posicaoDaFase + 1).padStart(2, "0")
                       )}
@@ -139,26 +285,11 @@ export function AulaCard({
                       />
                       <Badge>{exercicio.tipo_label}</Badge>
                     </span>
-                  </Link>
+                  </LinkOuTrava>
                 </li>
               );
             })}
           </ul>
-        ) : null}
-        {flashcards.length > 0 ? (
-          <div className="border-t-2 border-edge p-5 sm:px-6">
-            <BaralhoFlashcards cards={flashcards} />
-          </div>
-        ) : null}
-        {questoes.length > 0 ? (
-          <div className="flex flex-col gap-3 border-t-2 border-edge p-5 sm:px-6">
-            <span className="font-label text-[11px] tracking-[2px] text-brand-light uppercase">
-              Quiz · {questoes.length}
-            </span>
-            {questoes.map((questao) => (
-              <QuizQuestao key={questao.id} questao={questao} />
-            ))}
-          </div>
         ) : null}
       </details>
     </li>

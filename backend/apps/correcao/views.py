@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 
 from apps.core.auth import usuario_atual
 from apps.core.permissions import HasPerm
+from apps.progressao.sequencia import EXERCICIO, exigir_liberado
 from apps.trilhas.models import Exercicio, StatusEditorial
 
 from .excecoes import CorretorIndisponivel
@@ -86,6 +87,14 @@ class ExecutarCodigoView(APIView):
         self, request: Request, trilha_slug: str, exercicio_slug: str
     ) -> Response:
         exercicio = _exercicio(request, trilha_slug, exercicio_slug)
+        if exercicio.status == StatusEditorial.PUBLICADO:
+            exigir_liberado(
+                user=usuario_atual(request),
+                trilha=exercicio.trilha,
+                tipo=EXERCICIO,
+                aula_slug=exercicio.aula.slug,
+                exercicio_slug=exercicio.slug,
+            )
         try:
             correcao = executar_codigo(
                 user=usuario_atual(request),

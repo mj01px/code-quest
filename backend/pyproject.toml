@@ -19,6 +19,7 @@ python_files = ["test_*.py"]
 # porque os testes transversais (admin, RBAC, permissoes) foram escritos la.
 testpaths = ["apps"]
 addopts = "--reuse-db"
+markers = ["sequencial: liga a trava de progressão em ordem da trilha"]
 
 [tool.coverage.run]
 source = ["apps", "config"]

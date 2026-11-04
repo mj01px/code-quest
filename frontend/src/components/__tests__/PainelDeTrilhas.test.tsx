@@ -21,6 +21,8 @@ jest.mock("@/lib/api", () => ({
   temSessao: jest.fn(),
   api: {
     exerciciosConcluidos: jest.fn(),
+    etapasConcluidas: jest.fn(),
+    trilhaAtual: jest.fn(),
     trilhasIniciadas: jest.fn(),
     eu: jest.fn(),
     minhasCriaturas: jest.fn(),
@@ -44,6 +46,25 @@ const exerciciosConcluidos =
   apiReal.exerciciosConcluidos as jest.MockedFunction<
     typeof apiReal.exerciciosConcluidos
   >;
+const trilhaAtual = apiReal.trilhaAtual as jest.MockedFunction<
+  typeof apiReal.trilhaAtual
+>;
+const etapasConcluidas = apiReal.etapasConcluidas as jest.MockedFunction<
+  typeof apiReal.etapasConcluidas
+>;
+
+function comLeituras(aulas: string[]): void {
+  etapasConcluidas.mockResolvedValue(
+    aulas.map((aulaSlug) => ({
+      trilha_slug: TRILHA.slug,
+      aula_slug: aulaSlug,
+      tipo: "LEITURA" as const,
+      acertos: null,
+      total: null,
+      concluida_em: "2026-09-01T12:00:00Z",
+    })),
+  );
+}
 
 const TRILHA = trilhaResumo({ total_aulas: 2, total_exercicios: 4 });
 
@@ -87,7 +108,10 @@ function comProgresso(fases: string[]): void {
 async function montar(destaque: TrilhaDetalhe | null = DESTAQUE) {
   render(
     <ProvedorProgresso>
-      <PainelDeTrilhas trilhas={[TRILHA]} destaque={destaque ?? undefined} />
+      <PainelDeTrilhas
+        trilhas={[TRILHA]}
+        detalhes={destaque ? { [TRILHA.slug]: destaque } : {}}
+      />
     </ProvedorProgresso>,
   );
   await waitFor(() => expect(exerciciosConcluidos).toHaveBeenCalled());
@@ -97,6 +121,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   temSessao.mockReturnValue(true);
   comProgresso([]);
+  comLeituras([]);
+  trilhaAtual.mockResolvedValue({ trilha: TRILHA.slug });
   eu.mockResolvedValue(usuario());
   minhasCriaturas.mockResolvedValue([minhaCriatura({ ativa: true })]);
   meuProgresso.mockResolvedValue(progressoAtual());
@@ -128,8 +154,39 @@ describe("PainelDeTrilhas", () => {
     );
   });
 
+  it("leva à lição do módulo quando ela ainda não foi lida", async () => {
+    comProgresso(["media", "trocar"]);
+
+    await montar();
+
+    expect(
+      await screen.findByText("Módulo 2 · Lição: Condicionais"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Retomar" })).toHaveAttribute(
+      "href",
+      "/trilhas/logica-de-programacao/aulas/condicionais",
+    );
+  });
+
+  it("soma leitura e quiz feitos na porcentagem da trilha", async () => {
+    comProgresso(["media"]);
+    comLeituras(["variaveis-e-tipos"]);
+
+    render(
+      <ProvedorProgresso>
+        <PainelDeTrilhas
+          trilhas={[{ ...TRILHA, total_etapas: 1 }]}
+          detalhes={{ [TRILHA.slug]: DESTAQUE }}
+        />
+      </ProvedorProgresso>,
+    );
+
+    expect(await screen.findByText("40%")).toBeInTheDocument();
+  });
+
   it("oferece continuar de onde parou e aponta para a fase seguinte", async () => {
     comProgresso(["media", "trocar"]);
+    comLeituras(["condicionais"]);
 
     await montar();
 
@@ -202,13 +259,51 @@ describe("PainelDeTrilhas", () => {
     expect(screen.queryByText("25%")).not.toBeInTheDocument();
   });
 
+  it("o destaque segue a trilha ativa, não a primeira da lista", async () => {
+    const python = trilhaResumo({
+      id: 2,
+      slug: "python",
+      nome: "Python",
+      ordem: 2,
+    });
+    trilhaAtual.mockResolvedValue({ trilha: "python" });
+
+    render(
+      <ProvedorProgresso>
+        <PainelDeTrilhas
+          trilhas={[TRILHA, python]}
+          detalhes={{
+            [TRILHA.slug]: DESTAQUE,
+            python: { ...DESTAQUE, ...python },
+          }}
+        />
+      </ProvedorProgresso>,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Python" }),
+    ).toBeInTheDocument();
+  });
+
+  it("sem trilha em andamento convida a iniciar uma", async () => {
+    trilhaAtual.mockResolvedValue({ trilha: null });
+
+    await montar();
+
+    expect(await screen.findByText("Inicie uma trilha já")).toBeInTheDocument();
+    expect(screen.getByText("Nenhuma trilha em andamento")).toBeInTheDocument();
+  });
+
   it("sem sessão mostra o estado neutro e não vai à rede", async () => {
     temSessao.mockReturnValue(false);
 
     // Não usa `montar`: sem sessão não há pedido pelo qual esperar.
     render(
       <ProvedorProgresso>
-        <PainelDeTrilhas trilhas={[TRILHA]} destaque={DESTAQUE} />
+        <PainelDeTrilhas
+          trilhas={[TRILHA]}
+          detalhes={{ [TRILHA.slug]: DESTAQUE }}
+        />
       </ProvedorProgresso>,
     );
 
