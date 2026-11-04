@@ -11,6 +11,7 @@ import { GestaoNiveis } from "@/components/admin/GestaoNiveis";
 import { LogsAuditoria } from "@/components/admin/LogsAuditoria";
 import { ModalAdmin } from "@/components/admin/ModalAdmin";
 import { ModalAtribuirNivel } from "@/components/admin/ModalAtribuirNivel";
+import { PedidosPendentes } from "@/components/admin/PedidosPendentes";
 import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 import { ServicoIndisponivel } from "@/components/ui/ServicoIndisponivel";
 import type { UsuarioAdmin } from "@/lib/types";
@@ -19,7 +20,7 @@ type Modal =
   | { tipo: "nenhum" }
   | { tipo: "atribuir" }
   | { tipo: "niveis" }
-  | { tipo: "aprovacoes" }
+  | { tipo: "aprovacoes"; pedido: number }
   | { tipo: "auditoria" }
   | { tipo: "excluir"; usuario: UsuarioAdmin };
 
@@ -108,30 +109,24 @@ export function PainelAdmin() {
           >
             NÍVEIS DE ACESSO
           </button>
-          <button
-            type="button"
-            onClick={() => setModal({ tipo: "aprovacoes" })}
-            className="min-h-11 cursor-pointer border-2 border-brand bg-brand-void px-5 font-label text-[11px] tracking-[2px] text-ink shadow-pixel hover:border-brand-light"
-          >
-            SOLICITAÇÕES DE AUTOR
-          </button>
-          {/* RF33: o botão só aparece com a permissão; o endpoint também confere. */}
-          {usuario.permissoes.includes("auditoria.view") ? (
-            <button
-              type="button"
-              onClick={() => setModal({ tipo: "auditoria" })}
-              className="min-h-11 cursor-pointer border-2 border-brand bg-brand-void px-5 font-label text-[11px] tracking-[2px] text-ink shadow-pixel hover:border-brand-light"
-            >
-              AUDITORIA COMPLETA
-            </button>
-          ) : null}
         </div>
       </div>
 
-      <AdminDashboard key={`dashboard-${versao}`} />
+      <AdminDashboard
+        key={`dashboard-${versao}`}
+        atencao={
+          <PedidosPendentes
+            key={`pendentes-${versao}`}
+            onVerPedido={(id) => setModal({ tipo: "aprovacoes", pedido: id })}
+          />
+        }
+      />
 
       {usuario.permissoes.includes("auditoria.view") ? (
-        <LogsAuditoria key={`logs-${versao}`} />
+        <LogsAuditoria
+          key={`logs-${versao}`}
+          onVerTodos={() => setModal({ tipo: "auditoria" })}
+        />
       ) : null}
 
       {modal.tipo === "atribuir" ? (
@@ -156,11 +151,14 @@ export function PainelAdmin() {
       {modal.tipo === "aprovacoes" ? (
         <ModalAdmin
           rotulo="// AUTORIA"
-          titulo="Solicitações de autor"
+          titulo="Solicitação de autor"
           largura="larga"
           onFechar={fechar}
         >
-          <AprovacoesAutoria />
+          <AprovacoesAutoria
+            destaque={modal.pedido}
+            onDecidido={() => concluir("Solicitação decidida.")}
+          />
         </ModalAdmin>
       ) : null}
 

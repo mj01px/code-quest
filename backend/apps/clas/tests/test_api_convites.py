@@ -128,16 +128,33 @@ class RevogarConviteTest(ConviteBase):
 
 
 class PreviaTest(ConviteBase):
-    def test_mostra_so_o_basico(self):
+    def test_mostra_o_cla_e_os_membros_para_quem_tem_o_link(self):
         token = self._token()
         self.client.force_authenticate(criar_aluno("curioso"))
 
         r = self.client.get(url_previa(token))
 
         self.assertEqual(r.status_code, status.HTTP_200_OK)
-        self.assertEqual(
-            r.data, {"nome": "Secretos", "bandeira": "guilda_1", "total_membros": 3}
-        )
+        self.assertEqual(r.data["nome"], "Secretos")
+        self.assertEqual(r.data["bandeira"], "guilda_1")
+        self.assertEqual(r.data["total_membros"], 3)
+        self.assertEqual(r.data["tipo"], "PRIVADO")
+        self.assertIn("descricao", r.data)
+        self.assertIn("tag", r.data)
+        self.assertEqual(len(r.data["membros"]), 3)
+        self.assertEqual(r.data["membros"][0]["cargo"], "LIDER")
+        self.assertEqual(set(r.data["membros"][0]), {"id", "nickname", "cargo", "cargo_rotulo", "entrou_em"})
+
+    def test_o_link_nao_abre_o_cla_pelos_outros_endpoints(self):
+        token = self._token()
+        self.client.force_authenticate(criar_aluno("curioso"))
+        tag = self.client.get(url_previa(token)).data["tag"]
+
+        for rota in ("clas:cla-detalhe", "clas:membros"):
+            self.assertEqual(
+                self.client.get(reverse(rota, kwargs={"tag": tag})).status_code,
+                status.HTTP_404_NOT_FOUND,
+            )
 
     def test_convites_invalidos_respondem_igual(self):
         token = self._token()

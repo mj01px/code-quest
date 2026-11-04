@@ -11,6 +11,7 @@ interface Props {
   onChange: (valor: string) => void;
   erro?: string | null;
   name?: string;
+  limpavel?: boolean;
 }
 
 const MESES = [
@@ -50,7 +51,7 @@ function formatarBr(data: Date): string {
   return `${dd}/${mm}/${data.getFullYear()}`;
 }
 
-export function CampoData({ rotulo, value, onChange, erro, name }: Props) {
+export function CampoData({ rotulo, value, onChange, erro, name, limpavel = false }: Props) {
   const id = useId();
   const erroId = `${id}-erro`;
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -158,7 +159,7 @@ export function CampoData({ rotulo, value, onChange, erro, name }: Props) {
           <div
             role="dialog"
             aria-label="Escolha a data"
-            className="absolute left-0 right-0 top-full z-50 mt-2 flex flex-col gap-3 border-2 border-brand-strong bg-panel p-3 shadow-pixel-lg"
+            className="absolute left-0 right-0 top-full z-50 mt-2 flex min-w-[280px] flex-col gap-3 border-2 border-brand-strong bg-panel p-3 shadow-pixel-lg"
           >
             {visao === "dias" ? (
               <>
@@ -290,6 +291,18 @@ export function CampoData({ rotulo, value, onChange, erro, name }: Props) {
                 </div>
               </>
             )}
+            {limpavel && selecionada ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onChange("");
+                  setAberto(false);
+                }}
+                className="border-2 border-edge-soft bg-panel-soft px-2 py-1.5 font-label text-[11px] tracking-[1px] text-ink-muted hover:border-brand hover:text-ink"
+              >
+                LIMPAR DATA
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>

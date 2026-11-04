@@ -9,6 +9,7 @@ import {
 import { PainelAutoria } from "@/components/autoria/PainelAutoria";
 import { ProvedorProgresso } from "@/components/progresso/ProvedorProgresso";
 import type { ItemEditorial } from "@/lib/types";
+import { escolherOpcao } from "@/components/__tests__/selecao";
 
 jest.mock("@/lib/api", () => ({
   ...jest.requireActual("@/lib/api"),
@@ -755,8 +756,7 @@ describe("PainelAutoria: criação rápida", () => {
 
     await u.click(await screen.findByRole("button", { name: "+ NOVA AULA" }));
     const modal = screen.getByRole("dialog", { name: "Nova aula" });
-    await within(modal).findByRole("option", { name: "Trilha nova" });
-    await u.selectOptions(within(modal).getByLabelText("VINCULAR À TRILHA"), "3");
+    await escolherOpcao(u, within(modal).getByLabelText("VINCULAR À TRILHA"), "Trilha nova");
     await u.type(within(modal).getByLabelText("TÍTULO DA AULA"), "Laços");
     await u.type(within(modal).getByLabelText("TEXTO (MARKDOWN)"), "# Laços");
     const chamadasAntes = mock.api.autoriaRascunhos.mock.calls.length;
@@ -788,11 +788,9 @@ describe("PainelAutoria: criação rápida", () => {
 
     await u.click(await screen.findByRole("button", { name: "+ NOVO EXERCÍCIO" }));
     const modal = screen.getByRole("dialog", { name: "Novo exercício" });
-    await within(modal).findByRole("option", { name: "Trilha nova" });
-    await u.selectOptions(within(modal).getByLabelText("VINCULAR À TRILHA"), "3");
+    await escolherOpcao(u, within(modal).getByLabelText("VINCULAR À TRILHA"), "Trilha nova");
     expect(mock.api.detalheEditorial).toHaveBeenCalledWith("trilhas", 3);
-    await within(modal).findByRole("option", { name: "Laços" });
-    await u.selectOptions(within(modal).getByLabelText("VINCULAR À AULA"), "4");
+    await escolherOpcao(u, within(modal).getByLabelText("VINCULAR À AULA"), "Laços");
 
     // Quiz troca o formulário pelo de múltipla escolha; teórico volta ao de exercício.
     await u.click(within(modal).getByRole("button", { name: "QUIZ" }));

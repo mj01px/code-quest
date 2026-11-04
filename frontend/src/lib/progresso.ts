@@ -3,7 +3,7 @@
 // Funções puras de progresso. Dados vêm do servidor (não usa localStorage).
 // Quem busca é o ProvedorProgresso; aqui só agrega.
 
-import type { ExercicioConcluido } from "@/lib/types";
+import type { EtapaConcluida, ExercicioConcluido, TipoDeEtapa } from "@/lib/types";
 
 const VAZIO: readonly ExercicioConcluido[] = Object.freeze([]);
 
@@ -77,4 +77,22 @@ export function concluidasDaTrilha(
 export function percentual(feitas: number, total: number): number {
   if (total <= 0) return 0;
   return Math.min(100, (feitas / total) * 100);
+}
+
+export function chaveDaEtapa(trilhaSlug: string, aulaSlug: string, tipo: TipoDeEtapa): string {
+  return `${trilhaSlug}/${aulaSlug}#${tipo}`;
+}
+
+export function chavesDasEtapas(etapas: readonly EtapaConcluida[]): ReadonlySet<string> {
+  return new Set(etapas.map((e) => chaveDaEtapa(e.trilha_slug, e.aula_slug, e.tipo)));
+}
+
+export function contarEtapasPorTrilha(
+  etapas: readonly EtapaConcluida[],
+): ReadonlyMap<string, number> {
+  const contagem = new Map<string, number>();
+  for (const etapa of etapas) {
+    contagem.set(etapa.trilha_slug, (contagem.get(etapa.trilha_slug) ?? 0) + 1);
+  }
+  return contagem;
 }

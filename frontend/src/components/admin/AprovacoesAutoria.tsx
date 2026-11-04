@@ -23,19 +23,94 @@ const ROTULO_TIPO: Record<TipoPretendido, string> = {
   EXERCICIO: "Exercícios",
 };
 
-// Pedido anterior à escolha do tipo chega sem o campo: era sempre completo.
-const rotuloDoTipo = (tipo: TipoPretendido | undefined) => ROTULO_TIPO[tipo ?? "COMPLETO"];
+export const rotuloDoTipo = (tipo: TipoPretendido | undefined) => ROTULO_TIPO[tipo ?? "COMPLETO"];
 
-// Fila de pedidos de autoria. Aprovar dá ao aluno só as granulares do tipo
-// pedido; rejeitar exige motivo, que o aluno vê na tela /ser-autor.
-export function AprovacoesAutoria() {
-  const [pedidos, setPedidos] = useState<SolicitacaoAdmin[]>([]);
-  const [carregando, setCarregando] = useState(true);
-  const [erro, setErro] = useState<string | null>(null);
+export function useDecisaoDeAutoria(onDecidido: (id: number) => void) {
   const [decisao, setDecisao] = useState<Decisao | null>(null);
   const [motivo, setMotivo] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erroModal, setErroModal] = useState<string | null>(null);
+
+  function abrir(tipo: Decisao["tipo"], pedido: SolicitacaoAdmin) {
+    setDecisao({ tipo, pedido });
+    setMotivo("");
+    setErroModal(null);
+  }
+
+  async function confirmar() {
+    if (!decisao) return;
+    const { tipo, pedido } = decisao;
+    setEnviando(true);
+    setErroModal(null);
+    try {
+      if (tipo === "aprovar") await api.aprovarSolicitacao(pedido.id);
+      else await api.rejeitarSolicitacao(pedido.id, motivo.trim());
+      onDecidido(pedido.id);
+      setDecisao(null);
+    } catch (e) {
+      setErroModal(mensagemDe(e, "Não foi possível concluir a ação."));
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  const modal = decisao ? (
+    <ModalConfirmacao
+      rotulo="AUTORIA"
+      titulo={
+        decisao.tipo === "aprovar"
+          ? `Aprovar ${decisao.pedido.solicitante.nickname}?`
+          : `Rejeitar ${decisao.pedido.solicitante.nickname}?`
+      }
+      textoConfirmar={decisao.tipo === "aprovar" ? "APROVAR" : "REJEITAR"}
+      perigo={decisao.tipo === "rejeitar"}
+      carregando={enviando}
+      confirmarDesabilitado={decisao.tipo === "rejeitar" && motivo.trim() === ""}
+      erro={erroModal}
+      onConfirmar={confirmar}
+      onFechar={() => setDecisao(null)}
+    >
+      {decisao.tipo === "aprovar" ? (
+        <p className="m-0">
+          O usuário passa a ser autor e pode criar{" "}
+          {rotuloDoTipo(decisao.pedido.tipo_pretendido).toLowerCase()}. Todo
+          conteúdo dele ainda passa pela revisão.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <label
+            htmlFor="motivo-rejeicao"
+            className="font-label text-[11px] tracking-[2px] text-ink-muted"
+          >
+            MOTIVO (O ALUNO VAI VER)
+          </label>
+          <textarea
+            id="motivo-rejeicao"
+            rows={4}
+            maxLength={1000}
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+            className="resize-y border-2 border-brand-strong bg-field px-3.5 py-3 font-body text-[15px] leading-[1.6] text-ink shadow-pixel outline-none focus:border-brand-pale"
+          />
+        </div>
+      )}
+    </ModalConfirmacao>
+  ) : null;
+
+  return { abrir, modal };
+}
+
+export function AprovacoesAutoria({
+  destaque,
+  onDecidido,
+}: { destaque?: number; onDecidido?: () => void } = {}) {
+  const [pedidos, setPedidos] = useState<SolicitacaoAdmin[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+  const { abrir, modal } = useDecisaoDeAutoria((id) => {
+    setPedidos((atual) => atual.filter((p) => p.id !== id));
+    onDecidido?.();
+  });
 
   useEffect(() => {
     let ativo = true;
@@ -55,31 +130,9 @@ export function AprovacoesAutoria() {
     };
   }, []);
 
-  function abrir(tipo: Decisao["tipo"], pedido: SolicitacaoAdmin) {
-    setDecisao({ tipo, pedido });
-    setMotivo("");
-    setErroModal(null);
-  }
-
-  async function confirmar() {
-    if (!decisao) return;
-    const { tipo, pedido } = decisao;
-    setEnviando(true);
-    setErroModal(null);
-    try {
-      if (tipo === "aprovar") await api.aprovarSolicitacao(pedido.id);
-      else await api.rejeitarSolicitacao(pedido.id, motivo.trim());
-      setPedidos((atual) => atual.filter((p) => p.id !== pedido.id));
-      setDecisao(null);
-    } catch (e) {
-      setErroModal(mensagemDe(e, "Não foi possível concluir a ação."));
-    } finally {
-      setEnviando(false);
-    }
-  }
+  const visiveis = destaque ? pedidos.filter((p) => p.id === destaque) : pedidos;
 
   return (
-    // Sem título próprio: o ModalAdmin do painel já dá nome ao diálogo.
     <section className="flex flex-col gap-4">
       {erro ? (
         <p role="alert" className={`m-0 text-danger ${TIPO.corpo}`}>
@@ -87,13 +140,13 @@ export function AprovacoesAutoria() {
         </p>
       ) : carregando ? (
         <p className={`m-0 text-brand-light ${TIPO.etiqueta}`}>&gt; CARREGANDO...</p>
-      ) : pedidos.length === 0 ? (
+      ) : visiveis.length === 0 ? (
         <p className={`m-0 text-ink-dim ${TIPO.corpo}`}>
           Nenhuma solicitação esperando análise.
         </p>
       ) : (
         <ul className="m-0 flex list-none flex-col gap-3 p-0">
-          {pedidos.map((pedido) => (
+          {visiveis.map((pedido) => (
             <li
               key={pedido.id}
               className="flex flex-col gap-3 border-2 border-edge bg-panel p-5 shadow-pixel"
@@ -153,48 +206,7 @@ export function AprovacoesAutoria() {
         </ul>
       )}
 
-      {decisao ? (
-        <ModalConfirmacao
-          rotulo="AUTORIA"
-          titulo={
-            decisao.tipo === "aprovar"
-              ? `Aprovar ${decisao.pedido.solicitante.nickname}?`
-              : `Rejeitar ${decisao.pedido.solicitante.nickname}?`
-          }
-          textoConfirmar={decisao.tipo === "aprovar" ? "APROVAR" : "REJEITAR"}
-          perigo={decisao.tipo === "rejeitar"}
-          carregando={enviando}
-          confirmarDesabilitado={decisao.tipo === "rejeitar" && motivo.trim() === ""}
-          erro={erroModal}
-          onConfirmar={confirmar}
-          onFechar={() => setDecisao(null)}
-        >
-          {decisao.tipo === "aprovar" ? (
-            <p className="m-0">
-              O usuário passa a ser autor e pode criar{" "}
-              {rotuloDoTipo(decisao.pedido.tipo_pretendido).toLowerCase()}. Todo
-              conteúdo dele ainda passa pela revisão.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              <label
-                htmlFor="motivo-rejeicao"
-                className="font-label text-[11px] tracking-[2px] text-ink-muted"
-              >
-                MOTIVO (O ALUNO VAI VER)
-              </label>
-              <textarea
-                id="motivo-rejeicao"
-                rows={4}
-                maxLength={1000}
-                value={motivo}
-                onChange={(e) => setMotivo(e.target.value)}
-                className="resize-y border-2 border-brand-strong bg-field px-3.5 py-3 font-body text-[15px] leading-[1.6] text-ink shadow-pixel outline-none focus:border-brand-pale"
-              />
-            </div>
-          )}
-        </ModalConfirmacao>
-      ) : null}
+      {modal}
     </section>
   );
 }

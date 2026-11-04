@@ -9,6 +9,9 @@ type Props = {
   saida: string;
   erro: string;
   veredito: string;
+  vazio?: string;
+  semMoldura?: boolean;
+  classeDaArea?: string;
 };
 
 const MENSAGENS: Record<string, string> = {
@@ -20,7 +23,14 @@ function linhas(texto: string): string {
   return texto.replace(/\r\n/g, "\n");
 }
 
-export function TerminalDeSaida({ saida, erro, veredito }: Props) {
+export function TerminalDeSaida({
+  saida,
+  erro,
+  veredito,
+  vazio = "",
+  semMoldura = false,
+  classeDaArea = "h-48",
+}: Props) {
   const container = useRef<HTMLDivElement>(null);
   const terminal = useRef<Terminal | null>(null);
 
@@ -67,6 +77,10 @@ export function TerminalDeSaida({ saida, erro, veredito }: Props) {
     if (!instancia) return;
 
     instancia.reset();
+    if (!saida && !erro && !MENSAGENS[veredito] && vazio) {
+      instancia.write(`\x1b[90m${vazio}\x1b[0m`);
+      return;
+    }
     if (saida) instancia.write(linhas(saida));
     if (erro) {
       if (saida && !saida.endsWith("\n")) instancia.write("\r\n");
@@ -78,21 +92,27 @@ export function TerminalDeSaida({ saida, erro, veredito }: Props) {
       }
       instancia.write(`\x1b[35m${MENSAGENS[veredito]}\x1b[0m`);
     }
-  }, [saida, erro, veredito]);
+  }, [saida, erro, veredito, vazio]);
+
+  const area = (
+    <div
+      ref={container}
+      role="log"
+      aria-label="Saída da execução"
+      className={`${classeDaArea} overflow-hidden p-3`}
+      onPaste={(evento) => evento.preventDefault()}
+      onContextMenu={(evento) => evento.preventDefault()}
+    />
+  );
+
+  if (semMoldura) return area;
 
   return (
     <section className="overflow-hidden border-2 border-edge bg-field shadow-pixel-sm">
       <p className="border-b border-edge px-3 py-2 font-label text-xs text-brand-light">
         terminal
       </p>
-      <div
-        ref={container}
-        role="log"
-        aria-label="Saída da execução"
-        className="h-48 p-3"
-        onPaste={(evento) => evento.preventDefault()}
-        onContextMenu={(evento) => evento.preventDefault()}
-      />
+      {area}
     </section>
   );
 }

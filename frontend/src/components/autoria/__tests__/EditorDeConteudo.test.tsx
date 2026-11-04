@@ -10,6 +10,7 @@ import {
 } from "@/components/__tests__/fixtures";
 import { EditorDeConteudo } from "@/components/autoria/EditorDeConteudo";
 import { ProvedorProgresso } from "@/components/progresso/ProvedorProgresso";
+import { abrirSelect, escolherOpcao } from "@/components/__tests__/selecao";
 
 jest.mock("@/lib/api", () => ({
   ...jest.requireActual("@/lib/api"),
@@ -324,7 +325,7 @@ describe("EditorDeConteudo", () => {
     for (const [letra, texto] of [["A", "1"], ["B", "2"], ["C", "3"], ["D", "4"]]) {
       await u.type(screen.getByLabelText(`OPÇÃO ${letra}`), texto);
     }
-    await u.selectOptions(screen.getByLabelText("RESPOSTA CORRETA"), "B");
+    await escolherOpcao(u, screen.getByLabelText("RESPOSTA CORRETA"), "B");
     await u.click(screen.getByRole("button", { name: "SALVAR EXERCÍCIO" }));
 
     expect(mock.api.criarQuestao).toHaveBeenCalledWith({
@@ -438,15 +439,16 @@ describe("EditorDeConteudo", () => {
     await u.type(await screen.findByLabelText("NOME DA TRILHA"), "TS do zero");
     await u.type(screen.getByLabelText("DESCRIÇÃO CURTA"), "Tipos");
     const bonus = screen.getByLabelText("BÔNUS DE CRIATURA");
-    expect(await screen.findByRole("option", { name: "Blaze (Compiladas)" })).toBeInTheDocument();
+    const lista = await abrirSelect(u, bonus);
+    expect(await within(lista).findByRole("option", { name: "Blaze (Compiladas)" })).toBeInTheDocument();
     // Só as 3 oficiais mais "Nenhum": Raposa e Elefante não aparecem.
-    expect(within(bonus).getAllByRole("option").map((o) => o.textContent)).toEqual([
+    expect(within(lista).getAllByRole("option").map((o) => o.textContent)).toEqual([
       "Nenhum",
       "Shellby (Fundamentos)",
       "Slyth (Scripting)",
       "Blaze (Compiladas)",
     ]);
-    await u.selectOptions(bonus, "blaze");
+    await u.click(within(lista).getByRole("option", { name: "Blaze (Compiladas)" }));
     await u.click(screen.getByRole("button", { name: "CRIAR TRILHA" }));
 
     expect(mock.api.criarTrilha).toHaveBeenCalledWith({
@@ -464,8 +466,8 @@ describe("EditorDeConteudo", () => {
     montar(AUTOR, 9);
 
     const bonus = await screen.findByLabelText("BÔNUS DE CRIATURA");
-    await waitFor(() => expect(bonus).toHaveValue("blaze"));
-    await u.selectOptions(bonus, "");
+    await waitFor(() => expect(bonus).toHaveTextContent("Blaze (Compiladas)"));
+    await escolherOpcao(u, bonus, "Nenhum");
     await u.click(screen.getByRole("button", { name: "SALVAR DADOS DA TRILHA" }));
 
     expect(mock.api.editarRascunho).toHaveBeenCalledWith("trilhas", 9, {
@@ -643,7 +645,7 @@ describe("EditorDeConteudo", () => {
     expect(within(modal).getByLabelText("OPÇÃO B")).toHaveValue("Array");
     await u.clear(enunciado);
     await u.type(enunciado, "Qual é tipo primitivo?");
-    await u.selectOptions(within(modal).getByLabelText("RESPOSTA CORRETA"), "C");
+    await escolherOpcao(u, within(modal).getByLabelText("RESPOSTA CORRETA"), "C");
     await u.click(within(modal).getByRole("button", { name: "SALVAR" }));
 
     expect(mock.api.editarQuestao).toHaveBeenCalledWith(6, {

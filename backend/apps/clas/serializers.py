@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from .models import NIVEL_MINIMO_GLOBAL, Bandeira, Cargo, Cla, MembroDoCla, TipoDeCla
+from .services import membros_ordenados
 from .validators import DESCRICAO_MAX_LENGTH, NOME_MAX_LENGTH, normalizar_nome
 
 
@@ -104,10 +105,12 @@ class ConviteGeradoSerializer(serializers.Serializer):
     expira_em = serializers.DateTimeField(read_only=True)
 
 
-class PreviaDoConviteSerializer(serializers.ModelSerializer):
-    total_membros = serializers.IntegerField(read_only=True)
+class PreviaDoConviteSerializer(ClaSerializer):
+    membros = serializers.SerializerMethodField()
 
-    class Meta:
-        model = Cla
-        fields = ("nome", "bandeira", "total_membros")
+    class Meta(ClaSerializer.Meta):
+        fields = (*ClaSerializer.Meta.fields, "membros")
         read_only_fields = fields
+
+    def get_membros(self, obj) -> list[dict]:
+        return MembroSerializer(membros_ordenados(obj), many=True).data

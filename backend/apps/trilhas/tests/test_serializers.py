@@ -151,6 +151,8 @@ class ExercicioDetalheSerializerTest(TestCase):
                 "titulo",
                 "slug",
                 "enunciado",
+                "contexto",
+                "exemplo",
                 "tipo",
                 "tipo_label",
                 "dificuldade",

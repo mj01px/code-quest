@@ -12,8 +12,10 @@ import {
 } from "react";
 
 import { api, temSessao } from "@/lib/api";
-import { chavesConcluidas, normalizar } from "@/lib/progresso";
+import { guardarProgresso, lerProgressoGuardado } from "@/lib/cacheDeProgresso";
+import { chavesConcluidas, chavesDasEtapas, normalizar } from "@/lib/progresso";
 import type {
+  EtapaConcluida,
   ExercicioConcluido,
   MinhaCriatura,
   ProgressoAtual,
@@ -21,9 +23,6 @@ import type {
   Usuario,
 } from "@/lib/types";
 
-// Context único do aluno: usuário, criatura, XP, sequência e conclusões.
-// Vive no layout (app) pra não desmontar entre rotas.
-// Tudo invalida junto no recarregar(), conclusões vêm sem filtro de trilha, a agregação é local.
 
 const VAZIO: readonly ExercicioConcluido[] = Object.freeze([]);
 const SEM_CHAVES: ReadonlySet<string> = Object.freeze(new Set<string>());
@@ -37,6 +36,9 @@ export interface ValorProgresso {
   sequencia: Sequencia | null;
   concluidos: readonly ExercicioConcluido[];
   chaves: ReadonlySet<string>;
+  /** Leituras e quizzes concluídos. A chave vem de `chaveDaEtapa`. */
+  etapas: readonly EtapaConcluida[];
+  chavesDeEtapas: ReadonlySet<string>;
   /** Slugs das trilhas que o aluno iniciou, mesmo sem fase concluída. */
   trilhasIniciadas: ReadonlySet<string>;
   /** Verdadeiro até a primeira resposta chegar. Quem desenha número espera. */
@@ -46,6 +48,8 @@ export interface ValorProgresso {
    * as guardas mostram o aviso em vez de mandar para /entrar, que entraria em loop.
    */
   erro: boolean;
+  /** Sobe a cada leitura bem-sucedida: quem deriva dados do progresso relê só quando ela muda. */
+  geracao: number;
   /** Relê tudo. Chamado após o POST de conclusão e pelo "tentar de novo". */
   recarregar: () => void;
 }
@@ -61,6 +65,7 @@ interface Dados {
   progresso: ProgressoAtual | null;
   sequencia: Sequencia | null;
   concluidos: readonly ExercicioConcluido[];
+  etapas: readonly EtapaConcluida[];
   trilhasIniciadas: ReadonlySet<string>;
 }
 
@@ -70,12 +75,17 @@ const SEM_DADOS: Dados = Object.freeze({
   progresso: null,
   sequencia: null,
   concluidos: VAZIO,
+  etapas: [],
   trilhasIniciadas: SEM_TRILHAS,
 });
 
 export function ProvedorProgresso({ children }: { children: ReactNode }) {
-  const [dados, setDados] = useState<Dados>(SEM_DADOS);
-  const [carregando, setCarregando] = useState(true);
+  const [guardado] = useState(() =>
+    temSessao() ? lerProgressoGuardado<Dados>() : null,
+  );
+  const [dados, setDados] = useState<Dados>(guardado?.dados ?? SEM_DADOS);
+  const [geracao, setGeracao] = useState(guardado?.geracao ?? 0);
+  const [carregando, setCarregando] = useState(guardado === null);
   const [erro, setErro] = useState(false);
   const [versao, setVersao] = useState(0); // gatilho do recarregar()
   const falhas = useRef(0);
@@ -98,6 +108,9 @@ export function ProvedorProgresso({ children }: { children: ReactNode }) {
           api.minhaSequencia(),
           api.exerciciosConcluidos(),
           api.trilhasIniciadas(),
+          Promise.resolve()
+            .then(() => api.etapasConcluidas())
+            .catch(() => []),
         ])
       : Promise.resolve(null);
 
@@ -110,16 +123,19 @@ export function ProvedorProgresso({ children }: { children: ReactNode }) {
           setDados(SEM_DADOS);
           return;
         }
-        const [usuario, criaturas, progresso, sequencia, concluidos, iniciadas] =
+        const [usuario, criaturas, progresso, sequencia, concluidos, iniciadas, etapas] =
           resposta;
-        setDados({
+        const novos: Dados = {
           usuario,
           criatura: criaturas.find((c) => c.ativa) ?? criaturas[0] ?? null,
           progresso,
           sequencia,
           concluidos: normalizar(concluidos),
+          etapas: Array.isArray(etapas) ? etapas : [],
           trilhasIniciadas: new Set(iniciadas),
-        });
+        };
+        setDados(novos);
+        setGeracao(guardarProgresso(novos));
       })
       .catch(() => {
         if (!ativo) return;
@@ -151,6 +167,13 @@ export function ProvedorProgresso({ children }: { children: ReactNode }) {
     };
   }, [versao]);
 
+  const chaves = useMemo(
+    () =>
+      dados.concluidos.length > 0 ? chavesConcluidas(dados.concluidos) : SEM_CHAVES,
+    [dados.concluidos],
+  );
+  const chavesDeEtapas = useMemo(() => chavesDasEtapas(dados.etapas), [dados.etapas]);
+
   const valor = useMemo<ValorProgresso>(
     () => ({
       usuario: dados.usuario,
@@ -158,16 +181,16 @@ export function ProvedorProgresso({ children }: { children: ReactNode }) {
       progresso: dados.progresso,
       sequencia: dados.sequencia,
       concluidos: dados.concluidos,
-      chaves:
-        dados.concluidos.length > 0
-          ? chavesConcluidas(dados.concluidos)
-          : SEM_CHAVES,
+      chaves,
+      etapas: dados.etapas,
+      chavesDeEtapas,
       trilhasIniciadas: dados.trilhasIniciadas,
       carregando,
       erro,
+      geracao,
       recarregar,
     }),
-    [dados, carregando, erro, recarregar],
+    [dados, chaves, chavesDeEtapas, geracao, carregando, erro, recarregar],
   );
 
   return (

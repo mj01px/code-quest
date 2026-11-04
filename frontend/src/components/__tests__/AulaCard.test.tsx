@@ -77,10 +77,74 @@ describe("AulaCard", () => {
   it("aponta cada exercício para a rota certa", () => {
     render(<AulaCard aula={aula()} trilhaSlug={TRILHA} posicao={1} />);
 
-    expect(screen.getByRole("link")).toHaveAttribute(
-      "href",
-      `/trilhas/${TRILHA}/exercicios/media-de-duas-notas`,
+    expect(
+      screen.getByRole("link", { name: /Média de duas notas/ }),
+    ).toHaveAttribute("href", `/trilhas/${TRILHA}/exercicios/media-de-duas-notas`);
+  });
+
+  it("separa a parte didática dos exercícios", () => {
+    render(
+      <AulaCard
+        aula={aula({
+          questoes: [
+            {
+              id: 1,
+              enunciado: "Qual imprime na tela?",
+              opcoes: ["print", "input", "len", "int"],
+              resposta_correta: "A",
+            },
+          ],
+        })}
+        trilhaSlug={TRILHA}
+        posicao={1}
+      />,
     );
+
+    const ordem = [
+      "Parte 1 · Aprender",
+      "Lição: Variáveis e tipos",
+      "Quiz de fixação",
+      "Parte 2 · Praticar",
+      "Média de duas notas",
+    ].map((texto) => document.body.textContent?.lastIndexOf(texto) ?? -1);
+    expect(ordem.every((posicao) => posicao >= 0)).toBe(true);
+    expect([...ordem].sort((a, b) => a - b)).toEqual(ordem);
+    expect(
+      screen.getByRole("link", { name: /Lição: Variáveis e tipos/ }),
+    ).toHaveAttribute("href", `/trilhas/${TRILHA}/aulas/variaveis-e-tipos`);
+  });
+
+  it("conta leitura e quiz feitos no progresso do módulo", () => {
+    render(
+      <AulaCard
+        aula={aula({
+          questoes: [
+            { id: 1, enunciado: "?", opcoes: ["a", "b", "c", "d"], resposta_correta: "A" },
+          ],
+        })}
+        trilhaSlug={TRILHA}
+        posicao={1}
+        leituraFeita
+      />,
+    );
+
+    expect(screen.getByText(/1\/3/)).toBeInTheDocument();
+    expect(screen.getByText("Concluído:", { exact: false })).toBeInTheDocument();
+  });
+
+  it("passo bloqueado vira linha sem link, com o aviso para leitor de tela", () => {
+    render(
+      <AulaCard
+        aula={aula()}
+        trilhaSlug={TRILHA}
+        posicao={1}
+        estadoDe={(chave) => (chave.includes("#EXERCICIO#") ? "bloqueado" : "liberado")}
+      />,
+    );
+
+    expect(screen.queryByRole("link", { name: /Média de duas notas/ })).not.toBeInTheDocument();
+    expect(screen.getAllByText("Bloqueado:").length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: /Lição: Variáveis e tipos/ })).toBeInTheDocument();
   });
 
   it("mostra o título do pré-requisito, não o slug", () => {
@@ -117,7 +181,7 @@ describe("AulaCard", () => {
   it("avisa quando a fase ainda não tem exercícios", () => {
     render(
       <AulaCard
-        aula={aula({ exercicios: [] })}
+        aula={aula({ exercicios: [], conteudo: "" })}
         trilhaSlug={TRILHA}
         posicao={1}
       />,
@@ -127,7 +191,7 @@ describe("AulaCard", () => {
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
-  it("mostra o quiz de múltipla escolha mesmo sem fases", () => {
+  it("leva ao quiz do módulo mesmo sem fases", () => {
     render(
       <AulaCard
         aula={aula({
@@ -146,8 +210,9 @@ describe("AulaCard", () => {
       />,
     );
 
-    expect(screen.getByText("Quiz · 1")).toBeInTheDocument();
-    expect(screen.getByText("Qual imprime na tela?")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { hidden: true })).toHaveLength(4);
+    expect(screen.getByRole("link", { name: /Quiz de fixação/ })).toHaveAttribute(
+      "href",
+      `/trilhas/${TRILHA}/aulas/variaveis-e-tipos/quiz`,
+    );
   });
 });

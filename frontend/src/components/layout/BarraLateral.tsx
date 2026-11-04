@@ -16,7 +16,6 @@ export const ITENS = [
   { rotulo: "CRIATURA", href: "/criatura", perm: "criaturas.view" },
   { rotulo: "CONQUISTAS", href: "/conquistas", perm: null },
   { rotulo: "CLÃS", href: "/clas", perm: null },
-  { rotulo: "CONFIGURAÇÕES", href: "/configuracoes", perm: null },
 ] as const;
 
 // Só aparece para administradores. A rota /admin também se protege sozinha:
@@ -29,7 +28,10 @@ const PERMISSOES_AUTORIA = ["trilhas.submit_review", "trilhas.review"];
 
 // Quem ainda não é Autor Completo e não tem pedido em análise. O autor parcial
 // (só exercícios, por exemplo) continua vendo o item para pedir upgrade.
-export const ITEM_SER_AUTOR = { rotulo: "SER AUTOR", href: "/ser-autor" } as const;
+export const ITEM_SER_AUTOR = {
+  rotulo: "SER AUTOR",
+  href: "/ser-autor",
+} as const;
 const AUTOR_COMPLETO = [
   "trilhas.create_trilha",
   "trilhas.create_aula",
@@ -52,12 +54,15 @@ export function BarraLateral() {
   const [erroAoSair, setErroAoSair] = useState(false);
   // Os dados vêm do Context, não de busca própria: sem isso o bloco piscaria
   // a cada troca de rota. O provedor vive no layout do route group.
-  const { usuario, criatura, progresso, sequencia, carregando } = useProgresso();
+  const { usuario, criatura, progresso, sequencia, carregando } =
+    useProgresso();
 
   // Enquanto o usuário não carrega, mostra os itens sem filtrar (evita flicker);
   // carregado, esconde o que o nível de acesso não permite.
   const permitidos = usuario
-    ? ITENS.filter((i) => i.perm === null || usuario.permissoes.includes(i.perm))
+    ? ITENS.filter(
+        (i) => i.perm === null || usuario.permissoes.includes(i.perm),
+      )
     : ITENS;
   const veAutoria = PERMISSOES_AUTORIA.some((p) =>
     usuario?.permissoes.includes(p),
@@ -87,6 +92,7 @@ export function BarraLateral() {
       ? progresso.xp_no_nivel / faixa
       : 0;
   const acesos = Math.round(fracao * BLOCOS);
+  const nomeExibido = usuario?.nickname ?? "Visitante";
 
   async function sair() {
     setSaindo(true);
@@ -126,34 +132,66 @@ export function BarraLateral() {
         // Enquanto o número não chegou, o bloco existe com as mesmas dimensões
         // e invisível: nada de número inventado e nenhum salto de layout
         // quando o valor real entra.
-        className={`flex flex-col gap-3 transition-opacity duration-150 ${carregando ? "opacity-0" : "opacity-100"
-          }`}
+        className={`flex flex-col gap-3 transition-opacity duration-150 ${
+          carregando ? "opacity-0" : "opacity-100"
+        }`}
         aria-busy={carregando}
       >
-        <div className="flex items-center gap-3">
-          <div className="flex h-[64px] w-[64px] shrink-0 items-center justify-center border-2 border-brand-shadow bg-panel">
-            {criatura?.sprite ? (
-              <Image
-                src={criatura.sprite}
-                alt=""
-                width={52}
-                height={52}
-                className="animate-bob block h-[52px] w-[52px]"
-              />
-            ) : null}
+        {usuario ? (
+          <Link
+            href={`/perfil/${encodeURIComponent(usuario.nickname)}`}
+            aria-label={`Ver o perfil de ${usuario.nickname}`}
+            className="group flex items-center gap-3"
+          >
+            <div className="flex h-[64px] w-[64px] shrink-0 items-center justify-center border-2 border-brand-shadow bg-panel transition-colors group-hover:border-brand-light">
+              {criatura?.sprite ? (
+                <Image
+                  src={criatura.sprite}
+                  alt=""
+                  width={52}
+                  height={52}
+                  className="animate-bob block h-[52px] w-[52px]"
+                />
+              ) : null}
+            </div>
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <span className="titulo truncate font-display text-[12px] leading-[1.5] text-ink underline-offset-4 group-hover:underline">
+                {nomeExibido}
+              </span>
+              <span className="truncate font-body text-base tracking-[1px] text-ink-muted">
+                {criatura?.criatura.nome ?? "Sem pet"}
+              </span>
+              <span className="font-label text-[11px] tracking-[2px] text-brand-light">
+                NÍVEL {progresso?.nivel.numero ?? 1}
+              </span>
+            </div>
+          </Link>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="flex h-[64px] w-[64px] shrink-0 items-center justify-center border-2 border-brand-shadow bg-panel transition-colors group-hover:border-brand-light">
+              {criatura?.sprite ? (
+                <Image
+                  src={criatura.sprite}
+                  alt=""
+                  width={52}
+                  height={52}
+                  className="animate-bob block h-[52px] w-[52px]"
+                />
+              ) : null}
+            </div>
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <span className="titulo truncate font-display text-[12px] leading-[1.5] text-ink underline-offset-4 group-hover:underline">
+                {nomeExibido}
+              </span>
+              <span className="truncate font-body text-base tracking-[1px] text-ink-muted">
+                {criatura?.criatura.nome ?? "Sem pet"}
+              </span>
+              <span className="font-label text-[11px] tracking-[2px] text-brand-light">
+                NÍVEL {progresso?.nivel.numero ?? 1}
+              </span>
+            </div>
           </div>
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <span className="titulo truncate font-display text-[12px] leading-[1.5] text-ink">
-              {usuario?.nickname ?? "Visitante"}
-            </span>
-            <span className="truncate font-body text-base tracking-[1px] text-ink-muted">
-              {criatura?.criatura.nome ?? "Sem pet"}
-            </span>
-            <span className="font-label text-[11px] tracking-[2px] text-brand-light">
-              NÍVEL {progresso?.nivel.numero ?? 1}
-            </span>
-          </div>
-        </div>
+        )}
 
         <div
           className="flex gap-[2px] border-2 border-edge-soft bg-void p-[2px]"
@@ -185,7 +223,8 @@ export function BarraLateral() {
           </span>
           {usuario && sequencia && (
             <span className="text-brand-light">
-              SEQUÊNCIA {sequencia.atual} {sequencia.atual === 1 ? "DIA" : "DIAS"}
+              SEQUÊNCIA {sequencia.atual}{" "}
+              {sequencia.atual === 1 ? "DIA" : "DIAS"}
             </span>
           )}
         </div>
@@ -206,10 +245,11 @@ export function BarraLateral() {
                 <Link
                   href={item.href}
                   aria-current={ativo ? "page" : undefined}
-                  className={`flex items-center gap-3 border-2 p-3 font-label text-[12px] tracking-[2px] ${ativo
-                    ? "border-brand-light bg-brand-deep text-ink shadow-pixel"
-                    : "border-edge text-ink-body hover:border-brand hover:text-ink-soft"
-                    }`}
+                  className={`flex items-center gap-3 border-2 p-3 font-label text-[12px] tracking-[2px] ${
+                    ativo
+                      ? "border-brand-light bg-brand-deep text-ink shadow-pixel"
+                      : "border-edge text-ink-body hover:border-brand hover:text-ink-soft"
+                  }`}
                 >
                   <span
                     aria-hidden="true"

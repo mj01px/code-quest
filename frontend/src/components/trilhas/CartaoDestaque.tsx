@@ -16,15 +16,20 @@ export interface Retomada {
 export function CartaoDestaque({
   trilha,
   retomada = null,
+  modo = "normal",
 }: {
   trilha: TrilhaResumo;
   retomada?: Retomada | null;
+  modo?: "normal" | "vazio" | "carregando";
 }) {
   const concluida = retomada !== null && retomada.progresso >= 100;
+  const vazio = modo === "vazio";
 
   let rotulo = "Comece por aqui";
   let acao = "Começar";
-  if (concluida) {
+  if (vazio) {
+    rotulo = "Nenhuma trilha em andamento";
+  } else if (concluida) {
     rotulo = "Trilha concluída";
     acao = "Revisar";
   } else if (retomada) {
@@ -32,20 +37,25 @@ export function CartaoDestaque({
     acao = "Retomar";
   }
 
-  const legenda =
-    retomada?.posicao ??
-    `${plural(trilha.total_aulas, "módulo", "módulos")} · ${plural(
-      trilha.total_exercicios,
-      "fase",
-      "fases",
-    )}`;
+  const titulo = vazio ? "Inicie uma trilha já" : trilha.nome;
+  const legenda = vazio
+    ? "Escolha uma das trilhas abaixo e comece pela primeira lição."
+    : (retomada?.posicao ??
+      `${plural(trilha.total_aulas, "módulo", "módulos")} · ${plural(
+        trilha.total_exercicios,
+        "fase",
+        "fases",
+      )}`);
 
   return (
     <section
       aria-labelledby="destaque"
+      aria-busy={modo === "carregando"}
       className="animate-surgir border-[3px] border-brand bg-panel p-6 shadow-frame sm:p-8"
     >
-      <div className="flex flex-col gap-4">
+      <div
+        className={`flex flex-col gap-4 ${modo === "carregando" ? "invisible" : ""}`}
+      >
         <p className="font-label text-[11px] tracking-[2px] text-brand-light uppercase">
           {rotulo}
         </p>
@@ -54,7 +64,7 @@ export function CartaoDestaque({
           id="destaque"
           className="m-0 font-display text-[15px] leading-[1.7] tracking-[1px] text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)] sm:text-[20px]"
         >
-          {trilha.nome}
+          {titulo}
         </h2>
 
         <p className="m-0 flex items-center gap-2 font-body text-lg leading-[1.6] tracking-[1px] text-ink-body">
@@ -69,16 +79,22 @@ export function CartaoDestaque({
 
         <div className="max-w-[24rem]">
           <BarraSegmentada
-            valor={retomada?.progresso ?? 0}
+            valor={vazio ? 0 : (retomada?.progresso ?? 0)}
             segmentos={10}
             expandida
             alta
-            rotulo={`Progresso em ${trilha.nome}`}
+            rotulo={
+              vazio ? "Nenhuma trilha iniciada" : `Progresso em ${trilha.nome}`
+            }
           />
         </div>
 
         <Link
-          href={retomada?.href ?? `/trilhas/${trilha.slug}`}
+          href={
+            vazio
+              ? `/trilhas/${trilha.slug}`
+              : (retomada?.href ?? `/trilhas/${trilha.slug}`)
+          }
           className="mt-2 cursor-pointer self-start border-[3px] border-brand-light bg-brand-deep px-6 py-4 font-display text-xs leading-[1.7] tracking-[1px] text-ink uppercase shadow-[0_0_0_3px_var(--color-brand-void),4px_4px_0_rgba(0,0,0,0.7)] transition duration-150 hover:translate-x-0.5 hover:translate-y-0.5 hover:bg-brand-strong hover:shadow-[0_0_0_3px_var(--color-brand-void),2px_2px_0_rgba(0,0,0,0.7)]"
         >
           {acao}

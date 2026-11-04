@@ -51,9 +51,11 @@ function Caso({ caso, funcao }: { caso: ResultadoDoCaso; funcao: string }) {
 export function ResultadoDosCasos({
   correcao,
   funcao,
+  semContagem = false,
 }: {
   correcao: Correcao;
   funcao: string;
+  semContagem?: boolean;
 }) {
   return (
     <section
@@ -68,9 +70,11 @@ export function ResultadoDosCasos({
         >
           {TITULO[correcao.veredito] ?? correcao.veredito}
         </h3>
-        <span className="font-body text-sm text-ink-muted">
-          {correcao.aprovados} de {correcao.total}
-        </span>
+        {semContagem ? null : (
+          <span className="font-body text-sm text-ink-muted">
+            {correcao.aprovados} de {correcao.total}
+          </span>
+        )}
       </header>
 
       {correcao.casos.length > 0 && (

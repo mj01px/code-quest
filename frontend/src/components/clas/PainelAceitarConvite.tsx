@@ -3,14 +3,18 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
+import { useProgresso } from "@/components/progresso/ProvedorProgresso";
+import { useModal } from "@/components/ui/useModal";
 import { ErroApi, api } from "@/lib/api";
-import { bandeira } from "@/lib/clas";
+import { LIMITE_MEMBROS, bandeira } from "@/lib/clas";
 import type { MeuCla, PreviaConvite } from "@/lib/types";
 
+import { CabecalhoDoCla } from "./CabecalhoDoCla";
 import { BTN_PRIMARIO, BTN_SECUNDARIO } from "./estilos";
 import { IconeSetaEsquerda } from "./icones";
+import { ListaDeMembros } from "./ListaDeMembros";
 
 function mensagem(erro: unknown): string {
   return erro instanceof ErroApi
@@ -18,15 +22,25 @@ function mensagem(erro: unknown): string {
     : "Algo deu errado. Tente de novo.";
 }
 
+function VoltarParaClas() {
+  return (
+    <Link
+      href="/clas"
+      className="inline-flex items-center gap-2 self-start font-label text-[11px] tracking-[2px] text-brand-light"
+    >
+      <IconeSetaEsquerda size={14} /> CLÃS
+    </Link>
+  );
+}
+
 export function PainelAceitarConvite({ token }: { token: string }) {
   const router = useRouter();
+  const { usuario } = useProgresso();
 
   const [carregando, setCarregando] = useState(true);
   const [previa, setPrevia] = useState<PreviaConvite | null>(null);
   const [invalido, setInvalido] = useState(false);
   const [outroCla, setOutroCla] = useState<MeuCla | null>(null);
-  const [entrando, setEntrando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
     let ativo = true;
@@ -54,18 +68,6 @@ export function PainelAceitarConvite({ token }: { token: string }) {
     };
   }, [token]);
 
-  async function aceitar() {
-    setEntrando(true);
-    setErro(null);
-    try {
-      const meu = await api.aceitarConvite(token);
-      router.push(`/clas/${meu.cla.tag}`);
-    } catch (erro) {
-      setErro(mensagem(erro));
-      setEntrando(false);
-    }
-  }
-
   if (carregando) {
     return (
       <p className="rotulo text-ink-muted" aria-busy="true">
@@ -77,12 +79,7 @@ export function PainelAceitarConvite({ token }: { token: string }) {
   if (invalido || !previa) {
     return (
       <div className="flex flex-col gap-6">
-        <Link
-          href="/clas"
-          className="inline-flex items-center gap-2 self-start font-label text-[11px] tracking-[2px] text-brand-light"
-        >
-          <IconeSetaEsquerda size={14} /> CLÃS
-        </Link>
+        <VoltarParaClas />
         <section className="border-2 border-dashed border-edge-soft bg-panel p-8 text-center">
           <p className="m-0 font-body text-base text-ink-muted">
             Convite inválido ou expirado. Peça um link novo pra quem te chamou.
@@ -92,21 +89,75 @@ export function PainelAceitarConvite({ token }: { token: string }) {
     );
   }
 
+  return (
+    <>
+      <div aria-hidden="true" inert className="flex flex-col gap-8 select-none">
+        <VoltarParaClas />
+        <CabecalhoDoCla cla={previa} />
+        <ListaDeMembros
+          membros={previa.membros}
+          total={previa.total_membros}
+          meuNickname={usuario?.nickname}
+          meuCargo={null}
+          busyId={null}
+          onAcao={() => undefined}
+        />
+      </div>
+      <ModalDoConvite
+        token={token}
+        previa={previa}
+        outroCla={outroCla}
+        onEntrou={(tag) => router.push(`/clas/${tag}`)}
+        onRecusar={() => router.push("/clas")}
+      />
+    </>
+  );
+}
+
+function ModalDoConvite({
+  token,
+  previa,
+  outroCla,
+  onEntrou,
+  onRecusar,
+}: {
+  token: string;
+  previa: PreviaConvite;
+  outroCla: MeuCla | null;
+  onEntrou: (tag: string) => void;
+  onRecusar: () => void;
+}) {
+  const painel = useRef<HTMLDivElement>(null);
+  const tituloId = useId();
+  const [entrando, setEntrando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useModal(painel, onRecusar, entrando);
+
   const info = bandeira(previa.bandeira);
   const jaTenhoCla = outroCla !== null;
 
-  return (
-    <div className="flex flex-col gap-8">
-      <Link
-        href="/clas"
-        className="inline-flex items-center gap-2 self-start font-label text-[11px] tracking-[2px] text-brand-light"
-      >
-        <IconeSetaEsquerda size={14} /> CLÃS
-      </Link>
+  async function aceitar() {
+    setEntrando(true);
+    setErro(null);
+    try {
+      const meu = await api.aceitarConvite(token);
+      onEntrou(meu.cla.tag);
+    } catch (e) {
+      setErro(mensagem(e));
+      setEntrando(false);
+    }
+  }
 
-      <section
-        aria-labelledby="titulo-convite"
-        className="mx-auto flex w-full max-w-[520px] flex-col items-center gap-6 border-[3px] border-brand bg-panel p-8 text-center shadow-frame"
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-void/60 p-4 backdrop-blur-[3px]">
+      <div
+        ref={painel}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={tituloId}
+        tabIndex={-1}
+        className="flex max-h-[90dvh] w-full max-w-[520px] flex-col items-center gap-6 overflow-y-auto border-[3px] border-brand bg-panel p-8 text-center shadow-frame outline-none"
       >
         <span className="rotulo text-brand-light">Você foi convidado</span>
 
@@ -120,21 +171,22 @@ export function PainelAceitarConvite({ token }: { token: string }) {
           />
         </span>
 
-        <h1
-          id="titulo-convite"
+        <h2
+          id={tituloId}
           className="titulo m-0 font-display text-xl leading-[1.6] break-words text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)]"
         >
           {previa.nome}
-        </h1>
+        </h2>
 
         <span className="inline-flex items-center border-2 border-edge-soft px-2.5 py-1 font-label text-[10px] tracking-[2px] text-ink-muted">
-          {previa.total_membros}/50 MEMBROS
+          {previa.total_membros}/{LIMITE_MEMBROS} MEMBROS
         </span>
 
         {jaTenhoCla ? (
           <p className="m-0 font-body text-base leading-[1.6] text-ink-muted">
-            Você já está em <strong className="text-ink">{outroCla?.cla.nome}</strong>.
-            Saia dele antes de entrar aqui.
+            Você já está em{" "}
+            <strong className="text-ink">{outroCla?.cla.nome}</strong>. Saia
+            dele antes de entrar aqui.
           </p>
         ) : null}
 
@@ -153,11 +205,16 @@ export function PainelAceitarConvite({ token }: { token: string }) {
           >
             {entrando ? "ENTRANDO..." : "ENTRAR NO CLÃ"}
           </button>
-          <Link href="/clas" className={BTN_SECUNDARIO}>
+          <button
+            type="button"
+            onClick={onRecusar}
+            disabled={entrando}
+            className={BTN_SECUNDARIO}
+          >
             AGORA NÃO
-          </Link>
+          </button>
         </div>
-      </section>
+      </div>
     </div>
   );
 }

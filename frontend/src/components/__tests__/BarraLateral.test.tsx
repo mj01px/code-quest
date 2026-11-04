@@ -80,23 +80,32 @@ describe("BarraLateral: navegação", () => {
     const links = screen.getAllByRole("link");
     expect(links.map((l) => l.getAttribute("href"))).toEqual([
       "/trilhas", // a marca: leva ao app, nunca à landing pública
+      "/perfil/aluno_teste",
       "/trilhas",
       "/desafios",
       "/ranking",
       "/criatura",
       "/conquistas",
       "/clas",
-      "/configuracoes",
       "/ser-autor",
     ]);
   });
 
-  it("marca o item da rota aberta", async () => {
-    caminho = "/configuracoes";
+  it("a foto e o nome levam ao próprio perfil", async () => {
     montar();
     await waitFor(() => expect(bloco()).toHaveClass("opacity-100"));
 
-    expect(screen.getByRole("link", { name: /CONFIGURAÇÕES/ })).toHaveAttribute(
+    expect(
+      screen.getByRole("link", { name: "Ver o perfil de aluno_teste" }),
+    ).toHaveAttribute("href", "/perfil/aluno_teste");
+  });
+
+  it("marca o item da rota aberta", async () => {
+    caminho = "/ranking";
+    montar();
+    await waitFor(() => expect(bloco()).toHaveClass("opacity-100"));
+
+    expect(screen.getByRole("link", { name: /RANKING/ })).toHaveAttribute(
       "aria-current",
       "page",
     );

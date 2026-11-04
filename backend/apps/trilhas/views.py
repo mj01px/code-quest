@@ -1,4 +1,4 @@
-from django.db.models import Count, Prefetch, Q, QuerySet
+from django.db.models import Count, F, Prefetch, Q, QuerySet
 from django.http import Http404
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
@@ -46,7 +46,18 @@ class TrilhaListView(generics.ListAPIView[Trilha]):
                     filter=aula_publicada & Q(aulas__exercicios__status=PUBLICADO),
                     distinct=True,
                 ),
+                total_leituras=Count(
+                    "aulas",
+                    filter=aula_publicada & ~Q(aulas__conteudo=""),
+                    distinct=True,
+                ),
+                total_quizzes=Count(
+                    "aulas",
+                    filter=aula_publicada & Q(aulas__questoes__isnull=False),
+                    distinct=True,
+                ),
             )
+            .annotate(total_etapas=F("total_leituras") + F("total_quizzes"))
             .order_by("ordem", "nome")
         )
 

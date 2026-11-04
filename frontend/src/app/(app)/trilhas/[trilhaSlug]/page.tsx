@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { SeloBonusXp } from "@/components/gamificacao/SeloBonusXp";
-import { BotaoIniciarTrilha } from "@/components/trilhas/BotaoIniciarTrilha";
 import { HeroTrilha } from "@/components/trilhas/HeroTrilha";
 import { MapaDeFases } from "@/components/trilhas/MapaDeFases";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
@@ -21,6 +21,13 @@ import type { TrilhaDetalhe } from "@/lib/types";
 // Slugs fixados no build: só o roteador devolve 404 com status real.
 export const dynamicParams = false;
 export const revalidate = 60;
+
+const INCLUI = [
+  "Exercícios referentes à trilha escolhida",
+  "Terminal integrado com feedback na hora",
+  "Projetos práticos a cada módulo",
+  "XP e evolução do seu pet",
+];
 
 export async function generateStaticParams() {
   const trilhas = await listarTrilhas();
@@ -64,10 +71,14 @@ export default async function TrilhaPage({
     { rotulo: "Pré-requisito", valor: "Nenhum" },
   ];
 
-  // A chamada do rodapé leva direto à primeira fase publicada. Sem fase, ela
-  // não aparece: um botão que não leva a lugar nenhum é pior que nenhum botão.
   const primeiraFase =
     trilha.aulas.flatMap((aula) => aula.exercicios)[0] ?? null;
+  const primeiraAula =
+    trilha.aulas.find((aula) => aula.conteudo.trim() !== "") ?? null;
+  const totalDeFlashcards = trilha.aulas.reduce(
+    (soma, aula) => soma + (aula.flashcards ?? []).length,
+    0,
+  );
 
   // Três textos, três lugares. Cada um cai no anterior quando está vazio,
   // que é o caso das trilhas ainda sem conteúdo escrito.
@@ -76,6 +87,11 @@ export default async function TrilhaPage({
     .split(/\n{2,}/)
     .map((texto) => texto.trim())
     .filter(Boolean);
+  const metade = Math.ceil(paragrafos.length / 2);
+  const colunasDoSobre = [
+    paragrafos.slice(0, metade),
+    paragrafos.slice(metade),
+  ].filter((coluna) => coluna.length > 0);
 
   return (
     <>
@@ -90,9 +106,9 @@ export default async function TrilhaPage({
         nome={trilha.nome}
         slug={trilha.slug}
         descricao={resumo}
-        totalDeModulos={trilha.aulas.length}
         totalDeFases={fases}
         primeiraFaseSlug={primeiraFase?.slug ?? null}
+        primeiraAulaSlug={primeiraAula?.slug ?? null}
         criadoPor={trilha.criado_por}
         selo={<SeloBonusXp trilhaSlug={trilha.slug} />}
       />
@@ -110,45 +126,70 @@ export default async function TrilhaPage({
         ))}
       </dl>
 
-      <div className="mt-12 grid gap-10 lg:grid-cols-2">
-        <section aria-labelledby="sobre" className="flex flex-col gap-4">
+      <section aria-labelledby="sobre" className="mt-12 flex flex-col gap-4">
+        <h2
+          id="sobre"
+          className="m-0 font-display text-[13px] leading-[1.7] tracking-[1px] text-ink"
+        >
+          Sobre a trilha
+        </h2>
+        <div
+          className={`grid gap-x-10 gap-y-4 ${colunasDoSobre.length > 1 ? "lg:grid-cols-2" : ""}`}
+        >
+          {colunasDoSobre.map((coluna) => (
+            <div key={coluna.join()} className="flex flex-col gap-4">
+              {coluna.map((paragrafo) => (
+                <p
+                  key={paragrafo}
+                  className="m-0 font-body text-lg leading-[1.7] tracking-[1px] text-ink-body text-pretty"
+                >
+                  {paragrafo}
+                </p>
+              ))}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {trilha.aulas.length > 0 ? (
+        <section aria-labelledby="dominar" className="mt-12 flex flex-col gap-4">
           <h2
-            id="sobre"
+            id="dominar"
             className="m-0 font-display text-[13px] leading-[1.7] tracking-[1px] text-ink"
           >
-            Sobre a trilha
+            Você vai dominar
           </h2>
-          {paragrafos.map((paragrafo) => (
-            <p
-              key={paragrafo}
-              className="m-0 font-body text-lg leading-[1.7] tracking-[1px] text-ink-body text-pretty"
-            >
-              {paragrafo}
-            </p>
-          ))}
+          <ul className="m-0 grid list-none gap-x-10 gap-y-3 p-0 lg:grid-cols-2">
+            {competencias(trilha).map((competencia) => (
+              <li key={competencia} className="flex items-start gap-3">
+                <IconeCheck className="mt-1.5 h-3.5 w-3.5 shrink-0 text-brand" />
+                <span className="font-body text-base leading-[1.5] tracking-[1px] text-ink-body">
+                  {competencia}
+                </span>
+              </li>
+            ))}
+          </ul>
         </section>
+      ) : null}
 
-        {trilha.aulas.length > 0 ? (
-          <section aria-labelledby="dominar" className="flex flex-col gap-4">
-            <h2
-              id="dominar"
-              className="m-0 font-display text-[13px] leading-[1.7] tracking-[1px] text-ink"
-            >
-              Você vai dominar
-            </h2>
-            <ul className="m-0 flex list-none flex-col gap-3 p-0">
-              {competencias(trilha).map((competencia) => (
-                <li key={competencia} className="flex items-start gap-3">
-                  <IconeCheck className="mt-1.5 h-3.5 w-3.5 shrink-0 text-brand" />
-                  <span className="font-body text-base leading-[1.5] tracking-[1px] text-ink-body">
-                    {competencia}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-      </div>
+      <section aria-labelledby="inclui" className="mt-12 flex flex-col gap-4">
+        <h2
+          id="inclui"
+          className="m-0 font-display text-[13px] leading-[1.7] tracking-[1px] text-ink"
+        >
+          Esta trilha inclui
+        </h2>
+        <ul className="m-0 grid list-none gap-x-10 gap-y-3 p-0 lg:grid-cols-2">
+          {INCLUI.map((item) => (
+            <li key={item} className="flex items-start gap-3">
+              <span aria-hidden="true" className="mt-2 h-2.5 w-2.5 shrink-0 bg-brand" />
+              <span className="font-body text-base leading-[1.5] tracking-[1px] text-ink-body">
+                {item}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <section className="mt-12" aria-labelledby="mapa-de-fases">
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -158,10 +199,21 @@ export default async function TrilhaPage({
           >
             Mapa de fases
           </h2>
-          <p className="m-0 font-label text-[11px] tracking-[2px] text-ink-muted uppercase">
-            {plural(trilha.aulas.length, "módulo", "módulos")} ·{" "}
-            {plural(fases, "fase", "fases")}
-          </p>
+          <div className="flex flex-wrap items-center gap-5">
+            <p className="m-0 font-label text-[11px] tracking-[2px] text-ink-muted uppercase">
+              {plural(trilha.aulas.length, "módulo", "módulos")} ·{" "}
+              {plural(fases, "fase", "fases")}
+            </p>
+            {totalDeFlashcards > 0 ? (
+              <Link
+                href={`/trilhas/${trilha.slug}/flashcards`}
+                className="flex items-center gap-2.5 border-2 border-brand bg-transparent px-4 py-2.5 font-label text-[11px] tracking-[2px] text-brand-light uppercase shadow-pixel transition duration-150 hover:translate-x-0.5 hover:translate-y-0.5 hover:border-brand-pale hover:text-ink hover:shadow-pixel-sm"
+              >
+                <span aria-hidden="true" className="h-2.5 w-2.5 bg-brand" />
+                Flashcards
+              </Link>
+            ) : null}
+          </div>
         </div>
 
         {trilha.aulas.length === 0 ? (
@@ -174,18 +226,6 @@ export default async function TrilhaPage({
           <MapaDeFases trilha={trilha} />
         )}
       </section>
-
-      {primeiraFase ? (
-        <section className="mt-12 flex flex-wrap items-center justify-between gap-6 border-2 border-brand-shadow bg-panel-deep px-6 py-8 sm:px-10">
-          <p className="m-0 font-body text-lg leading-[1.6] tracking-[1px] text-ink-body">
-            Pronto? A fase 01 já está desbloqueada.
-          </p>
-          <BotaoIniciarTrilha
-            trilhaSlug={trilha.slug}
-            primeiraFaseSlug={primeiraFase.slug}
-          />
-        </section>
-      ) : null}
     </>
   );
 }

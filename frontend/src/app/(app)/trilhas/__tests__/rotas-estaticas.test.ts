@@ -4,7 +4,7 @@ import { trilhaResumo } from "@/components/__tests__/fixtures";
 import {
   dynamicParams as dynamicParamsExercicio,
   generateStaticParams as paramsDeExercicios,
-} from "../[trilhaSlug]/exercicios/[exercicioSlug]/page";
+} from "../../../(foco)/trilhas/[trilhaSlug]/exercicios/[exercicioSlug]/page";
 import {
   dynamicParams as dynamicParamsTrilha,
   generateStaticParams as paramsDeTrilhas,
