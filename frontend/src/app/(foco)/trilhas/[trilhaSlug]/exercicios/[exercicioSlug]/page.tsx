@@ -1,20 +1,24 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { SeloBonusXp } from "@/components/gamificacao/SeloBonusXp";
 import { AreaDeResolucao } from "@/components/exercicio/AreaDeResolucao";
-import { BotaoSolucao } from "@/components/exercicio/BotaoSolucao";
-import { BotaoProximoExercicio } from "@/components/trilhas/BotaoProximoExercicio";
-import { Badge, BadgeDificuldade } from "@/components/ui/Badge";
-import { Breadcrumb } from "@/components/ui/Breadcrumb";
+import { PetDoExercicio } from "@/components/exercicio/PetDoExercicio";
+import { TelaTeorica } from "@/components/exercicio/TelaTeorica";
+import {
+  AcoesDoExercicio,
+  PlacarDoModulo,
+} from "@/components/exercicio/NavegacaoDoExercicio";
+import { BarraDeFoco } from "@/components/layout/BarraDeFoco";
+import { GuardaDeEtapa } from "@/components/trilhas/GuardaDeEtapa";
+import { ConteudoDaLicao } from "@/components/licao/ConteudoDaLicao";
 import {
   ErroApi,
   buscarExercicio,
   buscarTrilha,
   listarTrilhas,
 } from "@/lib/api";
-import { faseSeguinte, fasesEmOrdem } from "@/lib/derivados";
+import { numeroDoModulo, rotaDaAula, rotaDoExercicio } from "@/lib/aulas";
+import { fasesEmOrdem, xpDaFase } from "@/lib/derivados";
 import type { ExercicioDetalhe } from "@/lib/types";
 
 // Pares (trilha, exercício) fixados no build, como na página da trilha.
@@ -76,72 +80,127 @@ export default async function ExercicioPage({
 }: PageProps<"/trilhas/[trilhaSlug]/exercicios/[exercicioSlug]">) {
   const { trilhaSlug, exercicioSlug } = await params;
   const exercicio = await carregar(trilhaSlug, exercicioSlug);
-  // A ordem das fases da trilha define qual exercício vem depois deste.
   const trilha = await buscarTrilha(exercicio.trilha_slug);
-  const proximo = faseSeguinte(fasesEmOrdem(trilha), exercicio.slug);
 
-  return (
+  const fases = fasesEmOrdem(trilha);
+  const indice = fases.findIndex((fase) => fase.slug === exercicio.slug);
+  const atual = fases[indice];
+  const proximo = indice >= 0 ? (fases[indice + 1] ?? null) : null;
+  const posicaoDoModulo =
+    atual?.moduloPosicao ??
+    Math.max(
+      1,
+      trilha.aulas.findIndex((aula) => aula.slug === exercicio.aula_slug) + 1,
+    );
+  const fasesDoModulo = fases
+    .filter((fase) => fase.moduloPosicao === posicaoDoModulo)
+    .map((fase) => fase.slug);
+
+  const proximoHref = proximo
+    ? rotaDoExercicio(exercicio.trilha_slug, proximo.slug)
+    : `/trilhas/${exercicio.trilha_slug}`;
+
+  const contexto = exercicio.contexto?.trim() ?? "";
+
+  const aprender = (
     <>
-      <Breadcrumb
-        passos={[
-          { rotulo: "Trilhas", href: "/trilhas" },
-          {
-            rotulo: exercicio.trilha_nome,
-            href: `/trilhas/${exercicio.trilha_slug}`,
-          },
-          { rotulo: exercicio.titulo },
-        ]}
-      />
-
-      <article className="mt-6 border border-brand bg-panel p-6 sm:p-8">
-        <div className="flex flex-wrap items-center gap-2">
-          <BadgeDificuldade
-            dificuldade={exercicio.dificuldade}
-            rotulo={exercicio.dificuldade_label}
-          />
-          <Badge>{exercicio.tipo_label}</Badge>
-          <Badge>Módulo: {exercicio.aula_titulo}</Badge>
-          <SeloBonusXp trilhaSlug={exercicio.trilha_slug} />
-        </div>
-
-        <h1 className="titulo mt-5 text-2xl text-ink-soft">
+      <div className="flex flex-col gap-3">
+        <p className="m-0 font-label text-[11px] tracking-[2px] text-brand-light uppercase">
+          {exercicio.trilha_nome} · Módulo {numeroDoModulo(posicaoDoModulo)}
+        </p>
+        <h1 className="m-0 font-display text-[15px] leading-[1.6] tracking-[1px] text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)] sm:text-[16px]">
           {exercicio.titulo}
         </h1>
-
-        <div className="mt-6 border-t border-edge pt-6">
-          <h2 className="rotulo text-ink-muted">Enunciado</h2>
-          <p className="mt-3 max-w-prose text-xs leading-loose whitespace-pre-wrap text-ink-soft">
-            {exercicio.enunciado}
-          </p>
-        </div>
-      </article>
-
-      <AreaDeResolucao
-        trilhaSlug={exercicio.trilha_slug}
-        exercicioSlug={exercicio.slug}
-        tipo={exercicio.tipo}
-        alternativas={exercicio.alternativas}
-      />
-
-      <BotaoSolucao
-        trilhaSlug={exercicio.trilha_slug}
-        exercicioSlug={exercicio.slug}
-      />
-
-      <div className="mt-4 flex justify-end">
-        <BotaoProximoExercicio
-          trilhaSlug={exercicio.trilha_slug}
-          exercicioSlug={exercicio.slug}
-          proximoSlug={proximo?.slug ?? null}
-        />
       </div>
 
-      <Link
-        href={`/trilhas/${exercicio.trilha_slug}`}
-        className="rotulo mt-6 inline-block border border-edge-soft px-4 py-2 text-ink-muted hover:border-brand hover:text-brand"
+      {contexto ? (
+        <ConteudoDaLicao markdown={contexto} tamanho="medio" />
+      ) : null}
+
+      <section
+        aria-label="Sua missão"
+        className="flex flex-col gap-2 border-2 border-brand-shadow bg-panel-deep p-4"
       >
-        Voltar para {exercicio.trilha_nome}
-      </Link>
+        <div className="flex items-center justify-between gap-3">
+          <span className="font-label text-[10px] tracking-[2px] text-brand-light uppercase">
+            Sua missão
+          </span>
+          <span className="flex items-center gap-2 font-label text-[10px] tracking-[2px] text-ink-muted uppercase">
+            <span aria-hidden="true" className="h-2.5 w-2.5 bg-brand" />+
+            {xpDaFase(exercicio.dificuldade)} XP
+          </span>
+        </div>
+        <ConteudoDaLicao markdown={exercicio.enunciado} tamanho="medio" />
+      </section>
     </>
+  );
+
+  return (
+    <GuardaDeEtapa
+      trilhaSlug={exercicio.trilha_slug}
+      tipo="EXERCICIO"
+      aulaSlug={exercicio.aula_slug}
+      exercicioSlug={exercicio.slug}
+    >
+      <div className="flex min-h-dvh flex-col lg:h-dvh">
+        <BarraDeFoco
+          sairHref={`/trilhas/${exercicio.trilha_slug}`}
+          centro={`Módulo: ${exercicio.aula_titulo}`}
+          placar={
+            <PlacarDoModulo
+              trilhaSlug={exercicio.trilha_slug}
+              fases={fasesDoModulo}
+            />
+          }
+        />
+
+        <main className="flex min-h-0 flex-1 flex-col">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            {exercicio.tipo === "TEORICO" ? (
+              <TelaTeorica
+                trilhaSlug={exercicio.trilha_slug}
+                exercicioSlug={exercicio.slug}
+                cabecalho={`${exercicio.trilha_nome} · Módulo ${numeroDoModulo(posicaoDoModulo)}`}
+                titulo={exercicio.titulo}
+                enunciado={exercicio.enunciado}
+                xp={xpDaFase(exercicio.dificuldade)}
+                contexto={contexto}
+                exemplo={exercicio.exemplo?.trim() ?? ""}
+                licaoHref={rotaDaAula(exercicio.trilha_slug, exercicio.aula_slug)}
+                pet={
+                  <PetDoExercicio
+                    trilhaSlug={exercicio.trilha_slug}
+                    exercicioSlug={exercicio.slug}
+                    aulaTitulo={exercicio.aula_titulo}
+                    dica={`Aqui não tem resposta certa decorada: explique com as suas palavras. Se travar, a lição "${exercicio.aula_titulo}" tem o que você precisa.`}
+                  />
+                }
+              />
+            ) : (
+              <AreaDeResolucao
+                trilhaSlug={exercicio.trilha_slug}
+                exercicioSlug={exercicio.slug}
+                tipo={exercicio.tipo}
+                alternativas={exercicio.alternativas}
+                aprender={aprender}
+                pet={
+                  <PetDoExercicio
+                    trilhaSlug={exercicio.trilha_slug}
+                    exercicioSlug={exercicio.slug}
+                    aulaTitulo={exercicio.aula_titulo}
+                  />
+                }
+              />
+            )}
+
+            <AcoesDoExercicio
+              trilhaSlug={exercicio.trilha_slug}
+              exercicioSlug={exercicio.slug}
+              proximoHref={proximoHref}
+            />
+          </div>
+        </main>
+      </div>
+    </GuardaDeEtapa>
   );
 }

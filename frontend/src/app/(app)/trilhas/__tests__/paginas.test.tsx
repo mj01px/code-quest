@@ -19,7 +19,7 @@ import Carregando from "../loading";
 import NaoEncontrado from "../not-found";
 import TrilhasPage from "../page";
 import TrilhaPage from "../[trilhaSlug]/page";
-import ExercicioPage from "../[trilhaSlug]/exercicios/[exercicioSlug]/page";
+import ExercicioPage from "../../../(foco)/trilhas/[trilhaSlug]/exercicios/[exercicioSlug]/page";
 
 jest.mock("@/lib/api", () => {
   const real = jest.requireActual<typeof import("@/lib/api")>("@/lib/api");
@@ -30,6 +30,9 @@ jest.mock("@/lib/api", () => {
     buscarExercicio: jest.fn(),
     temSessao: jest.fn(() => true),
     api: {
+      trilhaAtual: jest.fn(() =>
+        Promise.resolve({ trilha: "logica-de-programacao" }),
+      ),
       meusBonus: jest.fn(),
       exerciciosConcluidos: jest.fn(),
       trilhasIniciadas: jest.fn(),
@@ -161,6 +164,7 @@ describe("Listagem de trilhas", () => {
         ...trilha,
         aulas: [
           aula({
+            conteudo: "",
             exercicios: [
               exercicioResumo({ id: 1, slug: "media" }),
               exercicioResumo({ id: 2, slug: "trocar", titulo: "Trocar" }),
@@ -268,7 +272,7 @@ describe("Detalhe da trilha", () => {
 });
 
 describe("Detalhe do exercício", () => {
-  it("mostra enunciado, dificuldade e tipo", async () => {
+  it("mostra título e enunciado, sem badges de dificuldade e tipo", async () => {
     api.buscarExercicio.mockResolvedValue(exercicioDetalhe());
 
     await montar(await ExercicioPage(PARAMS_EXERCICIO));
@@ -277,8 +281,8 @@ describe("Detalhe do exercício", () => {
       screen.getByRole("heading", { name: "Média de duas notas" }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Escreva uma função/)).toBeInTheDocument();
-    expect(screen.getByText("Iniciante")).toBeInTheDocument();
-    expect(screen.getByText("Código")).toBeInTheDocument();
+    expect(screen.queryByText("Iniciante")).not.toBeInTheDocument();
+    expect(screen.queryByText("Código")).not.toBeInTheDocument();
   });
 
   it("nunca mostra a solução do autor", async () => {

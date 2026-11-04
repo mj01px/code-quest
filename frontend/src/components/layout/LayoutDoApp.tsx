@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { BarraLateral } from "@/components/layout/BarraLateral";
+import { BotaoConfiguracoes } from "@/components/layout/BotaoConfiguracoes";
 
 // Moldura das telas de dentro do app: sidebar, área de conteúdo e rodapé.
 // Vive num componente, e não no layout de /trilhas, porque mais de uma rota
@@ -12,7 +13,8 @@ export function LayoutDoApp({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col lg:flex-row">
       <BarraLateral />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="relative flex min-w-0 flex-1 flex-col">
+        <BotaoConfiguracoes />
         <main className="mx-auto w-full max-w-5xl min-w-0 flex-1 px-5 py-8 sm:px-8 sm:py-10">
           {children}
         </main>
