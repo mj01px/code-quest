@@ -29,6 +29,7 @@ import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelField } from "@/components/ui/PixelField";
 import { ServicoIndisponivel } from "@/components/ui/ServicoIndisponivel";
+import { PixelSelect } from "@/components/ui/PixelSelect";
 import { ErroApi, api } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
 import type {
@@ -615,22 +616,19 @@ function SeletorBonus({ valor, aoMudar }: { valor: string; aoMudar: (slug: strin
 
   return (
     <div className="flex flex-col gap-2">
-      <label htmlFor={id} className={ROTULO}>
-        BÔNUS DE CRIATURA
-      </label>
-      <select
+      <PixelSelect
         id={id}
+        rotulo="BÔNUS DE CRIATURA"
         value={valor}
-        onChange={(e) => aoMudar(e.target.value)}
-        className="cursor-pointer border-2 border-brand-strong bg-field px-3 py-[11px] font-body text-[15px] text-ink shadow-pixel outline-none focus:border-brand-pale"
-      >
-        <option value="">Nenhum</option>
-        {criaturas.map((c) => (
-          <option key={c.slug} value={c.slug}>
-            {c.nome} ({c.dominio_rotulo})
-          </option>
-        ))}
-      </select>
+        onChange={aoMudar}
+        opcoes={[
+          { valor: "", rotulo: "Nenhum" },
+          ...criaturas.map((c) => ({
+            valor: c.slug,
+            rotulo: `${c.nome} (${c.dominio_rotulo})`,
+          })),
+        ]}
+      />
       <p className={`m-0 text-ink-muted ${TIPO.corpo}`}>
         Quem tiver essa criatura ganha o dobro de XP nesta trilha.
       </p>

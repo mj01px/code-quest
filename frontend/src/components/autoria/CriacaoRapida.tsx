@@ -3,20 +3,18 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 
-import { AreaDeTexto, ROTULO } from "@/components/autoria/AreaDeTexto";
+import { AreaDeTexto } from "@/components/autoria/AreaDeTexto";
 import { FormQuestao, FormTeorico } from "@/components/autoria/EditorDeConteudo";
 import { ModalConfirmacao } from "@/components/clas/ModalConfirmacao";
 import { IconeAjuda } from "@/components/ui/Icone";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelField } from "@/components/ui/PixelField";
+import { PixelSelect } from "@/components/ui/PixelSelect";
 import { ErroApi, api, buscarTrilha, listarTrilhas } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
 
 const BOTAO =
   "inline-flex cursor-pointer items-center justify-center border-[3px] border-brand-light bg-brand-deep px-4 py-3 font-display text-[10px] leading-[1.7] tracking-[1px] text-ink shadow-[0_0_0_3px_var(--color-brand-void),4px_4px_0_rgba(0,0,0,0.7)] transition-colors duration-150 hover:bg-brand-strong";
-
-const SELECT =
-  "cursor-pointer border-2 border-brand-strong bg-field px-3 py-[11px] font-body text-[15px] text-ink shadow-pixel outline-none focus:border-brand-pale disabled:cursor-not-allowed disabled:opacity-60";
 
 type Modo = "aula" | "exercicio";
 type TipoNovo = "TEORICO" | "MULTIPLA" | "CODIGO";
@@ -241,53 +239,33 @@ function ConteudoDoModal({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-2">
-        <label htmlFor={`${id}-trilha`} className={ROTULO}>
-          VINCULAR À TRILHA
-        </label>
-        <select
-          id={`${id}-trilha`}
-          value={trilha ?? ""}
-          disabled={trilhas === null}
-          onChange={(e) => escolherTrilha(e.target.value)}
-          className={SELECT}
-        >
-          <option value="">{trilhas === null ? "Carregando..." : "Escolha uma trilha"}</option>
-          {trilhas?.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.titulo}
-            </option>
-          ))}
-        </select>
-      </div>
+      <PixelSelect
+        id={`${id}-trilha`}
+        rotulo="VINCULAR À TRILHA"
+        value={trilha === null ? "" : String(trilha)}
+        disabled={trilhas === null}
+        onChange={escolherTrilha}
+        placeholder={trilhas === null ? "Carregando..." : "Escolha uma trilha"}
+        opcoes={(trilhas ?? []).map((t) => ({ valor: String(t.id), rotulo: t.titulo }))}
+      />
 
       {modo === "exercicio" && trilha !== null ? (
         <>
-          <div className="flex flex-col gap-2">
-            <label htmlFor={`${id}-aula`} className={ROTULO}>
-              VINCULAR À AULA
-            </label>
-            <select
-              id={`${id}-aula`}
-              value={aula ?? ""}
-              disabled={aulas === null || aulas.length === 0}
-              onChange={(e) => setAula(e.target.value ? Number(e.target.value) : null)}
-              className={SELECT}
-            >
-              <option value="">
-                {aulas === null
-                  ? "Carregando..."
-                  : aulas.length === 0
-                    ? "Esta trilha ainda não tem aula"
-                    : "Escolha uma aula"}
-              </option>
-              {aulas?.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.titulo}
-                </option>
-              ))}
-            </select>
-          </div>
+          <PixelSelect
+            id={`${id}-aula`}
+            rotulo="VINCULAR À AULA"
+            value={aula === null ? "" : String(aula)}
+            disabled={aulas === null || aulas.length === 0}
+            onChange={(v) => setAula(v ? Number(v) : null)}
+            placeholder={
+              aulas === null
+                ? "Carregando..."
+                : aulas.length === 0
+                  ? "Esta trilha ainda não tem aula"
+                  : "Escolha uma aula"
+            }
+            opcoes={(aulas ?? []).map((a) => ({ valor: String(a.id), rotulo: a.titulo }))}
+          />
           <div role="group" aria-label="Tipo do exercício" className="flex flex-wrap gap-2">
             {/* Quiz entra direto na aula, sem revisão: só na aula própria em rascunho. */}
             {TIPOS.filter(([valor]) => !publicadas || valor !== "MULTIPLA").map(([valor, rotulo]) => (
