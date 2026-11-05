@@ -1,11 +1,19 @@
 from django.db.models import Count, F, Prefetch, Q, QuerySet
 from django.http import Http404
+from django.utils import timezone
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
+from rest_framework.request import Request
+from rest_framework.response import Response
 from rest_framework.throttling import BaseThrottle, ScopedRateThrottle
+from rest_framework.views import APIView
 
+from .desafios import desafios_publicados, rodizio
 from .models import Aula, Exercicio, StatusEditorial, Trilha
 from .serializers import (
+    DesafioDoDiaSerializer,
+    DesafioSerializer,
     ExercicioDetalheSerializer,
     TrilhaDetalheSerializer,
     TrilhaListaSerializer,
@@ -26,6 +34,8 @@ PUBLICADO = StatusEditorial.PUBLICADO
 
 ESCOPO = "catalogo"
 
+DIAS_NA_AGENDA = 5
+
 THROTTLES: list[type[BaseThrottle]] = [ScopedRateThrottle]
 
 
@@ -39,6 +49,7 @@ class TrilhaListView(generics.ListAPIView[Trilha]):
         aula_publicada = Q(aulas__status=PUBLICADO)
         return (
             Trilha.objects.publicados()
+            .filter(desafio=False)
             .annotate(
                 total_aulas=Count("aulas", filter=aula_publicada, distinct=True),
                 total_exercicios=Count(
@@ -108,3 +119,35 @@ class ExercicioDetailView(generics.RetrieveAPIView[Exercicio]):
             )
         except Exercicio.DoesNotExist:
             raise Http404("Exercício não encontrado.") from None
+
+
+class DesafiosView(generics.ListAPIView[Exercicio]):
+    serializer_class = DesafioSerializer
+    permission_classes = [AllowAny]
+    throttle_classes = THROTTLES
+    throttle_scope = ESCOPO
+    pagination_class = None
+
+    def get_queryset(self) -> QuerySet[Exercicio]:
+        return desafios_publicados()
+
+
+@extend_schema(responses=DesafioDoDiaSerializer)
+class DesafioDeHojeView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = THROTTLES
+    throttle_scope = ESCOPO
+
+    def get(self, request: Request) -> Response:
+        dia = timezone.localdate()
+        agenda = rodizio(dia, DIAS_NA_AGENDA)
+        dados: dict[str, object] = {
+            "dia": dia,
+            "desafio": agenda[0][1] if agenda else None,
+            "proximos": [
+                {"dia": data, "slug": desafio.slug, "titulo": desafio.titulo}
+                for data, desafio in agenda[1:]
+            ],
+        }
+        return Response(DesafioDoDiaSerializer(dados).data)
+

@@ -306,6 +306,7 @@ def trilha_atual(*, user):
             origem=Origem.EXERCICIO,
             exercicio__isnull=False,
             exercicio__trilha__status=StatusEditorial.PUBLICADO,
+            exercicio__trilha__desafio=False,
         )
         .order_by("-criado_em")
         .values_list("criado_em", "exercicio__trilha__slug")
@@ -313,7 +314,9 @@ def trilha_atual(*, user):
     )
     etapa = (
         EtapaConcluida.objects.filter(
-            user=user, aula__trilha__status=StatusEditorial.PUBLICADO
+            user=user,
+            aula__trilha__status=StatusEditorial.PUBLICADO,
+            aula__trilha__desafio=False,
         )
         .order_by("-concluida_em")
         .values_list("concluida_em", "aula__trilha__slug")
@@ -321,7 +324,9 @@ def trilha_atual(*, user):
     )
     entrada = (
         TrilhaIniciada.objects.filter(
-            user=user, trilha__status=StatusEditorial.PUBLICADO
+            user=user,
+            trilha__status=StatusEditorial.PUBLICADO,
+            trilha__desafio=False,
         )
         .order_by("-iniciada_em")
         .values_list("iniciada_em", "trilha__slug")
@@ -421,7 +426,7 @@ def montar_dashboard_admin(periodo: str = PERIODO_PADRAO):
     return {
         "total_usuarios": total_usuarios,
         "trilhas_publicadas": Trilha.objects.filter(
-            status=StatusEditorial.PUBLICADO
+            status=StatusEditorial.PUBLICADO, desafio=False
         ).count(),
         "fila_revisao": len(itens_no_status(StatusEditorial.REVISAO)),
         "submissoes_judge": total_submissoes,
@@ -652,7 +657,11 @@ def progresso_das_trilhas(*, user) -> list[Any]:
         ).values_list("exercicio__trilha_id", flat=True)
     )
     resultado = []
-    for trilha in Trilha.objects.publicados().filter(pk__in=ativas).order_by("ordem"):
+    for trilha in (
+        Trilha.objects.publicados()
+        .filter(pk__in=ativas, desafio=False)
+        .order_by("ordem")
+    ):
         estados = estado_da_trilha(user, trilha)
         if not estados:
             continue

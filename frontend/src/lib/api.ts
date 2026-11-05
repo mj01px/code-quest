@@ -11,6 +11,8 @@ import type {
   Correcao,
   Criatura,
   DashboardAdmin,
+  DesafioApi,
+  DesafioDeHoje,
   DetalheEditorial,
   Dificuldade,
   DocumentosLegais,
@@ -1270,6 +1272,14 @@ export function buscarTrilha(slug: string): Promise<TrilhaDetalhe> {
   return requisicao<TrilhaDetalhe>(`/trilhas/${encodeURIComponent(slug)}/`, {
     ...CATALOGO,
   });
+}
+
+export function buscarDesafioDeHoje(): Promise<DesafioDeHoje> {
+  return requisicao<DesafioDeHoje>("/desafios/hoje/", { ...CATALOGO });
+}
+
+export function listarDesafios(): Promise<DesafioApi[]> {
+  return requisicao<DesafioApi[]>("/desafios/", { ...CATALOGO });
 }
 
 export function buscarExercicio(

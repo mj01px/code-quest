@@ -209,7 +209,9 @@ def montar_painel(periodo: str) -> dict[str, Any]:
     total_submissoes = submissoes.count()
     aprovadas = submissoes.filter(veredito=Veredito.APROVADO).count()
 
-    trilhas = Trilha.objects.filter(status=StatusEditorial.PUBLICADO).order_by("nome")
+    trilhas = Trilha.objects.filter(
+        status=StatusEditorial.PUBLICADO, desafio=False
+    ).order_by("nome")
 
     return {
         "periodo": periodo if periodo in PERIODOS else PERIODO_PADRAO,

@@ -393,6 +393,29 @@ export interface ExercicioDetalhe {
   alternativas?: AlternativaExercicio[];
 }
 
+export interface DesafioApi {
+  slug: string;
+  titulo: string;
+  enunciado: string;
+  tipo: TipoExercicio;
+  tipo_label: string;
+  dificuldade: Dificuldade;
+  dificuldade_label: string;
+  trilha_slug: string;
+}
+
+export interface ProximoDesafio {
+  dia: string;
+  slug: string;
+  titulo: string;
+}
+
+export interface DesafioDeHoje {
+  dia: string;
+  desafio: DesafioApi | null;
+  proximos: ProximoDesafio[];
+}
+
 export interface BonusXp {
   criatura: string;
   criatura_nome: string;

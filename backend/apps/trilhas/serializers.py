@@ -159,3 +159,38 @@ class ExercicioDetalheSerializer(serializers.ModelSerializer[Exercicio]):
             "alternativas",
         ]
         read_only_fields = fields
+
+
+class DesafioSerializer(serializers.ModelSerializer[Exercicio]):
+    trilha_slug = serializers.SlugField(source="trilha.slug", read_only=True)
+    dificuldade_label = serializers.CharField(
+        source="get_dificuldade_display", read_only=True
+    )
+    tipo_label = serializers.CharField(source="get_tipo_display", read_only=True)
+
+    class Meta:
+        model = Exercicio
+        fields = [
+            "slug",
+            "titulo",
+            "enunciado",
+            "tipo",
+            "tipo_label",
+            "dificuldade",
+            "dificuldade_label",
+            "trilha_slug",
+        ]
+        read_only_fields = fields
+
+
+class ProximoDesafioSerializer(serializers.Serializer[dict[str, object]]):
+    dia = serializers.DateField(read_only=True)
+    slug = serializers.SlugField(read_only=True)
+    titulo = serializers.CharField(read_only=True)
+
+
+class DesafioDoDiaSerializer(serializers.Serializer[dict[str, object]]):
+    dia = serializers.DateField(read_only=True)
+    desafio = DesafioSerializer(read_only=True, allow_null=True)
+    proximos = ProximoDesafioSerializer(many=True, read_only=True)
+

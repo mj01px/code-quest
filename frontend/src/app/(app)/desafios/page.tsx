@@ -3,47 +3,22 @@ import Link from "next/link";
 
 import { PainelDeDesafios } from "@/components/desafios/PainelDeDesafios";
 import { PortaDeAcesso } from "@/components/layout/PortaDeAcesso";
-import { buscarExercicio, buscarTrilha, listarTrilhas } from "@/lib/api";
-import { type Desafio, dataPorExtenso, desafiosDoDia } from "@/lib/desafios";
+import { buscarDesafioDeHoje } from "@/lib/api";
+import { dataPorExtenso, desafioDaApi } from "@/lib/desafios";
 import { TIPO } from "@/lib/tipografia";
 
 export const metadata: Metadata = {
   title: "Desafio do dia",
-  description: "Três fases escolhidas para hoje, sorteadas pelas trilhas publicadas.",
+  description: "Um desafio de código por dia, fora das trilhas.",
 };
 
-// Na prática a página revalida a cada minuto, não a cada cinco. O Next adota o
-// menor valor entre a rota e os fetches dela, e as buscas do catálogo
-// (`CATALOGO` em lib/api.ts) usam 60 segundos, então elas têm precedência
-// sobre os 300 declarados aqui. O build confirma: "Revalidate 1m".
-export const revalidate = 300;
-
-// O enunciado só vem no detalhe da fase. As buscas saem em paralelo, e uma que
-// falhe deixa o cartão sem preview em vez de derrubar a página.
-async function comEnunciado(desafios: Desafio[]): Promise<Desafio[]> {
-  const detalhes = await Promise.all(
-    desafios.map((desafio) =>
-      buscarExercicio(desafio.trilhaSlug, desafio.slug).catch(() => null),
-    ),
-  );
-  return desafios.map((desafio, indice) => ({
-    ...desafio,
-    enunciado: detalhes[indice]?.enunciado,
-  }));
-}
+export const revalidate = 60;
 
 export default async function DesafiosPage() {
-  const resumos = await listarTrilhas();
-  const trilhas = await Promise.all(
-    resumos
-      .filter((trilha) => trilha.total_exercicios > 0)
-      .map((trilha) => buscarTrilha(trilha.slug)),
-  );
-
   const hoje = new Date();
-  const desafios = await comEnunciado(desafiosDoDia(trilhas, hoje));
+  const { desafio, proximos } = await buscarDesafioDeHoje();
 
-  if (desafios.length === 0) {
+  if (!desafio) {
     return (
       <PortaDeAcesso perm="trilhas.view">
         <span className="mb-3 block font-label text-[11px] tracking-[2px] text-brand">
@@ -53,8 +28,8 @@ export default async function DesafiosPage() {
           Desafio do dia
         </h1>
         <p className={`mt-6 border border-edge bg-panel p-6 ${TIPO.corpo} text-ink-muted`}>
-          Ainda não há fases publicadas para sortear. Assim que a primeira
-          trilha ganhar conteúdo, os desafios aparecem aqui.
+          Ainda não há desafios publicados. Assim que o primeiro entrar, ele
+          aparece aqui e troca a cada dia.
         </p>
         <Link
           href="/trilhas"
@@ -68,7 +43,11 @@ export default async function DesafiosPage() {
 
   return (
     <PortaDeAcesso perm="trilhas.view">
-      <PainelDeDesafios desafios={desafios} dia={dataPorExtenso(hoje)} />
+      <PainelDeDesafios
+        desafio={desafioDaApi(desafio)}
+        proximos={proximos ?? []}
+        dia={dataPorExtenso(hoje)}
+      />
     </PortaDeAcesso>
   );
 }

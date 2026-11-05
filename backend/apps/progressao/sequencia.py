@@ -113,7 +113,11 @@ def exigir_liberado(
     aula_slug: str,
     exercicio_slug: str | None = None,
 ) -> None:
-    if not settings.PROGRESSAO_SEQUENCIAL or trilha.status != StatusEditorial.PUBLICADO:
+    if (
+        not settings.PROGRESSAO_SEQUENCIAL
+        or trilha.status != StatusEditorial.PUBLICADO
+        or trilha.desafio
+    ):
         return
     chave = Passo(tipo, aula_slug, exercicio_slug, "").chave
     estados = estado_da_trilha(user, trilha)

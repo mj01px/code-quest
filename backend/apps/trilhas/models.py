@@ -108,6 +108,14 @@ class Trilha(models.Model):
         verbose_name=_("status editorial"),
     )
 
+    desafio = models.BooleanField(
+        default=False,
+        verbose_name=_("trilha de desafios do dia"),
+        help_text=_(
+            "Guarda os desafios do dia: fica fora do catálogo e da ordem de estudo."
+        ),
+    )
+
     criada_em = models.DateTimeField(auto_now_add=True, verbose_name=_("criada em"))
     atualizada_em = models.DateTimeField(auto_now=True, verbose_name=_("atualizada em"))
 

@@ -144,7 +144,9 @@ class TrilhaEditorialSerializer(TrilhaDetalheSerializer):
 
 class SolicitacaoAutoriaSerializer(serializers.ModelSerializer[SolicitacaoAutoria]):
     areas = serializers.PrimaryKeyRelatedField(
-        many=True, allow_empty=False, queryset=Trilha.objects.publicados()
+        many=True,
+        allow_empty=False,
+        queryset=Trilha.objects.publicados().filter(desafio=False),
     )
     areas_nomes: serializers.SlugRelatedField[Trilha] = serializers.SlugRelatedField(
         source="areas", slug_field="nome", many=True, read_only=True

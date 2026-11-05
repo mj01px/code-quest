@@ -2,18 +2,13 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import {
-  aula,
-  exercicioDetalhe,
-  exercicioResumo,
   minhaCriatura,
   progressoAtual,
-  trilhaDetalhe,
-  trilhaResumo,
   usuario,
 } from "@/components/__tests__/fixtures";
 import { ProvedorProgresso } from "@/components/progresso/ProvedorProgresso";
 import { ErroApi } from "@/lib/api";
-import type { ExercicioConcluido } from "@/lib/types";
+import type { DesafioApi, ExercicioConcluido } from "@/lib/types";
 
 import Erro from "../error";
 import Carregando from "../loading";
@@ -23,9 +18,7 @@ jest.mock("@/lib/api", () => {
   const real = jest.requireActual<typeof import("@/lib/api")>("@/lib/api");
   return {
     ErroApi: real.ErroApi,
-    listarTrilhas: jest.fn(),
-    buscarTrilha: jest.fn(),
-    buscarExercicio: jest.fn(),
+    buscarDesafioDeHoje: jest.fn(),
     temSessao: jest.fn(() => true),
     api: {
       meusBonus: jest.fn(),
@@ -40,9 +33,7 @@ jest.mock("@/lib/api", () => {
 });
 
 const api = jest.requireMock<{
-  listarTrilhas: jest.Mock;
-  buscarTrilha: jest.Mock;
-  buscarExercicio: jest.Mock;
+  buscarDesafioDeHoje: jest.Mock;
   temSessao: jest.Mock;
   api: {
     meusBonus: jest.Mock;
@@ -55,59 +46,33 @@ const api = jest.requireMock<{
   };
 }>("@/lib/api");
 
-// A página é Server Component e o provedor mora no layout do route group; o
-// teste monta a mesma moldura para que as ilhas de dentro achem o Context.
 async function montar(no: React.ReactNode) {
   const r = render(<ProvedorProgresso>{no}</ProvedorProgresso>);
   await waitFor(() => expect(api.api.exerciciosConcluidos).toHaveBeenCalled());
   return r;
 }
 
-/** O progresso vem da API agora; antes esta tela lia `localStorage`. */
 function concluiu(trilhaSlug: string, ...fases: string[]): void {
   api.api.exerciciosConcluidos.mockResolvedValue(
-    fases.map(
-      (slug): ExercicioConcluido => ({
-        trilha_slug: trilhaSlug,
-        exercicio_slug: slug,
-        xp: 50,
-        criado_em: "2026-09-10T12:00:00Z",
-      }),
-    ),
+    fases.map((slug): ExercicioConcluido => ({
+      trilha_slug: trilhaSlug,
+      exercicio_slug: slug,
+      xp: 100,
+      criado_em: "2026-11-04T12:00:00Z",
+    })),
   );
 }
 
-const TRILHA = trilhaDetalhe({
-  aulas: [
-    aula({
-      id: 1,
-      titulo: "Variáveis e tipos",
-      slug: "variaveis",
-      exercicios: [
-        exercicioResumo({ id: 1, titulo: "Média", slug: "media" }),
-        exercicioResumo({ id: 2, titulo: "Trocar", slug: "trocar" }),
-      ],
-    }),
-    aula({
-      id: 2,
-      titulo: "Condicionais",
-      slug: "condicionais",
-      exercicios: [
-        exercicioResumo({ id: 3, titulo: "Par ou ímpar", slug: "par-ou-impar" }),
-        exercicioResumo({ id: 4, titulo: "Maior de três", slug: "maior-de-tres" }),
-      ],
-    }),
-    aula({
-      id: 3,
-      titulo: "Repetição",
-      slug: "repeticao",
-      exercicios: [
-        exercicioResumo({ id: 5, titulo: "Tabuada", slug: "tabuada" }),
-        exercicioResumo({ id: 6, titulo: "Fatorial", slug: "fatorial" }),
-      ],
-    }),
-  ],
-});
+const DESAFIO: DesafioApi = {
+  slug: "relogio-digital",
+  titulo: "Relógio digital",
+  enunciado: "Escreva `relogio(segundos)` que devolva HH:MM:SS.",
+  tipo: "CODIGO",
+  tipo_label: "Código",
+  dificuldade: "INTERMEDIARIO",
+  dificuldade_label: "Intermediário",
+  trilha_slug: "desafios-do-dia",
+};
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -122,112 +87,82 @@ beforeEach(() => {
     ultimo_dia: null,
   });
   concluiu("nenhuma");
-  api.listarTrilhas.mockResolvedValue([trilhaResumo()]);
-  api.buscarTrilha.mockResolvedValue(TRILHA);
-  api.buscarExercicio.mockImplementation(async (_trilha: string, slug: string) =>
-    exercicioDetalhe({ slug, enunciado: `Enunciado da fase ${slug}.` }),
-  );
+  api.buscarDesafioDeHoje.mockResolvedValue({
+    dia: "2026-11-04",
+    desafio: DESAFIO,
+    proximos: [
+      { dia: "2026-11-05", slug: "palindromo", titulo: "É palíndromo?" },
+      { dia: "2026-11-06", slug: "fizzbuzz", titulo: "FizzBuzz" },
+      { dia: "2026-11-07", slug: "contar-vogais", titulo: "Contar vogais" },
+      { dia: "2026-11-08", slug: "maior-sem-max", titulo: "O maior sem max()" },
+    ],
+  });
 });
 
 describe("Página de desafios", () => {
-  it("mostra três desafios do dia", async () => {
-    await montar(await DesafiosPage());
-
-    expect(screen.getAllByRole("listitem")).toHaveLength(3);
-    expect(screen.getByText("0 de 3 concluídos")).toBeInTheDocument();
-  });
-
-  it("cada desafio leva para a fase correspondente", async () => {
-    await montar(await DesafiosPage());
-
-    for (const link of screen.getAllByRole("link")) {
-      expect(link.getAttribute("href")).toMatch(
-        /^\/trilhas\/logica-de-programacao\/exercicios\//,
-      );
-    }
-  });
-
-  it("mostra a sequência de quem está logado, entre o resumo e a lista", async () => {
+  it("mostra o desafio de hoje em destaque, escolhido pelo servidor", async () => {
     await montar(await DesafiosPage());
 
     expect(
-      await screen.findByRole("heading", { name: "Sua sequência" }),
+      screen.getByRole("heading", { level: 1, name: "Relógio digital" }),
     ).toBeInTheDocument();
+    expect(screen.getByText(/Python · Intermediário ·/)).toBeInTheDocument();
+    expect(screen.getByText("+100 XP")).toBeInTheDocument();
     expect(screen.getByRole("timer")).toBeInTheDocument();
   });
 
-  it("cada botão tem nome acessível próprio e área de toque de 44px", async () => {
+  it("o botão leva para a rota própria do desafio, fora das trilhas", async () => {
     await montar(await DesafiosPage());
 
-    const botoes = screen.getAllByRole("link", { name: /^Encarar desafio: / });
-    expect(botoes).toHaveLength(3);
-    expect(new Set(botoes.map((botao) => botao.getAttribute("aria-label"))).size).toBe(3);
-    for (const botao of botoes) expect(botao).toHaveClass("min-h-11");
+    const botao = screen.getByRole("link", { name: "Encarar desafio ›" });
+    expect(botao).toHaveAttribute("href", "/desafios/relogio-digital");
+    expect(botao).toHaveClass("min-h-11");
   });
 
-  it("mostra o começo do enunciado, com link para a fase completa", async () => {
+  it("mostra só o resumo do enunciado", async () => {
     await montar(await DesafiosPage());
 
-    const previews = screen.getAllByText(/^Enunciado da fase /);
-    expect(previews).toHaveLength(3);
-    for (const preview of previews) expect(preview).toHaveClass("line-clamp-3");
-
-    const verMais = screen.getAllByRole("link", { name: /^Ver enunciado completo: / });
-    expect(verMais).toHaveLength(3);
-    for (const link of verMais) {
-      expect(link.getAttribute("href")).toMatch(
-        /^\/trilhas\/logica-de-programacao\/exercicios\//,
-      );
-    }
+    expect(screen.getByText(/HH:MM:SS/)).toBeInTheDocument();
   });
 
-  it("sem o detalhe da fase, o cartão aparece sem preview", async () => {
-    api.buscarExercicio.mockRejectedValue(
-      new ErroApi(0, "sem_conexao", "Servidor fora do ar."),
-    );
-
+  it("lista os próximos dias do rodízio, sem a sequência", async () => {
     await montar(await DesafiosPage());
 
-    expect(screen.getAllByRole("listitem")).toHaveLength(3);
-    expect(screen.queryByText(/^Enunciado da fase /)).not.toBeInTheDocument();
+    const lista = screen.getByRole("list");
+    expect(lista.children).toHaveLength(4);
+    expect(screen.getByText("Amanhã")).toBeInTheDocument();
+    expect(screen.getByText("Sexta")).toBeInTheDocument();
+    expect(screen.getByText("É palíndromo?")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Sua sequência" })).toBeNull();
   });
 
-  it("não pede o detalhe de trilha sem fase publicada", async () => {
-    api.listarTrilhas.mockResolvedValue([
-      trilhaResumo(),
-      trilhaResumo({ id: 2, slug: "python", nome: "Python", total_exercicios: 0 }),
-    ]);
+  it("depois de concluir mostra o selo e o botão de revisar", async () => {
+    concluiu("desafios-do-dia", "relogio-digital");
 
     await montar(await DesafiosPage());
 
-    expect(api.buscarTrilha).toHaveBeenCalledTimes(1);
-    expect(api.buscarTrilha).toHaveBeenCalledWith("logica-de-programacao");
+    expect(await screen.findByText(/Cumprido · \+100 XP/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Revisar desafio" }),
+    ).toHaveAttribute("href", "/desafios/relogio-digital");
   });
 
-  it("conta o que o aluno já concluiu, lendo da conta", async () => {
-    const { unmount } = await montar(await DesafiosPage());
-    const primeiro = screen.getAllByRole("link")[0]!;
-    const slug = primeiro.getAttribute("href")!.split("/").at(-1)!;
-    unmount();
-
-    concluiu("logica-de-programacao", slug);
-
-    await montar(await DesafiosPage());
-    expect(await screen.findByText("1 de 3 concluídos")).toBeInTheDocument();
-  });
-
-  it("sem fase publicada, explica em vez de mostrar lista vazia", async () => {
-    api.listarTrilhas.mockResolvedValue([]);
+  it("sem desafio publicado, explica em vez de mostrar lista vazia", async () => {
+    api.buscarDesafioDeHoje.mockResolvedValue({
+      dia: "2026-11-04",
+      desafio: null,
+      proximos: [],
+    });
 
     await montar(await DesafiosPage());
 
     expect(
-      screen.getByText(/Ainda não há fases publicadas/),
+      screen.getByText(/Ainda não há desafios publicados/),
     ).toBeInTheDocument();
   });
 
   it("deixa o erro da API subir para o error.tsx da rota", async () => {
-    api.listarTrilhas.mockRejectedValue(
+    api.buscarDesafioDeHoje.mockRejectedValue(
       new ErroApi(0, "sem_conexao", "Servidor fora do ar."),
     );
 
@@ -238,7 +173,9 @@ describe("Página de desafios", () => {
     const reset = jest.fn();
     render(<Erro error={new Error("falhou")} reset={reset} />);
 
-    await userEvent.click(screen.getByRole("button", { name: /tentar de novo/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /tentar de novo/i }),
+    );
     expect(reset).toHaveBeenCalled();
   });
 

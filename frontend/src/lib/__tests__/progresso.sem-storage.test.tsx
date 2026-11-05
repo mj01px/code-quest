@@ -166,7 +166,7 @@ describe("nenhum caminho de progresso toca o armazenamento do navegador", () => 
   });
 
   it("o painel de desafios lê o progresso da API, não do storage", async () => {
-    montar(<PainelDeDesafios desafios={[DESAFIO]} dia="10 de setembro" />);
+    montar(<PainelDeDesafios desafio={DESAFIO} proximos={[]} dia="10 de setembro" />);
 
     await waitFor(() => expect(exerciciosConcluidos).toHaveBeenCalled());
     expect(chamadasDeStorage()).toBe(0);

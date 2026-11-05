@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { AreaDeResolucao } from "@/components/exercicio/AreaDeResolucao";
+import { BlocoAprender } from "@/components/exercicio/BlocoAprender";
 import { PetDoExercicio } from "@/components/exercicio/PetDoExercicio";
 import { TelaTeorica } from "@/components/exercicio/TelaTeorica";
 import {
@@ -10,7 +11,6 @@ import {
 } from "@/components/exercicio/NavegacaoDoExercicio";
 import { BarraDeFoco } from "@/components/layout/BarraDeFoco";
 import { GuardaDeEtapa } from "@/components/trilhas/GuardaDeEtapa";
-import { ConteudoDaLicao } from "@/components/licao/ConteudoDaLicao";
 import {
   ErroApi,
   buscarExercicio,
@@ -103,36 +103,13 @@ export default async function ExercicioPage({
   const contexto = exercicio.contexto?.trim() ?? "";
 
   const aprender = (
-    <>
-      <div className="flex flex-col gap-3">
-        <p className="m-0 font-label text-[11px] tracking-[2px] text-brand-light uppercase">
-          {exercicio.trilha_nome} · Módulo {numeroDoModulo(posicaoDoModulo)}
-        </p>
-        <h1 className="m-0 font-display text-[15px] leading-[1.6] tracking-[1px] text-ink [text-shadow:2px_2px_0_var(--color-brand-dark)] sm:text-[16px]">
-          {exercicio.titulo}
-        </h1>
-      </div>
-
-      {contexto ? (
-        <ConteudoDaLicao markdown={contexto} tamanho="medio" />
-      ) : null}
-
-      <section
-        aria-label="Sua missão"
-        className="flex flex-col gap-2 border-2 border-brand-shadow bg-panel-deep p-4"
-      >
-        <div className="flex items-center justify-between gap-3">
-          <span className="font-label text-[10px] tracking-[2px] text-brand-light uppercase">
-            Sua missão
-          </span>
-          <span className="flex items-center gap-2 font-label text-[10px] tracking-[2px] text-ink-muted uppercase">
-            <span aria-hidden="true" className="h-2.5 w-2.5 bg-brand" />+
-            {xpDaFase(exercicio.dificuldade)} XP
-          </span>
-        </div>
-        <ConteudoDaLicao markdown={exercicio.enunciado} tamanho="medio" />
-      </section>
-    </>
+    <BlocoAprender
+      cabecalho={`${exercicio.trilha_nome} · Módulo ${numeroDoModulo(posicaoDoModulo)}`}
+      titulo={exercicio.titulo}
+      contexto={contexto}
+      enunciado={exercicio.enunciado}
+      xp={xpDaFase(exercicio.dificuldade)}
+    />
   );
 
   return (

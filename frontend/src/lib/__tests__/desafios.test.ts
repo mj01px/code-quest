@@ -1,24 +1,4 @@
-import { aula, exercicioResumo, trilhaDetalhe } from "@/components/__tests__/fixtures";
-import { dataPorExtenso, desafiosDoDia, diaEmSaoPaulo } from "@/lib/desafios";
-
-function trilhaCom(modulos: number, fasesPorModulo: number) {
-  return trilhaDetalhe({
-    aulas: Array.from({ length: modulos }, (_, m) =>
-      aula({
-        id: m + 1,
-        titulo: `Módulo ${m + 1}`,
-        slug: `modulo-${m + 1}`,
-        exercicios: Array.from({ length: fasesPorModulo }, (_, f) =>
-          exercicioResumo({
-            id: m * 100 + f,
-            titulo: `Fase ${m + 1}.${f + 1}`,
-            slug: `fase-${m + 1}-${f + 1}`,
-          }),
-        ),
-      }),
-    ),
-  });
-}
+import { dataPorExtenso, desafioDaApi, diaEmSaoPaulo } from "@/lib/desafios";
 
 // Instantes com fuso explicito: o dia do desafio e o de Sao Paulo, entao o
 // teste nao pode depender do fuso da maquina que roda a suite.
@@ -70,85 +50,28 @@ describe("diaEmSaoPaulo", () => {
   });
 });
 
-describe("desafiosDoDia", () => {
-  it("devolve três fases", () => {
-    expect(desafiosDoDia([trilhaCom(4, 4)], DIA)).toHaveLength(3);
+describe("desafioDaApi", () => {
+  const api = {
+    slug: "relogio-digital",
+    titulo: "Relógio digital",
+    enunciado: "Escreva `relogio(segundos)`.",
+    tipo: "CODIGO" as const,
+    tipo_label: "Código",
+    dificuldade: "INTERMEDIARIO" as const,
+    dificuldade_label: "Intermediário",
+    trilha_slug: "desafios-do-dia",
+  };
+
+  it("leva para a rota própria do desafio, fora das trilhas", () => {
+    expect(desafioDaApi(api).href).toBe("/desafios/relogio-digital");
   });
 
-  it("é estável no mesmo dia", () => {
-    const trilhas = [trilhaCom(4, 4)];
-    const primeira = desafiosDoDia(trilhas, DIA).map((d) => d.slug);
-    const segunda = desafiosDoDia(trilhas, new Date("2026-09-09T22:00:00-03:00")).map(
-      (d) => d.slug,
-    );
-    expect(segunda).toEqual(primeira);
-  });
+  it("guarda a trilha interna para a conclusão e o XP da dificuldade", () => {
+    const desafio = desafioDaApi(api);
 
-  it("muda de um dia para o outro", () => {
-    const trilhas = [trilhaCom(6, 5)];
-    const hoje = desafiosDoDia(trilhas, DIA).map((d) => d.slug);
-    const amanha = desafiosDoDia(trilhas, new Date("2026-09-10T12:00:00-03:00")).map(
-      (d) => d.slug,
-    );
-    expect(amanha).not.toEqual(hoje);
-  });
-
-  it("não repete a mesma fase", () => {
-    const escolhidos = desafiosDoDia([trilhaCom(4, 4)], DIA);
-    expect(new Set(escolhidos.map((d) => d.slug)).size).toBe(3);
-  });
-
-  it("evita três desafios do mesmo módulo quando há de onde escolher", () => {
-    const escolhidos = desafiosDoDia([trilhaCom(4, 4)], DIA);
-    expect(new Set(escolhidos.map((d) => d.moduloTitulo)).size).toBe(3);
-  });
-
-  it("completa repetindo módulo quando o catálogo é pequeno", () => {
-    // Um módulo só, com quatro fases: melhor três do mesmo módulo do que uma.
-    const escolhidos = desafiosDoDia([trilhaCom(1, 4)], DIA);
-    expect(escolhidos).toHaveLength(3);
-    expect(new Set(escolhidos.map((d) => d.slug)).size).toBe(3);
-  });
-
-  it("devolve menos quando não há fases suficientes", () => {
-    expect(desafiosDoDia([trilhaCom(1, 2)], DIA)).toHaveLength(2);
-  });
-
-  it("devolve lista vazia sem trilha publicada", () => {
-    expect(desafiosDoDia([], DIA)).toEqual([]);
-  });
-
-  it("monta o link para a fase dentro da trilha", () => {
-    const [primeiro] = desafiosDoDia([trilhaCom(1, 1)], DIA);
-    expect(primeiro?.href).toBe(
-      "/trilhas/logica-de-programacao/exercicios/fase-1-1",
-    );
-  });
-
-  it("traz o XP bruto da dificuldade", () => {
-    const [primeiro] = desafiosDoDia([trilhaCom(1, 1)], DIA);
-    expect(primeiro?.xp).toBe(50);
-  });
-
-  it("sorteia entre todas as trilhas recebidas", () => {
-    const outra = trilhaDetalhe({
-      id: 200,
-      nome: "Python",
-      slug: "python",
-      aulas: [
-        aula({
-          id: 50,
-          titulo: "Scripts",
-          slug: "scripts",
-          exercicios: [exercicioResumo({ id: 500, slug: "primeiro-script" })],
-        }),
-      ],
-    });
-
-    const slugs = desafiosDoDia([trilhaCom(1, 8), outra], DIA, 9).map(
-      (d) => d.trilhaSlug,
-    );
-    expect(slugs).toContain("python");
+    expect(desafio.trilhaSlug).toBe("desafios-do-dia");
+    expect(desafio.xp).toBe(100);
+    expect(desafio.enunciado).toBe("Escreva `relogio(segundos)`.");
   });
 });
 

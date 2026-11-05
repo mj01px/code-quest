@@ -6,15 +6,20 @@ import { segundosAteVirada } from "@/lib/desafios";
 import { TIPO } from "@/lib/tipografia";
 
 function relogio(segundos: number): string {
-  return [Math.floor(segundos / 3600), Math.floor((segundos % 3600) / 60), segundos % 60]
+  return [
+    Math.floor(segundos / 3600),
+    Math.floor((segundos % 3600) / 60),
+    segundos % 60,
+  ]
     .map((parte) => String(parte).padStart(2, "0"))
     .join(":");
 }
 
-// A página fica em cache e o servidor não sabe a que horas ela vai ser lida:
-// o tempo só aparece depois de montar, e até lá um marcador do mesmo tamanho
-// segura o espaço sem divergir na hidratação.
-export function ContadorExpiracao() {
+export function ContadorExpiracao({
+  rotulo = "PRÓXIMO EM",
+}: {
+  rotulo?: string;
+}) {
   const [restante, setRestante] = useState<number | null>(null);
 
   useEffect(() => {
@@ -25,14 +30,14 @@ export function ContadorExpiracao() {
   }, []);
 
   return (
-    <div className="flex flex-col gap-2 border-2 border-brand-shadow bg-panel-deep px-5 py-3 shadow-pixel">
+    <div className="flex items-center gap-3.5">
       <span aria-hidden="true" className={`${TIPO.etiqueta} text-ink-muted`}>
-        EXPIRA EM
+        {rotulo}
       </span>
       <span
         role="timer"
-        aria-label="Tempo até os desafios de hoje trocarem"
-        className="font-display text-[18px] leading-[1.5] text-brand-light"
+        aria-label="Tempo até o próximo desafio"
+        className="font-display text-[16px] leading-[1.5] tracking-[2px] text-brand-light"
       >
         {restante === null ? "--:--:--" : relogio(restante)}
       </span>
