@@ -5,6 +5,7 @@ import type {
   BonusXp,
   Cargo,
   Cla,
+  ConclusaoDaTrilha,
   Conquista,
   Consentimento,
   ConviteGerado,
@@ -802,6 +803,13 @@ export const api = {
     return requisicao<{ trilha: string | null }>("/eu/trilha-atual/", {
       autenticado: true,
     });
+  },
+
+  conclusaoDaTrilha(trilhaSlug: string) {
+    return requisicao<ConclusaoDaTrilha>(
+      `/eu/trilhas/${encodeURIComponent(trilhaSlug)}/conclusao/`,
+      { autenticado: true },
+    );
   },
 
   passosDaTrilha(trilhaSlug: string) {

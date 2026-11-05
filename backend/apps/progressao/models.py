@@ -246,6 +246,19 @@ class EtapaConcluida(models.Model):
         help_text=_("Perguntas do quiz quando o melhor resultado foi gravado."),
     )
 
+    acertos_na_primeira = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name=_("acertos na primeira tentativa"),
+        help_text=_("Resultado da primeira vez no quiz. Não muda ao refazer."),
+    )
+
+    total_na_primeira = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name=_("perguntas na primeira tentativa"),
+    )
+
     concluida_em = models.DateTimeField(
         auto_now_add=True, verbose_name=_("concluída em")
     )

@@ -98,7 +98,7 @@ export default async function ExercicioPage({
 
   const proximoHref = proximo
     ? rotaDoExercicio(exercicio.trilha_slug, proximo.slug)
-    : `/trilhas/${exercicio.trilha_slug}`;
+    : `/trilhas/${exercicio.trilha_slug}/concluida`;
 
   const contexto = exercicio.contexto?.trim() ?? "";
 

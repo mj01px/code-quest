@@ -237,3 +237,37 @@ class RespostasDoQuizSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "As chaves precisam ser ids de questão.", code="questao_invalida"
             ) from erro
+
+
+class TrilhaDaConclusaoSerializer(serializers.Serializer):
+    slug = serializers.SlugField(read_only=True)
+    nome = serializers.CharField(read_only=True)
+
+
+class ProximaTrilhaSerializer(serializers.Serializer):
+    slug = serializers.SlugField(read_only=True)
+    nome = serializers.CharField(read_only=True)
+    resumo = serializers.CharField(read_only=True)
+    dificuldade_label = serializers.CharField(
+        source="get_dificuldade_display", read_only=True
+    )
+
+
+class ConquistaDaConclusaoSerializer(serializers.Serializer):
+    slug = serializers.SlugField(read_only=True)
+    nome = serializers.CharField(read_only=True)
+    descricao = serializers.CharField(read_only=True)
+    icone = serializers.CharField(read_only=True)
+
+
+class ConclusaoDaTrilhaSerializer(serializers.Serializer):
+    trilha = TrilhaDaConclusaoSerializer(read_only=True)
+    concluida = serializers.BooleanField(read_only=True)
+    fases_feitas = serializers.IntegerField(read_only=True)
+    fases_total = serializers.IntegerField(read_only=True)
+    xp = serializers.IntegerField(read_only=True)
+    acerto_de_primeira = serializers.IntegerField(read_only=True, allow_null=True)
+    dias_de_estudo = serializers.IntegerField(read_only=True)
+    conquistas = ConquistaDaConclusaoSerializer(many=True, read_only=True)
+    proxima = ProximaTrilhaSerializer(read_only=True, allow_null=True)
+

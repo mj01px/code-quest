@@ -404,6 +404,23 @@ export interface DesafioApi {
   trilha_slug: string;
 }
 
+export interface ConclusaoDaTrilha {
+  trilha: { slug: string; nome: string };
+  concluida: boolean;
+  fases_feitas: number;
+  fases_total: number;
+  xp: number;
+  acerto_de_primeira: number | null;
+  dias_de_estudo: number;
+  conquistas: { slug: string; nome: string; descricao: string; icone: string }[];
+  proxima: {
+    slug: string;
+    nome: string;
+    resumo: string;
+    dificuldade_label: string;
+  } | null;
+}
+
 export interface ProximoDesafio {
   dia: string;
   slug: string;

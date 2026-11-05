@@ -361,7 +361,7 @@ def concluir_leitura(*, user, aula):
 
 
 def concluir_quiz(*, user, aula, respostas):
-    """Corrige o quiz no servidor e guarda o melhor resultado.
+    """Corrige o quiz no servidor e guarda o melhor resultado e o primeiro.
 
     Exige resposta para todas as perguntas: terminar o quiz é a condição para
     a etapa contar. A nota não bloqueia a conclusão, só fica registrada.
@@ -388,7 +388,12 @@ def concluir_quiz(*, user, aula, respostas):
             user=user,
             aula=aula,
             tipo=TipoDeEtapa.QUIZ,
-            defaults={"acertos": acertos, "total": total},
+            defaults={
+                "acertos": acertos,
+                "total": total,
+                "acertos_na_primeira": acertos,
+                "total_na_primeira": total,
+            },
         )
         if not criada and (etapa.acertos is None or acertos > etapa.acertos):
             etapa.acertos = acertos

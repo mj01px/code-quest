@@ -6,6 +6,7 @@ from .views import (
     ConcluirExercicioView,
     ConcluirLeituraView,
     ConcluirQuizView,
+    ConclusaoDaTrilhaView,
     IniciarTrilhaView,
     MeuProgressoView,
     MeusExerciciosConcluidosView,
@@ -62,6 +63,11 @@ urlpatterns = [
         "eu/trilhas/<slug:trilha_slug>/passos/",
         PassosDaTrilhaView.as_view(),
         name="passos-da-trilha",
+    ),
+    path(
+        "eu/trilhas/<slug:trilha_slug>/conclusao/",
+        ConclusaoDaTrilhaView.as_view(),
+        name="conclusao-da-trilha",
     ),
     path("eu/trilha-atual/", TrilhaAtualView.as_view(), name="trilha-atual"),
 ]

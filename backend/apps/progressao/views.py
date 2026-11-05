@@ -25,9 +25,11 @@ from apps.trilhas.models import (
     Trilha,
 )
 
+from .conclusao import resumo_da_conclusao
 from .models import TipoDeEtapa, TrilhaIniciada
 from .sequencia import EXERCICIO, estado_da_trilha, exigir_liberado
 from .serializers import (
+    ConclusaoDaTrilhaSerializer,
     ConclusaoSerializer,
     DashboardAdminSerializer,
     EscolhaSerializer,
@@ -422,3 +424,23 @@ class TrilhaAtualView(APIView):
 
     def get(self, request):
         return Response({"trilha": trilha_atual(user=request.user)})
+
+
+@extend_schema(tags=["progressao"], responses=ConclusaoDaTrilhaSerializer)
+class ConclusaoDaTrilhaView(APIView):
+    """O resumo da tela de quest completa: fases, XP, precisão e conquistas."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "eu_progresso"
+
+    def get(self, request, trilha_slug):
+        trilha = get_object_or_404(
+            Trilha.objects.publicados().filter(desafio=False), slug=trilha_slug
+        )
+        return Response(
+            ConclusaoDaTrilhaSerializer(
+                resumo_da_conclusao(user=request.user, trilha=trilha)
+            ).data
+        )
+
