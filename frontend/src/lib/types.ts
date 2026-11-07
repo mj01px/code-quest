@@ -555,13 +555,15 @@ export interface RequisitoEstrutural {
 
 export interface ExemploDeCaso {
   ordem: number;
-  argumentos: unknown[];
-  esperado: unknown;
-  erro_esperado: string;
+  descricao?: string;
+  argumentos?: unknown[];
+  esperado?: unknown;
+  erro_esperado?: string;
 }
 
 export interface EspecificacaoDeCodigo {
-  linguagem: "PYTHON";
+  parametros?: string[];
+  linguagem: "PYTHON" | "SQL";
   funcao: string;
   codigo_inicial: string;
   requisitos: RequisitoEstrutural[];
@@ -575,6 +577,7 @@ export interface ResultadoDoCaso {
   ordem: number;
   visivel: boolean;
   passou: boolean;
+  descricao?: string;
   argumentos?: unknown[];
   esperado?: unknown;
   erro_esperado?: string;
@@ -583,6 +586,7 @@ export interface ResultadoDoCaso {
 }
 
 export interface Correcao {
+  personalizado?: boolean;
   modo: ModoCorrecao;
   veredito: Veredito;
   aprovado: boolean;
