@@ -57,7 +57,11 @@ export function AdminDashboard({ atencao }: { atencao?: React.ReactNode }) {
         rotuloAoLado
         className="self-start sm:min-w-[300px]"
         value={periodo}
-        onChange={(v) => setPeriodo(v as PeriodoAdmin)}
+        onChange={(v) => {
+          // Sem isso os números do período antigo aparecem com o rótulo do novo.
+          setCarga({ tipo: "carregando" });
+          setPeriodo(v as PeriodoAdmin);
+        }}
         opcoes={PERIODOS.map((p) => ({ valor: p.valor, rotulo: p.rotulo }))}
       />
 

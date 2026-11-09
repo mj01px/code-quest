@@ -20,8 +20,6 @@ from ._licoes import LICOES, LicaoSeed
 from ._tipos_seed import AulaSeed, ExercicioSeed
 from .seed_trilhas import AULAS as AULAS_LOGICA
 
-SEM_CORRECAO = {"criar-tabela-aluno", "restringir-nota"}
-
 AULAS_POR_TRILHA: dict[str, list[AulaSeed]] = {
     "logica-de-programacao": AULAS_LOGICA,
     "python": AULAS_PYTHON,
@@ -86,9 +84,7 @@ class Command(BaseCommand):
                     "contexto": aprender["contexto"] if aprender else "",
                     "exemplo": aprender["exemplo"] if aprender else "",
                     "explicacao": (
-                        dados["solucao_autor"]
-                        if dados["tipo"] == Tipo.TEORICO or slug in SEM_CORRECAO
-                        else ""
+                        dados["solucao_autor"] if dados["tipo"] == Tipo.TEORICO else ""
                     ),
                     "status": StatusEditorial.PUBLICADO,
                 },

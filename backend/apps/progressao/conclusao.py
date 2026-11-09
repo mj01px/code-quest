@@ -9,7 +9,7 @@ from apps.correcao.models import Modo, Submissao, Veredito
 from apps.trilhas.models import Trilha
 
 from .models import EtapaConcluida, EventoXP, Origem, TipoDeEtapa, TrilhaIniciada
-from .sequencia import estado_da_trilha
+from .sequencia import estado_da_trilha, estados_das_trilhas
 
 
 def _inicio_na_trilha(user, trilha: Trilha):
@@ -85,14 +85,16 @@ def _acerto_de_primeira(user, trilha: Trilha) -> int | None:
 
 
 def _proxima_trilha(user, trilha: Trilha) -> Trilha | None:
-    candidatas = (
+    candidatas = list(
         Trilha.objects.publicados()
         .filter(desafio=False)
         .exclude(pk=trilha.pk)
         .order_by("ordem", "nome")
     )
+    # Uma leitura para todas, não uma por candidata.
+    por_trilha = estados_das_trilhas(user, candidatas)
     for candidata in candidatas:
-        estados = estado_da_trilha(user, candidata)
+        estados = por_trilha[candidata.pk]
         if estados and any(e.estado != "concluido" for e in estados):
             return candidata
     return None

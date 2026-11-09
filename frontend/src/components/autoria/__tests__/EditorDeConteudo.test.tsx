@@ -180,9 +180,9 @@ describe("EditorDeConteudo", () => {
     // Salvou: o formulário fecha, a aula entra na lista com as três partes e o botão volta.
     expect(await screen.findByRole("button", { name: "+ ADICIONAR NOVA AULA" })).toBeInTheDocument();
     expect(screen.queryByRole("form", { name: "Nova aula" })).toBeNull();
-    expect(screen.getByText("1. CONTEÚDO DA AULA")).toBeInTheDocument();
-    expect(screen.getByText("2. FLASHCARDS")).toBeInTheDocument();
-    expect(screen.getByText("3. EXERCÍCIOS DA AULA")).toBeInTheDocument();
+    expect(screen.getByText("Parte 1 · Aprender")).toBeInTheDocument();
+    expect(screen.getByText("Parte 2 · Memorizar")).toBeInTheDocument();
+    expect(screen.getByText("Parte 3 · Praticar")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Oi" })).toBeInTheDocument();
 
     await u.click(await screen.findByRole("button", { name: "+ EXERCÍCIO TEÓRICO" }));

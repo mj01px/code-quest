@@ -54,6 +54,8 @@ jest.mock("next/navigation", () => ({
   },
   // O botão de iniciar trilha é uma ilha de cliente dentro da página servida.
   useRouter: () => ({ push: empurrarRota }),
+  // A área de resolução monta o link de login com a rota atual.
+  usePathname: () => "/trilhas/logica/exercicios/soma",
 }));
 
 const api = jest.requireMock<{

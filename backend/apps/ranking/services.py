@@ -8,7 +8,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Max, Sum
 from django.utils import timezone
 
-from apps.clas.models import MembroDoCla
+from apps.clas.models import MembroDoCla, TipoDeCla
 from apps.conquistas.models import Conquista, ConquistaDesbloqueada
 from apps.contas.models import User
 from apps.gamificacao.models import UserCreature
@@ -77,7 +77,7 @@ class ConquistaDoPerfil(TypedDict):
 
 
 class ConquistaBloqueada(TypedDict):
-    slug: str
+    slug: str | None
     nome: str
     icone: str
     oculta: bool
@@ -327,7 +327,13 @@ def perfil_publico(nickname: str) -> PerfilPublico | None:
         "xp_no_nivel": xp_no_nivel,
         "xp_para_o_proximo": xp_para_o_proximo,
         "membro_desde": timezone.localtime(user.created_at).date(),
-        "cla": membro.cla.nome if membro else None,
+        # Clã privado só aparece para quem é membro (obter_cla_visivel); o perfil
+        # é público, então mostra só o público.
+        "cla": (
+            membro.cla.nome
+            if membro and membro.cla.tipo == TipoDeCla.PUBLICO
+            else None
+        ),
         "sequencia_atual": sequencia["atual"],
         "sequencia_recorde": sequencia["recorde"],
         "total_conquistas": len(obtidas) + len(bloqueadas),
@@ -343,7 +349,8 @@ def perfil_publico(nickname: str) -> PerfilPublico | None:
         ],
         "conquistas_bloqueadas": [
             {
-                "slug": c.slug,
+                # Como na lista do próprio aluno: a oculta não revela nem o slug.
+                "slug": None if c.oculta else c.slug,
                 "nome": "???" if c.oculta else c.nome,
                 "icone": "" if c.oculta else c.icone,
                 "oculta": c.oculta,

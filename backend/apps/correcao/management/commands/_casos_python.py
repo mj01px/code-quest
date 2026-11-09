@@ -5,6 +5,7 @@ from typing import NotRequired, TypedDict
 
 # Cada caso: (argumentos, retorno esperado ou {"erro": "NomeDoErro"}, visivel).
 class EspecificacaoSeed(TypedDict):
+    linguagem: NotRequired[str]
     funcao: str
     codigo_inicial: str
     requisitos: NotRequired[list[dict[str, str]]]

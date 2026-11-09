@@ -64,6 +64,7 @@ class ApiCorrecaoTest(TestCase):
 
         self.assertEqual(resposta.status_code, 200)
         self.assertEqual(resposta.data["funcao"], "dobro")
+        self.assertEqual(resposta.data["parametros"], ["n"])
         self.assertEqual(
             [e["argumentos"] for e in resposta.data["exemplos"]], [[2], [0]]
         )
@@ -75,6 +76,16 @@ class ApiCorrecaoTest(TestCase):
             self.client.get(_rota("correcao:especificacao", outro)).status_code, 404
         )
 
+    def test_parametros_do_exemplo_respeitam_assinatura_com_valor_padrao(self):
+        especificacao = self.exercicio.especificacao_codigo
+        especificacao.codigo_inicial = "def dobro(numero, /, fator=2):\n    ...\n"
+        especificacao.save(update_fields=["codigo_inicial"])
+
+        resposta = self.client.get(_rota("correcao:especificacao", self.exercicio))
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertEqual(resposta.data["parametros"], ["numero", "fator"])
+
     def test_executar_devolve_o_resultado_dos_visiveis(self):
         resposta = self._post("correcao:executar", {"codigo": CODIGO_ERRADO})
 
@@ -85,6 +96,23 @@ class ApiCorrecaoTest(TestCase):
 
     def test_executar_nunca_da_xp(self):
         self._post("correcao:executar", {"codigo": CODIGO_CERTO})
+        self.assertFalse(EventoXP.objects.exists())
+        self.assertFalse(Sequencia.objects.exists())
+
+    def test_entrada_personalizada_nao_aprova_solucao_fixa_nem_credita_xp(self):
+        codigo = "n = 10\ndef dobro(n):\n    return 20\n"
+        executada = self._post("correcao:executar", {"codigo": codigo})
+        enviada = self._post(
+            "progressao:concluir-exercicio", {"codigo": codigo, "personalizado": True}
+        )
+
+        self.assertEqual(executada.status_code, 200)
+        self.assertTrue(executada.data["personalizado"])
+        self.assertEqual(executada.data["casos"][0]["argumentos"], [10])
+        self.assertEqual(executada.data["casos"][0]["obtido"], 20)
+        self.assertEqual(enviada.status_code, 200)
+        self.assertFalse(enviada.data["aprovado"])
+        self.assertFalse(enviada.data["correcao"]["personalizado"])
         self.assertFalse(EventoXP.objects.exists())
         self.assertFalse(Sequencia.objects.exists())
 
@@ -178,7 +206,9 @@ class SemPermissaoDeSubmeterTest(TestCase):
         # Tudo do aluno menos submeter código: concluir continua permitido.
         nivel = NivelDeAcesso.objects.create(nome="sem_submissao")
         nivel.permissoes.set(
-            Permissao.objects.filter(codename__in=["trilhas.view", "exercicios.complete"])
+            Permissao.objects.filter(
+                codename__in=["trilhas.view", "exercicios.complete"]
+            )
         )
         self.user = criar_aluno(nivel_de_acesso=nivel)
         select_starter_creature(user=self.user, creature_slug="shellby")

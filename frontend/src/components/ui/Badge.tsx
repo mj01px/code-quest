@@ -6,6 +6,7 @@ const TONS = {
   neutro: "border-edge-soft text-ink-muted",
   acento: "border-brand text-brand",
   sucesso: "border-success text-success",
+  alerta: "border-warning text-warning",
 } as const;
 
 export type TomBadge = keyof typeof TONS;

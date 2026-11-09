@@ -6,7 +6,7 @@ from django.test import TestCase, override_settings
 from apps.contas.tests.helpers import criar_aluno
 from apps.correcao.excecoes import CotaDiariaEsgotada
 from apps.correcao.judge0 import Execucao, Judge0Error
-from apps.correcao.models import Modo, Submissao, Veredito
+from apps.correcao.models import CasoDeTeste, Modo, Submissao, Veredito
 from apps.correcao.services import (
     LIMITE_DE_CARACTERES,
     corrigir_envio,
@@ -62,6 +62,88 @@ class CorrecaoTest(TestCase):
         self.assertEqual(correcao.total, 2)
         self.assertTrue(all(c["visivel"] for c in correcao.casos))
 
+    def test_rodar_usa_variavel_antes_da_funcao_e_enviar_usa_casos_oficiais(self):
+        codigo = "n = 10\ndef dobro(n):\n    return n * 2\n"
+        executada = self._executar(codigo)
+        enviada = self._enviar(codigo)
+
+        self.assertTrue(executada.personalizado)
+        self.assertEqual(executada.total, 1)
+        self.assertEqual(executada.casos[0]["argumentos"], [10])
+        self.assertEqual(executada.casos[0]["obtido"], 20)
+        self.assertNotIn("esperado", executada.casos[0])
+        self.assertFalse(enviada.personalizado)
+        self.assertEqual(enviada.total, 4)
+        self.assertTrue(enviada.aprovado)
+        self.assertEqual(enviada.casos[0]["argumentos"], [2])
+
+    def test_rodar_completa_entrada_parcial_com_exemplo(self):
+        especificacao = self.exercicio.especificacao_codigo
+        especificacao.funcao = "media"
+        especificacao.codigo_inicial = "def media(nota1, nota2):\n    ...\n"
+        especificacao.save()
+        especificacao.casos.all().delete()
+        CasoDeTeste.objects.create(
+            especificacao=especificacao,
+            ordem=1,
+            argumentos=[8, 6],
+            esperado=7,
+            visivel=True,
+        )
+        codigo = (
+            "nota1 = 10\ndef media(nota1, nota2):\n    return (nota1 + nota2) / 2\n"
+        )
+
+        correcao = self._executar(codigo)
+
+        self.assertTrue(correcao.personalizado)
+        self.assertEqual(correcao.casos[0]["argumentos"], [10, 6])
+        self.assertEqual(correcao.casos[0]["obtido"], 8)
+
+    def test_variavel_depois_da_funcao_nao_substitui_exemplo(self):
+        correcao = self._executar(CODIGO_CERTO + "n = 10\n")
+        self.assertFalse(correcao.personalizado)
+        self.assertEqual(correcao.total, 2)
+        self.assertEqual(correcao.casos[0]["obtido"], 4)
+
+    def test_rodar_permite_substituir_parametro_que_tinha_valor_padrao(self):
+        especificacao = self.exercicio.especificacao_codigo
+        especificacao.funcao = "saudacao"
+        especificacao.codigo_inicial = 'def saudacao(nome, prefixo="Olá"):\n    ...\n'
+        especificacao.save()
+        especificacao.casos.all().delete()
+        CasoDeTeste.objects.create(
+            especificacao=especificacao,
+            ordem=1,
+            argumentos=["Ana"],
+            esperado="Olá Ana",
+            visivel=True,
+        )
+        correcao = self._executar(
+            'prefixo = "Oi"\ndef saudacao(nome, prefixo="Olá"):\n    return prefixo + " " + nome\n'
+        )
+        self.assertEqual(correcao.casos[0]["argumentos"], ["Ana", "Oi"])
+        self.assertEqual(correcao.casos[0]["obtido"], "Oi Ana")
+
+    def test_lista_de_entrada_exibida_preserva_valor_antes_da_chamada(self):
+        correcao = self._executar(
+            "n = [3, 1]\ndef dobro(n):\n    n.sort()\n    return n\n"
+        )
+        self.assertEqual(correcao.casos[0]["argumentos"], [[3, 1]])
+        self.assertEqual(correcao.casos[0]["obtido"], [1, 3])
+
+    def test_usa_valor_calculado_antes_da_funcao(self):
+        codigo = "n: int = 5 + 6\n" + CODIGO_CERTO + "n = 99\n"
+        correcao = self._executar(codigo)
+        self.assertEqual(correcao.casos[0]["argumentos"], [11])
+        self.assertEqual(correcao.casos[0]["obtido"], 22)
+
+    def test_erro_com_entrada_personalizada_e_reportado(self):
+        correcao = self._executar("n = 0\ndef dobro(n):\n    return 1 / n\n")
+        self.assertTrue(correcao.personalizado)
+        self.assertEqual(correcao.veredito, Veredito.ERRO_DE_EXECUCAO)
+        self.assertIn("ZeroDivisionError", correcao.casos[0]["erro"])
+
     def test_erro_em_tempo_de_execucao_e_erro_de_execucao(self):
         codigo = "raise RuntimeError('quebrou')\n" + CODIGO_CERTO
         correcao = self._executar(codigo)
@@ -77,6 +159,14 @@ class CorrecaoTest(TestCase):
     def test_executar_mostra_o_print_do_aluno(self):
         correcao = self._executar("print('depurando')\n" + CODIGO_CERTO)
         self.assertEqual(correcao.saida, "depurando")
+
+    def test_terminal_mostra_print_apenas_do_primeiro_exemplo(self):
+        correcao = self._executar(
+            "def dobro(n):\n    print(n * 2)\n    print('fim')\n    return n * 2\n"
+        )
+        self.assertEqual(correcao.saida, "4\nfim")
+        self.assertEqual(correcao.total, 2)
+        self.assertEqual(correcao.aprovados, 2)
 
     def test_enviar_nao_devolve_nada_que_vaze_os_casos_ocultos(self):
         vazador = (

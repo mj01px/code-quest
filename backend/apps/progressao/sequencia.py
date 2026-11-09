@@ -5,6 +5,8 @@ quando a anterior termina. O que já foi feito continua aberto para revisão,
 mesmo que tenha sido feito fora de ordem antes desta regra existir.
 """
 
+from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 from django.conf import settings
@@ -44,17 +46,29 @@ class EtapaBloqueada(APIException):
     default_code = "etapa_bloqueada"
 
 
-def passos_da_trilha(trilha: Trilha) -> list[Passo]:
+def _aulas_das_trilhas(ids: Iterable[int]) -> dict[int, list[Aula]]:
+    """Aulas publicadas de várias trilhas em 3 consultas, agrupadas por trilha."""
     exercicios = Prefetch(
         "exercicios",
         queryset=Exercicio.objects.publicados().order_by("ordem", "titulo"),
     )
     aulas = (
         Aula.objects.publicados()
-        .filter(trilha=trilha)
+        .filter(trilha_id__in=list(ids))
         .prefetch_related(exercicios, "questoes")
         .order_by("ordem", "titulo")
     )
+    por_trilha: dict[int, list[Aula]] = defaultdict(list)
+    for aula in aulas:
+        por_trilha[aula.trilha_id].append(aula)
+    return por_trilha
+
+
+def passos_da_trilha(trilha: Trilha) -> list[Passo]:
+    return _passos(_aulas_das_trilhas([trilha.pk])[trilha.pk])
+
+
+def _passos(aulas: list[Aula]) -> list[Passo]:
     passos: list[Passo] = []
     for aula in aulas:
         if aula.conteudo.strip():
@@ -70,24 +84,40 @@ def passos_da_trilha(trilha: Trilha) -> list[Passo]:
     return passos
 
 
-def _feitos(user, trilha: Trilha) -> set[str]:
+def _feitos(user, ids: list[int]) -> dict[int, set[str]]:
+    """Chaves dos passos feitos pelo aluno, por trilha, em 2 consultas."""
     exercicios = EventoXP.objects.filter(
         user=user,
         origem=Origem.EXERCICIO,
-        exercicio__trilha=trilha,
+        exercicio__trilha_id__in=ids,
         exercicio__isnull=False,
-    ).values_list("exercicio__aula__slug", "exercicio__slug")
-    etapas = EtapaConcluida.objects.filter(user=user, aula__trilha=trilha).values_list(
-        "aula__slug", "tipo"
+    ).values_list("exercicio__trilha_id", "exercicio__aula__slug", "exercicio__slug")
+    etapas = EtapaConcluida.objects.filter(user=user, aula__trilha_id__in=ids).values_list(
+        "aula__trilha_id", "aula__slug", "tipo"
     )
-    return {f"{aula}#{EXERCICIO}#{slug}" for aula, slug in exercicios} | {
-        f"{aula}#{tipo}#" for aula, tipo in etapas
-    }
+    feitos: dict[int, set[str]] = defaultdict(set)
+    for trilha_id, aula, slug in exercicios:
+        feitos[trilha_id].add(f"{aula}#{EXERCICIO}#{slug}")
+    for trilha_id, aula, tipo in etapas:
+        feitos[trilha_id].add(f"{aula}#{tipo}#")
+    return feitos
+
+
+def estados_das_trilhas(
+    user, trilhas: Iterable[Trilha]
+) -> dict[int, list[EstadoDoPasso]]:
+    """`estado_da_trilha` de várias trilhas com consultas fixas (sem N+1)."""
+    ids = [trilha.pk for trilha in trilhas]
+    aulas = _aulas_das_trilhas(ids)
+    feitos = _feitos(user, ids)
+    return {pk: _estados(_passos(aulas[pk]), feitos[pk]) for pk in ids}
 
 
 def estado_da_trilha(user, trilha: Trilha) -> list[EstadoDoPasso]:
-    passos = passos_da_trilha(trilha)
-    feitos = _feitos(user, trilha)
+    return estados_das_trilhas(user, [trilha])[trilha.pk]
+
+
+def _estados(passos: list[Passo], feitos: set[str]) -> list[EstadoDoPasso]:
     proximo = next(
         (indice for indice, passo in enumerate(passos) if passo.chave not in feitos),
         len(passos),

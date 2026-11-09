@@ -9,7 +9,7 @@ from django.db.models import Count, Q
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 
-from apps.correcao.models import Submissao, Veredito
+from apps.correcao.models import Modo, Submissao, Veredito
 from apps.trilhas.models import Aula, Exercicio, StatusEditorial, Trilha
 
 from .models import (
@@ -75,7 +75,9 @@ def _serie(
 def _submissoes_por_dia(desde: datetime) -> dict[date, dict[str, int]]:
     aprovada = Q(veredito=Veredito.APROVADO)
     linhas = (
-        Submissao.objects.filter(criado_em__gte=desde)
+        # Só o ENVIAR tem veredito de correção: o EXECUTAR com entradas próprias
+        # sai APROVADO por não lançar exceção e inflaria a taxa.
+        Submissao.objects.filter(criado_em__gte=desde, modo=Modo.ENVIAR)
         .annotate(dia=TruncDate("criado_em"))
         .values("dia")
         .annotate(
@@ -95,6 +97,8 @@ def _submissoes_por_dia(desde: datetime) -> dict[date, dict[str, int]]:
 
 def funil_da_trilha(trilha: Trilha) -> list[dict[str, Any]]:
     """Quantos alunos chegaram a cada passo do primeiro módulo da trilha."""
+    # ponytail: ~9 consultas por trilha e os user_id em memória; só o admin
+    # abre. Agregar por trilha (Count distinct com filter) se o catálogo crescer.
     iniciaram = (
         set(
             TrilhaIniciada.objects.filter(trilha=trilha).values_list(
@@ -205,7 +209,7 @@ def montar_painel(periodo: str) -> dict[str, Any]:
     for user, dia in atividade:
         ativos_por_dia[dia].add(user)
 
-    submissoes = Submissao.objects.filter(criado_em__gte=desde)
+    submissoes = Submissao.objects.filter(criado_em__gte=desde, modo=Modo.ENVIAR)
     total_submissoes = submissoes.count()
     aprovadas = submissoes.filter(veredito=Veredito.APROVADO).count()
 

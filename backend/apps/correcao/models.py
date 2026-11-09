@@ -8,6 +8,7 @@ from .analise_ast import requisitos_invalidos
 
 class Linguagem(models.TextChoices):
     PYTHON = "PYTHON", _("Python")
+    SQL = "SQL", _("SQL (SQLite)")
 
 
 class Modo(models.TextChoices):
@@ -39,6 +40,7 @@ class EspecificacaoDeCodigo(models.Model):
 
     funcao = models.CharField(
         max_length=60,
+        blank=True,
         verbose_name=_("função"),
     )
 
@@ -65,12 +67,14 @@ class EspecificacaoDeCodigo(models.Model):
 
     def clean(self) -> None:
         erros = {}
-        if not self.funcao.isidentifier():
+        if self.linguagem == Linguagem.PYTHON and not self.funcao.isidentifier():
             erros["funcao"] = ValidationError(
                 _("Nome de função inválido."), code="funcao_invalida"
             )
 
         problemas = requisitos_invalidos(self.requisitos)
+        if self.linguagem == Linguagem.SQL and self.requisitos:
+            problemas.append("SQL não utiliza requisitos estruturais de Python")
         if problemas:
             erros["requisitos"] = ValidationError(
                 "; ".join(problemas), code="requisitos_invalidos"
