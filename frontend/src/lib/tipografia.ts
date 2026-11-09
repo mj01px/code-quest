@@ -51,6 +51,9 @@ export const variaveisDasFontes = `${pressStart.variable} ${silkscreen.variable}
 // Tailwind gera a classe a partir do texto, entao um caractere a mais muda a tela.
 export const TIPO = {
   tituloPagina: "font-display text-[17px] leading-[1.7] tracking-[1px]",
+  // Título das telas do app (trilhas, admin, autoria): o mesmo do catálogo.
+  tituloApp:
+    "font-display text-[15px] leading-[1.7] tracking-[1px] [text-shadow:2px_2px_0_var(--color-brand-dark)] sm:text-[20px]",
   tituloSecao: "font-display text-[13px] leading-[1.8] tracking-[1px]",
   corpo: "font-body text-lg leading-[1.8] tracking-[1px]",
   destaque: "font-body text-[21px] leading-[1.5]",

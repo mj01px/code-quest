@@ -3,10 +3,11 @@
 import { useId, useState } from "react";
 
 import { BOTAO_ICONE } from "@/components/autoria/AcoesRascunho";
-import { AreaDeTexto, ROTULO } from "@/components/autoria/AreaDeTexto";
+import { AreaDeTexto } from "@/components/autoria/AreaDeTexto";
 import { ModalConfirmacao } from "@/components/clas/ModalConfirmacao";
 import { PixelField } from "@/components/ui/PixelField";
 import { IconeLapis, IconeLixeira } from "@/components/ui/Icone";
+import { PixelSelect } from "@/components/ui/PixelSelect";
 import { ErroApi, api } from "@/lib/api";
 import type { Alternativa, Questao } from "@/lib/types";
 
@@ -64,25 +65,13 @@ export function CamposQuestao({
           />
         ))}
       </div>
-      <div className="flex flex-col gap-2">
-        <label htmlFor={`${id}-correta`} className={ROTULO}>
-          RESPOSTA CORRETA
-        </label>
-        <select
-          id={`${id}-correta`}
-          value={valor.resposta_correta}
-          onChange={(e) =>
-            aoMudar({ ...valor, resposta_correta: e.target.value as Alternativa })
-          }
-          className="cursor-pointer border-2 border-brand-strong bg-field px-3 py-[11px] font-body text-[15px] text-ink shadow-pixel outline-none focus:border-brand-pale"
-        >
-          {ALTERNATIVAS.map((letra) => (
-            <option key={letra} value={letra}>
-              {letra}
-            </option>
-          ))}
-        </select>
-      </div>
+      <PixelSelect
+        id={`${id}-correta`}
+        rotulo="RESPOSTA CORRETA"
+        value={valor.resposta_correta}
+        onChange={(v) => aoMudar({ ...valor, resposta_correta: v as Alternativa })}
+        opcoes={ALTERNATIVAS.map((letra) => ({ valor: letra, rotulo: letra }))}
+      />
     </>
   );
 }

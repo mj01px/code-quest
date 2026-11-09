@@ -7,6 +7,7 @@ import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelCheckbox } from "@/components/ui/PixelCheckbox";
 import { PixelField } from "@/components/ui/PixelField";
+import { PixelSelect } from "@/components/ui/PixelSelect";
 import { ErroApi, api, listarTrilhas } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
 import type { SolicitacaoAutoria, TipoPretendido, TrilhaResumo } from "@/lib/types";
@@ -259,25 +260,14 @@ function Formulario({ aoEnviar }: { aoEnviar: (s: SolicitacaoAutoria) => void })
         <h2 className={`m-0 text-ink ${TIPO.tituloSecao}`}>Sua candidatura</h2>
 
         <div className="flex flex-col gap-2">
-          <label
-            htmlFor="tipo-pretendido"
-            className="font-label text-[12px] tracking-[2px] text-ink-label"
-          >
-            O QUE VOCÊ DESEJA CRIAR?
-          </label>
-          <select
+          <PixelSelect
             id="tipo-pretendido"
+            rotulo="O QUE VOCÊ DESEJA CRIAR?"
             value={tipo}
-            onChange={(e) => setTipo(e.target.value as TipoPretendido)}
-            aria-describedby="tipo-dica"
-            className="cursor-pointer border-2 border-brand-strong bg-field px-3.5 py-3 font-body text-[15px] text-ink shadow-pixel outline-none focus:border-brand-pale"
-          >
-            {TIPOS_PRETENDIDOS.map(([valor, rotulo]) => (
-              <option key={valor} value={valor}>
-                {rotulo}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => setTipo(v as TipoPretendido)}
+            descricaoId="tipo-dica"
+            opcoes={TIPOS_PRETENDIDOS.map(([valor, rotulo]) => ({ valor, rotulo }))}
+          />
           <span id="tipo-dica" className="font-body text-sm text-ink-muted">
             Aulas e exercícios avulsos entram em trilhas já publicadas.
           </span>

@@ -343,3 +343,20 @@ def test_eu_avisa_quando_o_ultimo_pedido_foi_aprovado():
     dados = cliente(aluno).get(eu).data
     assert dados["criacao_aprovada"] is True
     assert "trilhas.create_aula" in dados["permissoes"]
+
+
+def test_fila_mostra_o_pet_e_o_nivel_do_solicitante():
+    from apps.gamificacao.services import select_starter_creature
+
+    com_pet = criar_aluno()
+    select_starter_creature(user=com_pet, creature_slug="shellby")
+    pedido_de(com_pet)
+    pedido_de(criar_aluno("sempet"))
+
+    resposta = cliente(criar_admin()).get(reverse("autoria:admin-solicitacoes"))
+
+    por_nick = {s["solicitante"]["nickname"]: s["solicitante"] for s in resposta.data}
+    assert por_nick[com_pet.nickname]["nivel"] == 1
+    assert por_nick[com_pet.nickname]["criatura"]["sprite"]
+    assert por_nick["sempet"]["criatura"] is None
+    assert por_nick["sempet"]["nivel"] is None

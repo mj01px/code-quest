@@ -10,6 +10,7 @@ import { CARTA_MINIMA, PainelSerAutor } from "@/components/autoria/PainelSerAuto
 import { ProvedorProgresso } from "@/components/progresso/ProvedorProgresso";
 import { ErroApi } from "@/lib/api";
 import type { SolicitacaoAutoria } from "@/lib/types";
+import { escolherOpcao } from "@/components/__tests__/selecao";
 
 jest.mock("@/lib/api", () => ({
   ...jest.requireActual("@/lib/api"),
@@ -89,7 +90,8 @@ describe("PainelSerAutor", () => {
     await usuarioAuto.click(await screen.findByRole("button", { name: "Python" }));
     await usuarioAuto.type(screen.getByLabelText(/POR QUE VOCÊ/), "a".repeat(CARTA_MINIMA));
     await usuarioAuto.click(screen.getByRole("checkbox"));
-    await usuarioAuto.selectOptions(
+    await escolherOpcao(
+      usuarioAuto,
       screen.getByLabelText("O QUE VOCÊ DESEJA CRIAR?"),
       "Apenas exercícios",
     );

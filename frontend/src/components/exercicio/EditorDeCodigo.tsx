@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useEffect, useRef } from "react";
 
 type Monaco = typeof import("monaco-editor");
 
@@ -58,16 +59,29 @@ export function EditorDeCodigo({
   linguagem = "python",
   altura = "20rem",
   somenteLeitura = false,
+  aoExecutarAtalho,
+  semMoldura = false,
 }: {
   valor: string;
   aoMudar: (valor: string) => void;
   linguagem?: string;
   altura?: string;
   somenteLeitura?: boolean;
+  aoExecutarAtalho?: () => void;
+  semMoldura?: boolean;
 }) {
+  const atalho = useRef(aoExecutarAtalho);
+  useEffect(() => {
+    atalho.current = aoExecutarAtalho;
+  }, [aoExecutarAtalho]);
+
   return (
     <div
-      className="overflow-hidden border-2 border-edge bg-field shadow-pixel-sm"
+      className={
+        semMoldura
+          ? "overflow-hidden bg-field"
+          : "overflow-hidden border-2 border-edge bg-field shadow-pixel-sm"
+      }
       style={{ height: altura }}
     >
       <Editor
@@ -76,6 +90,11 @@ export function EditorDeCodigo({
         theme="codequest"
         value={valor}
         beforeMount={definirTema}
+        onMount={(editor, monaco) => {
+          editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () =>
+            atalho.current?.(),
+          );
+        }}
         onChange={(novo) => aoMudar(novo ?? "")}
         options={{ ...OPCOES, readOnly: somenteLeitura }}
       />

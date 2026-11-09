@@ -2,17 +2,15 @@
 
 import { useEffect, useState } from "react";
 
+import { CampoData } from "@/components/ui/CampoData";
+import { PixelSelect } from "@/components/ui/PixelSelect";
 import { ErroApi, api } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
 import type { FiltrosAuditoria, PaginaAuditoria } from "@/lib/types";
 
-const CAMPO =
-  "border-2 border-edge-soft bg-field px-3 py-2 font-body text-base tracking-[1px] text-ink outline-none focus:border-brand-light";
 const BOTAO =
   "h-11 cursor-pointer border-2 border-edge-soft px-4 font-label text-[10px] tracking-[2px] text-ink-muted transition-colors hover:border-brand-light hover:text-ink disabled:cursor-not-allowed disabled:opacity-40";
 
-// Data do <input type="date"> no fuso do navegador, em ISO com fuso: sem
-// isto o Django leria hora ingênua e o dia cortaria no fuso errado.
 function inicioDoDia(data: string): string {
   return new Date(`${data}T00:00:00`).toISOString();
 }
@@ -78,39 +76,32 @@ export function GestaoAuditoria() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1">
-          <span className={`${TIPO.etiqueta} text-ink-label`}>AÇÃO</span>
-          <select
-            value={acao}
-            onChange={(e) => filtrar(() => setAcao(e.target.value))}
-            className={`${CAMPO} cursor-pointer`}
-          >
-            <option value="">Todas</option>
-            {dados?.acoes.map((a) => (
-              <option key={a.valor} value={a.valor}>
-                {a.rotulo}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className={`${TIPO.etiqueta} text-ink-label`}>DE</span>
-          <input
-            type="date"
+        <PixelSelect
+          rotulo="AÇÃO"
+          className="min-w-[240px]"
+          value={acao}
+          onChange={(v) => filtrar(() => setAcao(v))}
+          opcoes={[
+            { valor: "", rotulo: "Todas" },
+            ...(dados?.acoes ?? []).map((a) => ({ valor: a.valor, rotulo: a.rotulo })),
+          ]}
+        />
+        <div className="w-[190px]">
+          <CampoData
+            rotulo="DE"
+            limpavel
             value={desde}
-            onChange={(e) => filtrar(() => setDesde(e.target.value))}
-            className={CAMPO}
+            onChange={(v) => filtrar(() => setDesde(v))}
           />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className={`${TIPO.etiqueta} text-ink-label`}>ATÉ</span>
-          <input
-            type="date"
+        </div>
+        <div className="w-[190px]">
+          <CampoData
+            rotulo="ATÉ"
+            limpavel
             value={ate}
-            onChange={(e) => filtrar(() => setAte(e.target.value))}
-            className={CAMPO}
+            onChange={(v) => filtrar(() => setAte(v))}
           />
-        </label>
+        </div>
         {autor ? (
           <button
             type="button"

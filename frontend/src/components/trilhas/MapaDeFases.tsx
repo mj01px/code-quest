@@ -2,14 +2,16 @@
 
 import { AulaCard } from "@/components/trilhas/AulaCard";
 import { useProgresso } from "@/components/progresso/ProvedorProgresso";
-import { estaConcluida } from "@/lib/progresso";
+import { usePassosDaTrilha } from "@/components/progresso/usePassosDaTrilha";
+import { chaveDaEtapa, estaConcluida } from "@/lib/progresso";
 import type { TrilhaDetalhe } from "@/lib/types";
 
 // Ilha client da trilha: conteúdo vem do build, conclusões do Context.
 // Chave já junta trilha+fase, então não precisa filtrar por trilha.
 
 export function MapaDeFases({ trilha }: { trilha: TrilhaDetalhe }) {
-  const { chaves } = useProgresso();
+  const { chaves, chavesDeEtapas } = useProgresso();
+  const { estado } = usePassosDaTrilha(trilha.slug);
 
   // Resolve slug → título pra exibir pré-requisito (Map não é serializável do servidor).
   const tituloPorSlug = new Map(
@@ -29,6 +31,13 @@ export function MapaDeFases({ trilha }: { trilha: TrilhaDetalhe }) {
               ? tituloPorSlug.get(aula.pre_requisito)
               : undefined
           }
+          estadoDe={estado}
+          leituraFeita={chavesDeEtapas.has(
+            chaveDaEtapa(trilha.slug, aula.slug, "LEITURA"),
+          )}
+          quizFeito={chavesDeEtapas.has(
+            chaveDaEtapa(trilha.slug, aula.slug, "QUIZ"),
+          )}
           fasesConcluidas={
             new Set(
               aula.exercicios

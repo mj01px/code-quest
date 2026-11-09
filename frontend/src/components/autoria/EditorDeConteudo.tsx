@@ -22,14 +22,20 @@ import {
   type CasoTexto,
 } from "@/components/autoria/CamposDeCodigo";
 import { GerenciadorFlashcards } from "@/components/autoria/GerenciadorFlashcards";
+import { LINHA, MARCA } from "@/components/autoria/ListaEditorial";
 import { ModalVisualizacao } from "@/components/autoria/ModalVisualizacao";
 import { PreviaMarkdown } from "@/components/autoria/PreviaMarkdown";
 import { ModalConfirmacao } from "@/components/clas/ModalConfirmacao";
 import { useProgresso } from "@/components/progresso/ProvedorProgresso";
+import { CabecalhoDaParte } from "@/components/trilhas/AulaCard";
+import { Badge } from "@/components/ui/Badge";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelField } from "@/components/ui/PixelField";
 import { ServicoIndisponivel } from "@/components/ui/ServicoIndisponivel";
+import { PixelSelect } from "@/components/ui/PixelSelect";
 import { ErroApi, api } from "@/lib/api";
+import { plural } from "@/lib/derivados";
+import { minutosDeLeitura } from "@/lib/licao";
 import { TIPO } from "@/lib/tipografia";
 import type {
   Criatura,
@@ -41,7 +47,19 @@ import type {
   TipoExercicio,
 } from "@/lib/types";
 
-const CARTAO = "flex flex-col gap-6 border-2 border-edge bg-panel p-7 shadow-pixel-lg";
+// A trilha leva a moldura do HeroTrilha; a aula, a do módulo (AulaCard).
+const HERO =
+  "animate-surgir flex flex-col gap-6 border-[3px] border-brand bg-panel p-6 shadow-frame sm:p-8";
+const CARTAO = "flex flex-col gap-6 border-2 border-edge bg-panel p-5 sm:p-6";
+
+// Selo do status no topo da trilha, como o "Grátis" do HeroTrilha.
+const SELO_STATUS: Record<StatusEditorial, string> = {
+  RASCUNHO: "bg-brand",
+  REVISAO: "bg-warning",
+  APROVADO: "bg-success",
+  PUBLICADO: "bg-brand-light",
+};
+const SELO = "self-start px-3 py-1.5 font-label text-[11px] tracking-[2px] text-void uppercase";
 
 const NIVEIS: [Dificuldade, string][] = [
   ["INICIANTE", "INICIANTE"],
@@ -230,9 +248,11 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
   return (
     <div className="flex w-full max-w-[880px] flex-col gap-10">
       <div className="flex flex-col gap-3">
-        <span className={`text-brand ${TIPO.sobretitulo}`}>{"// EDITOR DE TRILHAS"}</span>
+        <span className="font-label text-[11px] tracking-[2px] text-brand">
+          {"// EDITOR DE TRILHAS"}
+        </span>
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <h1 className={`m-0 text-ink ${TIPO.tituloPagina}`}>
+          <h1 className={`m-0 text-ink ${TIPO.tituloApp}`}>
             {retomando ? "Editar trilha" : "Novo conteúdo"}
           </h1>
           {trilha && EXCLUIVEIS.includes(trilha.status_editorial) ? (
@@ -242,7 +262,7 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
                 setErroExclusao(null);
                 setExcluindo(true);
               }}
-              className="cursor-pointer border-2 border-danger-deep px-4 py-2.5 font-label text-[11px] tracking-[2px] text-danger shadow-pixel transition-colors duration-150 hover:border-danger"
+              className="cursor-pointer border-2 border-danger-deep px-4 py-2.5 font-label text-[11px] tracking-[2px] text-danger shadow-pixel transition duration-150 hover:translate-x-0.5 hover:translate-y-0.5 hover:border-danger hover:shadow-pixel-sm"
             >
               EXCLUIR RASCUNHO
             </button>
@@ -276,13 +296,21 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
       {trilha ? (
         <>
           <section className="flex flex-col gap-4" aria-label="Aulas da trilha">
-            <h2 className={`m-0 text-ink ${TIPO.tituloSecao}`}>2. Aulas</h2>
+            {/* Cabeçalho do "Mapa de fases" da página da trilha. */}
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <h2 className="m-0 font-display text-[13px] leading-[1.7] tracking-[1px] text-ink">
+                2. Aulas
+              </h2>
+              <p className="m-0 font-label text-[11px] tracking-[2px] text-ink-muted uppercase">
+                {plural(aulas.length, "módulo", "módulos")}
+              </p>
+            </div>
             {aulas.length === 0 ? (
-              <p className="m-0 border-2 border-dashed border-edge-soft bg-panel px-6 py-6 font-body text-base text-ink-muted">
+              <p className="m-0 border-2 border-dashed border-edge-soft bg-panel p-6 font-body text-base tracking-[1px] text-ink-muted">
                 &gt; NENHUMA AULA AINDA. ADICIONE A PRIMEIRA ABAIXO.
               </p>
             ) : (
-              <ol className="m-0 flex list-none flex-col gap-6 p-0">
+              <ol className="m-0 flex list-none flex-col gap-4 p-0">
                 {aulas.map((aula, i) => (
                   <ItemAula
                     key={aula.id}
@@ -425,17 +453,19 @@ function DadosTrilha({
   const bonusMudou = bonus !== (trilha.criatura_bonus ?? "");
 
   const status = (
-    <span className={`text-success ${TIPO.etiqueta}`}>
-      &gt; {ROTULO_STATUS[trilha.status_editorial]}
+    <span className={`${SELO} ${SELO_STATUS[trilha.status_editorial]}`}>
+      {ROTULO_STATUS[trilha.status_editorial]}
     </span>
   );
 
   if (trilha.status_editorial !== "RASCUNHO") {
     return (
-      <section className={CARTAO} aria-label="Trilha">
+      <section className={HERO} aria-label="Trilha">
         {status}
-        <h2 className={`m-0 text-ink ${TIPO.tituloSecao}`}>{trilha.nome}</h2>
-        <p className={`m-0 text-ink-body ${TIPO.corpo}`}>{trilha.descricao}</p>
+        <h2 className={`m-0 text-ink ${TIPO.tituloApp}`}>{trilha.nome}</h2>
+        <p className="m-0 max-w-prose font-body text-lg leading-[1.7] tracking-[1px] text-ink-body text-pretty">
+          {trilha.descricao}
+        </p>
       </section>
     );
   }
@@ -465,7 +495,7 @@ function DadosTrilha({
     nome.trim() !== trilha.nome || descricao.trim() !== trilha.descricao || bonusMudou;
 
   return (
-    <form onSubmit={salvar} className={CARTAO} aria-label="Trilha">
+    <form onSubmit={salvar} className={HERO} aria-label="Trilha">
       {status}
       <PixelField
         rotulo="NOME DA TRILHA"
@@ -543,8 +573,11 @@ function FormTrilha({ aoCriar }: { aoCriar: (t: TrilhaEditor) => void }) {
   }
 
   return (
-    <form onSubmit={enviar} className={CARTAO} aria-label="Dados da trilha">
-      <h2 className={`m-0 text-ink ${TIPO.tituloSecao}`}>1. Dados da trilha</h2>
+    <form onSubmit={enviar} className={HERO} aria-label="Dados da trilha">
+      <span className={`${SELO} bg-brand`}>Nova trilha</span>
+      <h2 className="m-0 font-display text-[13px] leading-[1.7] tracking-[1px] text-ink">
+        1. Dados da trilha
+      </h2>
       <PixelField
         rotulo="NOME DA TRILHA"
         value={nome}
@@ -615,22 +648,19 @@ function SeletorBonus({ valor, aoMudar }: { valor: string; aoMudar: (slug: strin
 
   return (
     <div className="flex flex-col gap-2">
-      <label htmlFor={id} className={ROTULO}>
-        BÔNUS DE CRIATURA
-      </label>
-      <select
+      <PixelSelect
         id={id}
+        rotulo="BÔNUS DE CRIATURA"
         value={valor}
-        onChange={(e) => aoMudar(e.target.value)}
-        className="cursor-pointer border-2 border-brand-strong bg-field px-3 py-[11px] font-body text-[15px] text-ink shadow-pixel outline-none focus:border-brand-pale"
-      >
-        <option value="">Nenhum</option>
-        {criaturas.map((c) => (
-          <option key={c.slug} value={c.slug}>
-            {c.nome} ({c.dominio_rotulo})
-          </option>
-        ))}
-      </select>
+        onChange={aoMudar}
+        opcoes={[
+          { valor: "", rotulo: "Nenhum" },
+          ...criaturas.map((c) => ({
+            valor: c.slug,
+            rotulo: `${c.nome} (${c.dominio_rotulo})`,
+          })),
+        ]}
+      />
       <p className={`m-0 text-ink-muted ${TIPO.corpo}`}>
         Quem tiver essa criatura ganha o dobro de XP nesta trilha.
       </p>
@@ -712,12 +742,20 @@ function FormAula({
   );
 }
 
-// Moldura de uma das três partes da aula, com o título numerado.
-function BlocoDaAula({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+// Uma parte da aula: o cabeçalho "Parte N · ..." do AulaCard e o conteúdo dela.
+function ParteDaAula({
+  numero,
+  titulo,
+  children,
+}: {
+  numero: number;
+  titulo: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="flex flex-col gap-3 border-2 border-edge-soft border-l-4 border-l-brand bg-panel-deep p-4">
-      <h4 className={`m-0 text-brand-light ${TIPO.etiqueta}`}>{titulo}</h4>
-      {children}
+    <div>
+      <CabecalhoDaParte numero={numero} titulo={titulo} />
+      <div className="flex flex-col gap-3 border-t-2 border-edge px-5 py-4 sm:px-6">{children}</div>
     </div>
   );
 }
@@ -749,16 +787,37 @@ function ItemAula({
   const [novo, setNovo] = useState<TipoNovo | null>(null);
   const vazia = exercicios.length === 0 && questoes.length === 0;
 
+  // Mesma linha de status do módulo na trilha: progresso do autor, não do aluno.
+  const resumo = [
+    plural(exercicios.length, "exercício", "exercícios"),
+    plural(questoes.length, "questão", "questões"),
+  ].join(" · ");
+
   return (
-    <li className="flex flex-col gap-5 border-2 border-edge bg-panel p-5 shadow-pixel">
-      <div className="flex flex-wrap items-center gap-4">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-brand-shadow bg-panel-deep font-display text-[11px] text-brand-light">
+    <li className="border-2 border-edge bg-panel transition duration-150 hover:border-brand-shadow">
+      {/* Cabeçalho do AulaCard: quadro numerado, título e o selo à direita. */}
+      <div className="flex items-center gap-5 p-5 sm:px-6">
+        <span
+          aria-hidden="true"
+          className="flex h-12 w-12 shrink-0 items-center justify-center border-2 border-brand-shadow bg-panel-deep font-display text-[12px] text-brand-light"
+        >
           {String(numero).padStart(2, "0")}
         </span>
-        <span className={`min-w-0 flex-1 text-ink ${TIPO.etiqueta}`}>{aula.titulo}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-label text-[12px] tracking-[2px] text-ink uppercase">
+            <span className="sr-only">Módulo {numero}: </span>
+            {aula.titulo}
+          </span>
+          <span className="mt-1.5 block truncate font-body text-base tracking-[1px] text-ink-muted">
+            {resumo}
+          </span>
+        </span>
+        <span className="shrink-0 font-label text-[11px] tracking-[2px] text-brand-light uppercase">
+          Leitura · {minutosDeLeitura(aula.conteudo)} min
+        </span>
       </div>
-      {/* Três blocos com moldura própria: estudo, memorização e prática. */}
-      <BlocoDaAula titulo="1. CONTEÚDO DA AULA">
+      {/* As partes da página do aluno: estudo, memorização e prática. */}
+      <ParteDaAula numero={1} titulo="Aprender">
         <div
           tabIndex={0}
           aria-label={`Texto da aula: ${aula.titulo}`}
@@ -766,28 +825,28 @@ function ItemAula({
         >
           <PreviaMarkdown markdown={aula.conteudo} />
         </div>
-      </BlocoDaAula>
-      <BlocoDaAula titulo="2. FLASHCARDS">
+      </ParteDaAula>
+      <ParteDaAula numero={2} titulo="Memorizar">
         <GerenciadorFlashcards aula={aula.id} iniciais={aula.flashcards} />
-      </BlocoDaAula>
-      <BlocoDaAula titulo="3. EXERCÍCIOS DA AULA">
+      </ParteDaAula>
+      <ParteDaAula numero={3} titulo="Praticar">
         {vazia ? (
-          <p className="m-0 border-2 border-dashed border-edge-soft px-4 py-3 font-body text-base text-ink-muted">
+          <p className="m-0 border-2 border-dashed border-edge-soft px-4 py-3 font-body text-base tracking-[1px] text-ink-muted">
             &gt; NENHUM EXERCÍCIO AINDA.
           </p>
         ) : (
-          <ul className="m-0 flex list-none flex-col gap-2 p-0">
-            {exercicios.map((ex) => (
-              <li
-                key={`ex-${ex.id}`}
-                className="flex flex-wrap items-center gap-3 font-body text-base text-ink-body"
-              >
-                <span className="min-w-0 flex-1">
-                  <span className={`mr-2 text-brand-light ${TIPO.etiqueta}`}>
-                    {ex.tipo === "CODIGO" ? "CÓDIGO" : "TEÓRICO"}
-                  </span>
+          <ul className="m-0 list-none divide-y-2 divide-edge border-2 border-edge p-0">
+            {exercicios.map((ex, i) => (
+              <li key={`ex-${ex.id}`} className={LINHA}>
+                <span aria-hidden="true" className={`${MARCA} border-edge-soft text-ink-muted`}>
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span className="min-w-0 flex-1 font-body text-base tracking-[1px] text-ink-body">
                   {ex.titulo}
                 </span>
+                <Badge tom={ex.tipo === "CODIGO" ? "sucesso" : "acento"}>
+                  {ex.tipo === "CODIGO" ? "CÓDIGO" : "TEÓRICO"}
+                </Badge>
                 {editavel ? (
                   <span className="flex items-center gap-2">
                     <AcoesRascunho
@@ -804,16 +863,14 @@ function ItemAula({
               </li>
             ))}
             {questoes.map((q) => (
-              <li
-                key={`q-${q.id}`}
-                className="flex flex-wrap items-center gap-3 font-body text-base text-ink-body"
-              >
-                <span className="min-w-0 flex-1">
-                  <span className={`mr-2 text-brand-light ${TIPO.etiqueta}`}>
-                    MÚLTIPLA ESCOLHA
-                  </span>
+              <li key={`q-${q.id}`} className={LINHA}>
+                <span aria-hidden="true" className={`${MARCA} border-brand-shadow text-brand-light`}>
+                  QZ
+                </span>
+                <span className="min-w-0 flex-1 font-body text-base tracking-[1px] text-ink-body">
                   {q.enunciado}
                 </span>
+                <Badge tom="alerta">MÚLTIPLA ESCOLHA</Badge>
                 {editavel ? (
                   <span className="flex items-center gap-2">
                     <AcoesQuestao questao={q} aoAlterar={recarregar} />
@@ -831,7 +888,7 @@ function ItemAula({
                   key={valor}
                   type="button"
                   onClick={() => setNovo(valor)}
-                  className={`cursor-pointer border-2 bg-panel-deep px-4 py-3 font-label text-[11px] tracking-[2px] shadow-pixel transition-colors duration-150 hover:bg-panel-soft ${cor}`}
+                  className={`cursor-pointer border-2 bg-transparent px-4 py-3 font-label text-[11px] tracking-[2px] uppercase shadow-pixel transition duration-150 hover:translate-x-0.5 hover:translate-y-0.5 hover:bg-panel-soft hover:shadow-pixel-sm ${cor}`}
                 >
                   + {rotulo}
                 </button>
@@ -853,7 +910,7 @@ function ItemAula({
             }}
           />
         )}
-      </BlocoDaAula>
+      </ParteDaAula>
     </li>
   );
 }

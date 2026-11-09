@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { CriacaoRapida } from "@/components/autoria/CriacaoRapida";
+import { abrirSelect, escolherOpcao } from "@/components/__tests__/selecao";
 
 jest.mock("@/lib/api", () => ({
   ...jest.requireActual("@/lib/api"),
@@ -38,13 +39,14 @@ describe("CriacaoRapida", () => {
     await userEvent.click(screen.getByRole("button", { name: /NOVO EXERCÍCIO/ }));
 
     const trilha = await screen.findByLabelText("VINCULAR À TRILHA");
-    await screen.findByRole("option", { name: "Python" });
-    await userEvent.selectOptions(trilha, "Python");
+    await escolherOpcao(userEvent, trilha, "Python");
 
     expect(mock.listarTrilhas).toHaveBeenCalled();
     expect(mock.api.autoriaRascunhos).not.toHaveBeenCalled();
     expect(mock.buscarTrilha).toHaveBeenCalledWith("python");
-    expect(await screen.findByRole("option", { name: "Laços" })).toBeInTheDocument();
+    const aulas = await abrirSelect(userEvent, screen.getByLabelText("VINCULAR À AULA"));
+    expect(within(aulas).getByRole("option", { name: "Laços" })).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
     // Quiz entra sem revisão: fica de fora em aula de outro.
     const tipos = screen.getByRole("group", { name: "Tipo do exercício" });
     expect(within(tipos).queryByRole("button", { name: "QUIZ" })).toBeNull();

@@ -4,7 +4,7 @@ type Variante = "primaria" | "secundaria";
 
 const BASE =
   "inline-flex items-center justify-center rounded-none font-display tracking-wide " +
-  "cursor-pointer transition-none disabled:cursor-not-allowed disabled:opacity-50";
+  "cursor-pointer transition duration-150 disabled:cursor-not-allowed disabled:opacity-50";
 
 const VARIANTES: Record<Variante, string> = {
   primaria:

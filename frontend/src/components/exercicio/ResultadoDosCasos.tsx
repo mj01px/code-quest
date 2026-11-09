@@ -36,9 +36,9 @@ function Caso({ caso, funcao }: { caso: ResultadoDoCaso; funcao: string }) {
     <li className="space-y-1 border-l-2 border-edge pl-3 font-body text-sm">
       <p className="text-ink-body">
         <span className={`mr-2 ${cor}`}>{caso.passou ? "✔" : "✘"}</span>
-        {chamada(caso, funcao)}
+        {caso.descricao ?? chamada(caso, funcao)}
       </p>
-      {!caso.passou && (
+      {!caso.passou && !caso.descricao && (
         <p className="text-ink-muted">
           esperado {caso.erro_esperado || comoTexto(caso.esperado)}, obtido{" "}
           {caso.erro ? caso.erro : comoTexto(caso.obtido)}
@@ -51,10 +51,21 @@ function Caso({ caso, funcao }: { caso: ResultadoDoCaso; funcao: string }) {
 export function ResultadoDosCasos({
   correcao,
   funcao,
+  semContagem = false,
 }: {
   correcao: Correcao;
   funcao: string;
+  semContagem?: boolean;
 }) {
+  if (correcao.personalizado) {
+    return (
+      <p role="status" className="border-2 border-edge bg-panel-soft p-4 font-body text-sm text-ink-body">
+        {correcao.aprovado
+          ? "Execução concluída com suas entradas. Envie para validar com os testes oficiais."
+          : "A execução com suas entradas falhou. Confira o erro no terminal."}
+      </p>
+    );
+  }
   return (
     <section
       aria-live="polite"
@@ -68,9 +79,11 @@ export function ResultadoDosCasos({
         >
           {TITULO[correcao.veredito] ?? correcao.veredito}
         </h3>
-        <span className="font-body text-sm text-ink-muted">
-          {correcao.aprovados} de {correcao.total}
-        </span>
+        {semContagem ? null : (
+          <span className="font-body text-sm text-ink-muted">
+            {correcao.aprovados} de {correcao.total}
+          </span>
+        )}
       </header>
 
       {correcao.casos.length > 0 && (

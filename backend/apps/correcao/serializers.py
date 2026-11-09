@@ -2,7 +2,8 @@ from typing import Any, cast
 
 from rest_framework import serializers
 
-from .models import CasoDeTeste, EspecificacaoDeCodigo
+from . import harness
+from .models import CasoDeTeste, EspecificacaoDeCodigo, Linguagem
 from .services import LIMITE_DE_CARACTERES, CasoJulgado, Correcao, codigo_aprovado
 
 
@@ -10,13 +11,16 @@ from .services import LIMITE_DE_CARACTERES, CasoJulgado, Correcao, codigo_aprova
 class EnvioDeCodigoSerializer(serializers.Serializer[None]):
     codigo = serializers.CharField(trim_whitespace=False, allow_blank=True)
 
+
 class ExemploSerializer(serializers.ModelSerializer[CasoDeTeste]):
     class Meta:
         model = CasoDeTeste
         fields = ("ordem", "argumentos", "esperado", "erro_esperado")
         read_only_fields = fields
 
+
 class EspecificacaoSerializer(serializers.ModelSerializer[EspecificacaoDeCodigo]):
+    parametros = serializers.SerializerMethodField()
     exemplos = serializers.SerializerMethodField()
     limite_de_caracteres = serializers.SerializerMethodField()
     codigo_aprovado = serializers.SerializerMethodField()
@@ -26,6 +30,7 @@ class EspecificacaoSerializer(serializers.ModelSerializer[EspecificacaoDeCodigo]
         fields = (
             "linguagem",
             "funcao",
+            "parametros",
             "codigo_inicial",
             "requisitos",
             "limite_de_caracteres",
@@ -34,10 +39,17 @@ class EspecificacaoSerializer(serializers.ModelSerializer[EspecificacaoDeCodigo]
         )
         read_only_fields = fields
 
+    def get_parametros(self, obj: EspecificacaoDeCodigo) -> list[str]:
+        if obj.linguagem != Linguagem.PYTHON:
+            return []
+        return harness.parametros_de(obj.codigo_inicial, obj.funcao)
+
     # Any e o valor JSON de cada campo; o drf-spectacular le esta anotacao e
     # com `object` publicaria `exemplos` como string no schema.
     def get_exemplos(self, obj: EspecificacaoDeCodigo) -> list[dict[str, Any]]:
         visiveis = [c for c in obj.casos.all() if c.visivel]
+        if obj.linguagem == Linguagem.SQL:
+            return [{"ordem": c.ordem, "descricao": c.argumentos[1]} for c in visiveis]
         # many=True devolve ReturnList em runtime; o stub tipa `.data` como
         # ReturnDict para qualquer Serializer.
         return cast(list[dict[str, Any]], ExemploSerializer(visiveis, many=True).data)
@@ -52,13 +64,11 @@ class EspecificacaoSerializer(serializers.ModelSerializer[EspecificacaoDeCodigo]
         return codigo_aprovado(user=request.user, exercicio=obj.exercicio_id)
 
 
-
-
-
 class ResultadoDoCasoSerializer(serializers.Serializer[CasoJulgado]):
     ordem = serializers.IntegerField(read_only=True)
     visivel = serializers.BooleanField(read_only=True)
     passou = serializers.BooleanField(read_only=True)
+    descricao = serializers.CharField(read_only=True, required=False)
     argumentos = serializers.JSONField(read_only=True, required=False)
     esperado = serializers.JSONField(read_only=True, required=False)
     erro_esperado = serializers.CharField(read_only=True, required=False)
@@ -67,6 +77,7 @@ class ResultadoDoCasoSerializer(serializers.Serializer[CasoJulgado]):
 
 
 class CorrecaoSerializer(serializers.Serializer[Correcao]):
+    personalizado = serializers.BooleanField(read_only=True)
     modo = serializers.CharField(read_only=True)
     veredito = serializers.CharField(read_only=True)
     aprovado = serializers.BooleanField(read_only=True)

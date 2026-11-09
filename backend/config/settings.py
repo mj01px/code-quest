@@ -141,7 +141,7 @@ CACHES = {
 THROTTLE_CATALOGO = env('THROTTLE_CATALOGO', default='60/min')
 # Escopo proprio: a lista de concluidos e lida em toda navegacao do aluno,
 # entao nao pode dividir orcamento com o catalogo nem com a conclusao.
-THROTTLE_EU_PROGRESSO = env('THROTTLE_EU_PROGRESSO', default='120/min')
+THROTTLE_EU_PROGRESSO = env('THROTTLE_EU_PROGRESSO', default='300/min')
 # Rota de autoria: entrega a solucao de referencia. Limite curto de proposito,
 # e em balde proprio, para que raspar gabarito nao se esconda no trafego normal.
 THROTTLE_AUTORIA = env('THROTTLE_AUTORIA', default='30/min')
@@ -158,6 +158,9 @@ JUDGE0_TIMEOUT = env.float('JUDGE0_TIMEOUT', default=15.0)
 JUDGE0_LIMITE_DIARIO = env.int('JUDGE0_LIMITE_DIARIO', default=50)
 # Chamadas pagas por usuario por dia: uma conta sozinha nao abre o disjuntor.
 JUDGE0_LIMITE_POR_USUARIO = env.int('JUDGE0_LIMITE_POR_USUARIO', default=10)
+
+# Leitura, quiz e exercícios abrem em ordem dentro da trilha.
+PROGRESSAO_SEQUENCIAL = env.bool('PROGRESSAO_SEQUENCIAL', default=True)
 
 
 REST_FRAMEWORK = {

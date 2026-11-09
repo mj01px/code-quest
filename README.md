@@ -158,6 +158,7 @@ python manage.py migrate
 python manage.py seed_trilhas       # carrega as trilhas e publica Lógica de Programação, Python e Banco de Dados
 python manage.py seed_bonus_xp      # cadastra os bônus de XP por trilha
 python manage.py seed_correcao      # cadastra os casos de teste da correção automática
+python manage.py seed_licoes        # publica as lições, o quiz e os flashcards dos módulos iniciais
 python manage.py createsuperuser    # o e-mail que ele pede é o login
 python manage.py runserver 8000     # → http://localhost:8000
 ```
@@ -275,6 +276,7 @@ AUDITORIA_RETENCAO_DIAS=180
 python manage.py seed_trilhas         # carrega as trilhas (idempotente, pode rodar de novo)
 python manage.py seed_bonus_xp        # bônus de XP de cada criatura na trilha do seu domínio (idempotente)
 python manage.py seed_correcao        # especificações e casos de teste da correção (rode depois do seed_trilhas)
+python manage.py seed_licoes          # lição completa, quiz e flashcards dos módulos iniciais (rode depois do seed_correcao)
 python manage.py limpar_auditoria     # apaga auditoria além de AUDITORIA_RETENCAO_DIAS (--dry-run só conta)
 python manage.py migrate              # aplica mudanças de schema
 python manage.py createsuperuser      # cria o primeiro admin

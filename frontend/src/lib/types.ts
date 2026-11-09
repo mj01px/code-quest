@@ -183,7 +183,13 @@ export interface SolicitacaoAutoria {
 }
 
 export interface SolicitacaoAdmin extends SolicitacaoAutoria {
-  solicitante: { id: string; nickname: string; email: string };
+  solicitante: {
+    id: string;
+    nickname: string;
+    email: string;
+    criatura?: { nome: string; sprite: string | null } | null;
+    nivel?: number | null;
+  };
 }
 
 // --- Criação de conteúdo (nasce em rascunho) ---
@@ -297,6 +303,8 @@ export interface Flashcard {
   id: number;
   pergunta: string;
   resposta: string;
+  /** Pista que o pet dá antes da resposta; vazia quando o autor não escreveu. */
+  dica?: string;
 }
 
 export type Alternativa = "A" | "B" | "C" | "D";
@@ -323,6 +331,29 @@ export interface TrilhaResumo {
   ordem: number;
   total_aulas: number;
   total_exercicios: number;
+  /** Leituras e quizzes publicados. Opcional: payload em cache pode vir sem. */
+  total_etapas?: number;
+}
+
+export type TipoDeEtapa = "LEITURA" | "QUIZ";
+
+export type EstadoDoPasso = "concluido" | "liberado" | "bloqueado";
+
+export interface PassoDaTrilha {
+  tipo: TipoDeEtapa | "EXERCICIO";
+  aula_slug: string;
+  exercicio_slug: string | null;
+  titulo: string;
+  estado: EstadoDoPasso;
+}
+
+export interface EtapaConcluida {
+  trilha_slug: string;
+  aula_slug: string;
+  tipo: TipoDeEtapa;
+  acertos: number | null;
+  total: number | null;
+  concluida_em: string;
 }
 
 export interface TrilhaDetalhe {
@@ -346,6 +377,10 @@ export interface ExercicioDetalhe {
   titulo: string;
   slug: string;
   enunciado: string;
+  /** Explicação curta do conceito, em Markdown. Vazia em exercício antigo. */
+  contexto?: string;
+  /** Código que demonstra o conceito sem resolver o exercício. */
+  exemplo?: string;
   tipo: TipoExercicio;
   tipo_label: string;
   dificuldade: Dificuldade;
@@ -356,6 +391,46 @@ export interface ExercicioDetalhe {
   trilha_nome: string;
   trilha_slug: string;
   alternativas?: AlternativaExercicio[];
+}
+
+export interface DesafioApi {
+  slug: string;
+  titulo: string;
+  enunciado: string;
+  tipo: TipoExercicio;
+  tipo_label: string;
+  dificuldade: Dificuldade;
+  dificuldade_label: string;
+  trilha_slug: string;
+}
+
+export interface ConclusaoDaTrilha {
+  trilha: { slug: string; nome: string };
+  concluida: boolean;
+  fases_feitas: number;
+  fases_total: number;
+  xp: number;
+  acerto_de_primeira: number | null;
+  dias_de_estudo: number;
+  conquistas: { slug: string; nome: string; descricao: string; icone: string }[];
+  proxima: {
+    slug: string;
+    nome: string;
+    resumo: string;
+    dificuldade_label: string;
+  } | null;
+}
+
+export interface ProximoDesafio {
+  dia: string;
+  slug: string;
+  titulo: string;
+}
+
+export interface DesafioDeHoje {
+  dia: string;
+  desafio: DesafioApi | null;
+  proximos: ProximoDesafio[];
 }
 
 export interface BonusXp {
@@ -404,6 +479,23 @@ export interface DashboardAdmin {
     aprovadas: number;
     rejeitadas: number;
   }[];
+  periodo: PeriodoAdmin;
+  usuarios: { total: number; novos: number };
+  ativos: { total: number; percentual: number };
+  submissoes: { total: number; percentual_aprovadas: number };
+  trilhas: { publicadas: number; em_revisao: number };
+  ativos_por_dia: { data: string; alunos: number }[];
+  submissoes_por_dia: { data: string; aprovadas: number; rejeitadas: number }[];
+  funis: { slug: string; nome: string; etapas: EtapaDoFunil[] }[];
+  sequencias: { faixa: string; alunos: number }[];
+}
+
+export type PeriodoAdmin = "hoje" | "7d" | "30d" | "90d";
+
+export interface EtapaDoFunil {
+  chave: string;
+  rotulo: string;
+  alunos: number;
 }
 
 export interface LogAdmin {
@@ -463,13 +555,15 @@ export interface RequisitoEstrutural {
 
 export interface ExemploDeCaso {
   ordem: number;
-  argumentos: unknown[];
-  esperado: unknown;
-  erro_esperado: string;
+  descricao?: string;
+  argumentos?: unknown[];
+  esperado?: unknown;
+  erro_esperado?: string;
 }
 
 export interface EspecificacaoDeCodigo {
-  linguagem: "PYTHON";
+  parametros?: string[];
+  linguagem: "PYTHON" | "SQL";
   funcao: string;
   codigo_inicial: string;
   requisitos: RequisitoEstrutural[];
@@ -483,6 +577,7 @@ export interface ResultadoDoCaso {
   ordem: number;
   visivel: boolean;
   passou: boolean;
+  descricao?: string;
   argumentos?: unknown[];
   esperado?: unknown;
   erro_esperado?: string;
@@ -491,6 +586,7 @@ export interface ResultadoDoCaso {
 }
 
 export interface Correcao {
+  personalizado?: boolean;
   modo: ModoCorrecao;
   veredito: Veredito;
   aprovado: boolean;
@@ -581,10 +677,8 @@ export interface MeuCla {
   entrou_em: string;
 }
 
-export interface PreviaConvite {
-  nome: string;
-  bandeira: Bandeira;
-  total_membros: number;
+export interface PreviaConvite extends Cla {
+  membros: MembroDoCla[];
 }
 
 export interface ConviteGerado {
@@ -644,10 +738,34 @@ export interface ConquistaDoPerfil {
   desbloqueada_em: string;
 }
 
+export interface ConquistaBloqueadaDoPerfil {
+  /** null na oculta: o perfil público não revela qual conquista é. */
+  slug: string | null;
+  nome: string;
+  icone: string;
+  oculta: boolean;
+}
+
+export interface TrilhaDoPerfil {
+  slug: string;
+  nome: string;
+  percentual: number;
+}
+
 export interface PerfilPublico {
   nickname: string;
   criatura: CriaturaDoRanking | null;
   nivel: number | null;
   xp_total: number;
   conquistas: ConquistaDoPerfil[];
+  titulo_do_nivel?: string;
+  xp_no_nivel?: number;
+  xp_para_o_proximo?: number | null;
+  membro_desde?: string;
+  cla?: string | null;
+  sequencia_atual?: number;
+  sequencia_recorde?: number;
+  total_conquistas?: number;
+  conquistas_bloqueadas?: ConquistaBloqueadaDoPerfil[];
+  trilhas?: TrilhaDoPerfil[];
 }

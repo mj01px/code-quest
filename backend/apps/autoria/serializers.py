@@ -7,7 +7,9 @@ from rest_framework.exceptions import PermissionDenied
 
 from apps.correcao.models import CasoDeTeste, EspecificacaoDeCodigo
 from apps.correcao.serializers import EspecificacaoSerializer
-from apps.gamificacao.models import Creature, XpBonus
+from apps.gamificacao.models import Creature, UserCreature, XpBonus
+from apps.gamificacao.serializers import _url_sprite
+from apps.progressao.models import ProgressoCriatura
 from apps.trilhas.models import (
     Aula,
     Exercicio,
@@ -142,7 +144,9 @@ class TrilhaEditorialSerializer(TrilhaDetalheSerializer):
 
 class SolicitacaoAutoriaSerializer(serializers.ModelSerializer[SolicitacaoAutoria]):
     areas = serializers.PrimaryKeyRelatedField(
-        many=True, allow_empty=False, queryset=Trilha.objects.publicados()
+        many=True,
+        allow_empty=False,
+        queryset=Trilha.objects.publicados().filter(desafio=False),
     )
     areas_nomes: serializers.SlugRelatedField[Trilha] = serializers.SlugRelatedField(
         source="areas", slug_field="nome", many=True, read_only=True
@@ -209,12 +213,44 @@ class SolicitacaoAdminSerializer(SolicitacaoAutoriaSerializer):
         fields = [*SolicitacaoAutoriaSerializer.Meta.fields, "solicitante"]
         read_only_fields = fields
 
-    def get_solicitante(self, obj: SolicitacaoAutoria) -> dict[str, str]:
+    def get_solicitante(self, obj: SolicitacaoAutoria) -> dict[str, Any]:
+        pets: dict[Any, dict[str, Any]] = self.context.get("pets", {})
+        pet = pets.get(obj.usuario_id)
         return {
             "id": str(obj.usuario_id),
             "nickname": obj.usuario.nickname,
             "email": obj.usuario.email,
+            "criatura": pet["criatura"] if pet else None,
+            "nivel": pet["nivel"] if pet else None,
         }
+
+
+def pets_dos_solicitantes(user_ids: list[Any]) -> dict[Any, dict[str, Any]]:
+    """Pet ativo e nível de cada solicitante, em três consultas para a fila toda."""
+    posses = (
+        UserCreature.objects.filter(user_id__in=user_ids, is_active=True)
+        .select_related("creature")
+        .prefetch_related("creature__stages")
+    )
+    niveis = dict(
+        ProgressoCriatura.objects.filter(
+            user_creature__user_id__in=user_ids, user_creature__is_active=True
+        ).values_list("user_creature__user_id", "nivel_id")
+    )
+    pets: dict[Any, dict[str, Any]] = {}
+    for posse in posses:
+        estagio = next(
+            (e for e in posse.creature.stages.all() if e.stage == posse.current_stage),
+            None,
+        )
+        pets[posse.user_id] = {
+            "criatura": {
+                "nome": posse.creature.name,
+                "sprite": _url_sprite(estagio.sprite) if estagio else None,
+            },
+            "nivel": niveis.get(posse.user_id, 1),
+        }
+    return pets
 
 
 class RejeicaoSerializer(serializers.Serializer[None]):

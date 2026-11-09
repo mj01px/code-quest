@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import {
@@ -23,6 +23,7 @@ jest.mock("@/lib/api", () => {
       exerciciosConcluidos: jest.fn(),
       trilhasIniciadas: jest.fn(),
       iniciarTrilha: jest.fn(),
+      passosDaTrilha: jest.fn(),
     },
   };
 });
@@ -42,6 +43,7 @@ const mock = jest.requireMock<{
     exerciciosConcluidos: jest.Mock;
     trilhasIniciadas: jest.Mock;
     iniciarTrilha: jest.Mock;
+    passosDaTrilha: jest.Mock;
   };
 }>("@/lib/api");
 
@@ -74,6 +76,7 @@ beforeEach(() => {
   });
   mock.api.exerciciosConcluidos.mockResolvedValue([]);
   mock.api.trilhasIniciadas.mockResolvedValue([]);
+  mock.api.passosDaTrilha.mockResolvedValue([]);
   mock.api.iniciarTrilha.mockResolvedValue({
     trilha: "python",
     iniciada_em: "2026-09-12T12:00:00Z",
@@ -136,13 +139,102 @@ describe("BotaoIniciarTrilha", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("quem já entrou vê continuar, não iniciar", async () => {
+  it("entrou mas não concluiu nada: continua sendo iniciar", async () => {
     mock.api.trilhasIniciadas.mockResolvedValue(["python"]);
+    mock.api.passosDaTrilha.mockResolvedValue([
+      {
+        tipo: "LEITURA",
+        aula_slug: "texto",
+        exercicio_slug: null,
+        titulo: "Lição: Texto",
+        estado: "liberado",
+      },
+    ]);
+
+    montar();
+
+    await waitFor(() =>
+      expect(mock.api.passosDaTrilha).toHaveBeenCalledWith("python"),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Iniciar trilha" }),
+    ).toBeInTheDocument();
+  });
+
+  it("com algum passo concluído vê retomar", async () => {
+    mock.api.passosDaTrilha.mockResolvedValue([
+      {
+        tipo: "LEITURA",
+        aula_slug: "texto",
+        exercicio_slug: null,
+        titulo: "Lição: Texto",
+        estado: "concluido",
+      },
+      {
+        tipo: "QUIZ",
+        aula_slug: "texto",
+        exercicio_slug: null,
+        titulo: "Quiz: Texto",
+        estado: "liberado",
+      },
+    ]);
 
     montar();
 
     expect(
-      await screen.findByRole("button", { name: "Continuar" }),
+      await screen.findByRole("button", { name: "Retomar" }),
+    ).toBeInTheDocument();
+  });
+
+  it("retomar leva ao próximo passo liberado", async () => {
+    mock.api.trilhasIniciadas.mockResolvedValue(["python"]);
+    mock.api.passosDaTrilha.mockResolvedValue([
+      {
+        tipo: "LEITURA",
+        aula_slug: "texto",
+        exercicio_slug: null,
+        titulo: "Lição: Texto",
+        estado: "concluido",
+      },
+      {
+        tipo: "QUIZ",
+        aula_slug: "texto",
+        exercicio_slug: null,
+        titulo: "Quiz: Texto",
+        estado: "liberado",
+      },
+    ]);
+
+    montar();
+    const retomar = await screen.findByRole("button", { name: "Retomar" });
+    await waitFor(() =>
+      expect(mock.api.passosDaTrilha).toHaveBeenCalledWith("python"),
+    );
+    fireEvent.click(retomar);
+
+    await waitFor(() =>
+      expect(empurrarRota).toHaveBeenCalledWith(
+        "/trilhas/python/aulas/texto/quiz",
+      ),
+    );
+  });
+
+  it("quem terminou tudo vê revisar", async () => {
+    mock.api.trilhasIniciadas.mockResolvedValue(["python"]);
+    mock.api.passosDaTrilha.mockResolvedValue([
+      {
+        tipo: "LEITURA",
+        aula_slug: "texto",
+        exercicio_slug: null,
+        titulo: "Lição: Texto",
+        estado: "concluido",
+      },
+    ]);
+
+    montar();
+
+    expect(
+      await screen.findByRole("button", { name: "Revisar" }),
     ).toBeInTheDocument();
   });
 

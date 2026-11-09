@@ -308,4 +308,6 @@ def test_aula_publica_mostra_os_flashcards():
     resposta = APIClient().get(reverse("trilhas:trilha-detalhe", args=[trilha.slug]))
 
     assert resposta.status_code == 200
-    assert resposta.data["aulas"][0]["flashcards"] == [{"id": card.pk, **CARD}]
+    assert resposta.data["aulas"][0]["flashcards"] == [
+        {"id": card.pk, **CARD, "dica": ""}
+    ]

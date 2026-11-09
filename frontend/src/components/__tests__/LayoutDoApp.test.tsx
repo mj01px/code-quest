@@ -7,6 +7,7 @@ const mockSubstituir = jest.fn();
 
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ replace: mockSubstituir }),
+  usePathname: () => "/trilhas",
 }));
 
 jest.mock("@/components/layout/BarraLateral", () => ({

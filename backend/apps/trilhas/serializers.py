@@ -10,7 +10,7 @@ from .models import Aula, Exercicio, Flashcard, Questao, Tipo, Trilha
 class FlashcardSerializer(serializers.ModelSerializer[Flashcard]):
     class Meta:
         model = Flashcard
-        fields = ["id", "pergunta", "resposta"]
+        fields = ["id", "pergunta", "resposta", "dica"]
         read_only_fields = fields
 
 
@@ -71,6 +71,9 @@ class AulaSerializer(serializers.ModelSerializer[Aula]):
 class TrilhaListaSerializer(serializers.ModelSerializer[Trilha]):
     total_aulas = serializers.IntegerField(read_only=True)
     total_exercicios = serializers.IntegerField(read_only=True)
+    total_etapas = serializers.IntegerField(
+        read_only=True, help_text="Leituras e quizzes publicados da trilha."
+    )
 
     class Meta:
         model = Trilha
@@ -82,6 +85,7 @@ class TrilhaListaSerializer(serializers.ModelSerializer[Trilha]):
             "ordem",
             "total_aulas",
             "total_exercicios",
+            "total_etapas",
         ]
         read_only_fields = fields
 
@@ -141,6 +145,8 @@ class ExercicioDetalheSerializer(serializers.ModelSerializer[Exercicio]):
             "titulo",
             "slug",
             "enunciado",
+            "contexto",
+            "exemplo",
             "tipo",
             "tipo_label",
             "dificuldade",
@@ -153,3 +159,38 @@ class ExercicioDetalheSerializer(serializers.ModelSerializer[Exercicio]):
             "alternativas",
         ]
         read_only_fields = fields
+
+
+class DesafioSerializer(serializers.ModelSerializer[Exercicio]):
+    trilha_slug = serializers.SlugField(source="trilha.slug", read_only=True)
+    dificuldade_label = serializers.CharField(
+        source="get_dificuldade_display", read_only=True
+    )
+    tipo_label = serializers.CharField(source="get_tipo_display", read_only=True)
+
+    class Meta:
+        model = Exercicio
+        fields = [
+            "slug",
+            "titulo",
+            "enunciado",
+            "tipo",
+            "tipo_label",
+            "dificuldade",
+            "dificuldade_label",
+            "trilha_slug",
+        ]
+        read_only_fields = fields
+
+
+class ProximoDesafioSerializer(serializers.Serializer[dict[str, object]]):
+    dia = serializers.DateField(read_only=True)
+    slug = serializers.SlugField(read_only=True)
+    titulo = serializers.CharField(read_only=True)
+
+
+class DesafioDoDiaSerializer(serializers.Serializer[dict[str, object]]):
+    dia = serializers.DateField(read_only=True)
+    desafio = DesafioSerializer(read_only=True, allow_null=True)
+    proximos = ProximoDesafioSerializer(many=True, read_only=True)
+

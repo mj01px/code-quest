@@ -54,6 +54,7 @@ from .serializers import (
     SolicitacaoAutoriaSerializer,
     SolucaoAutorSerializer,
     TrilhaEditorialSerializer,
+    pets_dos_solicitantes,
 )
 from .services import (
     MODELOS,
@@ -359,6 +360,16 @@ class SolicitacoesPendentesView(generics.ListAPIView[SolicitacaoAutoria]):
             .select_related("usuario")
             .prefetch_related("areas")
             .order_by("criado_em")
+        )
+
+    def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        pedidos = list(self.get_queryset())
+        contexto = {
+            **self.get_serializer_context(),
+            "pets": pets_dos_solicitantes([p.usuario_id for p in pedidos]),
+        }
+        return Response(
+            SolicitacaoAdminSerializer(pedidos, many=True, context=contexto).data
         )
 
 

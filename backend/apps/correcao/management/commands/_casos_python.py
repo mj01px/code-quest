@@ -5,6 +5,7 @@ from typing import NotRequired, TypedDict
 
 # Cada caso: (argumentos, retorno esperado ou {"erro": "NomeDoErro"}, visivel).
 class EspecificacaoSeed(TypedDict):
+    linguagem: NotRequired[str]
     funcao: str
     codigo_inicial: str
     requisitos: NotRequired[list[dict[str, str]]]
@@ -36,6 +37,7 @@ CASOS_PYTHON: dict[str, EspecificacaoSeed] = {
     "boletim-formatado": {
         "funcao": "linha_do_boletim",
         "codigo_inicial": "def linha_do_boletim(nome, nota):\n    ...\n",
+        "requisitos": [{"regra": "exigir", "construcao": "fstring"}],
         "casos": [
             (["Ana", 8.456], "Ana: 8.46", True),
             (["Bia", 10], "Bia: 10.00", True),

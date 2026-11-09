@@ -1,9 +1,10 @@
 "use client";
 
-import {useRef, useState} from "react";
+import {useRef, useState, type ReactNode} from "react";
 import dynamic from "next/dynamic";
 
 import {EditorDeCodigo} from "@/components/exercicio/EditorDeCodigo";
+import {CabecalhoDoPainel, GradeDoExercicio} from "@/components/exercicio/GradeDoExercicio";
 import {ResultadoDosCasos, comoTexto} from "@/components/exercicio/ResultadoDosCasos";
 import {useProgresso} from "@/components/progresso/ProvedorProgresso";
 import {estaConcluida} from "@/lib/progresso";
@@ -43,7 +44,8 @@ function descreverRequisito(requisito: RequisitoEstrutural): string {
 }
 
 function descreverExemplo(exemplo: ExemploDeCaso, funcao: string): string {
-    const args = exemplo.argumentos.map(comoTexto).join(", ");
+    if (exemplo.descricao) return exemplo.descricao;
+    const args = (exemplo.argumentos ?? []).map(comoTexto).join(", ");
     const saida = exemplo.erro_esperado
         ? `levanta ${exemplo.erro_esperado}`
         : `→ ${comoTexto(exemplo.esperado)}`;
@@ -53,6 +55,30 @@ function descreverExemplo(exemplo: ExemploDeCaso, funcao: string): string {
 function descreverResultado(caso: ResultadoDoCaso, funcao: string): string {
     const args = (caso.argumentos ?? []).map(comoTexto).join(", ");
     return `${funcao}(${args}) → ${caso.erro || comoTexto(caso.obtido)}`;
+}
+
+function ExemploDeExecucao({ especificacao, argumentos }: {
+    especificacao: EspecificacaoDeCodigo;
+    argumentos?: unknown[];
+}) {
+    const exemplo = especificacao.exemplos[0];
+    if (!exemplo) return null;
+
+    const valores = (argumentos ?? exemplo.argumentos ?? []).map(comoTexto);
+    const parametros = especificacao.parametros?.slice(0, valores.length) ?? [];
+    if (!valores.length || parametros.length !== valores.length) return null;
+    const linhas = parametros.map((nome, indice) => `${nome} = ${valores[indice]}`);
+
+    return (
+        <div className="shrink-0 border-b-2 border-edge bg-field px-4 py-3">
+            <p className="mb-2 font-label text-[10px] tracking-[1px] text-ink-muted uppercase">
+                Entrada do Rodar
+            </p>
+            <pre aria-label="Entrada do exemplo" className="m-0 overflow-x-auto font-mono text-sm text-brand-light">
+                {linhas.join("\n")}
+            </pre>
+        </div>
+    );
 }
 
 function mensagemDoErro(erro: unknown): string {
@@ -68,12 +94,17 @@ export function PainelDeCodigo({
                                    exercicioSlug,
                                    especificacao,
                                    previa = false,
+                                   aprender,
+                                   pet,
                                }: {
     trilhaSlug: string;
     exercicioSlug: string;
     especificacao: EspecificacaoDeCodigo;
     /** Na prévia editorial só se executa: enviar concluiria um rascunho. */
     previa?: boolean;
+    /** Com o painel Aprender, a tela vira as três colunas do modo foco. */
+    aprender?: ReactNode;
+    pet?: ReactNode;
 }) {
     const {chaves, recarregar} = useProgresso();
     const [codigo, setCodigo] = useState(
@@ -89,8 +120,10 @@ export function PainelDeCodigo({
 
     const emVoo = useRef(false);
 
+    // Os botões usam aria-disabled (o clique ainda chega) e o Ctrl+Enter não
+    // passa por eles: a trava mora aqui, onde todos os caminhos se encontram.
     async function executar() {
-        if (emVoo.current || !especificacao) return;
+        if (emVoo.current || !especificacao || excedeu) return;
         emVoo.current = true;
 
         setExecutando(true);
@@ -114,7 +147,7 @@ export function PainelDeCodigo({
     }
 
     async function enviar() {
-        if (emVoo.current || !especificacao) return;
+        if (emVoo.current || !especificacao || excedeu || feito) return;
         emVoo.current = true;
 
         setEnviando(true);
@@ -150,24 +183,178 @@ export function PainelDeCodigo({
     const excedeu = codigo.length > especificacao.limite_de_caracteres;
     const feito = concluido || estaConcluida(chaves, trilhaSlug, exercicioSlug);
     const ocupado = executando || enviando;
+    const emSql = especificacao.linguagem === "SQL";
+    const linguagem = emSql ? "sql" : "python";
 
-    const retornos = correcao?.modo === "EXECUTAR"
-        ? correcao.casos
-            .filter((caso) => caso.visivel)
-            .map((caso) => descreverResultado(caso, especificacao.funcao))
-            .join("\n")
-        : "";
-    const saidaTerminal = [correcao?.saida, retornos].filter(Boolean).join("\n");
+    const exemploExecutado = correcao?.modo === "EXECUTAR"
+        ? correcao.casos.find((caso) => caso.visivel)
+        : undefined;
+    const saidaDoExemplo = emSql
+        ? (correcao?.veredito === "APROVADO" || correcao?.veredito === "RESPOSTA_ERRADA"
+            ? "Comando SQL executado."
+            : "")
+        : (exemploExecutado && !(correcao?.personalizado && exemploExecutado.erro)
+            ? descreverResultado(exemploExecutado, especificacao.funcao)
+            : "");
+    const saidaTerminal = correcao?.saida || saidaDoExemplo;
+    const argumentosDoRodar = correcao?.modo === "EXECUTAR" && correcao.personalizado
+        ? exemploExecutado?.argumentos
+        : undefined;
+    const erroTerminal = correcao?.erro || (correcao?.personalizado ? exemploExecutado?.erro : "") || "";
     const mostrarTerminal = correcao?.modo === "EXECUTAR" &&
         (Boolean(saidaTerminal || correcao.erro) ||
             correcao.veredito === "TEMPO_ESGOTADO" || correcao.veredito === "ERRO_DE_EXECUCAO");
+
+    if (aprender !== undefined) {
+        const status = aviso ??
+            (excedeu
+                ? "Código longo demais."
+                : xpGanho !== null
+                    ? `+${xpGanho} XP${diaGanho ? " · +1 dia" : ""}`
+                    : feito
+                        ? "Exercício concluído"
+                        : "");
+        return (
+            <GradeDoExercicio
+                pet={pet}
+                aprender={aprender}
+                centro={
+                    <>
+                        <CabecalhoDoPainel>
+                            <span className="flex items-center gap-2 text-ink">
+                                <span aria-hidden="true" className="h-2.5 w-2.5 bg-brand"/>
+                                {emSql ? "exercicio.sql" : `${especificacao.funcao}.py`}
+                            </span>
+                        </CabecalhoDoPainel>
+                        <ExemploDeExecucao especificacao={especificacao} argumentos={argumentosDoRodar}/>
+                        {especificacao.requisitos.length > 0 ? (
+                            <p className="m-0 border-b-2 border-edge bg-panel-deep px-4 py-2.5 font-body text-base text-ink-body">
+                                O exercício pede para {especificacao.requisitos.map(descreverRequisito).join("; ")}.
+                            </p>
+                        ) : null}
+                        <div className="min-h-[18rem] flex-1">
+                            <EditorDeCodigo
+                                semMoldura
+                                altura="100%"
+                                linguagem={linguagem}
+                                valor={codigo}
+                                aoExecutarAtalho={() => {
+                                    void executar();
+                                }}
+                                aoMudar={(novo) => {
+                                    setCodigo(novo);
+                                    setCorrecao(null);
+                                    setAviso(null);
+                                }}
+                            />
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-edge px-4 py-3">
+                            <button
+                                type="button"
+                                aria-disabled={ocupado || excedeu}
+                                aria-busy={executando}
+                                onClick={() => {
+                                    void executar();
+                                }}
+                                className={`border-[3px] px-6 py-3 font-display text-[11px] leading-[1.7] tracking-[1px] uppercase ${
+                                    ocupado || excedeu
+                                        ? "cursor-default border-edge-soft bg-panel text-ink-dim"
+                                        : "cursor-pointer border-brand-light bg-brand-deep text-ink shadow-[0_0_0_3px_var(--color-brand-void),4px_4px_0_rgba(0,0,0,0.7)] hover:bg-brand-strong"
+                                }`}
+                            >
+                                {executando ? "Rodando…" : "Rodar"}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setCodigo(especificacao.codigo_inicial);
+                                    setCorrecao(null);
+                                    setAviso(null);
+                                }}
+                                className="cursor-pointer border-0 bg-transparent p-0 font-label text-[11px] tracking-[2px] text-ink-muted uppercase underline-offset-4 hover:text-ink-soft hover:underline"
+                            >
+                                Resetar
+                            </button>
+                            {previa ? (
+                                <span aria-hidden="true" />
+                            ) : (
+                                <button
+                                    type="button"
+                                    aria-pressed={feito}
+                                    aria-disabled={ocupado || excedeu || feito}
+                                    aria-busy={enviando}
+                                    onClick={() => {
+                                        void enviar();
+                                    }}
+                                    className={`border-2 px-5 py-3 font-label text-[11px] tracking-[2px] uppercase ${
+                                        feito
+                                            ? "cursor-default border-success text-success"
+                                            : ocupado || excedeu
+                                                ? "cursor-default border-edge-soft text-ink-dim"
+                                                : "cursor-pointer border-success text-success hover:bg-panel-soft"
+                                    }`}
+                                >
+                                    {feito ? "Concluído" : enviando ? "Enviando…" : "Enviar"}
+                                </button>
+                            )}
+                        </div>
+                    </>
+                }
+                direita={
+                    <>
+                        <CabecalhoDoPainel>
+                            <span className="text-ink">Terminal</span>
+                            <span className="text-ink-dim">codequest@os</span>
+                        </CabecalhoDoPainel>
+                        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-field">
+                            <TerminalDeSaida
+                                semMoldura
+                                classeDaArea="h-56"
+                                vazio="> aguardando execução..."
+                                saida={correcao?.modo === "EXECUTAR" ? saidaTerminal : ""}
+                                erro={correcao?.modo === "EXECUTAR" ? erroTerminal : ""}
+                                veredito={correcao?.modo === "EXECUTAR" ? correcao.veredito : ""}
+                            />
+                            <div className="flex flex-col gap-3 px-4 pb-4 empty:hidden">
+                                {status ? (
+                                    <p
+                                        role="status"
+                                        aria-live="polite"
+                                        className={`m-0 font-label text-[11px] tracking-[2px] uppercase ${
+                                            aviso ? "text-danger" : "text-success"
+                                        }`}
+                                    >
+                                        {status}
+                                    </p>
+                                ) : null}
+                                {correcao && (
+                                    <ResultadoDosCasos correcao={correcao} funcao={especificacao.funcao} semContagem/>
+                                )}
+                                {emSql && !correcao && especificacao.exemplos.length > 0 && (
+                                    <section className="space-y-2 border-2 border-edge bg-panel-soft p-4">
+                                        <h3 className="font-label text-xs text-ink-label">Casos visíveis</h3>
+                                        <ul className="space-y-1 font-body text-sm text-ink-body">
+                                            {especificacao.exemplos.map((exemplo) => (
+                                                <li key={exemplo.ordem}>{exemplo.descricao}</li>
+                                            ))}
+                                        </ul>
+                                    </section>
+                                )}
+                            </div>
+                        </div>
+                    </>
+                }
+            />
+        );
+    }
 
     return (
         <section className="mt-6 space-y-4">
             <header className="space-y-2">
                 <p className="font-label text-xs text-ink-label">
-                    escreva a função{" "}
-                    <span className="text-brand-light">{especificacao.funcao}</span>
+                    {emSql ? "Escreva o comando SQL" : (
+                        <>escreva a função{" "}<span className="text-brand-light">{especificacao.funcao}</span></>
+                    )}
                 </p>
 
                 {especificacao.requisitos.length > 0 && (
@@ -191,14 +378,19 @@ export function PainelDeCodigo({
                 )}
             </header>
 
-            <EditorDeCodigo
-                valor={codigo}
-                aoMudar={(novo) => {
-                    setCodigo(novo);
-                    setCorrecao(null);
-                    setAviso(null);
-                }}
-            />
+            <div className="overflow-hidden border-2 border-edge bg-field shadow-pixel-sm">
+                <ExemploDeExecucao especificacao={especificacao} argumentos={argumentosDoRodar}/>
+                <EditorDeCodigo
+                    semMoldura
+                    linguagem={linguagem}
+                    valor={codigo}
+                    aoMudar={(novo) => {
+                        setCodigo(novo);
+                        setCorrecao(null);
+                        setAviso(null);
+                    }}
+                />
+            </div>
 
             <div className="flex flex-wrap items-center gap-4">
                 <button
@@ -253,7 +445,7 @@ export function PainelDeCodigo({
             {mostrarTerminal && correcao && (
                 <TerminalDeSaida
                     saida={saidaTerminal}
-                    erro={correcao.erro}
+                    erro={erroTerminal}
                     veredito={correcao.veredito}
                 />
             )}

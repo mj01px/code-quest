@@ -282,7 +282,10 @@ def sair_do_cla(*, user, request=None):
 
 
 def listar_membros(*, user, tag):
-    cla = obter_cla_visivel(user=user, tag=tag)
+    return membros_ordenados(obter_cla_visivel(user=user, tag=tag))
+
+
+def membros_ordenados(cla):
     ordem_do_cargo = Case(
         When(cargo=Cargo.LIDER, then=Value(0)),
         When(cargo=Cargo.COLIDER, then=Value(1)),

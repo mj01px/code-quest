@@ -11,6 +11,7 @@ from .models import Linguagem
 
 LINGUAGENS: dict[str, int] = {
     Linguagem.PYTHON: 71,
+    Linguagem.SQL: 82,
 }
 
 # Parametros para ser enviados em toda requisicao garantindo que o codigo respeite a limitacao do plano que escolhemos
@@ -71,6 +72,8 @@ class ClienteJudge0:
             self.cabecalhos = {"X-Auth-Token": token}
 
     def executar(self, *, codigo: str, stdin: str, linguagem: str) -> Execucao:
+        if linguagem not in LINGUAGENS:
+            raise Judge0Error("linguagem não suportada")
         corpo = {
             "language_id": LINGUAGENS[linguagem],
             "source_code": _b64(codigo),

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics, serializers, status
@@ -17,28 +18,37 @@ from apps.correcao.services import corrigir_envio, tem_correcao_automatica
 from apps.correcao.views import PODE_SUBMETER_CODIGO, Judge0PorMinuto, codigo_enviado
 from apps.trilhas.models import (
     AlternativaExercicio,
+    Aula,
     Exercicio,
     StatusEditorial,
     Tipo,
     Trilha,
 )
 
-from .models import TrilhaIniciada
+from .conclusao import resumo_da_conclusao
+from .models import TipoDeEtapa, TrilhaIniciada
+from .sequencia import EXERCICIO, estado_da_trilha, exigir_liberado
 from .serializers import (
+    ConclusaoDaTrilhaSerializer,
     ConclusaoSerializer,
     DashboardAdminSerializer,
     EscolhaSerializer,
+    EtapaConcluidaSerializer,
     ExercicioConcluidoSerializer,
     LogDoDashboardSerializer,
     ProgressoSerializer,
+    RespostasDoQuizSerializer,
     ResultadoXPSerializer,
     RevelarFlashcardSerializer,
     SequenciaSerializer,
     TrilhaIniciadaSerializer,
 )
 from .services import (
+    concluir_leitura,
+    concluir_quiz,
     creditar_exercicio,
     criatura_ativa,
+    etapas_concluidas,
     exercicios_concluidos,
     iniciar_trilha,
     ler_sequencia,
@@ -46,6 +56,7 @@ from .services import (
     montar_dashboard_admin,
     montar_progresso,
     obter_progresso,
+    trilha_atual,
     trilhas_iniciadas,
 )
 
@@ -86,7 +97,8 @@ class AdminDashboardView(APIView):
     permission_classes = [IsAdmin]
 
     def get(self, request):
-        return Response(DashboardAdminSerializer(montar_dashboard_admin()).data)
+        periodo = request.query_params.get("periodo", "")
+        return Response(DashboardAdminSerializer(montar_dashboard_admin(periodo)).data)
 
 
 class LogsDoDashboardPagination(PageNumberPagination):
@@ -184,6 +196,14 @@ class ConcluirExercicioView(APIView):
             slug=exercicio_slug,
         )
 
+        exigir_liberado(
+            user=request.user,
+            trilha=exercicio.trilha,
+            tipo=EXERCICIO,
+            aula_slug=exercicio.aula.slug,
+            exercicio_slug=exercicio.slug,
+        )
+
         correcao = None
         # O texto devolvido ao aluno é `explicacao`, nunca `solucao_autor`: este
         # monta a resposta à mão, fora da varredura transversal de serializers.
@@ -249,7 +269,9 @@ class ConcluirExercicioView(APIView):
             "aprovado": True,
             "correcao": CorrecaoSerializer(correcao).data if correcao else None,
         }
-        if exercicio.tipo == Tipo.ALTERNATIVA:
+        if exercicio.tipo in (Tipo.ALTERNATIVA, Tipo.TEORICO) or (
+            exercicio.tipo == Tipo.CODIGO and correcao is None
+        ):
             resposta["explicacao"] = exercicio.explicacao
         elif exercicio.tipo == Tipo.FLASHCARD:
             resposta["resposta"] = exercicio.explicacao
@@ -283,3 +305,142 @@ class MeusExerciciosConcluidosView(generics.ListAPIView):
             user=self.request.user,
             trilha_slug=self.request.query_params.get("trilha"),
         )
+
+
+def _aula_publicada(trilha_slug, aula_slug):
+    return get_object_or_404(
+        Aula.objects.publicados().select_related("trilha"),
+        trilha__slug=trilha_slug,
+        trilha__status=StatusEditorial.PUBLICADO,
+        slug=aula_slug,
+    )
+
+
+@extend_schema(tags=["progressao"], request=None, responses=EtapaConcluidaSerializer)
+class ConcluirLeituraView(APIView):
+    """Marca a leitura da lição. Idempotente: 201 na primeira vez, 200 depois."""
+
+    permission_classes = [IsAuthenticated, PODE_CONCLUIR_EXERCICIO]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "conclusao"
+
+    def post(self, request, trilha_slug, aula_slug):
+        aula = _aula_publicada(trilha_slug, aula_slug)
+        exigir_liberado(
+            user=request.user,
+            trilha=aula.trilha,
+            tipo=TipoDeEtapa.LEITURA,
+            aula_slug=aula.slug,
+        )
+        etapa, criada = concluir_leitura(user=request.user, aula=aula)
+        return Response(
+            EtapaConcluidaSerializer(etapa).data,
+            status=status.HTTP_201_CREATED if criada else status.HTTP_200_OK,
+        )
+
+
+@extend_schema(
+    tags=["progressao"],
+    request=RespostasDoQuizSerializer,
+    responses=EtapaConcluidaSerializer,
+)
+class ConcluirQuizView(APIView):
+    """Corrige o quiz no servidor e registra a etapa.
+
+    A resposta traz `acertos` desta tentativa; o melhor resultado fica gravado
+    na etapa e é o que volta em `eu/etapas-concluidas/`.
+    """
+
+    permission_classes = [IsAuthenticated, PODE_CONCLUIR_EXERCICIO]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "conclusao"
+
+    def post(self, request, trilha_slug, aula_slug):
+        aula = _aula_publicada(trilha_slug, aula_slug)
+        exigir_liberado(
+            user=request.user,
+            trilha=aula.trilha,
+            tipo=TipoDeEtapa.QUIZ,
+            aula_slug=aula.slug,
+        )
+        entrada = RespostasDoQuizSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        etapa, criada, acertos, total = concluir_quiz(
+            user=request.user, aula=aula, respostas=entrada.validated_data["respostas"]
+        )
+        dados = EtapaConcluidaSerializer(etapa).data
+        dados["acertos"] = acertos
+        dados["total"] = total
+        return Response(
+            dados, status=status.HTTP_201_CREATED if criada else status.HTTP_200_OK
+        )
+
+
+class MinhasEtapasConcluidasView(generics.ListAPIView):
+    serializer_class = EtapaConcluidaSerializer
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "eu_progresso"
+    pagination_class = None
+
+    def get_queryset(self):
+        return etapas_concluidas(user=self.request.user)
+
+
+@extend_schema(tags=["progressao"])
+class PassosDaTrilhaView(APIView):
+    """A ordem de estudo da trilha e o estado de cada passo para o aluno."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "eu_progresso"
+
+    def get(self, request, trilha_slug):
+        trilha = get_object_or_404(Trilha.objects.publicados(), slug=trilha_slug)
+        livre = not settings.PROGRESSAO_SEQUENCIAL
+        return Response(
+            [
+                {
+                    "tipo": estado.passo.tipo,
+                    "aula_slug": estado.passo.aula_slug,
+                    "exercicio_slug": estado.passo.exercicio_slug,
+                    "titulo": estado.passo.titulo,
+                    "estado": "liberado"
+                    if livre and estado.estado == "bloqueado"
+                    else estado.estado,
+                }
+                for estado in estado_da_trilha(request.user, trilha)
+            ]
+        )
+
+
+@extend_schema(tags=["progressao"])
+class TrilhaAtualView(APIView):
+    """A trilha da atividade mais recente do aluno, para o "continuar"."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "eu_progresso"
+
+    def get(self, request):
+        return Response({"trilha": trilha_atual(user=request.user)})
+
+
+@extend_schema(tags=["progressao"], responses=ConclusaoDaTrilhaSerializer)
+class ConclusaoDaTrilhaView(APIView):
+    """O resumo da tela de quest completa: fases, XP, precisão e conquistas."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "eu_progresso"
+
+    def get(self, request, trilha_slug):
+        trilha = get_object_or_404(
+            Trilha.objects.publicados().filter(desafio=False), slug=trilha_slug
+        )
+        return Response(
+            ConclusaoDaTrilhaSerializer(
+                resumo_da_conclusao(user=request.user, trilha=trilha)
+            ).data
+        )
+

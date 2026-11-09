@@ -9,6 +9,7 @@ import { ListaAprovados } from "@/components/autoria/ListaAprovados";
 import { ListaRascunhos } from "@/components/autoria/ListaRascunhos";
 import { MeusEnvios } from "@/components/autoria/MeusEnvios";
 import { useProgresso } from "@/components/progresso/ProvedorProgresso";
+import { Badge } from "@/components/ui/Badge";
 import { IconeLapis } from "@/components/ui/Icone";
 import { ServicoIndisponivel } from "@/components/ui/ServicoIndisponivel";
 import { TIPO } from "@/lib/tipografia";
@@ -126,8 +127,8 @@ export function PainelAutoria() {
     <div className="flex flex-col gap-8">
       {/* Ordem: título, subtítulo, abas, divisória e o conteúdo da aba ativa. */}
       <div className="flex flex-col gap-3">
-        <span className={`text-brand ${TIPO.sobretitulo}`}>{"// AUTORIA"}</span>
-        <h1 className={`m-0 text-ink ${TIPO.tituloPagina}`}>{ABAS[aba].titulo}</h1>
+        <span className="font-label text-[11px] tracking-[2px] text-brand">{"// AUTORIA"}</span>
+        <h1 className={`m-0 text-ink ${TIPO.tituloApp}`}>{ABAS[aba].titulo}</h1>
         <p className={`m-0 text-ink-muted ${TIPO.corpo}`}>{ABAS[aba].subtitulo}</p>
       </div>
 
@@ -135,8 +136,9 @@ export function PainelAutoria() {
         <div
           role="tablist"
           aria-label="Fluxo editorial"
-          className="flex overflow-x-auto border-b-2 border-edge"
+          className="flex flex-wrap gap-3"
         >
+          {/* Mesmo chip dos filtros do catálogo de trilhas. */}
           {abas.map((id) => {
             const ativa = id === aba;
             return (
@@ -148,11 +150,15 @@ export function PainelAutoria() {
                 aria-selected={ativa}
                 aria-controls={`painel-${id}`}
                 onClick={() => setAbaEscolhida(id)}
-                className={`flex cursor-pointer items-center gap-3 border-b-[3px] px-5 py-4 font-label text-[11px] tracking-[2px] ${ativa ? "border-brand-light text-ink" : "border-transparent text-ink-dim hover:text-ink-muted"}`}
+                className={`flex cursor-pointer items-center gap-3 border-2 px-4 py-3 font-label text-[11px] tracking-[2px] uppercase shadow-pixel transition-colors duration-150 ${
+                  ativa
+                    ? "border-brand-light bg-brand-deep text-ink"
+                    : "border-edge-soft bg-transparent text-ink-muted hover:border-brand hover:text-ink-soft"
+                }`}
               >
                 {ABAS[id].rotulo}
                 {id === "revisao" && totalFila > 0 ? (
-                  <span className="border-2 border-warning px-2 text-warning">{totalFila}</span>
+                  <Badge tom="alerta">{totalFila}</Badge>
                 ) : null}
               </button>
             );
@@ -206,7 +212,7 @@ export function PainelAutoria() {
                     <li
                       key={lista}
                       title={total === 0 ? vazio : undefined}
-                      className={`flex items-center gap-3 border-2 bg-panel px-3 py-2 ${total === 0 ? "border-edge text-ink-dim" : cor}`}
+                      className={`flex items-center gap-3 border-2 bg-panel px-4 py-3 shadow-pixel ${total === 0 ? "border-edge text-ink-dim" : cor}`}
                     >
                       <span className={TIPO.etiqueta}>{titulo}</span>
                       <span className={`border-2 px-2 ${total === 0 ? "border-edge" : cor} ${TIPO.etiqueta}`}>

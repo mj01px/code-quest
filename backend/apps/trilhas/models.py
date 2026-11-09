@@ -108,6 +108,14 @@ class Trilha(models.Model):
         verbose_name=_("status editorial"),
     )
 
+    desafio = models.BooleanField(
+        default=False,
+        verbose_name=_("trilha de desafios do dia"),
+        help_text=_(
+            "Guarda os desafios do dia: fica fora do catálogo e da ordem de estudo."
+        ),
+    )
+
     criada_em = models.DateTimeField(auto_now_add=True, verbose_name=_("criada em"))
     atualizada_em = models.DateTimeField(auto_now=True, verbose_name=_("atualizada em"))
 
@@ -239,6 +247,16 @@ class Flashcard(models.Model):
 
     resposta = models.TextField(max_length=1000, verbose_name=_("resposta"))
 
+    dica = models.TextField(
+        max_length=300,
+        blank=True,
+        default="",
+        verbose_name=_("dica"),
+        help_text=_(
+            "Pista que o pet dá antes da resposta. Não pode entregar a resposta."
+        ),
+    )
+
     class Meta:
         verbose_name = _("flashcard")
         verbose_name_plural = _("flashcards")
@@ -358,6 +376,25 @@ class Exercicio(models.Model):
 
     # Texto que o aluno lê depois de responder: a explicação da múltipla
     # escolha ou o verso do flashcard. Público, ao contrário de `solucao_autor`.
+    contexto = models.TextField(
+        blank=True,
+        default="",
+        verbose_name=_("contexto"),
+        help_text=_(
+            "Explicação curta do conceito, em Markdown, mostrada acima da missão "
+            "no painel Aprender do exercício."
+        ),
+    )
+
+    exemplo = models.TextField(
+        blank=True,
+        default="",
+        verbose_name=_("exemplo"),
+        help_text=_(
+            "Código que demonstra o conceito sem resolver o exercício. Público."
+        ),
+    )
+
     explicacao = models.TextField(
         blank=True,
         default="",

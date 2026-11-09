@@ -10,3 +10,10 @@ def limpar_contadores_de_throttle() -> Iterator[None]:
     cache.clear()
     yield
     cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def progressao_livre_por_padrao(request, settings) -> None:
+    """A trava de ordem só vale nos testes marcados com `sequencial`."""
+    if request.node.get_closest_marker("sequencial") is None:
+        settings.PROGRESSAO_SEQUENCIAL = False

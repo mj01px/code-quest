@@ -8,11 +8,16 @@ from django.db import IntegrityError, transaction
 from django.db.models import Max, Sum
 from django.utils import timezone
 
-from apps.conquistas.models import ConquistaDesbloqueada
+from apps.clas.models import MembroDoCla, TipoDeCla
+from apps.conquistas.models import Conquista, ConquistaDesbloqueada
 from apps.contas.models import User
 from apps.gamificacao.models import UserCreature
 from apps.gamificacao.serializers import _url_sprite
-from apps.progressao.models import EventoXP, ProgressoCriatura
+from apps.progressao.models import EventoXP, Nivel, ProgressoCriatura
+from apps.progressao.services import (
+    ler_sequencia,
+    progresso_das_trilhas,
+)
 
 from .models import PodioMensal
 
@@ -71,12 +76,35 @@ class ConquistaDoPerfil(TypedDict):
     desbloqueada_em: datetime
 
 
+class ConquistaBloqueada(TypedDict):
+    slug: str | None
+    nome: str
+    icone: str
+    oculta: bool
+
+
+class TrilhaDoPerfil(TypedDict):
+    slug: str
+    nome: str
+    percentual: int
+
+
 class PerfilPublico(TypedDict):
     nickname: str
     criatura: CriaturaDoRanking | None
     nivel: int | None
+    titulo_do_nivel: str
     xp_total: int
+    xp_no_nivel: int
+    xp_para_o_proximo: int | None
+    membro_desde: date
+    cla: str | None
+    sequencia_atual: int
+    sequencia_recorde: int
+    total_conquistas: int
     conquistas: list[ConquistaDoPerfil]
+    conquistas_bloqueadas: list[ConquistaBloqueada]
+    trilhas: list[TrilhaDoPerfil]
 
 
 def primeiro_dia(dia: date) -> date:
@@ -237,7 +265,6 @@ def ranking_mensal(user: User) -> RankingMensal:
     }
 
 
-
 def perfil_publico(nickname: str) -> PerfilPublico | None:
     """Vitrine de outro aluno: criatura ativa, nível, XP e conquistas obtidas.
 
@@ -259,16 +286,57 @@ def perfil_publico(nickname: str) -> PerfilPublico | None:
         # criatura sem progresso ainda está no nível 1
         nivel = progresso.nivel_id if progresso else 1
 
-    desbloqueios = (
+    desbloqueios = list(
         ConquistaDesbloqueada.objects.filter(user=user, conquista__ativa=True)
         .select_related("conquista")
         .order_by("-desbloqueada_em")
     )
-    return {
+    obtidas = {d.conquista_id for d in desbloqueios}
+    bloqueadas = [
+        c for c in Conquista.objects.filter(ativa=True) if c.pk not in obtidas
+    ]
+
+    titulo = ""
+    xp_no_nivel = 0
+    xp_para_o_proximo: int | None = None
+    if progresso is not None:
+        atual = progresso.nivel
+        seguinte = (
+            Nivel.objects.filter(numero__gt=atual.numero).order_by("numero").first()
+        )
+        titulo = atual.titulo
+        xp_no_nivel = progresso.xp_total - atual.xp_necessario
+        xp_para_o_proximo = (
+            seguinte.xp_necessario - atual.xp_necessario if seguinte else None
+        )
+    elif posse is not None:
+        primeiro = Nivel.objects.filter(numero=1).first()
+        segundo = Nivel.objects.filter(numero=2).first()
+        titulo = primeiro.titulo if primeiro else ""
+        xp_para_o_proximo = segundo.xp_necessario if segundo else None
+
+    membro = MembroDoCla.objects.filter(user=user).select_related("cla").first()
+    sequencia = ler_sequencia(user=user)
+
+    perfil: PerfilPublico = {
         "nickname": user.nickname,
         "criatura": _criaturas_ativas([user.pk]).get(user.pk),
         "nivel": nivel,
+        "titulo_do_nivel": titulo,
         "xp_total": progresso.xp_total if progresso else 0,
+        "xp_no_nivel": xp_no_nivel,
+        "xp_para_o_proximo": xp_para_o_proximo,
+        "membro_desde": timezone.localtime(user.created_at).date(),
+        # Clã privado só aparece para quem é membro (obter_cla_visivel); o perfil
+        # é público, então mostra só o público.
+        "cla": (
+            membro.cla.nome
+            if membro and membro.cla.tipo == TipoDeCla.PUBLICO
+            else None
+        ),
+        "sequencia_atual": sequencia["atual"],
+        "sequencia_recorde": sequencia["recorde"],
+        "total_conquistas": len(obtidas) + len(bloqueadas),
         "conquistas": [
             {
                 "slug": d.conquista.slug,
@@ -279,4 +347,16 @@ def perfil_publico(nickname: str) -> PerfilPublico | None:
             }
             for d in desbloqueios
         ],
+        "conquistas_bloqueadas": [
+            {
+                # Como na lista do próprio aluno: a oculta não revela nem o slug.
+                "slug": None if c.oculta else c.slug,
+                "nome": "???" if c.oculta else c.nome,
+                "icone": "" if c.oculta else c.icone,
+                "oculta": c.oculta,
+            }
+            for c in bloqueadas
+        ],
+        "trilhas": progresso_das_trilhas(user=user),
     }
+    return perfil

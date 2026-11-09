@@ -3,20 +3,19 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 
-import { AreaDeTexto, ROTULO } from "@/components/autoria/AreaDeTexto";
+import { AreaDeTexto } from "@/components/autoria/AreaDeTexto";
 import { FormQuestao, FormTeorico } from "@/components/autoria/EditorDeConteudo";
 import { ModalConfirmacao } from "@/components/clas/ModalConfirmacao";
 import { IconeAjuda } from "@/components/ui/Icone";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelField } from "@/components/ui/PixelField";
+import { PixelSelect } from "@/components/ui/PixelSelect";
 import { ErroApi, api, buscarTrilha, listarTrilhas } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
 
+// O botão "Começar/Retomar" do destaque das trilhas: afunda a sombra no hover.
 const BOTAO =
-  "inline-flex cursor-pointer items-center justify-center border-[3px] border-brand-light bg-brand-deep px-4 py-3 font-display text-[10px] leading-[1.7] tracking-[1px] text-ink shadow-[0_0_0_3px_var(--color-brand-void),4px_4px_0_rgba(0,0,0,0.7)] transition-colors duration-150 hover:bg-brand-strong";
-
-const SELECT =
-  "cursor-pointer border-2 border-brand-strong bg-field px-3 py-[11px] font-body text-[15px] text-ink shadow-pixel outline-none focus:border-brand-pale disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex cursor-pointer items-center justify-center border-[3px] border-brand-light bg-brand-deep px-4 py-3 font-display text-[10px] leading-[1.7] tracking-[1px] text-ink uppercase shadow-[0_0_0_3px_var(--color-brand-void),4px_4px_0_rgba(0,0,0,0.7)] transition duration-150 hover:translate-x-0.5 hover:translate-y-0.5 hover:bg-brand-strong hover:shadow-[0_0_0_3px_var(--color-brand-void),2px_2px_0_rgba(0,0,0,0.7)]";
 
 type Modo = "aula" | "exercicio";
 type TipoNovo = "TEORICO" | "MULTIPLA" | "CODIGO";
@@ -114,8 +113,18 @@ export function CriacaoRapida({
   if (!algum.some(pode)) return null;
 
   return (
-    <div className="flex flex-col items-start gap-3">
-      <div role="group" aria-label="Criar conteúdo" className="flex flex-wrap justify-start gap-3">
+    // Moldura do destaque das trilhas (CartaoDestaque). Div, não section: o
+    // painel não ganha uma região a mais.
+    <div className="animate-surgir flex flex-col items-start gap-5 border-[3px] border-brand bg-panel p-6 shadow-frame sm:p-8">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="bg-brand px-3 py-1.5 font-label text-[11px] tracking-[2px] text-void uppercase">
+          Criação rápida
+        </span>
+        <span className="font-label text-[11px] tracking-[2px] text-ink-muted uppercase">
+          Tudo nasce em rascunho
+        </span>
+      </div>
+      <div role="group" aria-label="Criar conteúdo" className="flex flex-wrap justify-start gap-4">
         {pode("trilhas.create_trilha") ? (
           <BotaoComDica rotulo="+ NOVA TRILHA" dica={DICAS.trilha} href="/autoria/novo" />
         ) : null}
@@ -241,53 +250,33 @@ function ConteudoDoModal({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-2">
-        <label htmlFor={`${id}-trilha`} className={ROTULO}>
-          VINCULAR À TRILHA
-        </label>
-        <select
-          id={`${id}-trilha`}
-          value={trilha ?? ""}
-          disabled={trilhas === null}
-          onChange={(e) => escolherTrilha(e.target.value)}
-          className={SELECT}
-        >
-          <option value="">{trilhas === null ? "Carregando..." : "Escolha uma trilha"}</option>
-          {trilhas?.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.titulo}
-            </option>
-          ))}
-        </select>
-      </div>
+      <PixelSelect
+        id={`${id}-trilha`}
+        rotulo="VINCULAR À TRILHA"
+        value={trilha === null ? "" : String(trilha)}
+        disabled={trilhas === null}
+        onChange={escolherTrilha}
+        placeholder={trilhas === null ? "Carregando..." : "Escolha uma trilha"}
+        opcoes={(trilhas ?? []).map((t) => ({ valor: String(t.id), rotulo: t.titulo }))}
+      />
 
       {modo === "exercicio" && trilha !== null ? (
         <>
-          <div className="flex flex-col gap-2">
-            <label htmlFor={`${id}-aula`} className={ROTULO}>
-              VINCULAR À AULA
-            </label>
-            <select
-              id={`${id}-aula`}
-              value={aula ?? ""}
-              disabled={aulas === null || aulas.length === 0}
-              onChange={(e) => setAula(e.target.value ? Number(e.target.value) : null)}
-              className={SELECT}
-            >
-              <option value="">
-                {aulas === null
-                  ? "Carregando..."
-                  : aulas.length === 0
-                    ? "Esta trilha ainda não tem aula"
-                    : "Escolha uma aula"}
-              </option>
-              {aulas?.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.titulo}
-                </option>
-              ))}
-            </select>
-          </div>
+          <PixelSelect
+            id={`${id}-aula`}
+            rotulo="VINCULAR À AULA"
+            value={aula === null ? "" : String(aula)}
+            disabled={aulas === null || aulas.length === 0}
+            onChange={(v) => setAula(v ? Number(v) : null)}
+            placeholder={
+              aulas === null
+                ? "Carregando..."
+                : aulas.length === 0
+                  ? "Esta trilha ainda não tem aula"
+                  : "Escolha uma aula"
+            }
+            opcoes={(aulas ?? []).map((a) => ({ valor: String(a.id), rotulo: a.titulo }))}
+          />
           <div role="group" aria-label="Tipo do exercício" className="flex flex-wrap gap-2">
             {/* Quiz entra direto na aula, sem revisão: só na aula própria em rascunho. */}
             {TIPOS.filter(([valor]) => !publicadas || valor !== "MULTIPLA").map(([valor, rotulo]) => (
@@ -296,10 +285,10 @@ function ConteudoDoModal({
                 type="button"
                 aria-pressed={tipo === valor}
                 onClick={() => setTipo(valor)}
-                className={`cursor-pointer border-2 px-4 py-2 font-label text-[11px] tracking-[2px] transition-colors duration-150 ${
+                className={`cursor-pointer border-2 px-4 py-3 font-label text-[11px] tracking-[2px] uppercase shadow-pixel transition-colors duration-150 ${
                   tipo === valor
                     ? "border-brand-light bg-brand-deep text-ink"
-                    : "border-edge-soft text-ink-muted hover:border-brand hover:text-ink"
+                    : "border-edge-soft bg-transparent text-ink-muted hover:border-brand hover:text-ink-soft"
                 }`}
               >
                 {rotulo}

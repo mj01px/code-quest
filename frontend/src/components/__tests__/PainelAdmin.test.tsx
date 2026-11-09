@@ -8,6 +8,7 @@ import {
 } from "@/components/__tests__/fixtures";
 import { PainelAdmin } from "@/components/admin/PainelAdmin";
 import { ProvedorProgresso } from "@/components/progresso/ProvedorProgresso";
+import { escolherOpcao } from "@/components/__tests__/selecao";
 
 jest.mock("@/lib/api", () => ({
   temSessao: jest.fn(),
@@ -25,6 +26,7 @@ jest.mock("@/lib/api", () => ({
     adminDashboard: jest.fn(),
     adminSolicitacoes: jest.fn(),
     adminLogs: jest.fn(),
+    auditoria: jest.fn(),
     adminAtribuirNivel: jest.fn(),
     adminSituacaoUsuario: jest.fn(),
     adminExcluirUsuario: jest.fn(),
@@ -52,6 +54,7 @@ const mock = jest.requireMock<{
     adminDashboard: jest.Mock;
     adminSolicitacoes: jest.Mock;
     adminLogs: jest.Mock;
+    auditoria: jest.Mock;
     adminAtribuirNivel: jest.Mock;
     adminSituacaoUsuario: jest.Mock;
     adminExcluirUsuario: jest.Mock;
@@ -89,7 +92,28 @@ beforeEach(() => {
   mock.api.adminPermissoes.mockResolvedValue([]);
   mock.api.adminDashboard.mockResolvedValue(dashboard());
   mock.api.adminLogs.mockResolvedValue({ count: 0, next: null, previous: null, results: [] });
+  mock.api.adminSolicitacoes.mockResolvedValue([]);
 });
+
+const pedidoDaAna = {
+  id: 5,
+  areas: [1],
+  areas_nomes: ["Python"],
+  carta_apresentacao: "Quero ensinar.\nSegunda linha.",
+  portfolio_link: "",
+  aceite_diretrizes: true,
+  tipo_pretendido: "EXERCICIO",
+  situacao: "PENDENTE",
+  motivo_rejeicao: "",
+  criado_em: "2026-10-28T12:00:00Z",
+  solicitante: {
+    id: "u1",
+    nickname: "ana",
+    email: "ana@example.com",
+    criatura: null,
+    nivel: 9,
+  },
+};
 
 function dashboard() {
   return {
@@ -106,6 +130,41 @@ function dashboard() {
     ],
     submissoes_semana: [
       { dia: "Seg", data: "2026-10-19", aprovadas: 4, rejeitadas: 1 },
+    ],
+    periodo: "7d",
+    usuarios: { total: 42, novos: 3 },
+    ativos: { total: 12, percentual: 29 },
+    submissoes: { total: 1234, percentual_aprovadas: 75 },
+    trilhas: { publicadas: 3, em_revisao: 1 },
+    ativos_por_dia: [
+      { data: "2026-10-19", alunos: 4 },
+      { data: "2026-10-20", alunos: 11 },
+    ],
+    submissoes_por_dia: [
+      { data: "2026-10-19", aprovadas: 4, rejeitadas: 1 },
+      { data: "2026-10-20", aprovadas: 2, rejeitadas: 0 },
+    ],
+    funis: [
+      {
+        slug: "logica",
+        nome: "Lógica",
+        etapas: [
+          { chave: "iniciaram", rotulo: "Iniciaram", alunos: 20 },
+          { chave: "leram", rotulo: "Leram a lição", alunos: 15 },
+          { chave: "quiz", rotulo: "Fizeram o quiz", alunos: 12 },
+        ],
+      },
+      {
+        slug: "python",
+        nome: "Python",
+        etapas: [{ chave: "iniciaram", rotulo: "Iniciaram", alunos: 7 }],
+      },
+    ],
+    sequencias: [
+      { faixa: "0 dias", alunos: 30 },
+      { faixa: "1–2 dias", alunos: 7 },
+      { faixa: "3–6 dias", alunos: 4 },
+      { faixa: "7+ dias", alunos: 1 },
     ],
   };
 }
@@ -133,50 +192,64 @@ describe("PainelAdmin: guarda de papel", () => {
     expect(substituirRota).not.toHaveBeenCalled();
   });
 
-  it("admin cuida de pessoas: o modal é Solicitações de Autor, sem revisão de conteúdo", async () => {
-    mock.api.eu.mockResolvedValue(usuario({ is_admin: true }));
-    mock.api.adminSolicitacoes.mockResolvedValue([]);
+  it("o cabeçalho só tem atribuir nível e níveis de acesso", async () => {
+    mock.api.eu.mockResolvedValue(admin());
     montar();
 
-    await userEvent.click(
-      await screen.findByRole("button", { name: "SOLICITAÇÕES DE AUTOR" }),
-    );
-
-    expect(
-      await screen.findByRole("dialog", { name: "Solicitações de autor" }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "APROVAÇÕES" })).toBeNull();
-    expect(screen.queryByRole("button", { name: /REVISÃO DE CONTEÚDO/ })).toBeNull();
+    expect(await screen.findByRole("button", { name: "ATRIBUIR NÍVEL" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "NÍVEIS DE ACESSO" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "SOLICITAÇÕES DE AUTOR" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "AUDITORIA COMPLETA" })).toBeNull();
   });
 
-  it("Esc na confirmação aninhada fecha só a confirmação", async () => {
-    mock.api.eu.mockResolvedValue(usuario({ is_admin: true }));
-    mock.api.adminSolicitacoes.mockResolvedValue([
-      {
-        id: 5,
-        areas: [1],
-        areas_nomes: ["Python"],
-        carta_apresentacao: "Quero ensinar.",
-        portfolio_link: "",
-        aceite_diretrizes: true,
-        tipo_pretendido: "EXERCICIO",
-        situacao: "PENDENTE",
-        motivo_rejeicao: "",
-        criado_em: "2026-10-28T12:00:00Z",
-        solicitante: { id: "u1", nickname: "ana", email: "ana@example.com" },
-      },
-    ]);
+  it("sem pedidos o bloco de atenção some e avisa que não há pendências", async () => {
+    mock.api.eu.mockResolvedValue(admin());
     montar();
-    await userEvent.click(
-      await screen.findByRole("button", { name: "SOLICITAÇÕES DE AUTOR" }),
+
+    expect(await screen.findByText("Nenhuma solicitação pendente")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Precisa da sua atenção" })).toBeNull();
+  });
+
+  it("mostra o pedido pendente inline e aprova pela confirmação", async () => {
+    mock.api.eu.mockResolvedValue(admin());
+    mock.api.adminSolicitacoes.mockResolvedValue([pedidoDaAna]);
+    const aprovar = jest.fn().mockResolvedValue({ ...pedidoDaAna, situacao: "APROVADA" });
+    (mock.api as Record<string, jest.Mock>).aprovarSolicitacao = aprovar;
+    montar();
+
+    const bloco = (await screen.findByRole("heading", { name: "Precisa da sua atenção" }))
+      .closest("section") as HTMLElement;
+    expect(within(bloco).getByText("1 PENDENTE")).toBeInTheDocument();
+    expect(within(bloco).getByText("NV 9")).toBeInTheDocument();
+    expect(within(bloco).getByText("Exercícios")).toBeInTheDocument();
+    expect(within(bloco).getByText("“Quero ensinar.”")).toBeInTheDocument();
+
+    await userEvent.click(within(bloco).getByRole("button", { name: "Aprovar: ana" }));
+    expect(await screen.findByRole("dialog", { name: "Aprovar ana?" })).toHaveTextContent(
+      /pode criar exercícios/,
     );
-    await userEvent.click(await screen.findByRole("button", { name: "Rejeitar: ana" }));
+    await userEvent.click(screen.getByRole("button", { name: "APROVAR" }));
+
+    await waitFor(() => expect(aprovar).toHaveBeenCalledWith(5));
+    expect(await screen.findByText("Nenhuma solicitação pendente")).toBeInTheDocument();
+  });
+
+  it("ver pedido abre só aquele pedido no modal; Esc na confirmação fecha só ela", async () => {
+    mock.api.eu.mockResolvedValue(admin());
+    mock.api.adminSolicitacoes.mockResolvedValue([pedidoDaAna]);
+    montar();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Ver pedido" }));
+    const dialogo = await screen.findByRole("dialog", { name: "Solicitação de autor" });
+    await userEvent.click(
+      await within(dialogo).findByRole("button", { name: "Rejeitar: ana" }),
+    );
     expect(screen.getAllByRole("dialog")).toHaveLength(2);
 
     await userEvent.keyboard("{Escape}");
 
     expect(screen.getAllByRole("dialog")).toHaveLength(1);
-    expect(screen.getByRole("dialog", { name: "Solicitações de autor" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Solicitação de autor" })).toBeInTheDocument();
   });
 
   it("redireciona aluno para /trilhas e não vaza o painel", async () => {
@@ -200,29 +273,55 @@ describe("PainelAdmin: guarda de papel", () => {
 });
 
 describe("PainelAdmin: dashboard como página principal", () => {
-  it("abre direto nos big numbers e gráficos, sem abas", async () => {
+  it("abre direto nos quatro indicadores e nos gráficos", async () => {
     mock.api.eu.mockResolvedValue(admin());
     montar();
 
-    expect(await screen.findByText("42")).toBeInTheDocument();
-    expect(screen.getByText("+3 na semana")).toBeInTheDocument();
-    expect(screen.getByText("1.234")).toBeInTheDocument();
-    expect(screen.getByText("MÉDIA XP/USUÁRIO")).toBeInTheDocument();
-    expect(screen.getByText("150,5")).toBeInTheDocument();
-    expect(screen.getByText("MÉDIA SUBMISSÕES/USUÁRIO")).toBeInTheDocument();
-    expect(screen.getByText("29,4")).toBeInTheDocument();
-    expect(screen.getByText("TAXA DE APROVAÇÃO")).toBeInTheDocument();
-    expect(screen.getByText("%")).toBeInTheDocument();
-    expect(
-      screen.getByRole("img", { name: /Seg: 4 Aprovadas e 1 Rejeitadas/ }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /Ter: 1 Cadastros/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "USUÁRIOS" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "DASHBOARD" })).toBeNull();
+    const indicadores = await screen.findByRole("list", { name: "Indicadores" });
+    expect(within(indicadores).getByText("42")).toBeInTheDocument();
+    expect(within(indicadores).getByText("+3 na semana")).toBeInTheDocument();
+    expect(within(indicadores).getByText("Ativos na semana")).toBeInTheDocument();
+    expect(within(indicadores).getByText("29% dos usuários")).toBeInTheDocument();
+    expect(within(indicadores).getByText("1.234")).toBeInTheDocument();
+    expect(within(indicadores).getByText("75% aprovadas")).toBeInTheDocument();
+    expect(within(indicadores).getByText("publicadas · 1 em revisão")).toBeInTheDocument();
+    expect(screen.queryByText(/XP distribuído/i)).toBeNull();
+    expect(screen.getByRole("img", { name: /Alunos ativos por dia.*Hoje: 11/ })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /7 no total/ })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /30 com 0 dias/ })).toBeInTheDocument();
+  });
+
+  it("trocar o período busca de novo com o período escolhido", async () => {
+    mock.api.eu.mockResolvedValue(admin());
+    montar();
+
+    await escolherOpcao(
+      userEvent,
+      await screen.findByRole("button", { name: "PERÍODO" }),
+      "Últimos 30 dias",
+    );
+
+    await waitFor(() => expect(mock.api.adminDashboard).toHaveBeenLastCalledWith("30d"));
+    expect(await screen.findByText("+3 em 30 dias")).toBeInTheDocument();
+  });
+
+  it("funil mostra a queda entre etapas e troca de trilha", async () => {
+    mock.api.eu.mockResolvedValue(admin());
+    montar();
+
+    const funil = (await screen.findByRole("heading", { name: "Funil da trilha" }))
+      .closest("section") as HTMLElement;
+    expect(within(funil).getByText("−25%")).toBeInTheDocument();
+    expect(within(funil).getByText(/maior queda: de iniciaram para leram a lição/)).toBeInTheDocument();
+
+    await escolherOpcao(userEvent, within(funil).getByRole("button", { name: "TRILHA" }), "Python");
+
+    expect(within(funil).queryByText("Leram a lição")).toBeNull();
+    expect(within(funil).getByText("7")).toBeInTheDocument();
   });
 });
 
-describe("PainelAdmin: logs paginados", () => {
+describe("PainelAdmin: últimos eventos de auditoria", () => {
   const log = (n: number) => ({
     id: `log-${n}`,
     criado_em: "2026-10-20T12:00:00Z",
@@ -232,7 +331,7 @@ describe("PainelAdmin: logs paginados", () => {
     detalhes: "",
   });
 
-  it("mostra a primeira página e navega para a próxima", async () => {
+  it("mostra só os 3 últimos e ver todos abre a auditoria completa", async () => {
     mock.api.eu.mockResolvedValue(admin());
     mock.api.adminLogs.mockResolvedValue({
       count: 25,
@@ -240,21 +339,17 @@ describe("PainelAdmin: logs paginados", () => {
       previous: null,
       results: Array.from({ length: 10 }, (_, i) => log(i)),
     });
+    mock.api.auditoria.mockResolvedValue({ count: 0, next: null, previous: null, results: [], acoes: [] });
     montar();
 
-    expect(await screen.findByText("25 REGISTROS")).toBeInTheDocument();
-    expect(screen.getAllByText("Login bem-sucedido")).toHaveLength(10);
-    const paginacao = screen.getByRole("navigation", { name: "Paginação dos logs" });
-    expect(paginacao).toHaveTextContent("PÁGINA01/de03");
-    expect(within(paginacao).getByRole("button", { name: "‹ ANTERIOR" })).toBeDisabled();
+    expect(
+      await screen.findByRole("heading", { name: "Últimos eventos de auditoria" }),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByText("Login bem-sucedido")).toHaveLength(3));
 
-    await userEvent.click(within(paginacao).getByRole("button", { name: "PRÓXIMA ›" }));
-    await userEvent.click(within(paginacao).getByRole("button", { name: "PRÓXIMA ›" }));
+    await userEvent.click(screen.getByRole("button", { name: "VER TODOS >" }));
 
-    expect(mock.api.adminLogs).toHaveBeenLastCalledWith(3);
-    expect(paginacao).toHaveTextContent("PÁGINA03/de03");
-    expect(within(paginacao).getByRole("button", { name: "PRÓXIMA ›" })).toBeDisabled();
-    expect(within(paginacao).getByRole("button", { name: "‹ ANTERIOR" })).toBeEnabled();
+    expect(await screen.findByRole("dialog", { name: "Auditoria" })).toBeInTheDocument();
   });
 
   it("sem auditoria.view a seção nem aparece", async () => {
@@ -262,7 +357,9 @@ describe("PainelAdmin: logs paginados", () => {
     montar();
 
     await screen.findByText("42");
-    expect(screen.queryByRole("heading", { name: "Logs de auditoria" })).toBeNull();
+    expect(
+      screen.queryByRole("heading", { name: "Últimos eventos de auditoria" }),
+    ).toBeNull();
     expect(mock.api.adminLogs).not.toHaveBeenCalled();
   });
 });
