@@ -2,8 +2,8 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
-import { PreviaMarkdown } from "@/components/autoria/PreviaMarkdown";
 import { PainelDeCodigo } from "@/components/exercicio/PainelDeCodigo";
+import { ConteudoDaLicao } from "@/components/licao/ConteudoDaLicao";
 import { BaralhoFlashcards } from "@/components/trilhas/CartaoFlashcard";
 import { QuizQuestao } from "@/components/trilhas/QuizQuestao";
 import { useModal } from "@/components/ui/useModal";
@@ -206,7 +206,7 @@ function AulaNaTrilha({ numero, aula }: { numero: number; aula: Aula }) {
       <h3 className={`m-0 text-brand-light ${TIPO.etiqueta}`}>
         {`AULA ${numero}: ${aula.titulo}`.toUpperCase()}
       </h3>
-      <PreviaMarkdown markdown={aula.conteudo} />
+      <ConteudoDaLicao markdown={aula.conteudo} tamanho="medio" embutido />
       <QuizDaAula aula={aula} />
       <ExerciciosDaAula aula={aula} />
       <BaralhoFlashcards cards={aula.flashcards} />

@@ -10,10 +10,10 @@ export const ROTULO = "font-label text-[12px] tracking-[2px] text-ink-label";
 const BOTAO_FERRAMENTA =
   "min-h-11 min-w-11 cursor-pointer border-2 border-edge-soft bg-panel-deep px-3 font-terminal text-lg text-ink-soft transition-colors duration-150 hover:border-brand hover:text-ink focus-visible:border-brand-pale";
 
-// [marca, nome acessível, o que aparece no botão]
+// [marca, nome acessível, o que aparece no botão]. Só o que a lição do aluno
+// formata (`trechosInline`): itálico apareceria com os asteriscos.
 const FERRAMENTAS: [string, string, string][] = [
   ["**", "Negrito", "B"],
-  ["*", "Itálico", "I"],
   ["`", "Código", "</>"],
 ];
 
@@ -48,7 +48,7 @@ export function AreaDeTexto({
         {rotulo}
       </label>
       {markdown ? (
-        <div role="toolbar" aria-label="Formatação" aria-controls={id} className="flex gap-2">
+        <div role="toolbar" aria-label={`Formatação: ${rotulo}`} aria-controls={id} className="flex gap-2">
           {FERRAMENTAS.map(([marca, nome, icone]) => (
             <button
               key={nome}

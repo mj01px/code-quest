@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { AreaDeTexto } from "@/components/autoria/AreaDeTexto";
-import { FormQuestao, FormTeorico } from "@/components/autoria/EditorDeConteudo";
+import { FormQuestao, FormTeorico } from "@/components/autoria/AulaNoEditor";
 import { ModalConfirmacao } from "@/components/clas/ModalConfirmacao";
 import { IconeAjuda } from "@/components/ui/Icone";
 import { PixelButton } from "@/components/ui/PixelButton";

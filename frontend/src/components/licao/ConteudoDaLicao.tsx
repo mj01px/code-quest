@@ -34,22 +34,28 @@ function Bloco({
   bloco,
   primeiro,
   medio,
+  embutido,
 }: {
   bloco: BlocoLicao;
   primeiro: boolean;
   medio: boolean;
+  embutido: boolean;
 }) {
   const CORPO = medio ? CORPO_MEDIO : CORPO_NORMAL;
   switch (bloco.tipo) {
-    case "secao":
+    case "secao": {
+      // Embutida em outra tela (editor, prévia), várias lições dividem a
+      // página: sem âncora (id repetido) e um nível abaixo dos títulos dela.
+      const Titulo = embutido ? "h5" : "h2";
       return (
-        <h2
-          id={bloco.id}
+        <Titulo
+          id={embutido ? undefined : bloco.id}
           className="m-0 mt-8 scroll-mt-8 font-display text-[13px] leading-[1.8] tracking-[1px] text-ink"
         >
           {bloco.texto}
-        </h2>
+        </Titulo>
       );
+    }
     case "subtitulo":
       return (
         <h3 className="m-0 mt-4 font-label text-[12px] tracking-[2px] text-brand-light uppercase">
@@ -141,16 +147,19 @@ function Bloco({
 export function ConteudoDaLicao({
   markdown,
   tamanho = "normal",
+  embutido = false,
 }: {
   markdown: string;
   tamanho?: "normal" | "medio";
+  /** Dentro de outra tela (editor, prévia do revisor): seções sem âncora, em h5. */
+  embutido?: boolean;
 }) {
   const blocos = blocosDaLicao(markdown);
   const medio = tamanho === "medio";
   return (
     <div className={`flex flex-col ${medio ? "gap-3" : "gap-5"}`}>
       {blocos.map((bloco, i) => (
-        <Bloco key={i} bloco={bloco} primeiro={i === 0} medio={medio} />
+        <Bloco key={i} bloco={bloco} primeiro={i === 0} medio={medio} embutido={embutido} />
       ))}
     </div>
   );
