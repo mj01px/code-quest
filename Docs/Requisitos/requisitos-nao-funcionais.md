@@ -16,11 +16,11 @@ Cada requisito traz:
 | Categoria | Segurança, Privacidade (LGPD), Desempenho, Confiabilidade, Portabilidade, Manutenibilidade, Usabilidade ou Compatibilidade |
 | Stakeholder | Quem é atendido ou afetado pelo requisito |
 | Prioridade | Alta, Média ou Baixa |
-| Estado | `Implementado`, `Parcial`, `Planejado` ou `Em desenvolvimento`, com o mesmo critério do documento de requisitos funcionais |
+| Estado | `Implementado`, `Implementado (configuração pronta)`, `Parcial`, `Planejado` ou `Em desenvolvimento`, com o mesmo critério do documento de requisitos funcionais. "Configuração pronta" indica que os arquivos estão versionados e passam a valer quando instalados no servidor ou enviados ao GitHub |
 | Critério mensurável | O limite ou a condição objetiva que comprova o atendimento |
 | Fonte | Onde o requisito está no código (caminhos relativos à raiz do repositório) |
 
-Base da verificação: branch `ArthurMain` no commit `1d82ca0` (25 de outubro de 2026).
+Base da verificação: branch `ArthurMain` no commit `1d82ca0` (25 de outubro de 2026). RNF05, RNF11, RNF13, RNF24, RNF25, RNF26, RNF27, RNF30 e RNF32 foram revistos em 11 de novembro de 2026, sobre o commit `23ea838`.
 Os valores citados são os padrões do código; os que vêm de variável de ambiente
 estão indicados pelo nome da variável.
 
@@ -32,15 +32,15 @@ estão indicados pelo nome da variável.
 | RNF02 | Sessão em cookies protegidos | Segurança | Alta | Implementado |
 | RNF03 | Proteção contra CSRF e origens não autorizadas | Segurança | Alta | Implementado |
 | RNF04 | Bloqueio por tentativas de login | Segurança | Alta | Implementado |
-| RNF05 | Limitação de taxa de requisições | Segurança | Alta | Parcial |
+| RNF05 | Limitação de taxa de requisições | Segurança | Alta | Implementado |
 | RNF06 | Proteção dos segredos do segundo fator | Segurança | Alta | Implementado |
 | RNF07 | Autorização por permissão em cada rota | Segurança | Alta | Implementado |
 | RNF08 | Não exposição de gabaritos e casos ocultos | Segurança | Alta | Implementado |
 | RNF09 | Respostas que não revelam contas existentes | Segurança | Média | Implementado |
 | RNF10 | Isolamento da execução de código do aluno | Segurança | Alta | Implementado |
-| RNF11 | Política de segurança de conteúdo no navegador | Segurança | Média | Parcial |
+| RNF11 | Política de segurança de conteúdo no navegador | Segurança | Média | Implementado |
 | RNF12 | Trilha de auditoria imutável | Privacidade (LGPD) | Alta | Implementado |
-| RNF13 | Retenção e descarte da auditoria | Privacidade (LGPD) | Média | Parcial |
+| RNF13 | Retenção e descarte da auditoria | Privacidade (LGPD) | Média | Implementado (configuração pronta) |
 | RNF14 | Anonimização na exclusão de conta | Privacidade (LGPD) | Alta | Implementado |
 | RNF15 | Consentimento versionado e idade mínima | Privacidade (LGPD) | Alta | Implementado |
 | RNF16 | Reaproveitamento de correções idênticas | Desempenho | Média | Implementado |
@@ -51,15 +51,15 @@ estão indicados pelo nome da variável.
 | RNF21 | Evolução versionada do banco de dados | Confiabilidade | Alta | Implementado |
 | RNF22 | Degradação controlada sem o Judge0 | Confiabilidade | Média | Implementado |
 | RNF23 | Configuração por variáveis de ambiente | Portabilidade | Alta | Implementado |
-| RNF24 | Versões de dependências e de runtime fixadas | Portabilidade | Média | Parcial |
-| RNF25 | Implantação em servidor próprio (VPS) | Portabilidade | Média | Planejado |
+| RNF24 | Versões de dependências e de runtime fixadas | Portabilidade | Média | Implementado |
+| RNF25 | Implantação em servidor próprio (VPS) | Portabilidade | Média | Implementado (configuração pronta) |
 | RNF26 | Análise estática e tipagem | Manutenibilidade | Média | Parcial |
-| RNF27 | Integração contínua | Manutenibilidade | Média | Planejado |
+| RNF27 | Integração contínua | Manutenibilidade | Média | Implementado (configuração pronta) |
 | RNF28 | Documentação da API e padrão de erro | Manutenibilidade | Média | Implementado |
 | RNF29 | Identidade visual e tema escuro | Usabilidade | Média | Implementado |
-| RNF30 | Acessibilidade | Usabilidade | Média | Parcial |
+| RNF30 | Acessibilidade | Usabilidade | Média | Implementado |
 | RNF31 | Idioma e fuso horário brasileiros | Usabilidade | Alta | Implementado |
-| RNF32 | Navegadores suportados | Compatibilidade | Média | Parcial |
+| RNF32 | Navegadores suportados | Compatibilidade | Média | Implementado |
 | RNF33 | Plataforma tecnológica | Compatibilidade | Alta | Implementado |
 
 ---
@@ -139,27 +139,29 @@ no mesmo bloqueio.
 
 ### RNF05. Limitação de taxa de requisições
 
-**Categoria:** Segurança · **Stakeholder:** Equipe de operação · **Prioridade:** Alta · **Estado:** Parcial
+**Categoria:** Segurança · **Stakeholder:** Equipe de operação · **Prioridade:** Alta · **Estado:** Implementado
 
 **Descrição:** As rotas deverão limitar o volume de requisições por cliente, com
 limites próprios para as rotas sensíveis.
 
 **Critério mensurável:** limites padrão por minuto: anônimo 60, usuário 600,
 autenticação 20, verificação e links por e-mail 5, conclusão 30, catálogo 60
-(`THROTTLE_CATALOGO`), progresso 120 (`THROTTLE_EU_PROGRESSO`), solução de
+(`THROTTLE_CATALOGO`), progresso 300 (`THROTTLE_EU_PROGRESSO`), solução de
 referência 30 (`THROTTLE_AUTORIA`) e correção de código 5. O cliente é
-identificado pelo endereço da conexão (`NUM_PROXIES = 0`), não pelo cabeçalho
-`X-Forwarded-For`. Acima do limite, a resposta é 429.
+identificado pelo último item do cabeçalho `X-Forwarded-For` (`NUM_PROXIES = 1`),
+que é o endereço gravado pelo proxy à frente do Django (o Next; em produção, o
+Nginx sobrescreve o cabeçalho com o endereço real da conexão), e não por um valor
+que o próprio cliente consiga forjar. Acima do limite, a resposta é 429.
 
 **Critérios de aceite:**
 - CA01: Dado um cliente que fez 20 tentativas de login no mesmo minuto, quando fizer a 21ª, então o sistema deverá responder 429.
 
-**O que falta:** os contadores ficam no `LocMemCache`, que é por processo. Com
-vários workers o teto real se multiplica, e reiniciar o servidor zera os
-contadores. O próprio `settings.py` registra que o limite exato depende de um
-cache compartilhado (Redis), que o projeto ainda não usa.
+**Observação:** os contadores foram implementados usando o DatabaseCache do
+PostgreSQL, garantindo persistência e compartilhamento entre workers sem novas
+dependências de infraestrutura. A tabela do cache é criada pela migração
+`backend/apps/core/migrations/0001_tabela_de_cache.py`.
 
-**Fonte:** `backend/config/settings.py` (`REST_FRAMEWORK`, `CACHES`), `throttle_scope` nas views de cada app.
+**Fonte:** `backend/config/settings.py` (`REST_FRAMEWORK`, `CACHES`), `backend/apps/core/migrations/0001_tabela_de_cache.py`, `throttle_scope` nas views de cada app.
 
 ### RNF06. Proteção dos segredos do segundo fator
 
@@ -249,7 +251,7 @@ da AST antes de qualquer chamada; tempo limite de 15 s na chamada ao Judge0
 
 ### RNF11. Política de segurança de conteúdo no navegador
 
-**Categoria:** Segurança · **Stakeholder:** Usuários · **Prioridade:** Média · **Estado:** Parcial
+**Categoria:** Segurança · **Stakeholder:** Usuários · **Prioridade:** Média · **Estado:** Implementado
 
 **Descrição:** O frontend deverá restringir de onde a página pode carregar scripts,
 estilos, imagens e fontes, e impedir que seja embutido em outros sites.
@@ -261,11 +263,14 @@ origem externa permitida é a CDN do editor de código.
 **Critérios de aceite:**
 - CA01: Dada qualquer página do frontend, quando os cabeçalhos forem inspecionados, então deverá existir `Content-Security-Policy` com `frame-ancestors 'none'`.
 
-**O que falta:** `script-src` aceita `'unsafe-inline'`, porque o Next injeta
-scripts inline e as páginas estáticas não usam nonce. A política barra scripts de
-outras origens, mas não scripts inline injetados.
+**Observação:** o `script-src` não aceita `'unsafe-inline'`: cada request recebe
+um nonce novo, que o Next aplica aos próprios scripts, e um script inline injetado
+é barrado. Para isso todas as páginas são renderizadas por request. A CDN do
+editor fica restrita ao caminho da versão do Monaco usada pelo carregador. O
+`style-src` mantém `'unsafe-inline'`, porque o editor e o Next injetam estilos sem
+nonce.
 
-**Fonte:** `frontend/next.config.ts`.
+**Fonte:** `frontend/src/proxy.ts`, `frontend/src/app/layout.tsx`, `frontend/src/__tests__/proxy.test.ts`.
 
 ## 2. Privacidade (LGPD)
 
@@ -286,7 +291,7 @@ existente; metadados nunca incluem senha, token nem código do 2FA.
 
 ### RNF13. Retenção e descarte da auditoria
 
-**Categoria:** Privacidade (LGPD) · **Stakeholder:** Titulares · **Prioridade:** Média · **Estado:** Parcial
+**Categoria:** Privacidade (LGPD) · **Stakeholder:** Titulares · **Prioridade:** Média · **Estado:** Implementado (configuração pronta)
 
 **Descrição:** Os registros de auditoria deverão ser descartados ao fim do prazo de
 retenção.
@@ -297,11 +302,10 @@ retenção.
 **Critérios de aceite:**
 - CA01: Dado um registro com 181 dias, quando o comando for executado, então o registro deverá ser removido.
 
-**O que falta:** o comando existe e foi feito para rodar por agendamento (cron),
-mas o agendamento não está versionado no repositório. Sem ele, o descarte só
-acontece quando alguém executa o comando.
+**Observação:** o agendamento está versionado em `deploy/crontab`, que executa o
+comando todos os dias às 3h30 e passa a valer quando instalado no servidor.
 
-**Fonte:** `backend/apps/auditoria/management/commands/limpar_auditoria.py`, `backend/config/settings.py` (`AUDITORIA_RETENCAO_DIAS`).
+**Fonte:** `backend/apps/auditoria/management/commands/limpar_auditoria.py`, `backend/config/settings.py` (`AUDITORIA_RETENCAO_DIAS`), `deploy/crontab`.
 
 ### RNF14. Anonimização na exclusão de conta
 
@@ -482,39 +486,38 @@ de SMTP, o e-mail é impresso no console.
 
 ### RNF24. Versões de dependências e de runtime fixadas
 
-**Categoria:** Portabilidade · **Stakeholder:** Equipe de desenvolvimento · **Prioridade:** Média · **Estado:** Parcial
+**Categoria:** Portabilidade · **Stakeholder:** Equipe de desenvolvimento · **Prioridade:** Média · **Estado:** Implementado
 
 **Descrição:** As versões de dependências e de runtime deverão ser fixadas para que
 qualquer máquina reproduza o mesmo ambiente.
 
 **Critério mensurável:** dependências Python fixadas com `==` em
-`requirements.txt`; dependências do frontend travadas em `package-lock.json`;
-Next 16.3.3 e React 19.2.8 com versão exata.
+`requirements.txt`; dependências diretas do frontend com versão exata no
+`package.json` e travadas em `package-lock.json`; Node 24 em `.nvmrc` e no campo
+`engines`.
 
 **Critérios de aceite:**
 - CA01: Dado um clone novo, quando `pip install -r requirements.txt` e `npm ci` forem executados, então as mesmas versões deverão ser instaladas.
 
-**O que falta:** não há `.nvmrc` nem campo `engines` no `package.json`, então a
-versão do Node não é fixada; a versão do Python (3.14) aparece só na configuração
-do ruff e do mypy, sem arquivo de runtime.
+**Observação:** a versão do Python (3.14) aparece na configuração do ruff e do
+mypy e no workflow de CI, sem arquivo de runtime próprio.
 
-**Fonte:** `backend/requirements.txt`, `backend/pyproject.toml`, `frontend/package.json`, `frontend/package-lock.json`.
+**Fonte:** `backend/requirements.txt`, `backend/pyproject.toml`, `frontend/package.json`, `frontend/package-lock.json`, `frontend/.nvmrc`.
 
 ### RNF25. Implantação em servidor próprio (VPS)
 
-**Categoria:** Portabilidade · **Stakeholder:** Equipe de operação · **Prioridade:** Média · **Estado:** Planejado
+**Categoria:** Portabilidade · **Stakeholder:** Equipe de operação · **Prioridade:** Média · **Estado:** Implementado (configuração pronta)
 
 **Descrição:** O sistema deverá rodar numa VPS (DigitalOcean), com Nginx como proxy
 reverso e TLS, Django servido por gunicorn, Next.js por `next start` e o
 PostgreSQL na mesma máquina.
 
-**O que existe:** a arquitetura está descrita no `README.md`. Não há no
-repositório configuração de Nginx, de gunicorn (o pacote nem está no
-`requirements.txt`), de serviço do sistema nem roteiro de implantação. Quando houver
-proxy na frente, `NUM_PROXIES` precisa passar a refletir o número de proxies
-(RNF05).
+**Observação:** a configuração está versionada em `deploy/`: site do Nginx com
+TLS, configuração do gunicorn (fixado no `requirements.txt`), unidades do systemd
+para a API e para o frontend e o `crontab` das rotinas agendadas. O roteiro de
+implantação está no `README.md`. Os arquivos ainda não foram executados numa VPS.
 
-**Fonte:** `README.md` (seção `~/deploy`).
+**Fonte:** `deploy/`, `README.md` (seção `~/deploy`).
 
 ## 6. Manutenibilidade
 
@@ -526,31 +529,32 @@ proxy na frente, `NUM_PROXIES` precisa passar a refletir o número de proxies
 tipos.
 
 **Critério mensurável:** `ruff check` sem erros no backend (regras E, F, W, I, N,
-UP); `mypy --strict` sem erros em 44 arquivos de produção, cobrindo os apps
-`trilhas`, `autoria`, `correcao` e `conquistas`; ESLint e `tsc --noEmit` sem erros no
-frontend.
+UP); `mypy --strict` sem erros em 153 arquivos, cobrindo os apps `trilhas`,
+`autoria`, `correcao`, `conquistas`, `ranking`, `auditoria`, `gamificacao` e
+`core`; ESLint e `tsc --noEmit` sem erros no frontend.
 
 **Critérios de aceite:**
 - CA01: Dado o repositório na `main`, quando `ruff check .` e `mypy` forem executados no backend, então nenhum erro deverá ser reportado.
 
-**O que falta:** o modo estrito do mypy cobre 4 das 10 pastas de app do backend
-(9 registradas em `INSTALLED_APPS`, todas menos `autoria`); `contas`,
-`auditoria`, `gamificacao`, `progressao`, `core`, `clas` e `config` estão com
-`ignore_errors`.
+**O que falta:** o modo estrito do mypy cobre 8 das 11 apps do backend;
+`contas`, `progressao`, `clas` e `config` estão com `ignore_errors`, somando 574
+erros que são quase todos anotação de tipo faltando.
 
 **Fonte:** `backend/pyproject.toml` (`[tool.ruff]`, `[tool.mypy]`), `frontend/eslint.config.mjs`, `frontend/tsconfig.json`.
 
 ### RNF27. Integração contínua
 
-**Categoria:** Manutenibilidade · **Stakeholder:** Equipe de desenvolvimento · **Prioridade:** Média · **Estado:** Planejado
+**Categoria:** Manutenibilidade · **Stakeholder:** Equipe de desenvolvimento · **Prioridade:** Média · **Estado:** Implementado (configuração pronta)
 
 **Descrição:** Cada pull request deverá rodar automaticamente testes, lint e
 verificação de tipos antes do merge.
 
-**O que existe:** os comandos de verificação estão documentados (RNF20 e RNF26),
-mas não há pipeline de CI no repositório (nenhum diretório `.github/workflows`).
+**Observação:** o workflow `.github/workflows/ci.yml` roda a cada push e pull
+request, em dois jobs com PostgreSQL: no backend, ruff, mypy e pytest; no
+frontend, ESLint, `tsc --noEmit`, Jest e o `next build`. Ainda não foi executado
+no GitHub.
 
-**Fonte:** ausência de configuração de CI na raiz do repositório.
+**Fonte:** `.github/workflows/ci.yml`.
 
 ### RNF28. Documentação da API e padrão de erro
 
@@ -590,7 +594,7 @@ retrô (pixel art), em tema escuro, definida por tokens de cor e tipografia.
 
 ### RNF30. Acessibilidade
 
-**Categoria:** Usabilidade · **Stakeholder:** Alunos · **Prioridade:** Média · **Estado:** Parcial
+**Categoria:** Usabilidade · **Stakeholder:** Alunos · **Prioridade:** Média · **Estado:** Implementado
 
 **Descrição:** A interface deverá ser utilizável por teclado e por leitores de tela
 e respeitar a preferência por menos movimento.
@@ -604,9 +608,10 @@ em todos os elementos focáveis.
 - CA01: Dado o card de uma trilha em andamento, quando lido por um leitor de tela, então deverá ser anunciada a situação "Em andamento", e não apenas o percentual.
 - CA02: Dado o sistema operacional com redução de movimento ativada, quando uma tela com animação for aberta, então a animação deverá ser reduzida.
 
-**O que falta:** não há auditoria formal de acessibilidade (WCAG 2.1 nível AA) nem
-teste automatizado com ferramenta como axe; o contraste das cores e a navegação
-completa por teclado não foram medidos.
+**Observação:** a verificação manual contra os critérios WCAG 2.1 nível AA está
+em `Docs/Rastreabilidade_Requisitos.md` (seção "Verificação de acessibilidade").
+Não há teste automatizado com ferramenta como axe, e o contraste das cores, o uso
+com leitor de tela e a ampliação a 200% não foram medidos.
 
 **Fonte:** `frontend/src/app/layout.tsx`, `frontend/src/app/globals.css`, `frontend/src/components/trilhas/TrilhaCard.tsx`.
 
@@ -629,19 +634,19 @@ Brasil, com datas no fuso de São Paulo.
 
 ### RNF32. Navegadores suportados
 
-**Categoria:** Compatibilidade · **Stakeholder:** Alunos · **Prioridade:** Média · **Estado:** Parcial
+**Categoria:** Compatibilidade · **Stakeholder:** Alunos · **Prioridade:** Média · **Estado:** Implementado
 
 **Descrição:** O frontend deverá funcionar nas versões atuais dos navegadores
 modernos (Chrome, Edge, Firefox e Safari).
 
-**Critério mensurável:** vale o conjunto de navegadores suportado por padrão pelo
-Next.js 16 e pelo React 19.
+**Critério mensurável:** `browserslist` no `package.json` com Chrome 111, Edge
+111, Firefox 111 e Safari 16.4, o conjunto suportado pelo Next.js 16.
 
 **Critérios de aceite:**
 - CA01: Dadas as versões estáveis atuais de Chrome, Edge, Firefox e Safari, quando o fluxo de login e resolução de exercício for executado, então deverá concluir sem erros.
 
-**O que falta:** não há `browserslist` próprio nem teste em vários navegadores; o
-CA01 ainda não foi executado de forma sistemática.
+**Observação:** o CA01 ainda não foi executado de forma sistemática em vários
+navegadores.
 
 **Fonte:** `frontend/package.json`.
 
