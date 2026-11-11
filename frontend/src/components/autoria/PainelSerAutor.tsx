@@ -125,7 +125,7 @@ export function PainelSerAutor() {
     <div className="flex w-full max-w-[780px] flex-col gap-10">
       <div className="flex flex-col gap-3">
         <span className={`text-brand ${TIPO.sobretitulo}`}>{"// PERMISSÕES"}</span>
-        <h1 className={`m-0 text-ink ${TIPO.tituloPagina}`}>
+        <h1 className={`m-0 text-ink ${TIPO.tituloApp}`}>
           Solicitar acesso de autor
         </h1>
         <p className={`m-0 text-ink-muted ${TIPO.corpo}`}>

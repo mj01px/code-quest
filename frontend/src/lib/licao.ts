@@ -166,6 +166,55 @@ export function secoesDaLicao(markdown: string): Secao[] {
   return secoes;
 }
 
+// O editor de seções trabalha com isto; o banco segue guardando só o Markdown.
+export interface SecaoEditavel {
+  titulo: string;
+  texto: string;
+}
+
+export interface LicaoEditavel {
+  intro: string;
+  secoes: SecaoEditavel[];
+}
+
+// Tira as linhas em branco das pontas sem mexer no recuo da primeira linha.
+const semBordas = (texto: string) => texto.replace(/^(?:[ \t]*\n)+/, "").trimEnd();
+
+// Fatia a lição nos mesmos `##` que viram o índice do aluno; `##` dentro de
+// cerca de código não conta, como em `blocosDaLicao`.
+export function licaoEditavel(markdown: string): LicaoEditavel {
+  const intro: string[] = [];
+  const secoes: { titulo: string; linhas: string[] }[] = [];
+  let emCodigo = false;
+  for (const linha of markdown.replace(/\r\n/g, "\n").split("\n")) {
+    if (linha.startsWith("```")) emCodigo = !emCodigo;
+    const secao = emCodigo ? null : /^##\s+(.*)$/.exec(linha);
+    if (secao) secoes.push({ titulo: secao[1].trim(), linhas: [] });
+    else (secoes.at(-1)?.linhas ?? intro).push(linha);
+  }
+  return {
+    intro: semBordas(intro.join("\n")),
+    secoes: secoes.map((s) => ({ titulo: s.titulo, texto: semBordas(s.linhas.join("\n")) })),
+  };
+}
+
+// Cerca de código aberta engoliria as seções seguintes: fecha no fim do bloco.
+// Para o aluno é igual, porque a cerca aberta já ia até o fim.
+const comCercaFechada = (texto: string) =>
+  texto.split("\n").filter((l) => l.startsWith("```")).length % 2 === 1 ? `${texto}\n\`\`\`` : texto;
+
+// Seção sem título e sem texto (recém-adicionada) não entra: viraria um `##` solto.
+export function markdownDaLicao({ intro, secoes }: LicaoEditavel): string {
+  return [
+    comCercaFechada(semBordas(intro)),
+    ...secoes
+      .filter((s) => s.titulo.trim() || s.texto.trim())
+      .map((s) => semBordas(`## ${s.titulo.trim()}\n\n${comCercaFechada(semBordas(s.texto))}`)),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 export function minutosDeLeitura(markdown: string): number {
   const palavras = markdown.split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.round(palavras / PALAVRAS_POR_MINUTO));

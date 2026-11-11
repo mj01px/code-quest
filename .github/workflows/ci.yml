@@ -1,0 +1,95 @@
+# RNF27: integração contínua. Todo push e pull request roda lint, tipos, testes
+# e o build de produção do frontend.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  SECRET_KEY: ci-somente-teste
+  DEBUG: "False"
+  DATABASE_URL: postgres://codequest:codequest@localhost:5432/codequest
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: codequest
+          POSTGRES_PASSWORD: codequest
+          POSTGRES_DB: codequest
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r requirements.txt
+      - run: ruff check .
+      - run: mypy
+      # Postgres de verdade: os testes de concorrência dependem de select_for_update.
+      - run: pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    # O build lê o catálogo na API (generateStaticParams), então a API sobe
+    # antes, com o banco migrado.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: codequest
+          POSTGRES_PASSWORD: codequest
+          POSTGRES_DB: codequest
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Dependências
+        run: |
+          pip install -r backend/requirements.txt
+          npm ci --prefix frontend
+      - name: Lint, tipos e testes
+        working-directory: frontend
+        run: |
+          npm run lint
+          # PageProps e LayoutProps são gerados em .next/types; checkout limpo não os tem.
+          npx next typegen
+          npx tsc --noEmit
+          npm test -- --ci
+      - name: API para o build
+        working-directory: backend
+        env:
+          ALLOWED_HOSTS: localhost,127.0.0.1
+          # O build consulta o catálogo em rajada; o limite anônimo de 60/min barraria.
+          THROTTLE_CATALOGO: 10000/min
+        run: |
+          python manage.py migrate --noinput
+          python manage.py seed_trilhas
+          nohup python manage.py runserver 127.0.0.1:8000 --insecure > ../api.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8000/api/v1/trilhas/ > /dev/null && exit 0; sleep 1; done
+          cat ../api.log; exit 1
+      - name: Build
+        working-directory: frontend
+        run: npm run build

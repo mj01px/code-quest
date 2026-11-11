@@ -1,6 +1,8 @@
 from django.conf import settings
 from rest_framework import serializers
 
+from apps.trilhas.models import Trilha
+
 from .models import Creature, CreatureStage, UserCreature, XpBonus
 
 
@@ -10,7 +12,7 @@ def _url_sprite(nome: str | None) -> str | None:
     return f"{settings.SPRITE_BASE_URL}{nome}"
 
 
-class EstagioSerializer(serializers.ModelSerializer):
+class EstagioSerializer(serializers.ModelSerializer[CreatureStage]):
     estagio = serializers.IntegerField(source="stage", read_only=True)
     rotulo = serializers.CharField(source="get_stage_display", read_only=True)
     nivel_minimo = serializers.IntegerField(source="min_level", read_only=True)
@@ -21,14 +23,14 @@ class EstagioSerializer(serializers.ModelSerializer):
         model = CreatureStage
         fields = ("estagio", "rotulo", "nivel_minimo", "sprite", "sprite_dialogo")
 
-    def get_sprite(self, obj) -> str:
+    def get_sprite(self, obj: CreatureStage) -> str | None:
         return _url_sprite(obj.sprite)
 
-    def get_sprite_dialogo(self, obj) -> str | None:
+    def get_sprite_dialogo(self, obj: CreatureStage) -> str | None:
         return _url_sprite(obj.sprite_dialog)
 
 
-class CriaturaSerializer(serializers.ModelSerializer):
+class CriaturaSerializer(serializers.ModelSerializer[Creature]):
     nome = serializers.CharField(source="name", read_only=True)
     especie = serializers.CharField(source="species", read_only=True)
     dominio = serializers.CharField(source="domain", read_only=True)
@@ -67,7 +69,7 @@ class CriaturaSerializer(serializers.ModelSerializer):
         )
 
 
-class MinhaCriaturaSerializer(serializers.ModelSerializer):
+class MinhaCriaturaSerializer(serializers.ModelSerializer[UserCreature]):
     criatura = CriaturaSerializer(source="creature", read_only=True)
     estagio_atual = serializers.IntegerField(source="current_stage", read_only=True)
     inicial = serializers.BooleanField(source="is_starter", read_only=True)
@@ -101,46 +103,46 @@ class MinhaCriaturaSerializer(serializers.ModelSerializer):
             "nivel",
         )
 
-    def get_sprite(self, obj) -> str | None:
+    def get_sprite(self, obj: UserCreature) -> str | None:
         for estagio in obj.creature.stages.all():
             if estagio.stage == obj.current_stage:
                 return _url_sprite(estagio.sprite)
         return None
 
-    def _seguinte(self, obj):
+    def _seguinte(self, obj: UserCreature) -> CreatureStage | None:
         for estagio in obj.creature.stages.all():
             if estagio.stage == obj.current_stage + 1:
                 return estagio
         return None
 
-    def get_proximo_estagio(self, obj) -> int | None:
+    def get_proximo_estagio(self, obj: UserCreature) -> int | None:
         seguinte = self._seguinte(obj)
         return seguinte.stage if seguinte else None
 
-    def get_nivel_para_evoluir(self, obj) -> int | None:
+    def get_nivel_para_evoluir(self, obj: UserCreature) -> int | None:
         seguinte = self._seguinte(obj)
         return seguinte.min_level if seguinte else None
 
-    def get_pode_evoluir(self, obj) -> bool:
+    def get_pode_evoluir(self, obj: UserCreature) -> bool:
         seguinte = self._seguinte(obj)
         if seguinte is None:
             return False
         return self._nivel(obj) >= seguinte.min_level
 
-    def get_nivel(self, obj) -> int:
+    def get_nivel(self, obj: UserCreature) -> int:
         return self._nivel(obj)
 
-    def _nivel(self, obj) -> int:
+    def _nivel(self, obj: UserCreature) -> int:
         """O nível desta criatura. Sem linha de progresso, ela está no nível 1.
 
         A linha só nasce no primeiro crédito de XP, então criatura recém-
         adquirida não tem nenhuma, e isso não é erro, é o começo.
         """
         progresso = getattr(obj, "progresso", None)
-        return progresso.nivel_id if progresso is not None else 1
+        return int(progresso.nivel_id) if progresso is not None else 1
 
 
-class EvolucaoSerializer(serializers.Serializer):
+class EvolucaoSerializer(serializers.Serializer[None]):
     """O que a animação de evolução precisa saber.
 
     `estagio_anterior` e o estágio atual da criatura são os dois sprites da
@@ -153,26 +155,28 @@ class EvolucaoSerializer(serializers.Serializer):
     criatura = MinhaCriaturaSerializer(read_only=True)
 
 
-class EscolhaInicialSerializer(serializers.Serializer):
+class EscolhaInicialSerializer(serializers.Serializer[None]):
     criatura = serializers.SlugField(max_length=32)
 
 
-class CriaturaAtivaSerializer(serializers.Serializer):
+class CriaturaAtivaSerializer(serializers.Serializer[None]):
     criatura = serializers.SlugField(max_length=32)
 
 
-class AquisicaoCriaturaSerializer(serializers.Serializer):
+class AquisicaoCriaturaSerializer(serializers.Serializer[None]):
     criatura = serializers.SlugField(max_length=32)
 
 
-class BonusXpSerializer(serializers.ModelSerializer):
+class BonusXpSerializer(serializers.ModelSerializer[XpBonus]):
     """O bônus como a interface precisa dele: já resolvido em nome e slug."""
 
-    criatura = serializers.SlugRelatedField(
+    criatura: serializers.SlugRelatedField[Creature] = serializers.SlugRelatedField(
         source="creature", slug_field="slug", read_only=True
     )
     criatura_nome = serializers.CharField(source="creature.name", read_only=True)
-    trilha = serializers.SlugRelatedField(slug_field="slug", read_only=True)
+    trilha: serializers.SlugRelatedField[Trilha] = serializers.SlugRelatedField(
+        slug_field="slug", read_only=True
+    )
     trilha_nome = serializers.CharField(source="trilha.nome", read_only=True)
     multiplicador = serializers.DecimalField(
         source="multiplier",

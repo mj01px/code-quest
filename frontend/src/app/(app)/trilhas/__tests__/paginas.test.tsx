@@ -109,6 +109,10 @@ async function montar(no: React.ReactNode) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // clearAllMocks não limpa implementações: um mockRejectedValue vazaria para os próximos testes.
+  api.listarTrilhas.mockReset();
+  api.buscarTrilha.mockReset();
+  api.buscarExercicio.mockReset();
   api.temSessao.mockReturnValue(true);
   api.api.meusBonus.mockResolvedValue([]);
   api.api.eu.mockResolvedValue(usuario());
@@ -274,6 +278,12 @@ describe("Detalhe da trilha", () => {
 });
 
 describe("Detalhe do exercício", () => {
+  // A página do exercício também lê a trilha (aula e vizinhos).
+  beforeEach(() => {
+    api.listarTrilhas.mockResolvedValue([]);
+    api.buscarTrilha.mockResolvedValue(trilhaDetalhe({ aulas: [aula()] }));
+  });
+
   it("mostra título e enunciado, sem badges de dificuldade e tipo", async () => {
     api.buscarExercicio.mockResolvedValue(exercicioDetalhe());
 

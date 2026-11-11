@@ -96,26 +96,29 @@ Como o catálogo é `AllowAny`, o abuso possível é de volume, não de vazament
   o `ScopedRateThrottle` do DRF aplica `THROTTLE_CATALOGO` (por padrão,
   `60/min`). O escopo é opt-in: view que não o declara segue sem limite, e o
   comportamento dos outros módulos não mudou.
-- **`NUM_PROXIES = 0`.** Sem esse ajuste, o DRF identifica o cliente pelo
-  header `X-Forwarded-For`, que é enviado pelo próprio cliente; bastaria
-  trocar o header a cada requisição para zerar a cota. Com zero, vale o
-  `REMOTE_ADDR`. Se algum dia um proxy reverso entrar na frente, esse número
-  tem de passar a ser a quantidade de proxies.
-- **O contador fica no cache.** O `LocMemCache` é por processo. Com vários
-  workers, o limite real se multiplicaria, então produção precisa de Redis.
-- **Honeypot pronto, mas ainda sem uso.** O módulo não tem endpoint de
-  escrita. Em `apps/core/honeypot.py` está o `HoneypotSerializerMixin`, que
-  declara o campo isca `website` (write-only) e recusa o envio quando ele
-  chega preenchido. O erro é genérico e não cita o campo, para não revelar a
-  isca ao bot. Um teste já cobre o mixin com um serializer de mentira, e o
-  primeiro endpoint de escrita só vai precisar herdá-lo.
+- **`NUM_PROXIES = 1`.** O Next fica na frente do Django (rewrite de `/api`),
+  então o `REMOTE_ADDR` que o Django recebe é o do servidor Next, e o IP do
+  aluno chega como último item do header `X-Forwarded-For`. Com zero, todos
+  os alunos dividiriam a mesma cota. Em produção, o Nginx sobrescreve o
+  `X-Forwarded-For` com o endereço real da conexão, para que o cliente não
+  consiga forjar o próprio IP e zerar a cota.
+- **O contador fica no cache.** Foi implementado usando o DatabaseCache do
+  PostgreSQL, garantindo persistência e compartilhamento entre workers sem
+  novas dependências de infraestrutura. Com vários workers, o limite vale como
+  declarado.
 
-No `next build`, cada exercício ganha uma página pré-renderizada, e cada uma
-consulta a API. Conforme o catálogo cresce, o build pode esbarrar nos
-`60/min`; é por isso que a taxa vem de `THROTTLE_CATALOGO`.
+O `next build` ainda chama o `generateStaticParams` das rotas de trilha e de
+exercício, que consulta o catálogo na API, mas não pré-renderiza mais as
+páginas: desde a CSP com nonce (RNF11), toda página é renderizada por request.
+A taxa continua vindo de `THROTTLE_CATALOGO`, para ser ajustada sem mexer no
+código.
 
-CORS não foi configurado, e isso é proposital. Todo `fetch` do frontend roda
-em Server Component ou em `generateStaticParams`, nunca no navegador.
+O CORS está configurado no Django (`CORS_ALLOWED_ORIGINS`, por padrão
+`localhost:3000` e `127.0.0.1:3000`, com `CORS_ALLOW_CREDENTIALS`), mas o
+catálogo não depende dele. No navegador, o `lib/api.ts` chama `/api/v1` na
+mesma origem, e o Next repassa ao Django pelo rewrite de `/api/*`; no servidor
+(Server Components e `generateStaticParams`), o `fetch` vai direto a
+`API_ORIGIN`, onde o CORS não se aplica.
 
 ## Frontend
 
@@ -132,18 +135,27 @@ resposta **não** sai como 404. O Next já começou a transmitir com 200, e o
 status não tem como voltar. Foi o que se viu na prática: a página de erro
 certa chegava com o status errado.
 
-A saída é decidir no roteador, e não no render. `generateStaticParams()`
-lista os slugs publicados, e `dynamicParams = false` faz o Next recusar
-qualquer outro antes de renderizar.
+A saída adotada foi decidir no roteador, e não no render: `generateStaticParams()`
+lista os slugs publicados, e `dynamicParams = false` fazia o Next recusar
+qualquer outro antes de renderizar. Isso valia enquanto as páginas eram
+pré-renderizadas no build. Com a CSP com nonce (RNF11), toda página passou a
+ser renderizada por request, e o roteador deixou de barrar o slug: a página
+consulta a API e o `notFound()` volta a acontecer durante o render.
 
-Há uma consequência, aceita de caso pensado: **uma trilha publicada depois
-do build só aparece no build seguinte** (ou após uma revalidação sob
-demanda). Publicar é um ato editorial raro e deliberado, então o custo é
-baixo perto de ter o 404 correto. Se isso incomodar, o caminho é disparar
-revalidação on-demand no momento da publicação.
+O resultado, medido depois da mudança:
 
-Pelo mesmo motivo, as rotas de detalhe **não têm `loading.tsx`**: o Suspense
-dele libera o shell cedo demais. A listagem tem, porque lá não existe 404.
+- **Exercício inexistente** (`/trilhas/{trilha}/exercicios/{slug}`): responde
+  404, porque o grupo `(foco)` não tem `loading.tsx` e nada é transmitido
+  antes do `notFound()`.
+- **Trilha inexistente** (`/trilhas/{slug}`): mostra a página de "não
+  encontrado", mas com status 200. O `loading.tsx` da listagem, em
+  `(app)/trilhas/`, também envolve a rota de detalhe, e o Suspense dele libera
+  o shell antes do `notFound()`.
+
+Em troca, uma trilha publicada depois do build aparece sem novo build, porque
+a página consulta a API a cada visita. Para devolver o 404 real à trilha, um
+caminho possível é tirar a rota de detalhe do alcance do `loading.tsx` da
+listagem.
 
 ### Progresso do aluno
 
@@ -198,22 +210,25 @@ documento.
 
 ### CSP e o editor de código
 
-Em toda rota, `frontend/next.config.ts` envia uma `Content-Security-Policy`
-via `headers()`. Quem exige exceção é o Monaco da página do exercício. Em
+Em toda rota de página, `frontend/src/proxy.ts` monta a
+`Content-Security-Policy` com um nonce novo por request e a envia na resposta
+e na própria request, de onde o Next lê o nonce para aplicá-lo aos seus
+scripts. Para isso, o layout raiz força o render por request (`connection()`):
+uma página estática sairia sem nonce. Quem exige exceção é o Monaco da página
+do exercício. Em
 runtime, o `@monaco-editor/loader` busca `loader.js` e o CSS em
 `cdn.jsdelivr.net`, a fonte dos ícones chega como `data:` dentro do CSS e o
-worker nasce de um `blob:`. Daí vêm `cdn.jsdelivr.net` em `script-src` e
-`style-src`, `data:` em `font-src` e `blob:` em `worker-src`. Todo o resto
+worker nasce de um `blob:`. Daí vêm o caminho
+`https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/` em `script-src` e
+`style-src` (só a versão que o carregador pede, não o jsdelivr inteiro),
+`data:` em `font-src` e `blob:` em `worker-src`. Todo o resto
 fica em `'self'`: a API passa pelo rewrite de `/api/*`, e os sprites seguem
 `SPRITE_BASE_URL` (`/criaturas/`). Caso os sprites mudem de origem, a nova
 origem precisa entrar em `img-src`.
 
-`script-src` leva `'unsafe-inline'` porque o Next injeta script inline e as
-páginas estáticas não têm nonce. A política barra script de outra origem, mas
-não script inline injetado. Para tirar isso é preciso nonce no `proxy.ts`, e
-o nonce obriga render dinâmico em toda página, abrindo mão do HTML estático
-de hoje. Quando chegar esse momento, vale fixar a CDN no caminho do
-`monaco-editor`, já que o jsdelivr serve qualquer pacote do npm.
+`script-src` não aceita `'unsafe-inline'`: só roda o script que traz o nonce
+da resposta, e um script inline injetado é barrado. `style-src` mantém
+`'unsafe-inline'`, porque o Monaco e o Next injetam estilos sem nonce.
 `'unsafe-eval'` entra apenas no `next dev`.
 
 ## Como rodar
