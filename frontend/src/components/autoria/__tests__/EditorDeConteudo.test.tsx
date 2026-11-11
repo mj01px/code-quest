@@ -181,8 +181,8 @@ describe("EditorDeConteudo", () => {
     expect(await screen.findByRole("button", { name: "+ ADICIONAR NOVA AULA" })).toBeInTheDocument();
     expect(screen.queryByRole("form", { name: "Nova aula" })).toBeNull();
     expect(screen.getByText("Parte 1 · Aprender")).toBeInTheDocument();
-    expect(screen.getByText("Parte 2 · Memorizar")).toBeInTheDocument();
-    expect(screen.getByText("Parte 3 · Praticar")).toBeInTheDocument();
+    expect(screen.getByText("Parte 2 · Praticar")).toBeInTheDocument();
+    expect(screen.getByText("Parte 3 · Memorizar")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Oi" })).toBeInTheDocument();
 
     await u.click(await screen.findByRole("button", { name: "+ EXERCÍCIO TEÓRICO" }));
@@ -280,6 +280,58 @@ describe("EditorDeConteudo", () => {
     expect(screen.getByRole("button", { name: "+ ADICIONAR NOVA AULA" })).toBeInTheDocument();
   });
 
+  it("segue a sequência do aluno: texto e quiz, exercícios e, por último, flashcards", async () => {
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
+    montar(AUTOR, 9);
+
+    const ordem = [
+      await screen.findByText("Parte 1 · Aprender"),
+      screen.getByText("Qual é primitivo?"),
+      screen.getByRole("button", { name: "+ MÚLTIPLA ESCOLHA" }),
+      screen.getByText("Parte 2 · Praticar"),
+      screen.getByText("Soma"),
+      screen.getByRole("button", { name: "+ EXERCÍCIO TEÓRICO" }),
+      screen.getByRole("button", { name: "+ EXERCÍCIO DE CÓDIGO" }),
+      screen.getByText("Parte 3 · Memorizar"),
+      screen.getByText("O que é any?"),
+    ];
+    for (let i = 1; i < ordem.length; i++) {
+      expect(
+        ordem[i - 1]!.compareDocumentPosition(ordem[i]!) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+    expect(screen.getByText(/FORA DA SEQUÊNCIA/)).toBeInTheDocument();
+  });
+
+  it("a questão abre o formulário no quiz; o exercício, na prática", async () => {
+    const u = userEvent.setup();
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
+    montar(AUTOR, 9);
+
+    await u.click(await screen.findByRole("button", { name: "+ MÚLTIPLA ESCOLHA" }));
+    const questao = screen.getByLabelText("ENUNCIADO DA QUESTÃO");
+    expect(
+      screen.getByText("Qual é primitivo?").compareDocumentPosition(questao) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      questao.compareDocumentPosition(screen.getByText("Parte 2 · Praticar")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    await u.click(screen.getByRole("button", { name: "CANCELAR" }));
+    await u.click(screen.getByRole("button", { name: "+ EXERCÍCIO TEÓRICO" }));
+    const exercicio = screen.getByLabelText("TÍTULO DO EXERCÍCIO");
+    expect(
+      screen.getByText("Parte 2 · Praticar").compareDocumentPosition(exercicio) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      exercicio.compareDocumentPosition(screen.getByText("Parte 3 · Memorizar")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("sem create_aula esconde a nova aula; sem create_exercicio, os botões de exercício", async () => {
     mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
     const soCriar = AUTOR.filter((p) => !["trilhas.create_aula", "trilhas.create_exercicio"].includes(p));
@@ -287,10 +339,12 @@ describe("EditorDeConteudo", () => {
 
     expect(await screen.findByRole("button", { name: "+ ADICIONAR NOVA AULA" })).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Adicionar exercício" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Adicionar questão do quiz" })).toBeNull();
     unmount();
 
     montar([...soCriar, "trilhas.create_exercicio"], 9);
     expect(await screen.findByRole("group", { name: "Adicionar exercício" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Adicionar questão do quiz" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "+ ADICIONAR NOVA AULA" })).toBeNull();
   });
 

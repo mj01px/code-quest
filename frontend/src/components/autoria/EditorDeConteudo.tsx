@@ -785,7 +785,43 @@ function ItemAula({
   }
   // Tipo do exercício em criação; null mostra os três botões de adicionar.
   const [novo, setNovo] = useState<TipoNovo | null>(null);
-  const vazia = exercicios.length === 0 && questoes.length === 0;
+
+  // Botões de adicionar da parte: somem todos com um formulário aberto.
+  function botoes(rotulo: string, tipos: readonly TipoNovo[]) {
+    if (novo !== null || !podeExercicio) return null;
+    return (
+      <div role="group" aria-label={rotulo} className="flex flex-wrap gap-3">
+        {TIPOS_NOVOS.filter(([valor]) => tipos.includes(valor)).map(([valor, rotuloBotao, cor]) => (
+          <button
+            key={valor}
+            type="button"
+            onClick={() => setNovo(valor)}
+            className={`cursor-pointer border-2 bg-transparent px-4 py-3 font-label text-[11px] tracking-[2px] uppercase shadow-pixel transition duration-150 hover:translate-x-0.5 hover:translate-y-0.5 hover:bg-panel-soft hover:shadow-pixel-sm ${cor}`}
+          >
+            + {rotuloBotao}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  // O formulário abre na parte do tipo: questão no quiz, o resto na prática.
+  const formulario =
+    novo === null ? null : (
+      <FormExercicio
+        tipo={novo}
+        aula={aula.id}
+        aoCancelar={() => setNovo(null)}
+        aoCriarExercicio={(ex) => {
+          setExercicios((atual) => [...atual, ex]);
+          setNovo(null);
+        }}
+        aoCriarQuestao={(q) => {
+          setQuestoes((atual) => [...atual, q]);
+          setNovo(null);
+        }}
+      />
+    );
 
   // Mesma linha de status do módulo na trilha: progresso do autor, não do aluno.
   const resumo = [
@@ -816,7 +852,8 @@ function ItemAula({
           Leitura · {minutosDeLeitura(aula.conteudo)} min
         </span>
       </div>
-      {/* As partes da página do aluno: estudo, memorização e prática. */}
+      {/* A sequência do aluno (leitura, quiz, exercícios) e, por último, os
+          flashcards, que ele revisa na sessão da trilha, fora da sequência. */}
       <ParteDaAula numero={1} titulo="Aprender">
         <div
           tabIndex={0}
@@ -825,12 +862,34 @@ function ItemAula({
         >
           <PreviaMarkdown markdown={aula.conteudo} />
         </div>
+        {questoes.length > 0 ? (
+          <ul
+            aria-label="Quiz de fixação"
+            className="m-0 list-none divide-y-2 divide-edge border-2 border-edge p-0"
+          >
+            {questoes.map((q) => (
+              <li key={`q-${q.id}`} className={LINHA}>
+                <span aria-hidden="true" className={`${MARCA} border-brand-shadow text-brand-light`}>
+                  QZ
+                </span>
+                <span className="min-w-0 flex-1 font-body text-base tracking-[1px] text-ink-body">
+                  {q.enunciado}
+                </span>
+                <Badge tom="alerta">MÚLTIPLA ESCOLHA</Badge>
+                {editavel ? (
+                  <span className="flex items-center gap-2">
+                    <AcoesQuestao questao={q} aoAlterar={recarregar} />
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {botoes("Adicionar questão do quiz", ["MULTIPLA"])}
+        {novo === "MULTIPLA" ? formulario : null}
       </ParteDaAula>
-      <ParteDaAula numero={2} titulo="Memorizar">
-        <GerenciadorFlashcards aula={aula.id} iniciais={aula.flashcards} />
-      </ParteDaAula>
-      <ParteDaAula numero={3} titulo="Praticar">
-        {vazia ? (
+      <ParteDaAula numero={2} titulo="Praticar">
+        {exercicios.length === 0 ? (
           <p className="m-0 border-2 border-dashed border-edge-soft px-4 py-3 font-body text-base tracking-[1px] text-ink-muted">
             &gt; NENHUM EXERCÍCIO AINDA.
           </p>
@@ -862,54 +921,16 @@ function ItemAula({
                 ) : null}
               </li>
             ))}
-            {questoes.map((q) => (
-              <li key={`q-${q.id}`} className={LINHA}>
-                <span aria-hidden="true" className={`${MARCA} border-brand-shadow text-brand-light`}>
-                  QZ
-                </span>
-                <span className="min-w-0 flex-1 font-body text-base tracking-[1px] text-ink-body">
-                  {q.enunciado}
-                </span>
-                <Badge tom="alerta">MÚLTIPLA ESCOLHA</Badge>
-                {editavel ? (
-                  <span className="flex items-center gap-2">
-                    <AcoesQuestao questao={q} aoAlterar={recarregar} />
-                  </span>
-                ) : null}
-              </li>
-            ))}
           </ul>
         )}
-        {novo === null ? (
-          podeExercicio ? (
-            <div role="group" aria-label="Adicionar exercício" className="flex flex-wrap gap-3">
-              {TIPOS_NOVOS.map(([valor, rotulo, cor]) => (
-                <button
-                  key={valor}
-                  type="button"
-                  onClick={() => setNovo(valor)}
-                  className={`cursor-pointer border-2 bg-transparent px-4 py-3 font-label text-[11px] tracking-[2px] uppercase shadow-pixel transition duration-150 hover:translate-x-0.5 hover:translate-y-0.5 hover:bg-panel-soft hover:shadow-pixel-sm ${cor}`}
-                >
-                  + {rotulo}
-                </button>
-              ))}
-            </div>
-          ) : null
-        ) : (
-          <FormExercicio
-            tipo={novo}
-            aula={aula.id}
-            aoCancelar={() => setNovo(null)}
-            aoCriarExercicio={(ex) => {
-              setExercicios((atual) => [...atual, ex]);
-              setNovo(null);
-            }}
-            aoCriarQuestao={(q) => {
-              setQuestoes((atual) => [...atual, q]);
-              setNovo(null);
-            }}
-          />
-        )}
+        {botoes("Adicionar exercício", ["TEORICO", "CODIGO"])}
+        {novo !== null && novo !== "MULTIPLA" ? formulario : null}
+      </ParteDaAula>
+      <ParteDaAula numero={3} titulo="Memorizar">
+        <p className={`m-0 text-ink-muted ${TIPO.etiqueta}`}>
+          REVISÃO DA TRILHA, FORA DA SEQUÊNCIA: O ALUNO ESTUDA ESTES CARDS NA SESSÃO DE FLASHCARDS.
+        </p>
+        <GerenciadorFlashcards aula={aula.id} iniciais={aula.flashcards} />
       </ParteDaAula>
     </li>
   );

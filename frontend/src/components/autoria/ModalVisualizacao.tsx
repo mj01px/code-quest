@@ -172,6 +172,7 @@ function Corpo({ detalhe }: { detalhe: DetalheEditorial }) {
     return (
       <div className="flex flex-col gap-4">
         <p className={TEXTO}>{detalhe.conteudo}</p>
+        <QuizDaAula aula={detalhe} />
         <ExerciciosDaAula aula={detalhe} />
         <BaralhoFlashcards cards={detalhe.flashcards} />
       </div>
@@ -194,7 +195,8 @@ function Corpo({ detalhe }: { detalhe: DetalheEditorial }) {
   );
 }
 
-// A trilha inteira como o revisor a lê: cada aula com texto, cards e exercícios.
+// A trilha inteira como o revisor a lê, na sequência do aluno: texto, quiz e
+// exercícios; os cards por último, porque o aluno os revisa fora da sequência.
 function AulaNaTrilha({ numero, aula }: { numero: number; aula: Aula }) {
   return (
     <section
@@ -205,27 +207,40 @@ function AulaNaTrilha({ numero, aula }: { numero: number; aula: Aula }) {
         {`AULA ${numero}: ${aula.titulo}`.toUpperCase()}
       </h3>
       <PreviaMarkdown markdown={aula.conteudo} />
-      <BaralhoFlashcards cards={aula.flashcards} />
+      <QuizDaAula aula={aula} />
       <ExerciciosDaAula aula={aula} />
+      <BaralhoFlashcards cards={aula.flashcards} />
     </section>
   );
 }
 
-// Os exercícios como o aluno os vê: a questão já responde ao clique, e o de
-// código abre o editor e executa contra os casos visíveis.
+// O quiz de fixação vem logo depois da leitura: a questão já responde ao clique.
+function QuizDaAula({ aula }: { aula: Aula }) {
+  if (aula.questoes.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-3">
+      <span className={`text-brand-light ${TIPO.etiqueta}`}>QUIZ DE FIXAÇÃO</span>
+      <ul className="m-0 flex list-none flex-col gap-3 p-0">
+        {aula.questoes.map((q) => (
+          <li key={`q-${q.id}`}>
+            <QuizQuestao questao={q} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// Os exercícios como o aluno os vê: o de código abre o editor e executa
+// contra os casos visíveis.
 function ExerciciosDaAula({ aula }: { aula: Aula }) {
-  if (aula.exercicios.length === 0 && aula.questoes.length === 0) return null;
+  if (aula.exercicios.length === 0) return null;
   return (
     <div className="flex flex-col gap-3">
       <span className={`text-brand-light ${TIPO.etiqueta}`}>EXERCÍCIOS</span>
       <ul className="m-0 flex list-none flex-col gap-3 p-0">
         {aula.exercicios.map((ex) => (
           <ExercicioNaPrevia key={`ex-${ex.id}`} exercicio={ex} />
-        ))}
-        {aula.questoes.map((q) => (
-          <li key={`q-${q.id}`}>
-            <QuizQuestao questao={q} />
-          </li>
         ))}
       </ul>
     </div>
