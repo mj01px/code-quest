@@ -31,7 +31,7 @@ const codequest = {
   tipo:        "Plataforma gamificada de ensino de programação",
   backend:     ["Python 3.14", "Django 6.0", "Django REST Framework", "SimpleJWT", "PostgreSQL", "Judge0", "pytest"],
   frontend:    ["Next.js 16", "React 19", "TypeScript", "Tailwind CSS v4", "Jest + RTL"],
-  recursos:    ["Trilhas de aprendizado", "Fluxo editorial", "Correção automática de código", "XP e progressão no servidor", "Criaturas companheiras", "RBAC dinâmico", "2FA", "LGPD e auditoria"],
+  recursos:    ["Trilhas de aprendizado", "Fluxo editorial", "Correção automática de código", "XP e progressão no servidor", "Criaturas companheiras", "Clãs e ranking mensal", "Conquistas e sequência diária", "Desafio do dia", "RBAC dinâmico", "2FA", "LGPD e auditoria"],
   auth:        "JWT em cookie, Argon2, 2FA opcional, cadastro aberto a partir de 16 anos com confirmação de e-mail",
   autores:       "Mauro Junior, github.com/mj01px", "Julio Franz,  github.com/JulioFranz", "Arthur Sabino, github.com/ArthurS357"
 } as const;
@@ -51,6 +51,10 @@ ponta a ponta: hash com Argon2, JWT em cookies httponly, verificação de e-mail
 opcional e uma tabela de permissões que vive em dados, não no código. Os direitos do
 titular previstos na LGPD (ver a própria atividade, exportar os dados e excluir a
 conta) têm rota própria, e os eventos sensíveis ficam numa trilha de auditoria.
+
+Em volta do estudo há uma camada social: **clãs** de alunos, um **ranking mensal** por
+XP com pódio guardado, **conquistas** que o servidor concede sozinho, uma **sequência**
+de dias seguidos e um **desafio do dia** de código, aberto a quem ainda não tem conta.
 
 ```
 code-quest/
@@ -78,6 +82,8 @@ Aplicação desacoplada Cliente-Servidor, comunicando-se via API REST.
       <ul>
         <li>Trilhas, aulas (Markdown) e exercícios</li>
         <li>Exercícios de código e teóricos, por dificuldade</li>
+        <li>Cada aula tem leitura, quiz e flashcards, e conclui etapa por etapa</li>
+        <li>Desafio do dia em rodízio, fora das trilhas</li>
         <li>Pré-requisito entre aulas dentro da trilha</li>
         <li>Mapa de fases com "continuar de onde parou"</li>
         <li>Progresso, XP e conclusões guardados no banco, não no navegador</li>
@@ -99,6 +105,8 @@ Aplicação desacoplada Cliente-Servidor, comunicando-se via API REST.
       <ul>
         <li>Fluxo editorial: rascunho, revisão, aprovado, publicado</li>
         <li>Autores editam apenas o próprio conteúdo</li>
+        <li>Autoria de trilhas, aulas, exercícios, questões de quiz e flashcards</li>
+        <li>Solicitação para virar autor, aprovada ou rejeitada por um admin</li>
         <li>Solução de referência nunca vaza pela API pública</li>
         <li>Comando <code>seed_trilhas</code> idempotente para semear conteúdo</li>
       </ul>
@@ -119,7 +127,7 @@ Aplicação desacoplada Cliente-Servidor, comunicando-se via API REST.
     <td valign="top" width="50%">
       <b>🧪 Correção de código</b><br/><br/>
       <ul>
-        <li>Exercícios de Python corrigidos pelo <b>Judge0</b>, sem rede e com teto de CPU e memória</li>
+        <li>Exercícios de Python e SQL corrigidos pelo <b>Judge0</b>, sem rede e com teto de CPU e memória</li>
         <li><i>Executar</i> roda os casos visíveis, <i>Enviar</i> roda todos e só diz se os ocultos passaram</li>
         <li>Análise da AST antes da chamada: sintaxe, função esperada, construções exigidas ou proibidas</li>
         <li>Cache de submissão idêntica e cota diária por usuário e global</li>
@@ -134,6 +142,26 @@ Aplicação desacoplada Cliente-Servidor, comunicando-se via API REST.
         <li>Exportação dos dados pessoais em JSON</li>
         <li>Exclusão por anonimização, confirmada por e-mail e senha</li>
         <li>Trilha de auditoria append-only, purgada após o prazo de retenção</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td valign="top" width="50%">
+      <b>🏆 Comunidade</b><br/><br/>
+      <ul>
+        <li>Clãs públicos ou privados, com líder, co-líderes e membros</li>
+        <li>Entrada por busca ou convite em link, e expulsão pelos gestores</li>
+        <li>Ranking mensal por XP, com pódio dos meses encerrados</li>
+        <li>Perfil público do aluno, aberto pelo ranking e pelos clãs</li>
+        <li>Conquistas concedidas pelo servidor e sequência de dias seguidos</li>
+      </ul>
+    </td>
+    <td valign="top" width="50%">
+      <b>🧱 Qualidade e entrega</b><br/><br/>
+      <ul>
+        <li>CI no GitHub Actions: lint, tipos, testes e build, com Postgres real</li>
+        <li>Deploy em VPS com Nginx, systemd e cron prontos em <code>deploy/</code></li>
+        <li>Aviso global de limite de requisições no frontend</li>
       </ul>
     </td>
   </tr>
@@ -159,6 +187,7 @@ python manage.py seed_trilhas       # carrega as trilhas e publica Lógica de Pr
 python manage.py seed_bonus_xp      # cadastra os bônus de XP por trilha
 python manage.py seed_correcao      # cadastra os casos de teste da correção automática
 python manage.py seed_licoes        # publica as lições, o quiz e os flashcards dos módulos iniciais
+python manage.py seed_desafios      # publica a trilha oculta do desafio do dia
 python manage.py createsuperuser    # o e-mail que ele pede é o login
 python manage.py runserver 8000     # → http://localhost:8000
 ```
@@ -169,6 +198,8 @@ python manage.py runserver 8000     # → http://localhost:8000
 cd frontend
 npm install && npm run dev          # → http://localhost:3000
 ```
+
+O frontend pede **Node 24** (`frontend/.nvmrc`; com nvm, `nvm use`).
 
 O banco é **PostgreSQL**. Com o Postgres rodando, crie a role e o banco uma vez
 antes do `migrate` e aponte o `DATABASE_URL` do `.env` para eles:
@@ -240,8 +271,19 @@ SPRITE_BASE_URL=/criaturas/
 CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 CSRF_TRUSTED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 
-# Throttle nas rotas públicas de catálogo
+# Throttle nas rotas públicas de catálogo, no progresso do aluno, na solução de
+# referência da autoria e nas ações do fluxo editorial
 THROTTLE_CATALOGO=60/min
+THROTTLE_EU_PROGRESSO=300/min
+THROTTLE_AUTORIA=30/min
+THROTTLE_EDITORIAL=30/min
+
+# Proxies na frente do Django: o IP do aluno é o último item do X-Forwarded-For.
+# Exige o Django só em 127.0.0.1 e o Nginx sobrescrevendo o cabeçalho.
+NUM_PROXIES=1
+
+# Máximo de membros por clã
+CLA_LIMITE_MEMBROS=50
 
 # Correção automática (Judge0). Sem URL e token, executar e enviar código
 # respondem 503 e o resto da plataforma segue funcionando. Uma URL da RapidAPI
@@ -277,6 +319,10 @@ python manage.py seed_trilhas         # carrega as trilhas (idempotente, pode ro
 python manage.py seed_bonus_xp        # bônus de XP de cada criatura na trilha do seu domínio (idempotente)
 python manage.py seed_correcao        # especificações e casos de teste da correção (rode depois do seed_trilhas)
 python manage.py seed_licoes          # lição completa, quiz e flashcards dos módulos iniciais (rode depois do seed_correcao)
+python manage.py seed_desafios        # trilha oculta do desafio do dia, com exercícios de código próprios (idempotente)
+python manage.py seed_demo_pfc        # os nove exercícios alternativos da demonstração do PFC
+python manage.py reavaliar_conquistas # reavalia as conquistas de todos os alunos ativos
+python manage.py fechar_podios        # grava o pódio dos meses encerrados que ainda não têm (idempotente, roda no cron)
 python manage.py limpar_auditoria     # apaga auditoria além de AUDITORIA_RETENCAO_DIAS (--dry-run só conta)
 python manage.py migrate              # aplica mudanças de schema
 python manage.py createsuperuser      # cria o primeiro admin
@@ -311,7 +357,7 @@ dois níveis, então rodar de novo reaproveita as linhas em vez de duplicá-las.
 <summary><b>Correção de código, o Judge0 atrás de uma porta estreita</b></summary>
 <br/>
 
-Um exercício de código pode ter uma **especificação**: a linguagem (hoje, Python), o
+Um exercício de código pode ter uma **especificação**: a linguagem (Python ou SQL), o
 nome da função que o aluno precisa definir, um código inicial e os casos de teste,
 cada um visível ou oculto. O código do aluno vai ao **Judge0** junto de um harness que
 chama a função com os argumentos de cada caso, sem rede e com teto de CPU, de tempo e
@@ -359,6 +405,36 @@ Três invariantes mantêm a posse honesta: um usuário só pode ter uma dada cri
 vez, no máximo uma inicial (a escolhida no cadastro) e no máximo uma ativa. Os três
 são constraints no banco, não checagens na view. Escolher a inicial é uma única
 operação atômica, então uma corrida não entrega duas para ninguém.
+
+</details>
+
+<details>
+<summary><b>Comunidade, clãs, ranking, conquistas e sequência</b></summary>
+<br/>
+
+Um **clã** tem nome, descrição, bandeira e uma tag de 8 caracteres gerada pelo
+servidor. Pode ser público (aparece na busca e qualquer um entra) ou privado (para
+quem não é membro, responde 404 como se não existisse). O aluno está em no máximo um
+clã, e o clã tem teto de membros (`CLA_LIMITE_MEMBROS`, 50 por padrão). Há três
+cargos: líder, co-líder e membro. Os gestores promovem, rebaixam e expulsam, e o líder
+pode transferir a liderança. Um link de convite novo derruba o anterior, e o token
+fica guardado só como hash. Se o último membro sai, o clã é apagado.
+
+O **ranking mensal** mostra o top 10 do mês e a posição de quem pediu, somando o XP
+dos eventos do mês. O comando `fechar_podios` grava os três primeiros de cada mês
+encerrado e é idempotente, então roda no cron sem risco de duplicar. A partir do
+ranking e dos clãs se abre o **perfil público** do aluno.
+
+As **conquistas** são linhas de dados com um critério e uma meta (exercícios
+concluídos, nível alcançado, aprovado de primeira, membro de clã, pódios e vitórias
+mensais, entre outros). O servidor avalia os critérios quando algo relevante acontece e
+registra o desbloqueio uma vez só. O `reavaliar_conquistas` refaz a conta para todos
+os alunos ativos, útil depois de criar uma conquista nova.
+
+A **sequência** conta dias seguidos com atividade e vale o dia de hoje ou o de ontem:
+quem deixa passar um dia volta a zero, mas o recorde fica guardado. O **desafio do
+dia** sai de um rodízio fixo pela data de São Paulo, então o mesmo dia devolve sempre
+o mesmo desafio, e a rota é pública.
 
 </details>
 
@@ -443,6 +519,13 @@ parênteses.
 | `GET /autoria/exercicios/{trilha_slug}/{exercicio_slug}/solucao/` | A solução de referência do autor (`trilhas.view_solution`) |
 | `GET /autoria/rascunhos/` · `/autoria/fila-revisao/` | Trilhas, aulas e exercícios em rascunho (`trilhas.submit_review`) ou em revisão (`trilhas.review`) |
 | `GET /autoria/{tipo}/{pk}/detalhe/` | O conteúdo inteiro em qualquer status, sem a solução (`trilhas.submit_review` ou `trilhas.review`) |
+| `POST /autoria/trilhas/` · `/aulas/` · `/exercicios/` | Cria uma trilha, uma aula ou um exercício em rascunho |
+| `PUT` · `DELETE /autoria/{tipo}/{pk}/` | Edita ou exclui o conteúdo, só enquanto é rascunho |
+| `POST /autoria/{tipo}/{pk}/submeter/` · `/aprovar/` · `/devolver/` · `/publicar/` | As transições do fluxo editorial |
+| `POST /autoria/questoes/` · `/flashcards/`, e `/{id}/` | Cria, edita e remove questões de quiz e flashcards de uma aula em rascunho |
+| `GET /autoria/meus-envios/` · `/autoria/aprovados/` | Os envios do autor, e os conteúdos já aprovados (`trilhas.submit_review`) |
+| `POST /autoria/solicitacoes/` · `GET /autoria/solicitacoes/minha/` | Pede para virar autor, e a solicitação mais recente do usuário |
+| `GET /desafios/` · `/desafios/hoje/` | Os desafios publicados, e o do dia com os próximos da agenda. **Público** |
 
 **Progressão**
 
@@ -452,6 +535,11 @@ parênteses.
 | `POST /trilhas/{slug}/iniciar/` | Marca a trilha como iniciada: 201 na primeira vez, 200 nas seguintes (`trilhas.enroll`) |
 | `GET /eu/trilhas/` | Os slugs das trilhas que o aluno já iniciou |
 | `GET /eu/exercicios-concluidos/` | As conclusões do aluno, com filtro opcional `?trilha={slug}` |
+| `POST /aulas/{trilha_slug}/{aula_slug}/leitura/concluir/` · `/quiz/concluir/` | Conclui a leitura ou o quiz de uma aula (`exercicios.complete`) |
+| `GET /eu/etapas-concluidas/` | As etapas de aula (leitura e quiz) que o aluno concluiu |
+| `GET /eu/trilhas/{slug}/passos/` · `/conclusao/` | Os passos da trilha para o aluno, e o resumo ao concluí-la |
+| `GET /eu/trilha-atual/` | A trilha em que o aluno está |
+| `GET /eu/sequencia/` | Dias seguidos atuais, recorde e se já fez algo hoje |
 | `POST /exercicios/{trilha_slug}/{exercicio_slug}/concluir/` | Conclui o exercício e credita o XP. Com correção automática, recebe o `codigo` e só credita se o envio passar (`exercicios.complete`, e `submissoes.create` quando há código) |
 
 **Correção de código**
@@ -471,6 +559,22 @@ parênteses.
 | `GET` · `PUT /eu/criaturas/ativa/` | A criatura ativa, e a troca de qual recebe o XP (`criaturas.view`) |
 | `POST /eu/criaturas/{slug}/evoluir/` | Sobe a criatura um estágio, se o nível dela permitir (`criaturas.evolve`) |
 | `GET /eu/bonus/` | Os bônus de XP que valem para as criaturas do usuário (`criaturas.view`) |
+
+**Comunidade**
+
+| Rota | O que faz |
+|---|---|
+| `GET /ranking/mensal/` | O top 10 do mês e a posição de quem pediu |
+| `GET /perfil/{nickname}/` | O perfil público de um aluno |
+| `GET /eu/conquistas/` · `POST /eu/conquistas/vistas/` | As conquistas do aluno, e marcar as novas como vistas |
+| `GET` · `POST /clas/` | Busca clãs públicos, e cria um clã |
+| `GET` · `PATCH /clas/{tag}/` | Um clã visível ao aluno, e a edição pelos gestores |
+| `POST /clas/{tag}/entrar/` | Entra num clã público |
+| `GET /clas/{tag}/membros/` · `PATCH` · `DELETE /clas/{tag}/membros/{id}/` | Os membros, a mudança de cargo e a expulsão |
+| `POST /clas/{tag}/lideranca/` | O líder transfere a liderança |
+| `POST` · `DELETE /clas/{tag}/convite/` | Gera um link de convite novo, e revoga o ativo |
+| `GET /convites/{token}/` · `POST /convites/{token}/aceitar/` | A prévia do convite, e o aceite |
+| `GET /eu/cla/` · `POST /eu/cla/sair/` | O clã do aluno, e sair dele |
 
 **Conta e sessão**
 
@@ -509,6 +613,9 @@ parênteses.
 | Rota | O que faz |
 |---|---|
 | `GET /auditoria/` | A trilha de auditoria, com filtros `acao`, `actor`, `desde` e `ate` (`auditoria.view`) |
+| `GET /admin/dashboard/` | Os números do painel, com filtro `?periodo=` |
+| `GET /admin/logs/` | Os logs do painel, paginados (também exige `auditoria.view`) |
+| `GET /admin/solicitacoes/` · `POST /admin/solicitacoes/{id}/aprovar/` · `/rejeitar/` | As solicitações de autoria pendentes, e a decisão |
 | `GET /auth/admin/permissoes/` | O catálogo de permissões concedíveis |
 | `/auth/admin/niveis/` · `/niveis/{id}/` | Lista, cria, edita e remove níveis de acesso |
 | `GET /auth/admin/usuarios/` · `PATCH /usuarios/{id}/nivel/` | Os usuários, e a atribuição de nível a um deles |
@@ -557,8 +664,8 @@ A configuração fica em [`deploy/`](deploy/), pronta para copiar para o servido
 ## `~/testes`
 
 ```bash
-cd backend && pytest                 # 1140 testes, mais 869 subtests
-cd frontend && npm test              # 435 testes (Jest + React Testing Library)
+cd backend && pytest                 # 1332 testes, mais 1150 subtests
+cd frontend && npm test              # 612 testes (Jest + React Testing Library)
 ```
 
 A suíte do backend cobre a API de conteúdo, o fluxo editorial, a tabela de RBAC, os
@@ -568,7 +675,7 @@ de redefinição usado duas vezes, conteúdo não publicado vazando pela API, um
 solução de referência chegando a um payload público, o login bloqueando após
 tentativas demais, um crédito de XP apagando o que outro pedido gravou no meio do
 caminho e um aluno estourando a cota do Judge0. Nos testes, o Judge0 dá lugar a um
-executor Python local, então a suíte não gasta cota nem precisa de rede. Nenhum model é registrado no admin do Django, então toda ação administrativa
+executor Python local, então a suíte não gasta cota nem precisa de rede. A CI (`.github/workflows/ci.yml`) roda tudo isso a cada push, com Postgres de verdade. Nenhum model é registrado no admin do Django, então toda ação administrativa
 passa pelas regras de negócio.
 
 ---
