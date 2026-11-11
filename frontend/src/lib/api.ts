@@ -62,6 +62,7 @@ import type {
   UsuarioAdmin,
 } from "./types";
 import { esquecerProgresso } from "@/lib/cacheDeProgresso";
+import { avisarLimite } from "@/lib/limite";
 
 // No navegador tudo passa pela mesma origem, via rewrite do Next: e o que
 // permite cookie httpOnly com SameSite=Lax. Nos Server Components nao existe
@@ -196,6 +197,11 @@ async function interpretar(resposta: Response) {
   if (resposta.ok) return corpo;
 
   const erro = corpo?.error;
+  // Só o throttle: "limite_do_usuario" (teto diário de correções) já tem
+  // mensagem própria na tela, e "alguns segundos" seria mentira para ele.
+  if (resposta.status === 429 && erro?.code === "throttled") {
+    avisarLimite(Number(resposta.headers.get("Retry-After")));
+  }
   throw new ErroApi(
     resposta.status,
     erro?.code ?? "erro",

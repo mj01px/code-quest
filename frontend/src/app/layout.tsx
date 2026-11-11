@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { AvisoDeLimite } from "@/components/ui/AvisoDeLimite";
 import { variaveisDasFontes } from "@/lib/tipografia";
 
 import "./globals.css";
@@ -17,7 +18,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="pt-BR"
       className={`${variaveisDasFontes} h-full antialiased`}
     >
-      <body className="bg-void text-ink-soft min-h-full">{children}</body>
+      <body className="bg-void text-ink-soft min-h-full">
+        {children}
+        <AvisoDeLimite />
+      </body>
     </html>
   );
 }
