@@ -216,7 +216,9 @@ def _nivel_insuficiente(minimo):
     )
 
 
-def evoluir_criatura(*, user, posse):
+def evoluir_criatura(
+    *, user: Any, posse: UserCreature
+) -> tuple[UserCreature, int, bool]:
     """Sobe a criatura exatamente um estágio, por vontade do aluno.
 
     O nível cobrado é o DESTA criatura, não o da ativa: cada uma acumula o

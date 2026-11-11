@@ -30,9 +30,8 @@ PODE_SUBMETER_CODIGO = HasPerm("submissoes.create")
 # Rajada por usuário de tudo que chama o Judge0. `concluir/` com correção
 # automática divide o balde com `executar/`, então o botão Enviar não é mais o
 # caminho frouxo. O teto do dia (por usuário e global) conta só chamadas pagas,
-# no banco: services._checar_cota_diaria.
-# ponytail: LocMemCache é por processo; com N workers a rajada vira N vezes a
-# declarada. Redis no CACHES resolve sem mexer aqui; os tetos do dia não sofrem.
+# no banco: services._checar_cota_diaria. O balde da rajada fica no
+# DatabaseCache (settings.CACHES), compartilhado entre os workers.
 class Judge0PorMinuto(UserRateThrottle):
     scope = "judge0"
 

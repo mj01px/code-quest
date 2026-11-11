@@ -1,18 +1,24 @@
+from typing import Any
+
+from django.db.models import QuerySet
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.serializers import BaseSerializer
 from rest_framework.throttling import ScopedRateThrottle
 
 from apps.auditoria.services import AcaoAuditoria, registrar
+from apps.core.auth import usuario_atual
 from apps.core.permissions import HasPerm
 
 # Evoluir depende do nível, que mora em progressão. O import é só de serviço,
 # e progressão não importa views daqui: não há ciclo.
 from apps.progressao.services import evoluir_criatura
 
-from .models import Creature, UserCreature
+from .models import Creature, UserCreature, XpBonus
 from .serializers import (
     AquisicaoCriaturaSerializer,
     BonusXpSerializer,
@@ -36,7 +42,7 @@ PODE_EVOLUIR_CRIATURA = HasPerm("criaturas.evolve")
 
 
 @extend_schema(tags=["criaturas"])
-class CatalogoCriaturasView(generics.ListAPIView):
+class CatalogoCriaturasView(generics.ListAPIView[Creature]):
     # A lista de todas as criaturas é pública (vitrine), como o catálogo de
     # trilhas. O que é do usuário (minhas/adquirir/evoluir/ativa/bônus) é que
     # passa pelo RBAC.
@@ -44,17 +50,17 @@ class CatalogoCriaturasView(generics.ListAPIView):
     permission_classes = [AllowAny]
     pagination_class = None
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Creature]:
         return Creature.objects.prefetch_related("stages").order_by(
             "display_order", "slug"
         )
 
 
 @extend_schema(tags=["criaturas"])
-class MinhasCriaturasView(generics.ListCreateAPIView):
+class MinhasCriaturasView(generics.ListCreateAPIView[UserCreature]):
     pagination_class = None
 
-    def get_permissions(self):
+    def get_permissions(self) -> list[BasePermission]:
         # Listar é "ver/gerenciar"; criar (escolha inicial) é "adquirir".
         capacidade = (
             PODE_ADQUIRIR_CRIATURA
@@ -63,26 +69,26 @@ class MinhasCriaturasView(generics.ListCreateAPIView):
         )
         return [IsAuthenticated(), capacidade()]
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> type[BaseSerializer[Any]]:
         if self.request.method == "POST":
             return EscolhaInicialSerializer
         return MinhaCriaturaSerializer
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[UserCreature]:
         # `progresso` entra no select_related porque o serializer lê o nível de
         # cada criatura: sem ele, a listagem faz uma consulta por linha.
         return (
             UserCreature.objects.select_related("creature", "progresso")
             .prefetch_related("creature__stages")
-            .filter(user=self.request.user)
+            .filter(user=usuario_atual(self.request))
         )
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         entrada = EscolhaInicialSerializer(data=request.data)
         entrada.is_valid(raise_exception=True)
 
         posse = select_starter_creature(
-            user=request.user,
+            user=usuario_atual(request),
             creature_slug=entrada.validated_data["criatura"],
         )
         saida = MinhaCriaturaSerializer(posse, context=self.get_serializer_context())
@@ -90,16 +96,16 @@ class MinhasCriaturasView(generics.ListCreateAPIView):
 
 
 @extend_schema(tags=["criaturas"], responses=MinhaCriaturaSerializer)
-class AdquirirCriaturaView(generics.GenericAPIView):
+class AdquirirCriaturaView(generics.GenericAPIView[Any]):
     serializer_class = AquisicaoCriaturaSerializer
     permission_classes = [IsAuthenticated, PODE_ADQUIRIR_CRIATURA]
 
-    def post(self, request, *args, **kwargs):
+    def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         entrada = self.get_serializer(data=request.data)
         entrada.is_valid(raise_exception=True)
 
         posse = adquirir_criatura(
-            user=request.user,
+            user=usuario_atual(request),
             creature_slug=entrada.validated_data["criatura"],
         )
         registrar(
@@ -113,15 +119,15 @@ class AdquirirCriaturaView(generics.GenericAPIView):
 
 
 @extend_schema(tags=["criaturas"], responses=MinhaCriaturaSerializer)
-class CriaturaAtivaView(generics.GenericAPIView):
+class CriaturaAtivaView(generics.GenericAPIView[Any]):
     serializer_class = CriaturaAtivaSerializer
     permission_classes = [IsAuthenticated, PODE_VER_CRIATURAS]
 
-    def get(self, request, *args, **kwargs):
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         ativa = (
             UserCreature.objects.select_related("creature", "progresso")
             .prefetch_related("creature__stages")
-            .filter(user=request.user, is_active=True)
+            .filter(user=usuario_atual(request), is_active=True)
             .first()
         )
         if ativa is None:
@@ -130,12 +136,12 @@ class CriaturaAtivaView(generics.GenericAPIView):
         saida = MinhaCriaturaSerializer(ativa, context=self.get_serializer_context())
         return Response(saida.data, status=status.HTTP_200_OK)
 
-    def put(self, request, *args, **kwargs):
+    def put(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         entrada = self.get_serializer(data=request.data)
         entrada.is_valid(raise_exception=True)
 
         posse = definir_criatura_ativa(
-            user=request.user,
+            user=usuario_atual(request),
             creature_slug=entrada.validated_data["criatura"],
         )
         saida = MinhaCriaturaSerializer(posse, context=self.get_serializer_context())
@@ -143,7 +149,7 @@ class CriaturaAtivaView(generics.GenericAPIView):
 
 
 @extend_schema(tags=["criaturas"], responses=EvolucaoSerializer)
-class EvoluirCriaturaView(generics.GenericAPIView):
+class EvoluirCriaturaView(generics.GenericAPIView[UserCreature]):
     """Sobe a criatura um estágio, a pedido do aluno.
 
     Um estágio por chamada, sempre: quem chega ao nível final ainda em filhote
@@ -156,12 +162,12 @@ class EvoluirCriaturaView(generics.GenericAPIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "conclusao"
 
-    def post(self, request, creature_slug):
+    def post(self, request: Request, creature_slug: str) -> Response:
         posse = get_object_or_404(
             UserCreature.objects.select_related(
                 "creature", "progresso"
             ).prefetch_related("creature__stages"),
-            user=request.user,
+            user=usuario_atual(request),
             creature__slug=creature_slug,
         )
 
@@ -189,7 +195,7 @@ class EvoluirCriaturaView(generics.GenericAPIView):
 
 
 @extend_schema(tags=["criaturas"])
-class MeusBonusView(generics.ListAPIView):
+class MeusBonusView(generics.ListAPIView[XpBonus]):
     """Bônus de XP que valem para as criaturas do usuário autenticado.
 
     Lista vazia é resposta normal: quem não tem criatura, ou tem uma sem trilha
@@ -200,5 +206,5 @@ class MeusBonusView(generics.ListAPIView):
     permission_classes = [IsAuthenticated, PODE_VER_CRIATURAS]
     pagination_class = None
 
-    def get_queryset(self):
-        return xp_bonuses_for_user(user=self.request.user)
+    def get_queryset(self) -> QuerySet[XpBonus]:
+        return xp_bonuses_for_user(user=usuario_atual(self.request))
