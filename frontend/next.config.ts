@@ -2,31 +2,7 @@ import type { NextConfig } from "next";
 
 const API_ORIGIN = process.env.API_ORIGIN ?? "http://localhost:8000";
 
-// O Monaco vem da CDN em runtime (@monaco-editor/loader): loader.js e CSS. A
-// fonte dos ícones vem embutida no CSS como data:, e o worker nasce de um blob:
-// que importa da CDN (coberto pelo script-src).
-const CDN = "https://cdn.jsdelivr.net";
-// O React em dev avalia código para montar a pilha de erro; o build não.
-const EVAL_EM_DEV = process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : "";
-
-const CSP = [
-  "default-src 'self'",
-  // ponytail: 'unsafe-inline' porque o Next injeta <script> inline e a página
-  // estática não tem nonce, logo esta CSP não barra script inline injetado.
-  // Tirar exige nonce no proxy.ts e render dinâmico; aí fixar a CDN no
-  // caminho do monaco-editor, senão o jsdelivr inteiro vira o desvio.
-  `script-src 'self' 'unsafe-inline' ${CDN}${EVAL_EM_DEV}`,
-  `style-src 'self' 'unsafe-inline' ${CDN}`,
-  "font-src 'self' data:",
-  "worker-src 'self' blob:",
-  // Sprites seguem SPRITE_BASE_URL do backend (/criaturas/); se virar outra
-  // origem, ela entra aqui. data: é o QR code do 2FA.
-  "img-src 'self' data:",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "frame-ancestors 'none'",
-].join("; ");
+// A Content-Security-Policy sai do src/proxy.ts, com nonce por request.
 
 const nextConfig: NextConfig = {
   devIndicators: false,
@@ -49,7 +25,6 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: [
-          { key: "Content-Security-Policy", value: CSP },
           { key: "X-Content-Type-Options", value: "nosniff" },
           // Os links de e-mail levam token na query (/redefinir-senha?token=):
           // um link externo dessas páginas não pode carregar o caminho completo.

@@ -8,6 +8,7 @@ django-cors-headers==4.9.0
 drf-spectacular==0.30.0
 pyotp==2.10.0
 qrcode==8.2
+gunicorn==26.2.0
 
 # Desenvolvimento e testes
 pytest==9.1.1

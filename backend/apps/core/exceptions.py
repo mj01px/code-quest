@@ -1,13 +1,17 @@
+from typing import Any
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import exceptions
 from rest_framework.exceptions import ErrorDetail
+from rest_framework.response import Response
 from rest_framework.views import exception_handler as drf_exception_handler
 
 
-def _converter(exc):
+def _converter(exc: Exception) -> Exception:
     if not isinstance(exc, DjangoValidationError):
         return exc
 
+    detalhe: dict[str, list[ErrorDetail]] | list[ErrorDetail]
     if hasattr(exc, "error_dict"):
         detalhe = {
             campo: [
@@ -25,8 +29,8 @@ def _converter(exc):
     return exceptions.ValidationError(detalhe)
 
 
-def _achatar(dados, prefixo=""):
-    achatados = []
+def _achatar(dados: object, prefixo: str = "") -> list[dict[str, Any]]:
+    achatados: list[dict[str, Any]] = []
     if isinstance(dados, dict):
         for campo, erros in dados.items():
             caminho = f"{prefixo}.{campo}" if prefixo else str(campo)
@@ -45,7 +49,7 @@ def _achatar(dados, prefixo=""):
     return achatados
 
 
-def manipulador(exc, context):
+def manipulador(exc: Exception, context: dict[str, Any]) -> Response | None:
     resposta = drf_exception_handler(_converter(exc), context)
     if resposta is None:
         return None

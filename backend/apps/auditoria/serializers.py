@@ -3,7 +3,9 @@ from rest_framework import serializers
 from .models import RegistroDeAuditoria
 
 
-class RegistroDeAuditoriaSerializer(serializers.ModelSerializer):
+class RegistroDeAuditoriaSerializer(
+    serializers.ModelSerializer[RegistroDeAuditoria]
+):
     actor_nickname = serializers.CharField(
         source="actor.nickname", read_only=True, default=None
     )
@@ -30,7 +32,7 @@ class RegistroDeAuditoriaSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class AtividadeSerializer(serializers.ModelSerializer):
+class AtividadeSerializer(serializers.ModelSerializer[RegistroDeAuditoria]):
     """Versão enxuta e amigável para o histórico do próprio titular."""
 
     acao_rotulo = serializers.CharField(source="get_acao_display", read_only=True)

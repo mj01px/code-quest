@@ -5,17 +5,15 @@ import { AreaDeResolucao } from "@/components/exercicio/AreaDeResolucao";
 import { BlocoAprender } from "@/components/exercicio/BlocoAprender";
 import { PetDoExercicio } from "@/components/exercicio/PetDoExercicio";
 import { BarraDeFoco } from "@/components/layout/BarraDeFoco";
-import { ErroApi, buscarExercicio, listarDesafios } from "@/lib/api";
+import { ErroApi, buscarExercicio } from "@/lib/api";
 import { TRILHA_DOS_DESAFIOS } from "@/lib/desafios";
 import { xpDaFase } from "@/lib/derivados";
 import type { ExercicioDetalhe } from "@/lib/types";
 
 export const revalidate = 60;
 
-export async function generateStaticParams() {
-  const desafios = await listarDesafios();
-  return desafios.map((desafio) => ({ desafioSlug: desafio.slug }));
-}
+// Sem generateStaticParams: o layout raiz renderiza por request (nonce da CSP),
+// e uma lista vazia no build fazia o slug cair no render estático e dar 500.
 
 async function carregar(desafioSlug: string): Promise<ExercicioDetalhe> {
   try {

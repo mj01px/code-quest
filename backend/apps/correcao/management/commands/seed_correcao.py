@@ -6,10 +6,14 @@ from django.db import transaction
 from apps.correcao.models import CasoDeTeste, EspecificacaoDeCodigo, Linguagem
 from apps.trilhas.models import Exercicio
 
+from ._casos_desafios import CASOS_DESAFIOS
 from ._casos_python import CASOS_PYTHON, EspecificacaoSeed
+from ._casos_sql import CASOS_SQL
 
 TRILHAS: dict[str, dict[str, EspecificacaoSeed]] = {
     "python": CASOS_PYTHON,
+    "desafios-do-dia": CASOS_DESAFIOS,
+    "banco-de-dados": CASOS_SQL,
 }
 
 
@@ -34,10 +38,18 @@ class Command(BaseCommand):
                     faltando.append(f"{trilha_slug}/{exercicio_slug}")
                     continue
 
+                linguagem = dados.get("linguagem", Linguagem.PYTHON)
+                if (
+                    linguagem == Linguagem.SQL
+                    and exercicio.explicacao == exercicio.solucao_autor
+                ):
+                    exercicio.explicacao = ""
+                    exercicio.save(update_fields=["explicacao"])
+
                 especificacao, _ = EspecificacaoDeCodigo.objects.update_or_create(
                     exercicio=exercicio,
                     defaults={
-                        "linguagem": Linguagem.PYTHON,
+                        "linguagem": linguagem,
                         "funcao": dados["funcao"],
                         "codigo_inicial": dados["codigo_inicial"],
                         "requisitos": dados.get("requisitos", []),
@@ -69,7 +81,7 @@ class Command(BaseCommand):
         if faltando:
             self.stdout.write(
                 self.style.WARNING(
-                    "Exercícios não encontrados (rode seed_trilhas antes): "
+                    "Exercícios não encontrados (rode seed_trilhas e seed_desafios antes): "
                     + ", ".join(faltando)
                 )
             )

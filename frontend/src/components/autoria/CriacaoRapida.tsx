@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { AreaDeTexto } from "@/components/autoria/AreaDeTexto";
-import { FormQuestao, FormTeorico } from "@/components/autoria/EditorDeConteudo";
+import { FormQuestao, FormTeorico } from "@/components/autoria/AulaNoEditor";
 import { ModalConfirmacao } from "@/components/clas/ModalConfirmacao";
 import { IconeAjuda } from "@/components/ui/Icone";
 import { PixelButton } from "@/components/ui/PixelButton";
@@ -13,8 +13,9 @@ import { PixelSelect } from "@/components/ui/PixelSelect";
 import { ErroApi, api, buscarTrilha, listarTrilhas } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
 
+// O botão "Começar/Retomar" do destaque das trilhas: afunda a sombra no hover.
 const BOTAO =
-  "inline-flex cursor-pointer items-center justify-center border-[3px] border-brand-light bg-brand-deep px-4 py-3 font-display text-[10px] leading-[1.7] tracking-[1px] text-ink shadow-[0_0_0_3px_var(--color-brand-void),4px_4px_0_rgba(0,0,0,0.7)] transition-colors duration-150 hover:bg-brand-strong";
+  "inline-flex cursor-pointer items-center justify-center border-[3px] border-brand-light bg-brand-deep px-4 py-3 font-display text-[10px] leading-[1.7] tracking-[1px] text-ink uppercase shadow-[0_0_0_3px_var(--color-brand-void),4px_4px_0_rgba(0,0,0,0.7)] transition duration-150 hover:translate-x-0.5 hover:translate-y-0.5 hover:bg-brand-strong hover:shadow-[0_0_0_3px_var(--color-brand-void),2px_2px_0_rgba(0,0,0,0.7)]";
 
 type Modo = "aula" | "exercicio";
 type TipoNovo = "TEORICO" | "MULTIPLA" | "CODIGO";
@@ -112,8 +113,18 @@ export function CriacaoRapida({
   if (!algum.some(pode)) return null;
 
   return (
-    <div className="flex flex-col items-start gap-3">
-      <div role="group" aria-label="Criar conteúdo" className="flex flex-wrap justify-start gap-3">
+    // Moldura do destaque das trilhas (CartaoDestaque). Div, não section: o
+    // painel não ganha uma região a mais.
+    <div className="animate-surgir flex flex-col items-start gap-5 border-[3px] border-brand bg-panel p-6 shadow-frame sm:p-8">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="bg-brand px-3 py-1.5 font-label text-[11px] tracking-[2px] text-void uppercase">
+          Criação rápida
+        </span>
+        <span className="font-label text-[11px] tracking-[2px] text-ink-muted uppercase">
+          Tudo nasce em rascunho
+        </span>
+      </div>
+      <div role="group" aria-label="Criar conteúdo" className="flex flex-wrap justify-start gap-4">
         {pode("trilhas.create_trilha") ? (
           <BotaoComDica rotulo="+ NOVA TRILHA" dica={DICAS.trilha} href="/autoria/novo" />
         ) : null}
@@ -274,10 +285,10 @@ function ConteudoDoModal({
                 type="button"
                 aria-pressed={tipo === valor}
                 onClick={() => setTipo(valor)}
-                className={`cursor-pointer border-2 px-4 py-2 font-label text-[11px] tracking-[2px] transition-colors duration-150 ${
+                className={`cursor-pointer border-2 px-4 py-3 font-label text-[11px] tracking-[2px] uppercase shadow-pixel transition-colors duration-150 ${
                   tipo === valor
                     ? "border-brand-light bg-brand-deep text-ink"
-                    : "border-edge-soft text-ink-muted hover:border-brand hover:text-ink"
+                    : "border-edge-soft bg-transparent text-ink-muted hover:border-brand hover:text-ink-soft"
                 }`}
               >
                 {rotulo}

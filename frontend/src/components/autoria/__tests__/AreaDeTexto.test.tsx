@@ -20,7 +20,6 @@ function Controlado({ inicial }: { inicial: string }) {
 describe("AreaDeTexto: barra de Markdown", () => {
   it.each([
     ["Negrito", "um **dois** tres"],
-    ["Itálico", "um *dois* tres"],
     ["Código", "um `dois` tres"],
   ])("%s envolve a seleção e mantém o texto selecionado", async (nome, esperado) => {
     render(<Controlado inicial="um dois tres" />);
@@ -42,6 +41,11 @@ describe("AreaDeTexto: barra de Markdown", () => {
 
     expect(campo).toHaveValue("a****b");
     expect(campo.selectionStart).toBe(3);
+  });
+
+  it("não oferece itálico: a lição do aluno não o formata", () => {
+    render(<Controlado inicial="" />);
+    expect(screen.queryByRole("button", { name: "Itálico" })).toBeNull();
   });
 
   it("sem `markdown` não há barra", () => {

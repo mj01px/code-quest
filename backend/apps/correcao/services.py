@@ -14,10 +14,17 @@ from django.utils.translation import gettext_lazy as _
 from apps.contas.models import User
 from apps.trilhas.models import Exercicio
 
-from . import analise_ast, harness
+from . import analise_ast, harness, sql
 from .excecoes import CotaDiariaEsgotada, CotaDoUsuarioEsgotada
 from .judge0 import STATUS_ACEITO, STATUS_TEMPO_ESGOTADO, Execucao, obter_cliente
-from .models import CasoDeTeste, EspecificacaoDeCodigo, Modo, Submissao, Veredito
+from .models import (
+    CasoDeTeste,
+    EspecificacaoDeCodigo,
+    Linguagem,
+    Modo,
+    Submissao,
+    Veredito,
+)
 
 LIMITE_DE_CARACTERES = 10_000
 CACHE_DE_SUBMISSAO = timedelta(minutes=10)
@@ -29,6 +36,7 @@ class CasoJulgado(TypedDict):
     ordem: int
     visivel: bool
     passou: bool
+    descricao: NotRequired[str]
     argumentos: NotRequired[object]
     esperado: NotRequired[object]
     erro_esperado: NotRequired[str]
@@ -39,6 +47,7 @@ class CasoJulgado(TypedDict):
 # Formato gravado em Submissao.resultado; tempo e memoria só existem quando
 # houve chamada ao Judge0.
 class Resultado(TypedDict):
+    personalizado: NotRequired[bool]
     veredito: str
     aprovados: int
     total: int
@@ -60,6 +69,7 @@ class Correcao:
     erro: str = ""
     tempo: float | None = None
     memoria: int | None = None
+    personalizado: bool = False
 
     @property
     def aprovado(self) -> bool:
@@ -94,6 +104,7 @@ def especificacao_de(exercicio: Exercicio) -> EspecificacaoDeCodigo | None:
 
 def tem_correcao_automatica(exercicio: Exercicio) -> bool:
     return EspecificacaoDeCodigo.objects.filter(exercicio=exercicio).exists()
+
 
 def codigo_aprovado(*, user: User, exercicio: Exercicio | int) -> str:
     submissao = (
@@ -194,9 +205,16 @@ def _hash(
 ) -> str:
     base = json.dumps(
         {
-            "harness": harness.VERSAO,
+            "harness": sql.VERSAO
+            if especificacao.linguagem == Linguagem.SQL
+            else harness.VERSAO,
             "linguagem": especificacao.linguagem,
             "funcao": especificacao.funcao,
+            "parametros": harness.parametros_de(
+                especificacao.codigo_inicial, especificacao.funcao
+            )
+            if especificacao.linguagem == Linguagem.PYTHON
+            else [],
             # `visivel` entra porque o resultado guardado decide o que mostrar:
             # sem ele, esconder um caso deixaria o cache mostrá-lo.
             "casos": [
@@ -219,7 +237,9 @@ def _descrever_erro(resultado: object) -> str:
     return f"{nome}: {mensagem}" if mensagem else nome
 
 
-def _julgar(*, casos: Sequence[CasoDeTeste], execucao: Execucao) -> Resultado:
+def _julgar(
+    *, casos: Sequence[CasoDeTeste], execucao: Execucao, personalizado: bool = False
+) -> Resultado:
     total = len(casos)
 
     if execucao.status_id == STATUS_TEMPO_ESGOTADO:
@@ -244,6 +264,32 @@ def _julgar(*, casos: Sequence[CasoDeTeste], execucao: Execucao) -> Resultado:
             "aprovados": 0,
             "total": total,
             "casos": [],
+            "saida": impresso,
+            "erro": execucao.stderr,
+        }
+
+    if personalizado:
+        resultado = resultados[0]
+        ok = isinstance(resultado, dict) and resultado.get("ok") is True
+        return {
+            "personalizado": True,
+            "veredito": Veredito.APROVADO if ok else Veredito.ERRO_DE_EXECUCAO,
+            "aprovados": int(ok),
+            "total": 1,
+            "casos": [
+                {
+                    "ordem": casos[0].ordem,
+                    "visivel": True,
+                    "passou": ok,
+                    "argumentos": resultado.get("argumentos", casos[0].argumentos)
+                    if isinstance(resultado, dict)
+                    else casos[0].argumentos,
+                    "obtido": resultado.get("valor")
+                    if isinstance(resultado, dict)
+                    else None,
+                    "erro": _descrever_erro(resultado),
+                }
+            ],
             "saida": impresso,
             "erro": execucao.stderr,
         }
@@ -305,7 +351,50 @@ def _correcao(
         erro=erro,
         tempo=tempo,
         memoria=memoria,
+        personalizado=modo == Modo.EXECUTAR and resultado.get("personalizado", False),
     )
+
+
+def _julgar_sql(
+    execucao: Execucao, casos: list[CasoDeTeste], marcador: str
+) -> Resultado:
+    saida = []
+    respostas = {}
+    for linha in execucao.stdout.splitlines(keepends=True):
+        if marcador and linha.startswith(f"{marcador}:"):
+            ordem, _, valor = linha.removeprefix(f"{marcador}:").strip().partition(":")
+            if valor in ("0", "1"):
+                respostas[ordem] = valor == "1"
+        else:
+            saida.append(linha)
+
+    detalhes: list[CasoJulgado] = [
+        {
+            "ordem": caso.ordem,
+            "visivel": caso.visivel,
+            "passou": respostas.get(str(caso.ordem), False),
+            "descricao": caso.argumentos[1],
+        }
+        for caso in casos
+    ]
+    aprovados = sum(caso["passou"] for caso in detalhes)
+    if execucao.status_id == STATUS_TEMPO_ESGOTADO:
+        veredito = Veredito.TEMPO_ESGOTADO
+    elif execucao.status_id != STATUS_ACEITO or execucao.stderr.strip():
+        veredito = Veredito.ERRO_DE_EXECUCAO
+    elif aprovados < len(casos):
+        veredito = Veredito.RESPOSTA_ERRADA
+    else:
+        veredito = Veredito.APROVADO
+    return {
+        "personalizado": not casos,
+        "veredito": veredito,
+        "aprovados": aprovados,
+        "total": len(casos),
+        "casos": detalhes,
+        "saida": "".join(saida),
+        "erro": execucao.stderr,
+    }
 
 
 def _corrigir(
@@ -317,22 +406,42 @@ def _corrigir(
     if especificacao is None:
         raise ValidationError({"exercicio": _sem_correcao()})
 
-    barrado = analise_ast.verificar(
-        codigo=codigo,
-        funcao=especificacao.funcao,
-        requisitos=especificacao.requisitos,
-    )
-    if barrado is not None:
-        mensagem = barrado.mensagem
-        if barrado.linha and barrado.code != "erro_de_sintaxe":
-            mensagem = f"{mensagem.rstrip('.')} (linha {barrado.linha})."
-        raise ValidationError({"codigo": ValidationError(mensagem, code=barrado.code)})
+    em_sql = especificacao.linguagem == Linguagem.SQL
+    if not em_sql:
+        barrado = analise_ast.verificar(
+            codigo=codigo,
+            funcao=especificacao.funcao,
+            requisitos=especificacao.requisitos,
+        )
+        if barrado is not None:
+            mensagem = barrado.mensagem
+            if barrado.linha and barrado.code != "erro_de_sintaxe":
+                mensagem = f"{mensagem.rstrip('.')} (linha {barrado.linha})."
+            raise ValidationError(
+                {"codigo": ValidationError(mensagem, code=barrado.code)}
+            )
 
     casos = list(especificacao.casos.all())
     if modo == Modo.EXECUTAR:
         casos = [c for c in casos if c.visivel]
-    if not casos:
+    if not casos and (not em_sql or modo == Modo.ENVIAR):
         raise ValidationError({"exercicio": _sem_correcao()})
+
+    entradas: dict[int, str] = {}
+    codigo_sql = None
+    marcador_sql = ""
+    if em_sql:
+        if casos:
+            codigo_sql, marcador_sql = sql.montar_correcao(codigo, casos)
+        else:
+            codigo_sql = sql.montar_programa(codigo)
+    elif modo == Modo.EXECUTAR:
+        parametros = harness.parametros_de(
+            especificacao.codigo_inicial, especificacao.funcao
+        )
+        entradas = harness.entradas_do_codigo(codigo, especificacao.funcao, parametros)
+        if entradas:
+            casos = casos[:1]
 
     chave = _hash(especificacao=especificacao, casos=casos, codigo=codigo)
     # Cache de submissão idêntica: só resultado pago (em_cache=False), para o
@@ -358,11 +467,21 @@ def _corrigir(
         cliente = obter_cliente()  # sem configuração não há chamada a contar
         _reservar_chamada(submissao)
         execucao = cliente.executar(
-            codigo=harness.montar_programa(codigo=codigo, funcao=especificacao.funcao),
-            stdin=harness.montar_entrada(casos),
+            codigo=codigo_sql
+            if codigo_sql is not None
+            else harness.montar_programa(
+                codigo=codigo, funcao=especificacao.funcao, entradas=entradas
+            ),
+            stdin="" if codigo_sql is not None else harness.montar_entrada(casos),
             linguagem=especificacao.linguagem,
         )
-        resultado = _julgar(casos=casos, execucao=execucao)
+        resultado = (
+            _julgar_sql(execucao, casos, marcador_sql)
+            if codigo_sql is not None
+            else _julgar(casos=casos, execucao=execucao, personalizado=bool(entradas))
+        )
+        if not em_sql:
+            resultado["personalizado"] = bool(entradas)
         resultado["tempo"] = execucao.tempo
         resultado["memoria"] = execucao.memoria
 

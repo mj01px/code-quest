@@ -216,7 +216,9 @@ def _nivel_insuficiente(minimo):
     )
 
 
-def evoluir_criatura(*, user, posse):
+def evoluir_criatura(
+    *, user: Any, posse: UserCreature
+) -> tuple[UserCreature, int, bool]:
     """Sobe a criatura exatamente um estágio, por vontade do aluno.
 
     O nível cobrado é o DESTA criatura, não o da ativa: cada uma acumula o
@@ -650,7 +652,7 @@ def progresso_das_trilhas(*, user) -> list[Any]:
     """Trilhas publicadas com algum passo feito, e quanto de cada uma."""
     from apps.trilhas.models import Trilha
 
-    from .sequencia import estado_da_trilha
+    from .sequencia import estados_das_trilhas
 
     ativas = set(
         EtapaConcluida.objects.filter(user=user).values_list(
@@ -662,12 +664,15 @@ def progresso_das_trilhas(*, user) -> list[Any]:
         ).values_list("exercicio__trilha_id", flat=True)
     )
     resultado = []
-    for trilha in (
+    trilhas = list(
         Trilha.objects.publicados()
         .filter(pk__in=ativas, desafio=False)
         .order_by("ordem")
-    ):
-        estados = estado_da_trilha(user, trilha)
+    )
+    # Uma leitura para todas: o perfil público abre a partir do ranking.
+    por_trilha = estados_das_trilhas(user, trilhas)
+    for trilha in trilhas:
+        estados = por_trilha[trilha.pk]
         if not estados:
             continue
         feitos = sum(1 for e in estados if e.estado == "concluido")

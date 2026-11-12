@@ -4,16 +4,19 @@ export interface PropsErro {
   error: Error & { digest?: string };
   reset: () => void;
   titulo: string;
+  mensagem?: string;
 }
 
-// Corpo compartilhado pelos error.tsx das três rotas.
-export function ErroDeCarregamento({ error, reset, titulo }: PropsErro) {
+const API_FORA =
+  "A API do CodeQuest não respondeu. Se você está rodando o projeto localmente, confirme que o backend Django está no ar.";
+
+// Corpo compartilhado pelos error.tsx das rotas do app.
+export function ErroDeCarregamento({ error, reset, titulo, mensagem = API_FORA }: PropsErro) {
   return (
     <div role="alert" className="border border-edge-soft bg-panel p-6">
       <h1 className="titulo text-lg text-ink-soft">{titulo}</h1>
       <p className="mt-3 max-w-prose text-xs leading-relaxed text-ink-muted">
-        A API do CodeQuest não respondeu. Se você está rodando o projeto
-        localmente, confirme que o backend Django está no ar.
+        {mensagem}
       </p>
       {error.digest ? (
         <p className="rotulo mt-3 text-ink-muted/60">

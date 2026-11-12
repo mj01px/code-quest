@@ -1,10 +1,19 @@
+from datetime import datetime
+from typing import Any
+from uuid import UUID
+
+from django.db.models import QuerySet
+from django.http import QueryDict
 from django.utils.dateparse import parse_datetime
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics
 from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
+from rest_framework.response import Response
 
+from apps.core.auth import usuario_atual
 from apps.core.permissions import HasPerm
 
 from .models import ACOES_DO_TITULAR, AcaoAuditoria, RegistroDeAuditoria
@@ -18,7 +27,7 @@ class AuditoriaPagination(PageNumberPagination):
     max_page_size = 200
 
 
-def _data_do_filtro(params, nome):
+def _data_do_filtro(params: QueryDict, nome: str) -> datetime | None:
     # Formato válido com data impossível (30/02) faz parse_datetime lançar
     # ValueError, que viraria 500; aqui vira 400 no padrão de erro da API.
     try:
@@ -43,7 +52,7 @@ class AtividadePagination(PageNumberPagination):
         OpenApiParameter("ate", str, description="Data/hora ISO 8601 (limite superior)."),
     ],
 )
-class AuditoriaListView(generics.ListAPIView):
+class AuditoriaListView(generics.ListAPIView[RegistroDeAuditoria]):
     """Consulta à trilha de auditoria. Restrita a quem tem `auditoria.view`.
 
     A própria consulta é um acesso administrativo e fica registrada.
@@ -53,7 +62,7 @@ class AuditoriaListView(generics.ListAPIView):
     permission_classes = [HasPerm("auditoria.view")]
     pagination_class = AuditoriaPagination
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[RegistroDeAuditoria]:
         consulta = RegistroDeAuditoria.objects.select_related("actor").all()
         params = self.request.query_params
 
@@ -63,7 +72,11 @@ class AuditoriaListView(generics.ListAPIView):
 
         actor = params.get("actor")
         if actor:
-            consulta = consulta.filter(actor_id=actor)
+            # UUID malformado vira 400 no padrão da API, não erro do banco.
+            try:
+                consulta = consulta.filter(actor_id=UUID(actor))
+            except ValueError:
+                raise ValidationError({"actor": "Identificador inválido."}) from None
 
         desde = _data_do_filtro(params, "desde")
         if desde:
@@ -75,7 +88,7 @@ class AuditoriaListView(generics.ListAPIView):
 
         return consulta
 
-    def list(self, request, *args, **kwargs):
+    def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         registrar(
             AcaoAuditoria.ACESSO_AUDITORIA,
             request=request,
@@ -87,6 +100,7 @@ class AuditoriaListView(generics.ListAPIView):
         )
         resposta = super().list(request, *args, **kwargs)
         # O filtro por ação da tela usa este catálogo: uma fonte só, a do modelo.
+        assert resposta.data is not None
         resposta.data["acoes"] = [
             {"valor": valor, "rotulo": str(rotulo)} for valor, rotulo in AcaoAuditoria.choices
         ]
@@ -94,7 +108,7 @@ class AuditoriaListView(generics.ListAPIView):
 
 
 @extend_schema(tags=["auditoria"])
-class MinhaAtividadeView(generics.ListAPIView):
+class MinhaAtividadeView(generics.ListAPIView[RegistroDeAuditoria]):
     """Histórico do próprio titular, só com as ações do usuário autenticado.
 
     Endpoint distinto do de auditoria (que é de ADMIN): aqui cada um vê apenas
@@ -106,8 +120,8 @@ class MinhaAtividadeView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     pagination_class = AtividadePagination
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[RegistroDeAuditoria]:
         return RegistroDeAuditoria.objects.filter(
-            actor=self.request.user,
+            actor=usuario_atual(self.request),
             acao__in=ACOES_DO_TITULAR,
         )

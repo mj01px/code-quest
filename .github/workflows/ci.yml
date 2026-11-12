@@ -1,0 +1,172 @@
+# RNF27 e exercício de CI/CD: todo pull request para a main passa por três
+# checagens independentes, em paralelo (Testes unitários, Testes de integração
+# e Linter). Só se as três passarem roda o build de produção do frontend, o
+# passo mais caro (falhe rápido). Sem deploy: isto é CI, não CD.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  # Valor fictício, válido só no runner. Nenhum segredo real passa por aqui.
+  SECRET_KEY: ci-somente-teste
+  DEBUG: "False"
+
+jobs:
+  unitarios:
+    name: Testes unitários
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # O settings exige DATABASE_URL, mas este grupo não abre conexão: o
+      # pytest-django barra o banco em teste sem a marca integracao.
+      DATABASE_URL: "sqlite://:memory:"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Dependências
+        run: |
+          pip install -r backend/requirements.txt
+          npm ci --prefix frontend
+      - name: Backend (pytest, sem banco)
+        working-directory: backend
+        run: pytest -q -m "not integracao"
+      - name: Frontend (Jest)
+        working-directory: frontend
+        run: npm test -- --ci
+
+  integracao:
+    name: Testes de integração
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: codequest
+          # Banco descartável do runner, só acessível de dentro dele: sem senha.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # Postgres de verdade: os testes de concorrência dependem de select_for_update.
+      DATABASE_URL: postgres://postgres@localhost:5432/codequest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Dependências
+        run: pip install -r requirements.txt
+      - name: Backend (pytest, API e serviços com banco de teste)
+        run: pytest -q -m integracao
+
+  linter:
+    name: Linter
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # O plugin django-stubs do mypy carrega o settings, sem conectar.
+      DATABASE_URL: "sqlite://:memory:"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Dependências
+        run: |
+          pip install -r backend/requirements.txt
+          npm ci --prefix frontend
+      - name: Ruff (regras em backend/pyproject.toml)
+        working-directory: backend
+        run: ruff check .
+      - name: ESLint (regras em frontend/eslint.config.mjs)
+        working-directory: frontend
+        run: npm run lint -- --max-warnings 0
+      - name: Tipos do backend (mypy strict)
+        working-directory: backend
+        run: mypy
+      - name: Tipos do frontend (tsc)
+        working-directory: frontend
+        # PageProps e LayoutProps são gerados em .next/types; checkout limpo não os tem.
+        run: |
+          npx next typegen
+          npx tsc --noEmit
+
+  build:
+    name: Build do frontend
+    needs: [unitarios, integracao, linter]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # O build lê o catálogo na API (generateStaticParams) e monta o CSP a partir
+    # dela, então a API sobe antes, com o banco migrado e semeado.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: codequest
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres@localhost:5432/codequest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Dependências
+        run: |
+          pip install -r backend/requirements.txt
+          npm ci --prefix frontend
+      - name: API para o build
+        working-directory: backend
+        env:
+          ALLOWED_HOSTS: localhost,127.0.0.1
+          # O build consulta o catálogo em rajada; o limite anônimo de 60/min barraria.
+          THROTTLE_CATALOGO: 10000/min
+        run: |
+          python manage.py migrate --noinput
+          python manage.py seed_trilhas
+          nohup python manage.py runserver 127.0.0.1:8000 --insecure > ../api.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8000/api/v1/trilhas/ > /dev/null && exit 0; sleep 1; done
+          cat ../api.log; exit 1
+      - name: Build
+        working-directory: frontend
+        run: npm run build

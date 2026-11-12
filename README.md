@@ -496,6 +496,24 @@ DigitalOcean Droplet
 └── PostgreSQL   # banco relacional no droplet
 ```
 
+A configuração fica em [`deploy/`](deploy/), pronta para copiar para o servidor
+(repositório em `/srv/codequest`, usuário `codequest`):
+
+| Arquivo | Destino |
+|---|---|
+| `nginx.conf` | `/etc/nginx/sites-available/codequest` (TLS com certbot) |
+| `codequest-api.service` · `codequest-web.service` | `/etc/systemd/system/` |
+| `gunicorn.conf.py` | lido pela unidade da API |
+| `crontab` | `crontab -u codequest deploy/crontab` (auditoria e pódio) |
+
+1. `backend/`: criar a `.venv`, `pip install -r requirements.txt` e o `.env` de
+   produção (`DEBUG=False`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `DATABASE_URL`).
+2. `systemctl enable --now codequest-api` (roda o `migrate`, que também cria a
+   tabela do cache de throttle).
+3. `frontend/`: `npm ci && npm run build` com a API já no ar, porque o build lê o
+   catálogo; depois `systemctl enable --now codequest-web`.
+4. Ativar o site no Nginx e instalar o `crontab`.
+
 ## Stack
 
 | Camada | Tecnologias |
@@ -510,5 +528,5 @@ DigitalOcean Droplet
 ## Quem fez
 
 **[Mauro Junior](https://github.com/mj01px)**, **[Julio Franz](https://github.com/JulioFranz)** e **[Arthur Sabino](https://github.com/ArthurS357)**<br>
-Orientador: Fabiano Bezerra Menegidio<br>
+Orientadora: Viviane Guimarães Ribeiro<br>
 Projeto Final de Curso · Engenharia de Software, 8B Noturno · Universidade de Mogi das Cruzes · 2026

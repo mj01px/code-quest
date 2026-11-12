@@ -1,0 +1,18 @@
+# API Django sob gunicorn. Instalar em /etc/systemd/system/ e ativar com
+#   systemctl enable --now codequest-api
+[Unit]
+Description=CodeQuest API (Django + gunicorn)
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+User=codequest
+Group=codequest
+WorkingDirectory=/srv/codequest/backend
+# As variáveis vêm de backend/.env, lido pelo próprio settings.py.
+ExecStartPre=/srv/codequest/backend/.venv/bin/python manage.py migrate --noinput
+ExecStart=/srv/codequest/backend/.venv/bin/gunicorn -c ../deploy/gunicorn.conf.py config.wsgi
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

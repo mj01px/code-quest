@@ -43,7 +43,8 @@ function LinkOuTrava({
   );
 }
 
-function CabecalhoDaParte({
+// Exportado: o editor da autoria divide a aula nas mesmas partes.
+export function CabecalhoDaParte({
   numero,
   titulo,
 }: {

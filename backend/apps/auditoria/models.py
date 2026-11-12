@@ -1,4 +1,5 @@
 import uuid
+from typing import Any
 
 from django.conf import settings
 from django.db import models
@@ -217,8 +218,8 @@ class RegistroDeAuditoria(models.Model):
                 return "E-mail não cadastrado"
             return motivo
         if self.acao == AcaoAuditoria.NIVEL_ATRIBUIDO:
-            def nome(ref):
-                return ref["nome"] if ref else "sem nível"
+            def nome(ref: dict[str, Any] | None) -> str:
+                return str(ref["nome"]) if ref else "sem nível"
 
             if "nivel_novo" not in dados:
                 return ""
@@ -233,7 +234,7 @@ class RegistroDeAuditoria(models.Model):
             return "Anonimizada a pedido do titular"
         return ""
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         # Append-only: recusa qualquer alteração de um registro já gravado.
         if not self._state.adding:
             raise ValueError(

@@ -581,10 +581,11 @@ contam):
   a cota do plano). Abriu, **503** `limite_diario` para todos até a
   meia-noite de `America/Sao_Paulo`.
 
-Os contadores de rajada ficam em `LocMemCache`, que é por processo: com vários
-workers o limite real se multiplica, e reiniciar o servidor zera os contadores.
-Trocar o cache por Redis resolve sem mudar as views. Os tetos diários do Judge0
-não sofrem disso, porque contam no banco.
+Os contadores de rajada foram implementados usando o DatabaseCache do
+PostgreSQL, garantindo persistência e compartilhamento entre workers sem novas
+dependências de infraestrutura: com vários workers o limite vale como
+declarado, e reiniciar o servidor não zera os contadores. Os tetos diários do
+Judge0 seguem contados à parte, no banco.
 
 ## 11. O que um integrador não recebe
 

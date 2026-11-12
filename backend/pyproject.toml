@@ -19,7 +19,10 @@ python_files = ["test_*.py"]
 # porque os testes transversais (admin, RBAC, permissoes) foram escritos la.
 testpaths = ["apps"]
 addopts = "--reuse-db"
-markers = ["sequencial: liga a trava de progressão em ordem da trilha"]
+markers = [
+    "sequencial: liga a trava de progressão em ordem da trilha",
+    "integracao: usa o banco (aplicado no conftest); a CI roda à parte",
+]
 
 [tool.coverage.run]
 source = ["apps", "config"]
@@ -41,20 +44,21 @@ skip_covered = true
 python_version = "3.14"
 strict = true
 plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
-# Escopo limitado ao app novo: contas e gamificacao nunca passaram por
-# type check e anota-las e uma entrega propria, nao um efeito colateral desta.
-files = ["apps/trilhas", "apps/autoria", "apps/correcao", "apps/conquistas", "apps/ranking"]
-exclude = "apps/(trilhas|correcao|conquistas|ranking)/migrations/"
+files = ["apps/trilhas", "apps/autoria", "apps/correcao", "apps/conquistas", "apps/ranking", "apps/auditoria", "apps/gamificacao", "apps/core"]
+exclude = "apps/[a-z]+/migrations/"
 
+# ponytail: contas, progressao e clas somam 574 erros no strict (quase todos
+# anotacao faltando, sem bug de tipo real). Ficam fora ate uma rodada so de
+# anotacao; tirar o app desta lista e rodar mypy mostra o que falta.
 [[tool.mypy.overrides]]
-module = ["apps.contas.*", "apps.auditoria.*", "apps.gamificacao.*", "apps.progressao.*", "apps.core.*", "apps.clas.*", "config.*"]
+module = ["apps.contas.*", "apps.progressao.*", "apps.clas.*", "config.*"]
 ignore_errors = true
 
 # Os testes ficam fora do mypy. O idioma `cls.x = ...` dentro de setUpTestData
 # e invisivel para o django-stubs, que reporta attr-defined em todo atributo
 # assim. O que o strict protege e o codigo de producao.
 [[tool.mypy.overrides]]
-module = ["apps.trilhas.tests.*", "apps.autoria.tests.*", "apps.correcao.tests.*", "apps.conquistas.tests.*", "apps.ranking.tests.*", "tests.*"]
+module = ["apps.trilhas.tests.*", "apps.autoria.tests.*", "apps.correcao.tests.*", "apps.conquistas.tests.*", "apps.ranking.tests.*", "apps.auditoria.tests.*", "apps.gamificacao.tests.*", "tests.*"]
 ignore_errors = true
 
 [tool.django-stubs]

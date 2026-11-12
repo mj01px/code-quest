@@ -1,0 +1,12 @@
+# Rotinas agendadas do CodeQuest. Instalar como o usuário da aplicação:
+#   crontab -u codequest /srv/codequest/deploy/crontab
+# Saída em /var/log/codequest/cron.log (criar a pasta com dono codequest).
+#
+# m  h  dom mon dow  comando
+
+# RNF13: descarta a auditoria além de AUDITORIA_RETENCAO_DIAS, todo dia às 3h30.
+30 3 * * * cd /srv/codequest/backend && .venv/bin/python manage.py limpar_auditoria >> /var/log/codequest/cron.log 2>&1
+
+# Pódio do ranking: grava o mês encerrado no dia 1. Às 6h, para já ser dia 1 em
+# America/Sao_Paulo mesmo com o servidor em UTC. Idempotente.
+0 6 1 * * cd /srv/codequest/backend && .venv/bin/python manage.py fechar_podios >> /var/log/codequest/cron.log 2>&1

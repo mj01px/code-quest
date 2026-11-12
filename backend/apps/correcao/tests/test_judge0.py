@@ -85,6 +85,27 @@ class ClienteJudge0Test(SimpleTestCase):
         self.assertEqual(execucao.tempo, 0.017)
         self.assertEqual(execucao.memoria, 4056)
 
+    def test_sql_usa_sqlite_e_mantem_limites_de_execucao(self):
+        cliente = ClienteJudge0(url="https://judge0.exemplo.com", token="k", timeout=5)
+        with mock.patch(
+            "urllib.request.urlopen", return_value=_resposta(ACEITO)
+        ) as urlopen:
+            cliente.executar(codigo="SELECT 2;", stdin="", linguagem=Linguagem.SQL)
+        corpo = json.loads(urlopen.call_args.args[0].data)
+        self.assertEqual(corpo["language_id"], 82)
+        self.assertEqual(base64.b64decode(corpo["source_code"]).decode(), "SELECT 2;")
+        self.assertEqual(base64.b64decode(corpo["stdin"]).decode(), "")
+        self.assertIs(corpo["enable_network"], False)
+        self.assertEqual(corpo["cpu_time_limit"], 2)
+        self.assertEqual(corpo["memory_limit"], 128000)
+
+    def test_linguagem_desconhecida_nao_faz_requisicao(self):
+        cliente = ClienteJudge0(url="https://judge0.exemplo.com", token="k", timeout=5)
+        with mock.patch("urllib.request.urlopen") as urlopen:
+            with self.assertRaises(Judge0Error):
+                cliente.executar(codigo="", stdin="", linguagem="DESCONHECIDA")
+        urlopen.assert_not_called()
+
     def test_erro_http_vira_indisponivel(self):
         cliente = ClienteJudge0(url="https://x.rapidapi.com", token="k", timeout=5)
         erro = urllib.error.HTTPError("u", 429, "limite", {}, io.BytesIO(b""))

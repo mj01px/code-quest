@@ -25,7 +25,7 @@ logger = logging.getLogger("apps.auditoria")
 __all__ = ["registrar", "AcaoAuditoria"]
 
 
-def ip_do_cliente(request) -> str | None:
+def ip_do_cliente(request: Any) -> str | None:
     """IP do aluno pela mesma regra do throttle do DRF (`NUM_PROXIES`).
 
     Atrás do Next, REMOTE_ADDR é o do servidor Next; o IP real chega no
@@ -39,13 +39,13 @@ def ip_do_cliente(request) -> str | None:
         return None
 
 
-def _user_agent(request) -> str:
+def _user_agent(request: Any) -> str:
     if request is None:
         return ""
     return (request.META.get("HTTP_USER_AGENT") or "")[:256]
 
 
-def _resolver_ator(request, actor):
+def _resolver_ator(request: Any, actor: Any) -> Any:
     if actor is not None:
         return actor
     if request is not None:

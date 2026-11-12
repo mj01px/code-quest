@@ -3,13 +3,21 @@
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 
-import { COR_STATUS, ROTULO_TIPO } from "@/components/autoria/ListaEditorial";
+import {
+  BOTAO_ACAO,
+  COR_STATUS,
+  CabecalhoDaLista,
+  LINHA,
+  MARCA,
+  MARCA_TIPO,
+  MOLDURA,
+  ROTULO_TIPO,
+  type CorStatus,
+} from "@/components/autoria/ListaEditorial";
+import { Badge } from "@/components/ui/Badge";
 import { ErroApi, api } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
 import type { ExclusaoSofrida, MeusEnvios as Envios, TipoConteudo } from "@/lib/types";
-
-const BOTAO =
-  "inline-flex cursor-pointer items-center border-2 border-brand-light bg-brand-deep px-4 py-2 font-label text-[11px] tracking-[2px] text-ink uppercase transition-colors duration-150 hover:bg-brand-strong";
 
 const POSSESSIVO: Record<TipoConteudo, string> = {
   trilhas: "sua trilha",
@@ -25,6 +33,8 @@ function frase({ tipo, titulo, motivo, excluido_por }: ExclusaoSofrida): string 
     : `${quem} excluiu ${oque} sem informar o motivo.`;
 }
 
+// Mesma moldura das listas do painel (e do módulo da trilha): cabeçalho com o
+// total no quadro e uma linha por item.
 function Secao({
   titulo,
   total,
@@ -34,27 +44,29 @@ function Secao({
 }: {
   titulo: string;
   total: number;
-  /** Classes de borda do topo e do selo (literais, para o Tailwind gerar). */
-  cor: { secao: string; selo: string };
+  cor: CorStatus;
   vazio: string;
   children: ReactNode;
 }) {
   return (
-    <section
-      aria-label={titulo}
-      className={`flex min-w-0 flex-col gap-4 border-2 border-t-4 border-edge bg-panel-deep p-4 shadow-pixel sm:p-5 ${cor.secao}`}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <h2 className={`m-0 text-ink ${TIPO.tituloSecao}`}>{titulo}</h2>
-        <span className={`border-2 px-2 py-0.5 ${cor.selo} ${TIPO.etiqueta}`}>{total}</span>
-      </div>
-      {total === 0 ? <p className={`m-0 text-ink-muted ${TIPO.corpo}`}>{vazio}</p> : children}
+    <section aria-label={titulo} className={MOLDURA}>
+      <CabecalhoDaLista titulo={titulo} total={total} cor={cor} />
+      {total === 0 ? (
+        <p className={`m-0 border-t-2 border-edge px-5 py-4 text-ink-muted sm:px-6 ${TIPO.corpo}`}>
+          {vazio}
+        </p>
+      ) : (
+        <ul className="m-0 list-none divide-y-2 divide-edge border-t-2 border-edge p-0">
+          {children}
+        </ul>
+      )}
     </section>
   );
 }
 
-const DEVOLVIDO = { secao: "border-t-danger", selo: "border-danger text-danger" };
-const EXCLUIDO = { secao: "border-t-edge-soft", selo: "border-edge-soft text-ink-muted" };
+// Devolvido no vermelho de perigo; excluído no cinza do que já saiu.
+const DEVOLVIDO: CorStatus = { selo: "border-danger text-danger", texto: "text-danger" };
+const EXCLUIDO: CorStatus = { selo: "border-edge-soft text-ink-muted", texto: "text-ink-muted" };
 
 // A aba do retorno: o que espera revisão, o que voltou para corrigir e o que
 // outra pessoa excluiu. Monta só com a aba aberta, então cada visita busca de
@@ -102,17 +114,17 @@ export function MeusEnvios() {
         cor={COR_STATUS.REVISAO}
         vazio="Nada esperando revisão no momento."
       >
-        <ul className="m-0 flex list-none flex-col gap-3 p-0">
-          {envios.em_revisao.map((item) => (
-            <li
-              key={`${item.tipo}-${item.id}`}
-              className={`flex flex-col gap-1 border-2 border-l-4 border-edge bg-panel p-4 ${COR_STATUS.REVISAO.card}`}
-            >
-              <span className={`text-brand-light ${TIPO.etiqueta}`}>{ROTULO_TIPO[item.tipo]}</span>
-              <span className={`text-ink ${TIPO.corpo}`}>{item.titulo}</span>
-            </li>
-          ))}
-        </ul>
+        {envios.em_revisao.map((item) => (
+          <li key={`${item.tipo}-${item.id}`} className={LINHA}>
+            <span aria-hidden="true" className={`${MARCA} ${COR_STATUS.REVISAO.selo}`}>
+              {MARCA_TIPO[item.tipo]}
+            </span>
+            <span className="min-w-0 flex-1 font-body text-base tracking-[1px] text-ink">
+              {item.titulo}
+            </span>
+            <Badge>{ROTULO_TIPO[item.tipo]}</Badge>
+          </li>
+        ))}
       </Secao>
 
       <Secao
@@ -121,32 +133,33 @@ export function MeusEnvios() {
         cor={DEVOLVIDO}
         vazio="Nada devolvido. Quando a revisão pedir ajustes, eles aparecem aqui."
       >
-        <ul className="m-0 flex list-none flex-col gap-3 p-0">
-          {envios.devolvidos.map((item) => (
-            <li
-              key={`${item.tipo}-${item.id}`}
-              className="flex flex-col gap-3 border-2 border-l-4 border-edge border-l-danger bg-panel p-4"
+        {envios.devolvidos.map((item) => (
+          <li key={`${item.tipo}-${item.id}`} className={LINHA}>
+            <span aria-hidden="true" className={`${MARCA} ${DEVOLVIDO.selo}`}>
+              {MARCA_TIPO[item.tipo]}
+            </span>
+            <span className="min-w-0 flex-1 font-body text-base tracking-[1px] text-ink">
+              {item.titulo}
+            </span>
+            <Badge>{ROTULO_TIPO[item.tipo]}</Badge>
+            <span
+              role="note"
+              aria-label="Motivo da devolução"
+              className={`basis-full border-2 border-danger-deep bg-panel-deep px-3 py-2 text-danger ${TIPO.corpo}`}
             >
-              <span className={`text-brand-light ${TIPO.etiqueta}`}>{ROTULO_TIPO[item.tipo]}</span>
-              <span className={`text-ink ${TIPO.corpo}`}>{item.titulo}</span>
-              <span
-                role="note"
-                aria-label="Motivo da devolução"
-                className={`border-2 border-danger-deep bg-panel-soft px-3 py-2 text-danger ${TIPO.corpo}`}
-              >
-                <span className={`block ${TIPO.etiqueta}`}>DEVOLVIDO PELA REVISÃO</span>
-                <span className="block whitespace-pre-wrap">{item.parecer}</span>
-              </span>
-              <Link
-                href={`/autoria/novo?trilha_id=${item.id}`}
-                aria-label={`Corrigir Rascunho: ${item.titulo}`}
-                className={`${BOTAO} self-start`}
-              >
-                Corrigir Rascunho
-              </Link>
-            </li>
-          ))}
-        </ul>
+              <span className={`block ${TIPO.etiqueta}`}>DEVOLVIDO PELA REVISÃO</span>
+              <span className="block whitespace-pre-wrap">{item.parecer}</span>
+            </span>
+            {/* Devolvido é sempre trilha (o backend só lista trilhas aqui). */}
+            <Link
+              href={`/autoria/novo?trilha_id=${item.id}`}
+              aria-label={`Corrigir Rascunho: ${item.titulo}`}
+              className={BOTAO_ACAO}
+            >
+              Corrigir Rascunho
+            </Link>
+          </li>
+        ))}
       </Secao>
 
       <Secao
@@ -155,22 +168,23 @@ export function MeusEnvios() {
         cor={EXCLUIDO}
         vazio="Nenhum conteúdo seu foi excluído."
       >
-        <ul className="m-0 flex list-none flex-col gap-2 p-0">
-          {envios.excluidos.map((exclusao) => (
-            <li
-              key={`${exclusao.excluido_em}-${exclusao.tipo}-${exclusao.titulo}`}
-              className={`flex flex-col gap-1 border-b-2 border-edge pb-2 last:border-b-0 last:pb-0 ${TIPO.corpo}`}
+        {envios.excluidos.map((exclusao) => (
+          <li
+            key={`${exclusao.excluido_em}-${exclusao.tipo}-${exclusao.titulo}`}
+            className={LINHA}
+          >
+            <span aria-hidden="true" className={`${MARCA} ${EXCLUIDO.selo}`}>
+              {MARCA_TIPO[exclusao.tipo]}
+            </span>
+            <span className={`min-w-0 flex-1 text-ink ${TIPO.corpo}`}>{frase(exclusao)}</span>
+            <time
+              dateTime={exclusao.excluido_em}
+              className={`shrink-0 text-ink-muted ${TIPO.etiqueta}`}
             >
-              <span className="text-ink">{frase(exclusao)}</span>
-              <time
-                dateTime={exclusao.excluido_em}
-                className={`text-ink-muted ${TIPO.etiqueta}`}
-              >
-                {new Date(exclusao.excluido_em).toLocaleDateString("pt-BR")}
-              </time>
-            </li>
-          ))}
-        </ul>
+              {new Date(exclusao.excluido_em).toLocaleDateString("pt-BR")}
+            </time>
+          </li>
+        ))}
       </Secao>
     </div>
   );

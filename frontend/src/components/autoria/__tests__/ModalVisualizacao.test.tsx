@@ -105,6 +105,33 @@ beforeEach(() => {
 });
 
 describe("ModalVisualizacao", () => {
+  it("mostra a aula na sequência do aluno: quiz, exercícios e, por último, flashcards", async () => {
+    const comCards = trilhaDetalhe({
+      aulas: [
+        {
+          ...TRILHA.aulas[0]!,
+          flashcards: [{ id: 1, pergunta: "O que é int?", resposta: "Inteiro" }],
+        },
+      ],
+    });
+    mock.api.detalheEditorial.mockResolvedValueOnce(comCards);
+    montar();
+
+    const ordem = [
+      await screen.findByRole("heading", { name: "Guardar um valor" }),
+      screen.getByText("QUIZ DE FIXAÇÃO"),
+      screen.getByText("Qual é primitivo?"),
+      screen.getByText("EXERCÍCIOS"),
+      screen.getByText("O que é variável"),
+      screen.getByText(/Flashcards · 1/),
+    ];
+    for (let i = 1; i < ordem.length; i++) {
+      expect(
+        ordem[i - 1]!.compareDocumentPosition(ordem[i]!) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+  });
+
   it("a questão vira o quiz do aluno e responde ao clique", async () => {
     const u = userEvent.setup();
     montar();
