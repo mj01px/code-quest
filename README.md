@@ -528,5 +528,5 @@ A configuração fica em [`deploy/`](deploy/), pronta para copiar para o servido
 ## Quem fez
 
 **[Mauro Junior](https://github.com/mj01px)**, **[Julio Franz](https://github.com/JulioFranz)** e **[Arthur Sabino](https://github.com/ArthurS357)**<br>
-Orientador: Fabiano Bezerra Menegidio<br>
+Orientadora: Viviane Guimarães Ribeiro<br>
 Projeto Final de Curso · Engenharia de Software, 8B Noturno · Universidade de Mogi das Cruzes · 2026
