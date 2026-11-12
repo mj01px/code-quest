@@ -19,7 +19,10 @@ python_files = ["test_*.py"]
 # porque os testes transversais (admin, RBAC, permissoes) foram escritos la.
 testpaths = ["apps"]
 addopts = "--reuse-db"
-markers = ["sequencial: liga a trava de progressão em ordem da trilha"]
+markers = [
+    "sequencial: liga a trava de progressão em ordem da trilha",
+    "integracao: usa o banco (aplicado no conftest); a CI roda à parte",
+]
 
 [tool.coverage.run]
 source = ["apps", "config"]
