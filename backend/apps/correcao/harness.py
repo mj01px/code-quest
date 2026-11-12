@@ -7,7 +7,7 @@ from .models import CasoDeTeste
 
 MARCADOR = "@@RESULTADO@@"
 
-VERSAO = "3"
+VERSAO = "4"
 
 _MODELO = """
 
@@ -108,17 +108,21 @@ def montar_entrada(casos: Iterable[CasoDeTeste]) -> str:
 
 def separar_saida(stdout: str) -> tuple[str, list[object] | None]:
     linhas = stdout.splitlines()
-    for i in range(len(linhas) - 1, -1, -1):
-        if linhas[i].startswith(MARCADOR):
-            try:
-                resultados = json.loads(linhas[i][len(MARCADOR) :])
-            except ValueError:
-                return stdout, None
-            if not isinstance(resultados, list):
-                return stdout, None
-            impresso = "\n".join(linhas[:i] + linhas[i + 1 :])
-            return impresso, resultados
-    return stdout, None
+    marcadores = [
+        indice for indice, linha in enumerate(linhas) if linha.startswith(MARCADOR)
+    ]
+    if len(marcadores) != 1:
+        return stdout, None
+
+    indice = marcadores[0]
+    try:
+        resultados = json.loads(linhas[indice][len(MARCADOR) :])
+    except ValueError:
+        return stdout, None
+    if not isinstance(resultados, list):
+        return stdout, None
+    impresso = "\n".join(linhas[:indice] + linhas[indice + 1 :])
+    return impresso, resultados
 
 
 def iguais(obtido: object, esperado: object) -> bool:
