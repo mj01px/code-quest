@@ -12,11 +12,13 @@ export function GradeDoExercicio({
   aprender,
   centro,
   direita,
+  rotuloDaDireita = "Terminal",
   pet,
 }: {
   aprender: ReactNode;
   centro: ReactNode;
   direita?: ReactNode;
+  rotuloDaDireita?: string;
   pet?: ReactNode;
 }) {
   const canto = pet ? (
@@ -52,7 +54,7 @@ export function GradeDoExercicio({
         {centro}
       </section>
       {direita ? (
-        <section aria-label="Terminal" className="flex min-h-0 flex-col">
+        <section aria-label={rotuloDaDireita} className="flex min-h-0 flex-col">
           {direita}
         </section>
       ) : null}
