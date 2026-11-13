@@ -6,7 +6,7 @@ from rest_framework import generics
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.throttling import BaseThrottle, ScopedRateThrottle
+from rest_framework.throttling import BaseThrottle
 from rest_framework.views import APIView
 
 from .desafios import desafios_publicados, rodizio
@@ -18,6 +18,7 @@ from .serializers import (
     TrilhaDetalheSerializer,
     TrilhaListaSerializer,
 )
+from .throttling import CatalogoThrottle
 
 # Catálogo publicado é leitura pública: AllowAny explícito, escrita devolve 405.
 # As telas de trilha renderizam no servidor com fetch anônimo, então a leitura
@@ -36,7 +37,7 @@ ESCOPO = "catalogo"
 
 DIAS_NA_AGENDA = 5
 
-THROTTLES: list[type[BaseThrottle]] = [ScopedRateThrottle]
+THROTTLES: list[type[BaseThrottle]] = [CatalogoThrottle]
 
 
 class TrilhaListView(generics.ListAPIView[Trilha]):
