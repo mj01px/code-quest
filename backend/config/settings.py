@@ -144,6 +144,10 @@ CACHES = {
 # ScopedRateThrottle por conta propria, fora das classes padrao: assim o
 # trafego do catalogo nao consome o balde `anon` das demais rotas publicas.
 THROTTLE_CATALOGO = env('THROTTLE_CATALOGO', default='60/min')
+# Redes (CIDR) que nao contam no limite do catalogo: a rede interna do
+# docker-compose, de onde o Next le o catalogo no build e na revalidacao. Vazio
+# por padrao. Ver apps/trilhas/throttling.py.
+THROTTLE_REDES_ISENTAS = env.list('THROTTLE_REDES_ISENTAS', default=[])
 # Escopo proprio: a lista de concluidos e lida em toda navegacao do aluno,
 # entao nao pode dividir orcamento com o catalogo nem com a conclusao.
 THROTTLE_EU_PROGRESSO = env('THROTTLE_EU_PROGRESSO', default='300/min')

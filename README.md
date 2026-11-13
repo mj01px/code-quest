@@ -486,33 +486,30 @@ Nos testes, o Judge0 dá lugar a um executor Python local, então a suíte não 
 
 ## Deploy
 
-Feito para rodar numa **VPS** (DigitalOcean), backend e frontend no mesmo servidor, não em plataformas serverless. O Django serve a API e o Next serve as telas, com um proxy reverso (Nginx) na frente e o banco na própria máquina.
+Feito para rodar numa **VPS** (DigitalOcean) com **Docker Compose**: quatro containers no mesmo servidor, não em plataformas serverless. O Nginx recebe tudo e repassa ao Next, que serve as telas e encaminha `/api/*` ao Django.
 
 ```
-DigitalOcean Droplet
-├── Nginx        # proxy reverso + TLS
-├── Django       # gunicorn, API em /api/
-├── Next.js      # next start, telas
-└── PostgreSQL   # banco relacional no droplet
+DigitalOcean Droplet (docker-compose.yml)
+├── nginx       # porta 80 (443 com o certificado), config em deploy/nginx.conf
+├── frontend    # Next.js; faz o build na subida, porque o prerender lê a API
+├── backend     # Django + gunicorn; migrate, seeds e admin inicial no entrypoint
+└── db          # PostgreSQL 18, publicado só em 127.0.0.1:5432
 ```
 
-A configuração fica em [`deploy/`](deploy/), pronta para copiar para o servidor
-(repositório em `/srv/codequest`, usuário `codequest`):
+1. Na VPS: `git clone`, `cp .env.prod.example .env.prod` e preencher (os
+   comentários do arquivo explicam cada variável).
+2. `docker compose --env-file .env.prod up -d --build`. O primeiro deploy, com
+   `RODAR_SEEDS=1` e `ADMIN_*` preenchidos, carrega o conteúdo e cria o admin
+   (`manage.py criar_admin`: nível Admin do RBAC, e-mail já verificado).
+3. Depois que subir: `RODAR_SEEDS=0` e apagar `ADMIN_PASSWORD` do `.env.prod`.
+4. `crontab deploy/crontab` (limpeza da auditoria e pódio do ranking).
 
-| Arquivo | Destino |
-|---|---|
-| `nginx.conf` | `/etc/nginx/sites-available/codequest` (TLS com certbot) |
-| `codequest-api.service` · `codequest-web.service` | `/etc/systemd/system/` |
-| `gunicorn.conf.py` | lido pela unidade da API |
-| `crontab` | `crontab -u codequest deploy/crontab` (auditoria e pódio) |
+Atualizar: `git pull && docker compose --env-file .env.prod up -d --build`.
+Trilha nova publicada pelo painel só vira página depois de reiniciar o
+`frontend` (`docker compose restart frontend`), que refaz o build.
 
-1. `backend/`: criar a `.venv`, `pip install -r requirements.txt` e o `.env` de
-   produção (`DEBUG=False`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `DATABASE_URL`).
-2. `systemctl enable --now codequest-api` (roda o `migrate`, que também cria a
-   tabela do cache de throttle).
-3. `frontend/`: `npm ci && npm run build` com a API já no ar, porque o build lê o
-   catálogo; depois `systemctl enable --now codequest-web`.
-4. Ativar o site no Nginx e instalar o `crontab`.
+O banco não fica exposto: para inspecioná-lo (DBeaver, pgAdmin), túnel SSH até
+a VPS e conexão em `localhost:5432`.
 
 ## Stack
 
