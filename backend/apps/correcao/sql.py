@@ -1,4 +1,6 @@
+import json
 import re
+from secrets import randbelow
 from sqlite3 import complete_statement
 from uuid import uuid4
 
@@ -6,7 +8,7 @@ from django.core.exceptions import ValidationError
 
 from .models import CasoDeTeste
 
-VERSAO = "2"
+VERSAO = "3"
 _TRIVIA = r"(?:\s|--[^\n]*(?:\n|$)|/\*(?:[^*]|\*(?!/))*\*/)*"
 _CRIAR_ALUNO = (
     rf"{_TRIVIA}CREATE\b{_TRIVIA}TABLE\b{_TRIVIA}"
@@ -75,17 +77,58 @@ _CASOS_ALUNO = {
 }
 
 
-def montar_programa(codigo: str) -> str:
-    if re.search(r"(?m)^\s*\.[a-zA-Z]", codigo):
-        raise ValidationError(
-            {
-                "codigo": ValidationError(
-                    "Use apenas comandos SQL. Comandos do console SQLite não são permitidos.",
-                    code="comando_sqlite_invalido",
-                )
-            }
-        )
-    return ".bail on\n" + codigo.rstrip() + "\n"
+PROGRAMA = """
+import json
+import sqlite3
+import sys
+
+
+def autorizar(acao, nome, argumento, banco, origem):
+    if acao in (
+        sqlite3.SQLITE_ATTACH,
+        sqlite3.SQLITE_DETACH,
+        sqlite3.SQLITE_CREATE_VTABLE,
+    ):
+        return sqlite3.SQLITE_DENY
+    if acao == sqlite3.SQLITE_PRAGMA and nome not in (
+        "table_info", "index_list", "index_info"
+    ):
+        return sqlite3.SQLITE_DENY
+    if acao == sqlite3.SQLITE_FUNCTION and argumento in (
+        "edit", "load_extension", "readfile", "writefile"
+    ):
+        return sqlite3.SQLITE_DENY
+    return sqlite3.SQLITE_OK
+
+
+def executar(entrada):
+    banco = sqlite3.connect(":memory:", isolation_level=None)
+    try:
+        banco.set_authorizer(autorizar)
+        cursor = banco.execute(entrada["comando"])
+        if not entrada["casos"]:
+            for linha in cursor:
+                print("|".join("" if valor is None else str(valor) for valor in linha))
+            return
+
+        for ordem, comandos, consulta in entrada["casos"]:
+            banco.execute("SAVEPOINT caso")
+            for comando, parametros in comandos:
+                banco.execute(comando, parametros)
+            passou, = banco.execute(*consulta).fetchone()
+            banco.execute("ROLLBACK TO caso")
+            banco.execute("RELEASE caso")
+            print(f"{entrada['marcador']}:{ordem}:{int(bool(passou))}")
+    finally:
+        banco.close()
+
+
+try:
+    executar(json.load(sys.stdin))
+except sqlite3.Error as erro:
+    print(erro, file=sys.stderr)
+    sys.exit(1)
+"""
 
 
 def _fim_do_comando(codigo: str) -> int | None:
@@ -97,7 +140,19 @@ def _fim_do_comando(codigo: str) -> int | None:
     return None
 
 
-def montar_correcao(codigo: str, casos: list[CasoDeTeste]) -> tuple[str, str]:
+def preparar_comando(codigo: str, casos: list[CasoDeTeste]) -> str:
+    if re.search(r"(?m)^\s*\.[a-zA-Z]", codigo):
+        raise ValidationError(
+            {
+                "codigo": ValidationError(
+                    "Use apenas comandos SQL. Comandos do console SQLite não são permitidos.",
+                    code="comando_sqlite_invalido",
+                )
+            }
+        )
+    if not casos:
+        return codigo
+
     nota = casos[0].argumentos[0] == "nota"
     fim = _fim_do_comando(codigo)
     if nota:
@@ -106,7 +161,7 @@ def montar_correcao(codigo: str, casos: list[CasoDeTeste]) -> tuple[str, str]:
         comando = f"CREATE TABLE notas (\n{codigo}\n);"
     else:
         comando = codigo if fim is not None else codigo + "\n;"
-    programa = montar_programa(comando)
+
     if _fim_do_comando(comando) is None or (
         not nota and not re.match(_CRIAR_ALUNO, comando, re.IGNORECASE)
     ):
@@ -118,27 +173,53 @@ def montar_correcao(codigo: str, casos: list[CasoDeTeste]) -> tuple[str, str]:
         raise ValidationError(
             {"codigo": ValidationError(mensagem, code="comando_sql_invalido")}
         )
+    return comando
 
-    marcador = f"cq_{uuid4().hex}"
-    partes = [programa]
+
+def complementar_casos(casos: list[CasoDeTeste]) -> list[CasoDeTeste]:
+    if casos[0].argumentos[0] != "nota":
+        return casos
+
+    notas = (
+        (5, True),
+        ((1 + randbelow(9999)) / 1000, True),
+        (42, False),
+        (-(1 + randbelow(99)) / 1000, False),
+        (10 + (1 + randbelow(99)) / 1000, False),
+    )
+    ultima_ordem = max(caso.ordem for caso in casos)
+    return [
+        *casos,
+        *(
+            CasoDeTeste(
+                ordem=ordem,
+                argumentos=["nota", "Valida o intervalo de notas", valor],
+                esperado=esperado,
+                visivel=False,
+            )
+            for ordem, (valor, esperado) in enumerate(notas, start=ultima_ordem + 1)
+        ),
+    ]
+
+
+def montar_entrada(comando: str, casos: list[CasoDeTeste]) -> tuple[str, str]:
+    marcador = f"cq_{uuid4().hex}" if casos else ""
+    testes = []
     for caso in casos:
         chave, *_ = caso.argumentos
         if chave == "nota":
             valor = caso.argumentos[2]
-            comandos = f"INSERT OR IGNORE INTO notas (nota) VALUES ({valor});"
+            comandos = [("INSERT OR IGNORE INTO notas (nota) VALUES (?)", (valor,))]
             consulta = (
-                f"SELECT changes() = {int(caso.esperado)} "
-                f"AND (NOT changes() OR EXISTS (SELECT 1 FROM notas WHERE nota = {valor}))"
+                "SELECT changes() = ? "
+                "AND (NOT changes() OR EXISTS (SELECT 1 FROM notas WHERE nota = ?))",
+                (int(caso.esperado), valor),
             )
         else:
-            comandos, consulta = _CASOS_ALUNO[chave]
-        partes.extend(
-            (
-                "SAVEPOINT caso;",
-                comandos,
-                f"SELECT '{marcador}:{caso.ordem}:' || COALESCE(({consulta}), 0);",
-                "ROLLBACK TO caso;",
-                "RELEASE caso;",
-            )
-        )
-    return "\n".join(partes) + "\n", marcador
+            insercoes, verificacao = _CASOS_ALUNO[chave]
+            comandos = [(insercao, ()) for insercao in insercoes.splitlines()]
+            consulta = (verificacao, ())
+        testes.append((caso.ordem, comandos, consulta))
+
+    entrada = {"comando": comando, "casos": testes, "marcador": marcador}
+    return json.dumps(entrada, ensure_ascii=False), marcador

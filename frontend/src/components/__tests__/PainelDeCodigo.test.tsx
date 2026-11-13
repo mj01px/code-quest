@@ -129,14 +129,22 @@ describe("PainelDeCodigo", () => {
     );
 
     expect(screen.getByText("exercicio.sql")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Resultado SQL" })).toBeInTheDocument();
     expect(screen.getByText("Aceita a nota 0")).toBeInTheDocument();
+    const terminal = await screen.findByTestId("terminal");
     await userEvent.click(screen.getByRole("button", { name: "Rodar" }));
     expect(await screen.findByText("Passou em todos os casos")).toBeInTheDocument();
-    expect(screen.getByTestId("terminal")).toHaveTextContent("Comando SQL executado.");
+    expect(screen.getByText("1 de 1 caso aprovado")).toBeInTheDocument();
+    expect(screen.getByText("Aceita a nota 0")).toBeInTheDocument();
+    expect(screen.getByTestId("terminal")).toBe(terminal);
+    expect(terminal).toHaveTextContent("Comando SQL executado.");
     expect(screen.queryByText(/Caso oculto/)).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
     expect(await screen.findByText(/Caso oculto 2/)).toBeInTheDocument();
+    expect(screen.getByText("1 de 2 casos aprovados")).toBeInTheDocument();
+    expect(screen.getByTestId("terminal")).toBe(terminal);
+    expect(terminal).toHaveTextContent("Envio SQL processado.");
   });
 
   it("mostra as entradas personalizadas no Rodar e usa o resultado oficial no Enviar", async () => {

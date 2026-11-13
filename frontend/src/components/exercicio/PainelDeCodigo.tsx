@@ -187,14 +187,14 @@ export function PainelDeCodigo({
     const exemploExecutado = correcao?.modo === "EXECUTAR"
         ? correcao.casos.find((caso) => caso.visivel)
         : undefined;
-    const saidaDoExemplo = emSql
-        ? (correcao?.veredito === "APROVADO" || correcao?.veredito === "RESPOSTA_ERRADA"
-            ? "Comando SQL executado."
-            : "")
-        : (exemploExecutado && !(correcao?.personalizado && exemploExecutado.erro)
-            ? descreverResultado(exemploExecutado, especificacao.funcao)
-            : "");
-    const saidaTerminal = correcao?.saida || saidaDoExemplo;
+    const saidaDoExemplo = !emSql && exemploExecutado && !(correcao?.personalizado && exemploExecutado.erro)
+        ? descreverResultado(exemploExecutado, especificacao.funcao)
+        : "";
+    const saidaSql = emSql && (correcao?.veredito === "APROVADO" || correcao?.veredito === "RESPOSTA_ERRADA")
+        ? (correcao.modo === "ENVIAR" ? "Envio SQL processado." : "Comando SQL executado.")
+        : "";
+    const saidaTerminal = correcao?.saida || saidaDoExemplo || saidaSql;
+    const exibirSaida = emSql || correcao?.modo === "EXECUTAR";
     const argumentosDoRodar = correcao?.modo === "EXECUTAR" && correcao.personalizado
         ? exemploExecutado?.argumentos
         : undefined;
@@ -215,6 +215,7 @@ export function PainelDeCodigo({
         return (
             <GradeDoExercicio
                 pet={pet}
+                rotuloDaDireita={emSql ? "Resultado SQL" : undefined}
                 aprender={aprender}
                 centro={
                     <>
@@ -301,19 +302,19 @@ export function PainelDeCodigo({
                 direita={
                     <>
                         <CabecalhoDoPainel>
-                            <span className="text-ink">Terminal</span>
+                            <span className="text-ink">{emSql ? "Resultado SQL" : "Terminal"}</span>
                             <span className="text-ink-dim">codequest@os</span>
                         </CabecalhoDoPainel>
                         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-field">
                             <TerminalDeSaida
                                 semMoldura
-                                classeDaArea="h-56"
+                                classeDaArea={emSql ? "h-28" : "h-56"}
                                 vazio="> aguardando execução..."
-                                saida={correcao?.modo === "EXECUTAR" ? saidaTerminal : ""}
-                                erro={correcao?.modo === "EXECUTAR" ? erroTerminal : ""}
-                                veredito={correcao?.modo === "EXECUTAR" ? correcao.veredito : ""}
+                                saida={exibirSaida ? saidaTerminal : ""}
+                                erro={exibirSaida ? erroTerminal : ""}
+                                veredito={exibirSaida ? correcao?.veredito ?? "" : ""}
                             />
-                            <div className="flex flex-col gap-3 px-4 pb-4 empty:hidden">
+                            <div className={`flex flex-col gap-3 px-4 pb-4 empty:hidden ${emSql ? "pt-4" : ""}`}>
                                 {status ? (
                                     <p
                                         role="status"
@@ -326,7 +327,7 @@ export function PainelDeCodigo({
                                     </p>
                                 ) : null}
                                 {correcao && (
-                                    <ResultadoDosCasos correcao={correcao} funcao={especificacao.funcao} semContagem/>
+                                    <ResultadoDosCasos correcao={correcao} funcao={especificacao.funcao} semContagem={!emSql}/>
                                 )}
                                 {emSql && !correcao && especificacao.exemplos.length > 0 && (
                                     <section className="space-y-2 border-2 border-edge bg-panel-soft p-4">
@@ -440,11 +441,13 @@ export function PainelDeCodigo({
                 </p>
             </div>
 
-            {mostrarTerminal && correcao && (
+            {(emSql || mostrarTerminal) && (
                 <TerminalDeSaida
+                    classeDaArea={emSql ? "h-28" : undefined}
+                    vazio={emSql ? "> aguardando execução..." : undefined}
                     saida={saidaTerminal}
                     erro={erroTerminal}
-                    veredito={correcao.veredito}
+                    veredito={correcao?.veredito ?? ""}
                 />
             )}
 
