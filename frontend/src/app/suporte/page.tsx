@@ -1,35 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { PaginaLegal } from "@/components/legal/PaginaLegal";
 import { Destaque, Paragrafo, Secao } from "@/components/legal/Prosa";
 import { DADOS_LEGAIS } from "@/lib/dadosLegais";
-import { TIPO } from "@/lib/tipografia";
 
 export const metadata: Metadata = {
   title: "Suporte",
   description:
     "Como falar com a equipe da CodeQuest e respostas para as dúvidas mais comuns.",
 };
-
-function Pergunta({
-  titulo,
-  children,
-}: {
-  titulo: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-2 border-l-4 border-edge-soft pl-4">
-      <h3 className="m-0 font-label text-[12px] leading-[1.7] tracking-[2px] text-ink-label">
-        {titulo}
-      </h3>
-      <p className={`m-0 ${TIPO.corpo} text-ink-body text-pretty`}>
-        {children}
-      </p>
-    </div>
-  );
-}
 
 export default function PaginaSuporte() {
   return (
@@ -90,58 +69,12 @@ export default function PaginaSuporte() {
       </Secao>
 
       <Secao numero={4} titulo="Dúvidas frequentes">
-        <div className="flex flex-col gap-6">
-          <Pergunta titulo="ESQUECI MINHA SENHA">
-            Na tela de entrada, use{" "}
-            <Link href="/recuperar-senha">recuperar senha</Link>. Enviamos um
-            link para o seu e-mail cadastrado para você criar uma senha nova.
-          </Pergunta>
-
-          <Pergunta titulo="MEU PROGRESSO NAS TRILHAS SUMIU">
-            O progresso fica guardado na sua conta, então aparece em qualquer
-            aparelho em que você entrar. Se algo sumiu, confira se entrou na
-            conta certa e, se o problema continuar, mande o seu nickname para o
-            contato acima.
-          </Pergunta>
-
-          <Pergunta titulo="QUERO TROCAR MEU NICKNAME OU MEU E-MAIL">
-            Os dois podem ser alterados na tela de{" "}
-            <Link href="/configuracoes">Configurações</Link>. A troca de e-mail
-            só vale depois que você confirma pelo link que enviamos.
-          </Pergunta>
-
-          <Pergunta titulo="COMO EXCLUO MINHA CONTA">
-            Na tela de <Link href="/configuracoes">Configurações</Link>, na
-            zona de risco. Enviamos um link de confirmação para o seu e-mail e,
-            ao confirmar, a exclusão é imediata e não tem volta. O que acontece
-            com os dados está na seção 6 da{" "}
-            <Link href="/privacidade">Política de Privacidade</Link>.
-          </Pergunta>
-
-          <Pergunta titulo="POSSO TER MAIS DE UMA CONTA">
-            Não. Cada pessoa mantém uma conta, conforme a seção 2 dos{" "}
-            <Link href="/termos">Termos de Uso</Link>. Contas múltiplas para
-            inflar ranking podem ser suspensas.
-          </Pergunta>
-
-          <Pergunta titulo="PERDI MINHA CRIATURA OU MEU XP ESTÁ ERRADO">
-            Enquanto a plataforma está em desenvolvimento, podemos recalcular
-            valores de gamificação para corrigir erro de balanceamento. Se algo
-            parecer errado na sua conta, mande o seu nickname e a gente
-            verifica.
-          </Pergunta>
-
-          <Pergunta titulo="A CODEQUEST É PAGA">
-            Não. É um projeto acadêmico, sem cobrança, sem plano e sem venda de
-            itens. XP, criaturas e ranking não têm valor econômico nem podem ser
-            comprados.
-          </Pergunta>
-
-          <Pergunta titulo="ENCONTREI UM ERRO NO CONTEÚDO DE UMA AULA">
-            Mande o link da aula ou do exercício e o que está errado. Correção
-            de conteúdo é a coisa mais rápida de resolver por aqui.
-          </Pergunta>
-        </div>
+        <Paragrafo>
+          Senha esquecida, progresso, XP, ranking, clãs, autoria e conta: as
+          respostas para as dúvidas mais comuns estão nas{" "}
+          <Link href="/faq">Perguntas Frequentes</Link>. Se a sua não estiver
+          lá, escreva para o e-mail acima.
+        </Paragrafo>
       </Secao>
     </PaginaLegal>
   );

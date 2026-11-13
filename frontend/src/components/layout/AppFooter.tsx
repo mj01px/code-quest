@@ -5,6 +5,7 @@ import { TIPO } from "@/lib/tipografia";
 const LINKS = [
   { href: "/termos", rotulo: "TERMOS" },
   { href: "/privacidade", rotulo: "PRIVACIDADE" },
+  { href: "/faq", rotulo: "FAQ" },
   { href: "/suporte", rotulo: "SUPORTE" },
 ];
 

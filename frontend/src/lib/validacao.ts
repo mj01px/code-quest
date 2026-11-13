@@ -32,6 +32,7 @@ const NICKNAMES_RESERVADOS = new Set([
   "login",
   "logout",
   "perfil",
+  "faq",
   "ranking",
   "registrar",
   "sair",
