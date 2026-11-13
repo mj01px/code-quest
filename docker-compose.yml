@@ -1,0 +1,70 @@
+# Producao na VPS: Nginx -> Next.js -> (rewrite /api) Django/gunicorn -> PostgreSQL.
+# Subir:   docker compose --env-file .env.prod up -d --build
+# Banco:   so em 127.0.0.1:5432 da VPS. Para abrir no DBeaver, tunel SSH pelo
+#          IP do Tailscale (nunca expor a 5432 para a internet).
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      # A imagem 18 guarda os dados em /var/lib/postgresql/18/docker.
+      - pgdata:/var/lib/postgresql
+    ports:
+      - "127.0.0.1:5432:5432"
+    networks: [interna]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      # O Next le o catalogo em rajada no build e na revalidacao, de dentro
+      # desta rede. Pedido da internet chega com o IP do aluno (Nginx), nunca
+      # com um IP daqui. Ver apps/trilhas/throttling.py.
+      THROTTLE_REDES_ISENTAS: 172.28.0.0/24
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [interna]
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    environment:
+      API_ORIGIN: http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [interna]
+
+  nginx:
+    image: nginx:1.28-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      frontend:
+        condition: service_healthy
+    networks: [interna]
+
+networks:
+  interna:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+
+volumes:
+  pgdata:
