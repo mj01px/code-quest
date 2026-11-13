@@ -10,9 +10,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY . .
-
-RUN useradd --system --no-create-home app && chown -R app:app /app
+RUN useradd --system --no-create-home app
+COPY --chown=app:app . .
 USER app
 
 EXPOSE 8000

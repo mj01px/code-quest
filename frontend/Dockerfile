@@ -5,12 +5,15 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-RUN npm ci
-
-COPY . .
-RUN chown -R node:node /app
+# O dono vai no proprio COPY: um `RUN chown -R` depois duplicaria o node_modules
+# inteiro numa camada nova. O cache do npm sai na mesma camada do install.
+RUN chown node:node /app
 USER node
+
+COPY --chown=node:node package.json package-lock.json ./
+RUN npm ci && npm cache clean --force
+
+COPY --chown=node:node . .
 
 EXPOSE 3000
 
