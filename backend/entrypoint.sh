@@ -4,17 +4,22 @@ set -e
 # Tambem cria a tabela do cache de throttle (apps/core, migracao 0001).
 python manage.py migrate --noinput
 
-# Conteudo inicial: trilhas, licoes, desafios, exercicios da demo, bonus de XP
-# e casos de teste da correcao, nesta ordem (cada um depende dos anteriores).
-# Sao idempotentes, mas so rodam com RODAR_SEEDS=1 para nao sobrescrever o que
-# foi editado pelo painel a cada restart. Ligar no primeiro deploy e desligar.
+# Conteudo inicial: trilhas, licoes, desafios, bonus de XP e casos de teste da
+# correcao, nesta ordem (cada um depende dos anteriores). Sao idempotentes, mas
+# so rodam com RODAR_SEEDS=1 para nao sobrescrever o que foi editado pelo
+# painel a cada restart. Ligar no primeiro deploy e desligar depois.
 if [ "${RODAR_SEEDS:-0}" = "1" ]; then
     python manage.py seed_trilhas
     python manage.py seed_licoes
     python manage.py seed_desafios
-    python manage.py seed_demo_pfc
     python manage.py seed_bonus_xp
     python manage.py seed_correcao
+fi
+
+# Modo demonstracao (opcional): publica os 9 exercicios da demo do PFC e manda
+# para RASCUNHO todo o resto das trilhas que toca. Fora por padrao.
+if [ "${SEED_DEMO_PFC:-0}" = "1" ]; then
+    python manage.py seed_demo_pfc
 fi
 
 # Admin inicial: so com ADMIN_EMAIL definido. Se o e-mail ja existe, nao mexe.
