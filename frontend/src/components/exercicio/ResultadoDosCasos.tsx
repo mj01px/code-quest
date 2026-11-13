@@ -81,7 +81,7 @@ export function ResultadoDosCasos({
         </h3>
         {semContagem ? null : (
           <span className="font-body text-sm text-ink-muted">
-            {correcao.aprovados} de {correcao.total}
+            {correcao.aprovados} de {correcao.total} {correcao.total === 1 ? "caso aprovado" : "casos aprovados"}
           </span>
         )}
       </header>

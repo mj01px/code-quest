@@ -1,8 +1,9 @@
+import json
 from unittest import mock
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
@@ -15,12 +16,25 @@ from apps.correcao.models import (
     Linguagem,
     Submissao,
 )
-from apps.correcao.sql import montar_programa
+from apps.correcao.sql import PROGRAMA, montar_entrada, preparar_comando
 from apps.gamificacao.services import select_starter_creature
 from apps.progressao.models import EventoXP
 from apps.progressao.tests.test_credito_xp import criar_exercicio
 
-from .helpers import executar_sql_local
+from .helpers import ExecutorLocal
+
+
+class EntradaSqlTest(SimpleTestCase):
+    def test_rejeita_nota_nao_numerica_e_esperado_nao_booleano(self):
+        for valor, esperado in (("0); SELECT 1", True), (0, 1)):
+            with self.subTest(valor=valor, esperado=esperado):
+                caso = CasoDeTeste(
+                    ordem=1, argumentos=["nota", "Teste", valor], esperado=esperado
+                )
+                with self.assertRaisesRegex(
+                    ValueError, "nota numérica e esperado booleano"
+                ):
+                    montar_entrada("CREATE TABLE notas (nota NUMERIC)", [caso])
 
 
 class SqlTest(TestCase):
@@ -78,7 +92,7 @@ class SqlTest(TestCase):
                 esperado=esperado,
                 visivel=visivel,
             )
-        self.judge.executar.side_effect = executar_sql_local
+        self.judge.executar.side_effect = ExecutorLocal().executar
 
     def test_sql_nao_precisa_de_funcao_nem_parametros_python(self):
         self.especificacao.full_clean()
@@ -100,16 +114,18 @@ class SqlTest(TestCase):
             self.especificacao.full_clean()
         self.assertIn("requisitos", erro.exception.message_dict)
 
-    def test_rodar_sql_envia_codigo_sem_harness_python_e_nao_credita_xp(self):
+    def test_rodar_sql_usa_biblioteca_e_nao_credita_xp(self):
         resposta = self.executar()
         self.assertEqual(resposta.status_code, 200)
         self.assertEqual(resposta.data["veredito"], "APROVADO")
         self.assertTrue(resposta.data["personalizado"])
         self.assertEqual(resposta.data["saida"], "2\n")
         self.assertEqual(resposta.data["casos"], [])
-        self.judge.executar.assert_called_once_with(
-            codigo=".bail on\nSELECT 1 + 1;\n", stdin="", linguagem=Linguagem.SQL
-        )
+        self.judge.executar.assert_called_once()
+        argumentos = self.judge.executar.call_args.kwargs
+        self.assertEqual(argumentos["codigo"], PROGRAMA)
+        self.assertEqual(argumentos["linguagem"], Linguagem.PYTHON)
+        self.assertEqual(json.loads(argumentos["stdin"])["comando"], "SELECT 1 + 1;")
         self.assertFalse(EventoXP.objects.exists())
 
     def test_sql_sem_saida_tambem_termina_normalmente(self):
@@ -162,7 +178,7 @@ class SqlTest(TestCase):
         self.assertFalse(Submissao.objects.exists())
 
     def test_decimal_sql_nao_e_confundido_com_comando_do_console(self):
-        self.assertEqual(montar_programa("SELECT\n.5;"), ".bail on\nSELECT\n.5;\n")
+        self.assertEqual(preparar_comando("SELECT\n.5;", []), "SELECT\n.5;")
 
     def test_enviar_sql_recusa_conclusao_sem_correcao(self):
         resposta = self.enviar("SELECT 2;")
@@ -196,14 +212,14 @@ class SqlTest(TestCase):
         resposta = self.enviar("nota NUMERIC CHECK (nota BETWEEN -0.5 AND 10.5)")
         self.assertEqual(resposta.status_code, 200)
         self.assertFalse(resposta.data["aprovado"])
-        self.assertEqual(resposta.data["correcao"]["aprovados"], 7)
+        self.assertEqual(resposta.data["correcao"]["aprovados"], 10)
         self.assertEqual(
             resposta.data["correcao"]["casos"][6],
             {"ordem": 7, "visivel": False, "passou": False},
         )
         self.assertFalse(EventoXP.objects.exists())
 
-        resposta = self.enviar("nota NUMERIC CHECK (nota IN (0, 7.5, 10))")
+        resposta = self.enviar("nota NUMERIC CHECK (nota IN (0, 7.5, 10, 0.25, 9))")
         self.assertEqual(resposta.status_code, 200)
         self.assertFalse(resposta.data["aprovado"])
         self.assertFalse(EventoXP.objects.exists())
@@ -211,8 +227,25 @@ class SqlTest(TestCase):
         resposta = self.enviar("nota NUMERIC CHECK (nota >= 0 AND nota <= 10)")
         self.assertEqual(resposta.status_code, 200)
         self.assertTrue(resposta.data["aprovado"])
-        self.assertEqual(resposta.data["correcao"]["aprovados"], 9)
+        self.assertEqual(resposta.data["correcao"]["aprovados"], 14)
+        self.assertEqual(resposta.data["correcao"]["total"], 14)
         self.assertEqual(EventoXP.objects.count(), 1)
+
+    def test_editor_so_recupera_codigo_aprovado_enquanto_exercicio_esta_concluido(self):
+        self.preparar_correcao("restringir-nota")
+        codigo = "nota NUMERIC CHECK (nota BETWEEN 0 AND 10)"
+        rota = self.rota("correcao:especificacao")
+
+        resposta = self.enviar(codigo)
+        self.assertTrue(resposta.data["aprovado"])
+        self.assertEqual(self.client.get(rota).data["codigo_aprovado"], codigo)
+
+        EventoXP.objects.filter(user=self.user, exercicio=self.exercicio).delete()
+
+        self.assertEqual(self.client.get(rota).data["codigo_aprovado"], "")
+        self.assertTrue(
+            Submissao.objects.filter(user=self.user, codigo=codigo).exists()
+        )
 
     def test_tabela_sem_email_unico_falha_e_aceita_restricao_na_tabela(self):
         self.preparar_correcao("criar-tabela-aluno")
@@ -240,4 +273,45 @@ class SqlTest(TestCase):
             with self.subTest(codigo=codigo):
                 self.assertEqual(self.enviar(codigo).status_code, 400)
         self.judge.executar.assert_not_called()
+        self.assertFalse(EventoXP.objects.exists())
+
+    def test_recusa_acesso_ao_script_e_comandos_extras_no_sql(self):
+        self.preparar_correcao("restringir-nota")
+        for codigo in (
+            "nota REAL CHECK (readfile('script.sql') IS NOT NULL)",
+            "nota REAL)\nGO\nSELECT 'resultado forjado'\nGO\nCREATE TABLE extra (id INTEGER",
+            "nota REAL)\n/\nSELECT 'resultado forjado'\n/\nCREATE TABLE extra (id INTEGER",
+        ):
+            with self.subTest(codigo=codigo):
+                resposta = self.enviar(codigo)
+                self.assertEqual(resposta.status_code, 200)
+                self.assertFalse(resposta.data["aprovado"])
+                self.assertEqual(
+                    resposta.data["correcao"]["veredito"], "ERRO_DE_EXECUCAO"
+                )
+        self.assertFalse(EventoXP.objects.exists())
+
+    def test_resultados_incompletos_ou_duplicados_nao_creditam_xp(self):
+        self.preparar_correcao("restringir-nota")
+
+        def responder(*, codigo, stdin, linguagem):
+            entrada = json.loads(stdin)
+            resultados = [
+                f"{entrada['marcador']}:{ordem}:1" for ordem, *_ in entrada["casos"]
+            ]
+            if "REAL" in entrada["comando"]:
+                resultados.pop()
+            else:
+                resultados.append(resultados[0])
+            return Execucao(3, "\n".join(resultados), "", 0.01, 1024)
+
+        self.judge.executar.side_effect = responder
+        for tipo in ("REAL", "NUMERIC"):
+            with self.subTest(tipo=tipo):
+                resposta = self.enviar(f"nota {tipo} CHECK (nota BETWEEN 0 AND 10)")
+                self.assertEqual(resposta.status_code, 200)
+                self.assertFalse(resposta.data["aprovado"])
+                self.assertEqual(
+                    resposta.data["correcao"]["veredito"], "ERRO_DE_EXECUCAO"
+                )
         self.assertFalse(EventoXP.objects.exists())

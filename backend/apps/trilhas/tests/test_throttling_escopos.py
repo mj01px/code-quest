@@ -26,6 +26,7 @@ from apps.trilhas.tests.helpers import (
     criar_exercicio,
     criar_trilha,
 )
+from apps.trilhas.throttling import CatalogoThrottle
 from apps.trilhas.views import ExercicioDetailView, TrilhaDetailView, TrilhaListView
 
 # O DRF lê a taxa no momento em que instancia o throttle, uma vez por
@@ -75,7 +76,8 @@ class ClassesDeclaradasTest(TestCase):
     def test_as_views_de_trilhas_usam_somente_o_escopo(self):
         for view in self.VIEWS:
             classes = [type(t) for t in view().get_throttles()]
-            self.assertEqual(classes, [ScopedRateThrottle], view.__name__)
+            self.assertEqual(classes, [CatalogoThrottle], view.__name__)
+            self.assertTrue(issubclass(CatalogoThrottle, ScopedRateThrottle))
 
     def test_as_views_de_trilhas_nao_herdam_o_throttle_anonimo(self):
         for view in self.VIEWS:

@@ -8,7 +8,7 @@ from apps.correcao.models import CasoDeTeste, EspecificacaoDeCodigo, Linguagem, 
 from apps.correcao.serializers import EspecificacaoSerializer
 from apps.correcao.services import _julgar_sql
 
-from .helpers import ExecutorLocal, executar_sql_local
+from .helpers import ExecutorLocal
 
 
 class SeedCorrecaoTest(TestCase):
@@ -91,11 +91,12 @@ class SeedCorrecaoTest(TestCase):
             with self.subTest(exercicio=especificacao.exercicio.slug):
                 self.assertEqual(especificacao.exercicio.explicacao, "")
                 casos = list(especificacao.casos.all())
-                programa, marcador = sql.montar_correcao(
+                comando = sql.preparar_comando(
                     especificacao.exercicio.solucao_autor, casos
                 )
-                execucao = executar_sql_local(
-                    codigo=programa, stdin="", linguagem="SQL"
+                entrada, marcador = sql.montar_entrada(comando, casos)
+                execucao = ExecutorLocal().executar(
+                    codigo=sql.PROGRAMA, stdin=entrada, linguagem=Linguagem.PYTHON
                 )
                 resultado = _julgar_sql(execucao, casos, marcador)
                 self.assertEqual(resultado["veredito"], Veredito.APROVADO, resultado)

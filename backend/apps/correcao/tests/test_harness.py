@@ -29,6 +29,13 @@ class SepararSaidaTest(SimpleTestCase):
         self.assertEqual(impresso, "só isso\n")
         self.assertIsNone(resultados)
 
+    def test_marcadores_duplicados_nao_tem_resultado(self):
+        marcador = f"{harness.MARCADOR}[]"
+        stdout = f"{marcador}\nprint do aluno\n{marcador}\n"
+        impresso, resultados = harness.separar_saida(stdout)
+        self.assertEqual(impresso, stdout)
+        self.assertIsNone(resultados)
+
     def test_marcador_com_json_quebrado_nao_tem_resultado(self):
         _, resultados = harness.separar_saida(f"{harness.MARCADOR}[{{quebrado")
         self.assertIsNone(resultados)

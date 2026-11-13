@@ -3,10 +3,11 @@
 from unittest import mock
 
 from django.core.cache import cache
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework.throttling import SimpleRateThrottle
 
+from apps.trilhas.throttling import _redes_isentas
 from apps.trilhas.views import ExercicioDetailView, TrilhaDetailView, TrilhaListView
 
 from .helpers import criar_aula, criar_exercicio, criar_trilha
@@ -88,3 +89,41 @@ class EscopoTest(TestCase):
 
     def test_a_taxa_do_escopo_esta_configurada(self):
         self.assertIn("catalogo", SimpleRateThrottle.THROTTLE_RATES)
+
+
+class RedeIsentaTest(TestCase):
+    """A rede interna do docker-compose (o Next renderizando) nao conta no limite."""
+
+    @classmethod
+    def setUpTestData(cls):
+        criar_trilha("logica")
+
+    def setUp(self):
+        patch = mock.patch.dict(SimpleRateThrottle.THROTTLE_RATES, TAXA_DE_TESTE)
+        patch.start()
+        self.addCleanup(patch.stop)
+        cache.clear()
+        _redes_isentas.cache_clear()
+        self.addCleanup(_redes_isentas.cache_clear)
+        self.url = reverse("trilhas:trilha-lista")
+
+    @override_settings(THROTTLE_REDES_ISENTAS=["172.28.0.0/24"])
+    def test_pedido_da_rede_interna_passa_do_limite(self):
+        for _ in range(5):
+            resposta = self.client.get(self.url, REMOTE_ADDR="172.28.0.5")
+            self.assertEqual(resposta.status_code, 200)
+
+    @override_settings(THROTTLE_REDES_ISENTAS=["172.28.0.0/24"])
+    def test_ip_do_aluno_no_x_forwarded_for_continua_limitado(self):
+        # Via Nginx o pedido sai do Next (rede interna), mas o IP que conta e o
+        # do aluno, no X-Forwarded-For: esse nao e isento.
+        cabecalhos = {"REMOTE_ADDR": "172.28.0.5", "HTTP_X_FORWARDED_FOR": "200.1.2.3"}
+        for _ in range(3):
+            self.assertEqual(self.client.get(self.url, **cabecalhos).status_code, 200)
+        self.assertEqual(self.client.get(self.url, **cabecalhos).status_code, 429)
+
+    def test_sem_rede_configurada_ninguem_e_isento(self):
+        for _ in range(3):
+            self.client.get(self.url, REMOTE_ADDR="172.28.0.5")
+        resposta = self.client.get(self.url, REMOTE_ADDR="172.28.0.5")
+        self.assertEqual(resposta.status_code, 429)

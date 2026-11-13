@@ -1,8 +1,6 @@
 import os
-import sqlite3
 import subprocess
 import sys
-from contextlib import closing
 
 from apps.correcao.judge0 import Execucao, Judge0Error
 from apps.correcao.models import CasoDeTeste, EspecificacaoDeCodigo
@@ -79,25 +77,6 @@ class ClienteFixo:
     def executar(self, *, codigo, stdin, linguagem):
         self.chamadas += 1
         return self.execucao
-
-
-def executar_sql_local(*, codigo, stdin, linguagem):
-    assert linguagem == "SQL"
-    assert stdin == ""
-    assert codigo.startswith(".bail on\n")
-    saida = []
-    comando = ""
-    with closing(sqlite3.connect(":memory:")) as banco:
-        try:
-            for caractere in codigo.removeprefix(".bail on\n"):
-                comando += caractere
-                if caractere == ";" and sqlite3.complete_statement(comando):
-                    for linha in banco.execute(comando):
-                        saida.append("|".join(map(str, linha)) + "\n")
-                    comando = ""
-        except sqlite3.Error as erro:
-            return Execucao(11, "".join(saida), str(erro), 0.01, 1024)
-    return Execucao(3, "".join(saida), "", 0.01, 1024)
 
 
 class ClienteForaDoAr:
