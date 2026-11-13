@@ -5,6 +5,9 @@
 #
 # m  h  dom mon dow  comando
 
+# Backup do banco, todo dia as 3h (UTC), guardando 7 dias em ~/backups.
+0 3 * * * bash /home/deploy/code-quest/deploy/backup.sh >> /home/deploy/codequest-cron.log 2>&1
+
 # RNF13: descarta a auditoria alem de AUDITORIA_RETENCAO_DIAS, todo dia as 3h30.
 30 3 * * * cd /home/deploy/code-quest && docker compose exec -T backend python manage.py limpar_auditoria >> /home/deploy/codequest-cron.log 2>&1
 

@@ -224,6 +224,10 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
 }
 
+# Swagger (/api/docs/) e schema (/api/schema/). Desligados em producao por
+# padrao; API_DOCS=True liga, por exemplo para mostrar na banca.
+API_DOCS = env.bool('API_DOCS', default=DEBUG)
+
 SPECTACULAR_SETTINGS = {
     'TITLE': 'CodeQuest API',
     'DESCRIPTION': 'Plataforma gamificada de ensino de programacao.',
