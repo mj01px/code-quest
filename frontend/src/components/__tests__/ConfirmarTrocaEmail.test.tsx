@@ -20,6 +20,10 @@ jest.mock("@/lib/api", () => {
 });
 
 describe("PainelConfirmarEmail", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it("abrir o link não confirma: a troca só sai no clique", async () => {
     confirmarTrocaEmail.mockResolvedValue({});
 

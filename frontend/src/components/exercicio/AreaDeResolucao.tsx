@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { GradeDoExercicio } from "@/components/exercicio/GradeDoExercicio";
@@ -9,7 +10,7 @@ import { PainelDeCodigo } from "@/components/exercicio/PainelDeCodigo";
 import { PainelDeAlternativas } from "@/components/exercicio/PainelDeAlternativas";
 import { PainelFlashcard } from "@/components/exercicio/PainelFlashcard";
 import { PainelDeResposta } from "@/components/exercicio/PainelDeResposta";
-import { ErroApi, api } from "@/lib/api";
+import { ErroApi, api, temSessao } from "@/lib/api";
 import type {
   AlternativaExercicio,
   EspecificacaoDeCodigo,
@@ -42,6 +43,7 @@ export function AreaDeResolucao({
     useState<EspecificacaoDeCodigo | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [falha, setFalha] = useState<number | null>(null);
+  const caminho = usePathname();
 
   useEffect(() => {
     if (tipo && tipo !== "CODIGO") return;
@@ -89,10 +91,14 @@ export function AreaDeResolucao({
       return (
         <div className="mt-6 flex flex-col items-start gap-4 border-2 border-brand-shadow bg-panel-deep p-5">
           <p className="m-0 font-body text-lg leading-[1.6] text-ink-body">
-            Sua sessão expirou. Entre de novo para resolver este exercício.
+            {temSessao()
+              ? "Sua sessão expirou. Entre de novo para resolver este exercício."
+              : "Entre na sua conta para resolver este exercício."}
           </p>
+          {/* Volta para a tela atual: o desafio do dia mora em /desafios, não
+              na rota de exercício da trilha (que daria 404). */}
           <Link
-            href={`/entrar?destino=${encodeURIComponent(`/trilhas/${trilhaSlug}/exercicios/${exercicioSlug}`)}`}
+            href={`/entrar?destino=${encodeURIComponent(caminho)}`}
             className="border-[3px] border-brand-light bg-brand-deep px-6 py-3.5 font-display text-[11px] leading-[1.7] tracking-[1px] text-ink uppercase hover:bg-brand-strong"
           >
             Entrar

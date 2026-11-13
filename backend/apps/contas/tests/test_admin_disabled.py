@@ -24,7 +24,20 @@ class NenhumModelRegistradoTest(TestCase):
         do_projeto = [
             label
             for label in registrados
-            if label.split(".")[0] in {"contas", "gamificacao", "core", "trilhas", "progressao","correcao", "conquistas", "auditoria", "clas"}
+            if label.split(".")[0]
+            in {
+                "contas",
+                "gamificacao",
+                "core",
+                "trilhas",
+                "progressao",
+                "correcao",
+                "conquistas",
+                "auditoria",
+                "clas",
+                "ranking",
+                "autoria",
+            }
         ]
         self.assertEqual(do_projeto, [], f"registrados indevidamente: {do_projeto}")
 

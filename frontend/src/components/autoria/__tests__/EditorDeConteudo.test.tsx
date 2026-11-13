@@ -56,6 +56,12 @@ const AUTOR = [
   "trilhas.submit_review",
 ];
 
+// Adicionar exercício pergunta o tipo antes de abrir o formulário.
+async function abrirTipo(u: ReturnType<typeof userEvent.setup>, nome: string) {
+  await u.click(await screen.findByRole("button", { name: "+ ADICIONAR EXERCÍCIO" }));
+  await u.click(screen.getByRole("button", { name: nome }));
+}
+
 function montar(permissoes = AUTOR, trilhaId: number | null = null) {
   mock.api.eu.mockResolvedValue(usuario({ permissoes }));
   return render(
@@ -128,7 +134,7 @@ beforeEach(() => {
     trilha: 9,
     titulo: "Tipos básicos",
     slug: "tipos-basicos",
-    conteudo: "# Oi",
+    conteudo: "## Oi\n\nTexto.",
   });
   mock.api.criarExercicio.mockResolvedValue({
     id: 2,
@@ -168,24 +174,28 @@ describe("EditorDeConteudo", () => {
     await u.click(await screen.findByRole("button", { name: "+ ADICIONAR NOVA AULA" }));
     expect(screen.queryByRole("button", { name: "+ ADICIONAR NOVA AULA" })).toBeNull();
     await u.type(screen.getByLabelText("TÍTULO DA AULA"), "Tipos básicos");
-    await u.type(screen.getByLabelText("TEXTO (MARKDOWN)"), "# Oi");
+    // Seção com texto e sem título não salva: ela sumiria do índice do aluno.
+    await u.type(screen.getByLabelText("TEXTO DA SEÇÃO 1"), "Texto.");
+    expect(screen.getByRole("button", { name: "ADICIONAR AULA" })).toBeDisabled();
+    await u.type(screen.getByLabelText("TÍTULO DA SEÇÃO 1"), "Oi");
     expect(screen.getByRole("heading", { name: "Oi" })).toBeInTheDocument();
     await u.click(screen.getByRole("button", { name: "ADICIONAR AULA" }));
 
     expect(mock.api.criarAula).toHaveBeenCalledWith({
       trilha: 9,
       titulo: "Tipos básicos",
-      conteudo: "# Oi",
+      conteudo: "## Oi\n\nTexto.",
     });
     // Salvou: o formulário fecha, a aula entra na lista com as três partes e o botão volta.
     expect(await screen.findByRole("button", { name: "+ ADICIONAR NOVA AULA" })).toBeInTheDocument();
     expect(screen.queryByRole("form", { name: "Nova aula" })).toBeNull();
-    expect(screen.getByText("1. CONTEÚDO DA AULA")).toBeInTheDocument();
-    expect(screen.getByText("2. FLASHCARDS")).toBeInTheDocument();
-    expect(screen.getByText("3. EXERCÍCIOS DA AULA")).toBeInTheDocument();
+    expect(screen.getByText("Parte 1 · Aprender")).toBeInTheDocument();
+    expect(screen.getByText("Parte 2 · Praticar")).toBeInTheDocument();
+    expect(screen.getByText("Parte 3 · Memorizar")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Oi" })).toBeInTheDocument();
+    expect(within(screen.getByRole("list", { name: "Nesta lição" })).getByText("Oi")).toBeInTheDocument();
 
-    await u.click(await screen.findByRole("button", { name: "+ EXERCÍCIO TEÓRICO" }));
+    await abrirTipo(u, "+ EXERCÍCIO TEÓRICO");
     await u.type(screen.getByLabelText("TÍTULO DO EXERCÍCIO"), "Soma");
     await u.type(screen.getByLabelText("ENUNCIADO"), "Some");
     // Sem seletor de tipo: o botão clicado já escolheu.
@@ -200,42 +210,53 @@ describe("EditorDeConteudo", () => {
       enunciado: "Some",
     });
     expect(await screen.findByText("Soma")).toBeInTheDocument();
-    // Salvou: o formulário fecha e os três botões voltam.
+    // Salvou: o formulário fecha e os botões de adicionar voltam.
     expect(screen.queryByRole("form", { name: "Novo exercício" })).toBeNull();
-    expect(screen.getByRole("button", { name: "+ MÚLTIPLA ESCOLHA" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+ ADICIONAR QUESTÃO" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+ ADICIONAR EXERCÍCIO" })).toBeInTheDocument();
   });
 
-  it("oferece um botão por tipo e esconde os outros com um formulário aberto", async () => {
+  it("adicionar exercício pergunta o tipo; um formulário aberto esconde os botões de adicionar", async () => {
     const u = userEvent.setup();
     mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
     montar(AUTOR, 9);
 
-    const botoes = ["+ EXERCÍCIO TEÓRICO", "+ MÚLTIPLA ESCOLHA", "+ EXERCÍCIO DE CÓDIGO"];
-    for (const nome of botoes) {
+    const slots = ["+ ADICIONAR QUESTÃO", "+ ADICIONAR EXERCÍCIO"];
+    for (const nome of slots) {
       expect(await screen.findByRole("button", { name: nome })).toBeInTheDocument();
     }
+    // O tipo só aparece depois do clique: a parte fica limpa.
+    expect(screen.queryByRole("button", { name: "+ EXERCÍCIO TEÓRICO" })).toBeNull();
     expect(screen.queryByRole("radio")).toBeNull();
 
-    await u.click(screen.getByRole("button", { name: "+ EXERCÍCIO DE CÓDIGO" }));
-    for (const nome of botoes) {
+    await u.click(screen.getByRole("button", { name: "+ ADICIONAR EXERCÍCIO" }));
+    const grupo = screen.getByRole("group", { name: "Adicionar exercício" });
+    expect(within(grupo).getByRole("button", { name: "+ EXERCÍCIO TEÓRICO" })).toBeInTheDocument();
+    expect(within(grupo).getByRole("button", { name: "+ EXERCÍCIO DE CÓDIGO" })).toBeInTheDocument();
+    // Desistir da escolha devolve o botão.
+    await u.click(within(grupo).getByRole("button", { name: "CANCELAR" }));
+    expect(screen.queryByRole("group", { name: "Adicionar exercício" })).toBeNull();
+
+    await abrirTipo(u, "+ EXERCÍCIO DE CÓDIGO");
+    for (const nome of slots) {
       expect(screen.queryByRole("button", { name: nome })).toBeNull();
     }
 
-    // Cancelar fecha sem salvar e devolve os três botões.
+    // Cancelar fecha sem salvar e devolve os botões de adicionar.
     await u.click(screen.getByRole("button", { name: "CANCELAR" }));
     expect(screen.queryByLabelText("TÍTULO DO EXERCÍCIO")).toBeNull();
-    for (const nome of botoes) {
+    for (const nome of slots) {
       expect(screen.getByRole("button", { name: nome })).toBeInTheDocument();
     }
     expect(mock.api.criarExercicio).not.toHaveBeenCalled();
   });
 
-  it("+ MÚLTIPLA ESCOLHA abre enunciado, 4 opções e resposta; sem função nem testes", async () => {
+  it("+ ADICIONAR QUESTÃO abre enunciado, 4 opções e resposta; sem função nem testes", async () => {
     const u = userEvent.setup();
     mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
     montar(AUTOR, 9);
 
-    await u.click(await screen.findByRole("button", { name: "+ MÚLTIPLA ESCOLHA" }));
+    await u.click(await screen.findByRole("button", { name: "+ ADICIONAR QUESTÃO" }));
 
     expect(screen.getByLabelText("ENUNCIADO DA QUESTÃO")).toBeInTheDocument();
     for (const letra of ["A", "B", "C", "D"]) {
@@ -250,7 +271,7 @@ describe("EditorDeConteudo", () => {
     mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
     montar(AUTOR, 9);
 
-    await u.click(await screen.findByRole("button", { name: "+ EXERCÍCIO DE CÓDIGO" }));
+    await abrirTipo(u, "+ EXERCÍCIO DE CÓDIGO");
 
     expect(screen.getByLabelText("TÍTULO DO EXERCÍCIO")).toBeInTheDocument();
     expect(screen.getByLabelText("ENUNCIADO")).toBeInTheDocument();
@@ -280,17 +301,130 @@ describe("EditorDeConteudo", () => {
     expect(screen.getByRole("button", { name: "+ ADICIONAR NOVA AULA" })).toBeInTheDocument();
   });
 
+  it("segue a sequência do aluno: texto e quiz, exercícios e, por último, flashcards", async () => {
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
+    montar(AUTOR, 9);
+
+    const ordem = [
+      await screen.findByText("Parte 1 · Aprender"),
+      screen.getByRole("heading", { name: "LEITURA" }),
+      screen.getByRole("heading", { name: "Guardar um valor", level: 5 }),
+      screen.getByRole("heading", { name: "QUIZ DE FIXAÇÃO" }),
+      screen.getByText("Qual é primitivo?"),
+      screen.getByRole("button", { name: "+ ADICIONAR QUESTÃO" }),
+      screen.getByText("Parte 2 · Praticar"),
+      screen.getByText("Soma"),
+      screen.getByRole("button", { name: "+ ADICIONAR EXERCÍCIO" }),
+      screen.getByText("Parte 3 · Memorizar"),
+      screen.getByText("O que é any?"),
+    ];
+    for (let i = 1; i < ordem.length; i++) {
+      expect(
+        ordem[i - 1]!.compareDocumentPosition(ordem[i]!) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+    expect(screen.getByText(/fora da sequência/i)).toBeInTheDocument();
+  });
+
+  it("a questão abre o formulário no quiz; o exercício, na prática", async () => {
+    const u = userEvent.setup();
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
+    montar(AUTOR, 9);
+
+    await u.click(await screen.findByRole("button", { name: "+ ADICIONAR QUESTÃO" }));
+    const questao = screen.getByLabelText("ENUNCIADO DA QUESTÃO");
+    expect(
+      screen.getByText("Qual é primitivo?").compareDocumentPosition(questao) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      questao.compareDocumentPosition(screen.getByText("Parte 2 · Praticar")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    await u.click(screen.getByRole("button", { name: "CANCELAR" }));
+    await abrirTipo(u, "+ EXERCÍCIO TEÓRICO");
+    const exercicio = screen.getByLabelText("TÍTULO DO EXERCÍCIO");
+    expect(
+      screen.getByText("Parte 2 · Praticar").compareDocumentPosition(exercicio) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      exercicio.compareDocumentPosition(screen.getByText("Parte 3 · Memorizar")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("EDITAR LEITURA abre a aula salva em seções e grava o Markdown montado", async () => {
+    const u = userEvent.setup();
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
+    mock.api.editarRascunho.mockResolvedValue({});
+    montar(AUTOR, 9);
+
+    await u.click(await screen.findByRole("button", { name: "EDITAR LEITURA" }));
+    const form = screen.getByRole("form", { name: "Editar leitura" });
+    expect(within(form).getByLabelText("TÍTULO DA SEÇÃO 1")).toHaveValue("Guardar um valor");
+
+    await u.click(within(form).getByRole("button", { name: "+ ADICIONAR SEÇÃO" }));
+    await u.type(within(form).getByLabelText("TÍTULO DA SEÇÃO 2"), "Resumo");
+    await u.type(within(form).getByLabelText("TEXTO DA SEÇÃO 2"), "Fim.");
+    await u.click(within(form).getByRole("button", { name: "SALVAR LEITURA" }));
+
+    expect(mock.api.editarRascunho).toHaveBeenCalledWith("aulas", 4, {
+      titulo: "Tipos básicos",
+      conteudo: "## Guardar um valor\n\n## Resumo\n\nFim.",
+    });
+    // Salvou: o formulário fecha e o índice já mostra a seção nova.
+    expect(await screen.findByRole("button", { name: "EDITAR LEITURA" })).toBeInTheDocument();
+    const indice = screen.getByRole("list", { name: "Nesta lição" });
+    expect(within(indice).getByText("Resumo")).toBeInTheDocument();
+  });
+
+  it("cancelar a edição da leitura não grava; fora do rascunho o botão some", async () => {
+    const u = userEvent.setup();
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
+    const { unmount } = montar(AUTOR, 9);
+
+    await u.click(await screen.findByRole("button", { name: "EDITAR LEITURA" }));
+    await u.type(screen.getByLabelText("TÍTULO DA SEÇÃO 1"), " novo");
+    const form = screen.getByRole("form", { name: "Editar leitura" });
+    await u.click(within(form).getByRole("button", { name: "CANCELAR" }));
+    expect(screen.queryByRole("form", { name: "Editar leitura" })).toBeNull();
+    expect(screen.getByRole("heading", { name: "Guardar um valor", level: 5 })).toBeInTheDocument();
+    expect(mock.api.editarRascunho).not.toHaveBeenCalled();
+    unmount();
+
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva("REVISAO"));
+    montar(AUTOR, 9);
+    expect(await screen.findByText("Parte 1 · Aprender")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "EDITAR LEITURA" })).toBeNull();
+  });
+
+  it("só a última aula abre: as outras ficam recolhidas", async () => {
+    const salva = trilhaSalva();
+    salva.aulas.push(aula({ id: 5, titulo: "Funções", exercicios: [], flashcards: [], questoes: [] }));
+    mock.api.detalheEditorial.mockResolvedValue(salva);
+    montar(AUTOR, 9);
+
+    const primeira = (await screen.findByText("Tipos básicos")).closest("details");
+    const ultima = screen.getByText("Funções").closest("details");
+    expect(primeira).not.toHaveAttribute("open");
+    expect(ultima).toHaveAttribute("open");
+  });
+
   it("sem create_aula esconde a nova aula; sem create_exercicio, os botões de exercício", async () => {
     mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
     const soCriar = AUTOR.filter((p) => !["trilhas.create_aula", "trilhas.create_exercicio"].includes(p));
     const { unmount } = montar([...soCriar, "trilhas.create_aula"], 9);
 
     expect(await screen.findByRole("button", { name: "+ ADICIONAR NOVA AULA" })).toBeInTheDocument();
-    expect(screen.queryByRole("group", { name: "Adicionar exercício" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "+ ADICIONAR EXERCÍCIO" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "+ ADICIONAR QUESTÃO" })).toBeNull();
     unmount();
 
     montar([...soCriar, "trilhas.create_exercicio"], 9);
-    expect(await screen.findByRole("group", { name: "Adicionar exercício" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "+ ADICIONAR EXERCÍCIO" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+ ADICIONAR QUESTÃO" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "+ ADICIONAR NOVA AULA" })).toBeNull();
   });
 
@@ -320,7 +454,7 @@ describe("EditorDeConteudo", () => {
     });
     montar(AUTOR, 9);
 
-    await u.click(await screen.findByRole("button", { name: "+ MÚLTIPLA ESCOLHA" }));
+    await u.click(await screen.findByRole("button", { name: "+ ADICIONAR QUESTÃO" }));
     await u.type(screen.getByLabelText("ENUNCIADO DA QUESTÃO"), "Quanto é 1 + 1?");
     for (const [letra, texto] of [["A", "1"], ["B", "2"], ["C", "3"], ["D", "4"]]) {
       await u.type(screen.getByLabelText(`OPÇÃO ${letra}`), texto);
@@ -351,7 +485,7 @@ describe("EditorDeConteudo", () => {
     });
     montar(AUTOR, 9);
 
-    await u.click(await screen.findByRole("button", { name: "+ EXERCÍCIO DE CÓDIGO" }));
+    await abrirTipo(u, "+ EXERCÍCIO DE CÓDIGO");
     await u.type(screen.getByLabelText("TÍTULO DO EXERCÍCIO"), "Média");
     await u.type(screen.getByLabelText("ENUNCIADO"), "Calcule");
     await u.type(screen.getByLabelText(/NOME DA FUNÇÃO/), "media");
@@ -381,7 +515,7 @@ describe("EditorDeConteudo", () => {
     mock.api.detalheEditorial.mockResolvedValue(trilhaSalva());
     montar(AUTOR, 9);
 
-    await u.click(await screen.findByRole("button", { name: "+ EXERCÍCIO DE CÓDIGO" }));
+    await abrirTipo(u, "+ EXERCÍCIO DE CÓDIGO");
     await u.type(screen.getByLabelText("TÍTULO DO EXERCÍCIO"), "Média");
     await u.type(screen.getByLabelText("ENUNCIADO"), "Calcule");
     await u.type(screen.getByLabelText(/NOME DA FUNÇÃO/), "media");

@@ -122,16 +122,21 @@ PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.ScryptPasswordHasher',
 ]
 
-# Os baldes de throttle vivem aqui. LocMemCache e POR PROCESSO: com N workers o
-# teto real de cada limite vira N vezes o declarado, e todo restart zera os
-# contadores. Vale para `auth` (anti-forca-bruta de login) e para `autoria`
-# (gabarito), que sao os dois em que isso importa de verdade.
-# MVP aceita a limitacao de proposito: o projeto nao tem Redis. Trocar o BACKEND
-# por django.core.cache.backends.redis.RedisCache resolve, sem mudar o resto.
+# Os baldes de throttle vivem aqui. DatabaseCache guarda os contadores no proprio
+# PostgreSQL: todos os workers do gunicorn enxergam o mesmo balde e um restart
+# nao zera nada, entao o teto de `auth` (anti-forca-bruta de login) e de
+# `autoria` (gabarito) vale como declarado. A tabela nasce com
+# `manage.py createcachetable` (passo do deploy; o runner de testes ja a cria).
+# ponytail: cada request com throttle custa umas 3 queries a mais e o
+# get-depois-set do DRF nao e atomico; trocar por cache em memoria compartilhada
+# se o trafego crescer a ponto disso pesar.
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'codequest-mvp',
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'codequest_cache',
+        # Cada balde vive no maximo 1 dia; 5000 cobre os escopos de todos os
+        # usuarios ativos sem o cull apagar contador em uso.
+        'OPTIONS': {'MAX_ENTRIES': 5000},
     }
 }
 

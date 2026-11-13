@@ -739,7 +739,8 @@ export interface ConquistaDoPerfil {
 }
 
 export interface ConquistaBloqueadaDoPerfil {
-  slug: string;
+  /** null na oculta: o perfil público não revela qual conquista é. */
+  slug: string | null;
   nome: string;
   icone: string;
   oculta: boolean;

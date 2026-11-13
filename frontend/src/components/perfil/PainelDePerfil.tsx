@@ -220,9 +220,11 @@ function Perfil({ perfil }: { perfil: PerfilPublico }) {
           </p>
         ) : (
           <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-x-4 gap-y-7 border-2 border-edge bg-void bg-[radial-gradient(#1d1a29_2px,transparent_2px)] bg-[size:32px_32px] px-6 py-7">
-            {vitrine.map((conquista) => (
+            {vitrine.map((conquista, i) => (
               <li
-                key={conquista.slug}
+                // A oculta chega sem slug (não revela qual é); a posição basta,
+                // a vitrine não se reordena.
+                key={conquista.slug ?? `oculta-${i}`}
                 className="flex flex-col items-center gap-3"
               >
                 <span

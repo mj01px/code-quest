@@ -10,8 +10,12 @@ jest.mock("@/lib/api", () => {
   return {
     ErroApi: real.ErroApi,
     api: { especificacaoDeCodigo: () => especificacaoDeCodigo() },
+    temSessao: () => true,
   };
 });
+// O desafio do dia mora fora da rota de exercício da trilha: o login volta
+// para a tela atual, não para /trilhas/.../exercicios (que daria 404).
+jest.mock("next/navigation", () => ({ usePathname: () => "/desafios/soma" }));
 jest.mock("@/components/exercicio/PainelDeResposta", () => ({
   PainelDeResposta: ({ nota }: { nota?: string }) => (
     <div>
@@ -59,7 +63,7 @@ test("sessão expirada convida a entrar de novo, sem o botão de concluir", asyn
   expect(await screen.findByText(/Sua sessão expirou/)).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Entrar" })).toHaveAttribute(
     "href",
-    expect.stringMatching(/^\/entrar\?destino=/),
+    `/entrar?destino=${encodeURIComponent("/desafios/soma")}`,
   );
   expect(screen.queryByRole("button", { name: "Enviar resposta" })).not.toBeInTheDocument();
 });

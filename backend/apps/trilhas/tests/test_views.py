@@ -3,12 +3,16 @@
 import json
 
 from django.db import IntegrityError, transaction
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from apps.trilhas.models import StatusEditorial
 
 from .helpers import PUBLICADO, RASCUNHO, criar_aula, criar_exercicio, criar_trilha
+
+CACHE_EM_MEMORIA = {
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}
+}
 
 
 class ListaDeTrilhasTest(TestCase):
@@ -108,6 +112,9 @@ class DetalheDaTrilhaTest(TestCase):
         self.assertNotIn("solucao_autor", self.client.get(self.url).content.decode())
         self.assertNotIn("SEGREDO", self.client.get(self.url).content.decode())
 
+    # O balde de throttle mora no DatabaseCache e somaria queries que não são
+    # do conteúdo; em memória, a contagem mede só o que a view busca.
+    @override_settings(CACHES=CACHE_EM_MEMORIA)
     def test_numero_de_queries_nao_cresce_com_o_conteudo(self):
         # Trilha, aulas, exercícios, flashcards e questões: uma consulta cada.
         with self.assertNumQueries(5):

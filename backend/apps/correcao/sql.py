@@ -206,14 +206,20 @@ def montar_entrada(comando: str, casos: list[CasoDeTeste]) -> tuple[str, str]:
     marcador = f"cq_{uuid4().hex}" if casos else ""
     testes = []
     for caso in casos:
+        comandos: list[tuple[str, tuple[int | float, ...]]]
+        consulta: tuple[str, tuple[int | float, ...]]
         chave, *_ = caso.argumentos
         if chave == "nota":
-            valor = caso.argumentos[2]
+            valor, esperado = caso.argumentos[2], caso.esperado
+            if not isinstance(valor, int | float) or not isinstance(esperado, bool):
+                raise ValueError(
+                    f"Caso SQL {caso.ordem}: nota numérica e esperado booleano."
+                )
             comandos = [("INSERT OR IGNORE INTO notas (nota) VALUES (?)", (valor,))]
             consulta = (
                 "SELECT changes() = ? "
                 "AND (NOT changes() OR EXISTS (SELECT 1 FROM notas WHERE nota = ?))",
-                (int(caso.esperado), valor),
+                (int(esperado), valor),
             )
         else:
             insercoes, verificacao = _CASOS_ALUNO[chave]

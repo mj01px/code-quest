@@ -120,8 +120,10 @@ export function PainelDeCodigo({
 
     const emVoo = useRef(false);
 
+    // Os botões usam aria-disabled (o clique ainda chega) e o Ctrl+Enter não
+    // passa por eles: a trava mora aqui, onde todos os caminhos se encontram.
     async function executar() {
-        if (emVoo.current || !especificacao) return;
+        if (emVoo.current || !especificacao || excedeu) return;
         emVoo.current = true;
 
         setExecutando(true);
@@ -145,7 +147,7 @@ export function PainelDeCodigo({
     }
 
     async function enviar() {
-        if (emVoo.current || !especificacao) return;
+        if (emVoo.current || !especificacao || excedeu || feito) return;
         emVoo.current = true;
 
         setEnviando(true);

@@ -3,7 +3,7 @@ from unittest import mock
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
@@ -16,12 +16,25 @@ from apps.correcao.models import (
     Linguagem,
     Submissao,
 )
-from apps.correcao.sql import PROGRAMA, preparar_comando
+from apps.correcao.sql import PROGRAMA, montar_entrada, preparar_comando
 from apps.gamificacao.services import select_starter_creature
 from apps.progressao.models import EventoXP
 from apps.progressao.tests.test_credito_xp import criar_exercicio
 
 from .helpers import ExecutorLocal
+
+
+class EntradaSqlTest(SimpleTestCase):
+    def test_rejeita_nota_nao_numerica_e_esperado_nao_booleano(self):
+        for valor, esperado in (("0); SELECT 1", True), (0, 1)):
+            with self.subTest(valor=valor, esperado=esperado):
+                caso = CasoDeTeste(
+                    ordem=1, argumentos=["nota", "Teste", valor], esperado=esperado
+                )
+                with self.assertRaisesRegex(
+                    ValueError, "nota numérica e esperado booleano"
+                ):
+                    montar_entrada("CREATE TABLE notas (nota NUMERIC)", [caso])
 
 
 class SqlTest(TestCase):

@@ -11,7 +11,7 @@ from datetime import timedelta
 from typing import Any
 
 from django.conf import settings
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandParser
 from django.utils import timezone
 
 from apps.auditoria.models import RegistroDeAuditoria
@@ -20,7 +20,7 @@ from apps.auditoria.models import RegistroDeAuditoria
 class Command(BaseCommand):
     help = "Purga registros de auditoria além do prazo de retenção."
 
-    def add_arguments(self, parser) -> None:
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             "--dry-run",
             action="store_true",

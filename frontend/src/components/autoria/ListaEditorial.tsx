@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { AreaDeTexto } from "@/components/autoria/AreaDeTexto";
 import { ModalVisualizacao } from "@/components/autoria/ModalVisualizacao";
 import { ModalConfirmacao } from "@/components/clas/ModalConfirmacao";
+import { Badge } from "@/components/ui/Badge";
 import { ErroApi } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
 import type { ItemEditorial, StatusEditorial, TipoConteudo } from "@/lib/types";
@@ -16,37 +17,70 @@ export const ROTULO_TIPO: Record<TipoConteudo, string> = {
   exercicios: "EXERCÍCIO",
 };
 
-// Cor de cada status, na borda do card e na moldura da seção que o lista:
+// Cor de cada status, no quadro numerado da seção e na marca de cada linha:
 // o autor reconhece a fila de relance, sem ler o título. Classes literais: o
 // Tailwind só gera o que encontra escrito por inteiro no código.
-export const COR_STATUS: Record<
-  StatusEditorial,
-  { secao: string; card: string; selo: string }
-> = {
-  RASCUNHO: {
-    secao: "border-t-brand",
-    card: "border-l-brand",
-    selo: "border-brand text-brand-light",
-  },
-  REVISAO: {
-    secao: "border-t-warning",
-    card: "border-l-warning",
-    selo: "border-warning text-warning",
-  },
-  APROVADO: {
-    secao: "border-t-success",
-    card: "border-l-success",
-    selo: "border-success text-success",
-  },
-  PUBLICADO: {
-    secao: "border-t-brand-light",
-    card: "border-l-brand-light",
-    selo: "border-brand-light text-brand-light",
-  },
+export const COR_STATUS: Record<StatusEditorial, { selo: string; texto: string }> = {
+  RASCUNHO: { selo: "border-brand text-brand-light", texto: "text-brand-light" },
+  REVISAO: { selo: "border-warning text-warning", texto: "text-warning" },
+  APROVADO: { selo: "border-success text-success", texto: "text-success" },
+  PUBLICADO: { selo: "border-brand-light text-brand-light", texto: "text-brand-light" },
+};
+export type CorStatus = (typeof COR_STATUS)[StatusEditorial];
+
+// Marca de duas letras do tipo, no quadro de cada linha, como LI e QZ na trilha.
+export const MARCA_TIPO: Record<TipoConteudo, string> = {
+  trilhas: "TR",
+  aulas: "AU",
+  exercicios: "EX",
 };
 
-const BOTAO =
-  "cursor-pointer border-2 border-brand-light bg-brand-deep px-4 py-2 font-label text-[11px] tracking-[2px] text-ink uppercase transition duration-150 hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-60";
+// Moldura e linha do módulo da trilha (AulaCard): a autoria lê como o catálogo.
+export const MOLDURA = "flex min-w-0 flex-col border-2 border-edge bg-panel";
+export const LINHA = "flex flex-wrap items-center gap-4 px-5 py-4 sm:px-6";
+export const MARCA =
+  "flex h-8 w-8 shrink-0 items-center justify-center border-2 bg-panel-deep font-display text-[8px]";
+
+// Botão de ação da linha: o mesmo afundar de sombra dos botões das trilhas.
+export const BOTAO_ACAO =
+  "inline-flex cursor-pointer items-center border-2 border-brand-light bg-brand-deep px-4 py-2 font-label text-[11px] tracking-[2px] text-ink uppercase shadow-pixel transition duration-150 hover:translate-x-0.5 hover:translate-y-0.5 hover:bg-brand-strong hover:shadow-pixel-sm disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:bg-brand-deep disabled:hover:shadow-pixel";
+
+// Título do item: link para o editor ou botão que abre a leitura.
+const TITULO =
+  "block max-w-full cursor-pointer truncate text-left font-body text-base tracking-[1px] text-ink underline decoration-brand-shadow underline-offset-4 transition-colors duration-150 hover:decoration-brand-light";
+
+/** Cabeçalho da seção: quadro com o total, como o número do módulo na trilha. */
+export function CabecalhoDaLista({
+  titulo,
+  total,
+  cor,
+}: {
+  titulo: string;
+  /** null enquanto carrega: o quadro fica vazio. */
+  total: number | null;
+  cor: CorStatus;
+}) {
+  return (
+    <div className="flex items-center gap-5 p-5 sm:px-6">
+      <span
+        aria-hidden="true"
+        className={`flex h-12 w-12 shrink-0 items-center justify-center border-2 bg-panel-deep font-display text-[12px] ${cor.selo}`}
+      >
+        {total === null ? "" : String(total).padStart(2, "0")}
+      </span>
+      <h2 className="m-0 min-w-0 flex-1 font-label text-[12px] tracking-[2px] text-ink uppercase">
+        {titulo}
+      </h2>
+      {total === null ? null : (
+        <span
+          className={`shrink-0 font-label text-[11px] tracking-[2px] uppercase ${cor.texto}`}
+        >
+          {total} {total === 1 ? "item" : "itens"}
+        </span>
+      )}
+    </div>
+  );
+}
 
 export interface AcaoEditorial {
   rotulo: string;
@@ -185,57 +219,36 @@ export function ListaEditorial({
   if (carregou && itens.length === 0) return null;
 
   return (
-    <section
-      aria-label={titulo}
-      className={`flex min-w-0 flex-col gap-4 border-2 border-t-4 border-edge bg-panel-deep p-4 shadow-pixel sm:p-5 ${cor.secao}`}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <h2 className={`m-0 text-ink ${TIPO.tituloSecao}`}>{titulo}</h2>
-        {carregando ? null : (
-          <span
-            aria-label={`${itens.length} ${itens.length === 1 ? "item" : "itens"}`}
-            className={`border-2 px-2 py-0.5 ${cor.selo} ${TIPO.etiqueta}`}
-          >
-            {itens.length}
-          </span>
-        )}
-      </div>
+    <section aria-label={titulo} className={MOLDURA}>
+      <CabecalhoDaLista titulo={titulo} total={carregando ? null : itens.length} cor={cor} />
 
       {erro && !aberto && !pedindo ? (
         <p
           role="alert"
-          className="m-0 border-2 border-danger-deep bg-panel-soft px-4 py-3 font-body text-base leading-[1.6] tracking-wide text-danger"
+          className="m-0 border-t-2 border-danger-deep bg-panel-soft px-5 py-3 font-body text-base leading-[1.6] tracking-wide text-danger sm:px-6"
         >
           {erro}
         </p>
       ) : null}
 
       {carregando ? (
-        <p className={`m-0 text-brand-light ${TIPO.etiqueta}`}>
+        <p className={`m-0 border-t-2 border-edge px-5 py-4 text-brand-light sm:px-6 ${TIPO.etiqueta}`}>
           &gt; CARREGANDO...
         </p>
       ) : itens.length === 0 ? null : (
         // O `null` acima é a carga que falhou: o alerta já explica.
-        <ul className="m-0 flex list-none flex-col gap-3 p-0">
+        <ul className="m-0 list-none divide-y-2 divide-edge border-t-2 border-edge p-0">
           {itens.map((item) => (
-            <li
-              key={chave(item)}
-              className={`flex flex-col gap-3 border-2 border-l-4 border-edge bg-panel p-4 ${cor.card}`}
-            >
-              <span className="min-w-0">
-                <span className={`block text-brand-light ${TIPO.etiqueta}`}>
-                  {ROTULO_TIPO[item.tipo]}
-                  {item.status_editorial === "APROVADO" ? (
-                    <span className="ml-2 border-2 border-success px-1.5 py-0.5 text-success">
-                      APROVADO
-                    </span>
-                  ) : null}
-                </span>
+            <li key={chave(item)} className={LINHA}>
+              <span aria-hidden="true" className={`${MARCA} ${cor.selo}`}>
+                {MARCA_TIPO[item.tipo]}
+              </span>
+              <span className="min-w-0 flex-1 basis-48">
                 {hrefDoItem ? (
                   <Link
                     href={hrefDoItem(item)}
                     aria-label={`Abrir no editor: ${item.titulo}`}
-                    className={`block max-w-full truncate text-left text-ink underline decoration-brand-shadow underline-offset-4 hover:decoration-brand-light ${TIPO.corpo}`}
+                    className={TITULO}
                   >
                     {item.titulo}
                   </Link>
@@ -244,7 +257,7 @@ export function ListaEditorial({
                     type="button"
                     onClick={() => setAberto(item)}
                     aria-label={`Ver conteúdo: ${item.titulo}`}
-                    className={`block max-w-full cursor-pointer truncate text-left text-ink underline decoration-brand-shadow underline-offset-4 hover:decoration-brand-light ${TIPO.corpo}`}
+                    className={TITULO}
                   >
                     {item.titulo}
                   </button>
@@ -255,6 +268,10 @@ export function ListaEditorial({
                   </span>
                 ) : null}
               </span>
+              <span className="flex shrink-0 items-center gap-2">
+                <Badge>{ROTULO_TIPO[item.tipo]}</Badge>
+                {item.status_editorial === "APROVADO" ? <Badge tom="sucesso">APROVADO</Badge> : null}
+              </span>
               <span className="flex flex-wrap items-center gap-2">
                 {acoes.map((acao) => (
                   <button
@@ -263,7 +280,7 @@ export function ListaEditorial({
                     disabled={ocupado !== null}
                     onClick={() => iniciar(item, acao)}
                     aria-label={`${acao.rotulo}: ${item.titulo}`}
-                    className={BOTAO}
+                    className={BOTAO_ACAO}
                   >
                     {acao.rotulo}
                   </button>

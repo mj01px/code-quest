@@ -1,8 +1,14 @@
+from typing import TYPE_CHECKING
+
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models import QuerySet
 from django.utils.translation import gettext_lazy as _
 
 from .models import Creature, UserCreature, XpBonus
+
+if TYPE_CHECKING:
+    from apps.contas.models import User
 
 
 def _nao_possui() -> ValidationError:
@@ -21,7 +27,7 @@ def _ja_escolhida() -> ValidationError:
     )
 
 
-def list_selectable_creatures():
+def list_selectable_creatures() -> QuerySet[Creature]:
     return (
         Creature.objects.filter(is_available=True)
         .prefetch_related("stages")
@@ -30,7 +36,7 @@ def list_selectable_creatures():
 
 
 @transaction.atomic
-def select_starter_creature(*, user, creature_slug: str) -> UserCreature:
+def select_starter_creature(*, user: User, creature_slug: str) -> UserCreature:
     try:
         creature = Creature.objects.get(pk=creature_slug)
     except Creature.DoesNotExist:
@@ -68,7 +74,7 @@ def select_starter_creature(*, user, creature_slug: str) -> UserCreature:
 
 
 @transaction.atomic
-def adquirir_criatura(*, user, creature_slug: str) -> UserCreature:
+def adquirir_criatura(*, user: User, creature_slug: str) -> UserCreature:
     try:
         creature = Creature.objects.get(pk=creature_slug)
     except Creature.DoesNotExist:
@@ -109,7 +115,7 @@ def adquirir_criatura(*, user, creature_slug: str) -> UserCreature:
 
 
 @transaction.atomic
-def definir_criatura_ativa(*, user, creature_slug: str) -> UserCreature:
+def definir_criatura_ativa(*, user: User, creature_slug: str) -> UserCreature:
     escolhida = (
         UserCreature.objects.select_related("creature")
         .prefetch_related("creature__stages")
@@ -128,7 +134,7 @@ def definir_criatura_ativa(*, user, creature_slug: str) -> UserCreature:
     return escolhida
 
 
-def xp_bonuses_for_user(*, user):
+def xp_bonuses_for_user(*, user: User) -> QuerySet[XpBonus]:
     """Bônus valendo para o usuário, um por par criatura/trilha que ele tem.
 
     Só entram as criaturas que ele possui. Trilha sem linha aqui rende XP

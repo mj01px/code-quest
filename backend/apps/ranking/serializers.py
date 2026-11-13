@@ -45,7 +45,7 @@ class ConquistaDoPerfilSerializer(serializers.Serializer[object]):
 
 
 class ConquistaBloqueadaSerializer(serializers.Serializer[object]):
-    slug = serializers.SlugField()
+    slug = serializers.SlugField(allow_null=True)
     nome = serializers.CharField()
     icone = serializers.CharField(allow_blank=True)
     oculta = serializers.BooleanField()

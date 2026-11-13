@@ -169,6 +169,13 @@ class EndpointAuditoriaTests(APITestCase):
 
         self.assertEqual(resposta.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_actor_que_nao_e_uuid_devolve_400(self):
+        self.client.force_authenticate(criar_admin())
+
+        resposta = self.client.get(self.url, {"actor": "nao-e-uuid"})
+
+        self.assertEqual(resposta.status_code, status.HTTP_400_BAD_REQUEST)
+
 
 class MinhaAtividadeTests(APITestCase):
     def setUp(self):
