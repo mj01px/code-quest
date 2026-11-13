@@ -53,8 +53,12 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # Origin Certificate da Cloudflare (origin.pem e origin.key), so na VPS:
+      # *.pem e *.key estao no .gitignore.
+      - ./deploy/certs:/etc/nginx/certs:ro
     depends_on:
       frontend:
         condition: service_healthy

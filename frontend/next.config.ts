@@ -6,6 +6,8 @@ const API_ORIGIN = process.env.API_ORIGIN ?? "http://localhost:8000";
 
 const nextConfig: NextConfig = {
   devIndicators: false,
+  // Sem o X-Powered-By: nao anunciar a tecnologia do servidor.
+  poweredByHeader: false,
   // Sem isto o Next devolve 308 tirando a barra final antes de repassar, e
   // todo POST para a API morre no redirecionamento.
   skipTrailingSlashRedirect: true,
