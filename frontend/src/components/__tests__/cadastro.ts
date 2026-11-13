@@ -38,15 +38,10 @@ async function colar(usuario: UserEvent, rotulo: string, texto: string) {
   await usuario.paste(texto);
 }
 
-/** Dirige o date picker próprio até o dia 15 do ano dado. */
+/**
+ * Digita 15/01 do ano dado, só com números, como o aluno faz. O calendário
+ * segue coberto pelos testes do CampoData.
+ */
 async function escolherNascimento(usuario: UserEvent, ano: number) {
-  await usuario.click(screen.getByLabelText("DATA DE NASCIMENTO"));
-  await usuario.click(screen.getByRole("button", { name: "Escolher ano" }));
-  while (!screen.queryByRole("button", { name: String(ano) })) {
-    await usuario.click(screen.getByRole("button", { name: "Anos anteriores" }));
-  }
-  await usuario.click(screen.getByRole("button", { name: String(ano) }));
-  await usuario.click(
-    screen.getByRole("button", { name: new RegExp(`^15/\\d{2}/${ano}$`) }),
-  );
+  await colar(usuario, "DATA DE NASCIMENTO", `1501${ano}`);
 }
