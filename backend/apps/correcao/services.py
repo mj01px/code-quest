@@ -189,16 +189,12 @@ def _reservar_chamada(submissao: Submissao) -> None:
         submissao.save()
 
 
-def _normalizar(codigo: str) -> str:
-    linhas = codigo.replace("\r\n", "\n").replace("\r", "\n").split("\n")
-    return "\n".join(linha.rstrip() for linha in linhas).strip("\n")
-
-
 def _hash(
     *, especificacao: EspecificacaoDeCodigo, casos: Sequence[CasoDeTeste], codigo: str
 ) -> str:
     base = json.dumps(
         {
+            "versao_cache": 2,
             "harness": sql.VERSAO
             if especificacao.linguagem == Linguagem.SQL
             else harness.VERSAO,
@@ -215,7 +211,7 @@ def _hash(
                 [c.ordem, c.argumentos, c.esperado, c.erro_esperado, c.visivel]
                 for c in casos
             ],
-            "codigo": _normalizar(codigo),
+            "codigo": codigo,
         },
         ensure_ascii=False,
         sort_keys=True,

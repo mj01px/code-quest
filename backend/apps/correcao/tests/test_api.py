@@ -144,6 +144,32 @@ class ApiCorrecaoTest(TestCase):
         self.assertFalse(EventoXP.objects.exists())
         self.assertFalse(Sequencia.objects.exists())
 
+    def test_espaco_na_string_multilinha_nao_reusa_aprovacao(self):
+        codigo_certo = (
+            'def dobro(n):\n'
+            '    if """x\n""" == "x\\n":\n'
+            '        return n * 2\n'
+            '    return -1\n'
+        )
+        codigo_errado = codigo_certo.replace('"""x\n', '"""x \n')
+        concluir = "progressao:concluir-exercicio"
+
+        certa = self._post(concluir, {"codigo": codigo_certo})
+        self.assertEqual(certa.status_code, 200, certa.data)
+        self.assertTrue(certa.data["aprovado"])
+        self.assertGreater(certa.data["xp_ganho"], 0)
+
+        outro_aluno = criar_aluno(nickname="outro_aluno")
+        select_starter_creature(user=outro_aluno, creature_slug="shellby")
+        self.client.force_authenticate(user=outro_aluno)
+        errada = self._post(concluir, {"codigo": codigo_errado})
+
+        self.assertEqual(errada.status_code, 200, errada.data)
+        self.assertFalse(errada.data["aprovado"])
+        self.assertNotIn("xp_ganho", errada.data)
+        self.assertFalse(EventoXP.objects.filter(user=outro_aluno).exists())
+        self.assertEqual(self.executor.chamadas, 2)
+
     def test_concluir_com_marcador_fixo_e_saida_antecipada_nao_da_xp(self):
         resultados = [{"ok": True, "valor": valor} for valor in (4, 0, -6, 20)]
         linha = "@@RESULTADO@@" + json.dumps(resultados)

@@ -162,15 +162,13 @@ class CacheDeSubmissaoTest(_ComJudge0Falso):
 
     def test_identica_dentro_de_10_minutos_nao_bate_no_judge0(self):
         self._executar(CODIGO_CERTO)
-        # Espaço no fim de linha e linhas em branco nas bordas não contam.
-        self._executar("\n\n" + CODIGO_CERTO.replace("\n", "   \n") + "\n\n")
+        self._executar(CODIGO_CERTO)
 
         self.assertEqual(self.executor.chamadas, 1)
 
     def test_codigo_diferente_bate_as_duas(self):
         self._executar(CODIGO_CERTO)
         self._executar(CODIGO_ERRADO)
-        # Indentação interna não é normalizada.
         self._executar(CODIGO_CERTO.replace("    ", "  "))
 
         self.assertEqual(self.executor.chamadas, 3)
