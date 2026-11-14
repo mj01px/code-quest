@@ -363,3 +363,18 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+
+# Endurecimento da auditoria pré-banca (2026-11-14). Fica no fim do arquivo de
+# propósito: a rastreabilidade em Docs/ cita este arquivo por número de linha, e
+# inserir nos blocos acima deslocaria todas as referências.
+
+# Byte NUL na URL vira 400 antes de chegar ao banco (apps/core/middleware.py).
+MIDDLEWARE.insert(1, 'apps.core.middleware.RecusarNul')
+
+# API navegável (HTML com formulários e as docstrings das views) só no dev: em
+# produção ela entregaria o mapa das rotas que o Swagger desligado esconde.
+REST_FRAMEWORK['DEFAULT_RENDERER_CLASSES'] = [
+    'rest_framework.renderers.JSONRenderer',
+    *(['rest_framework.renderers.BrowsableAPIRenderer'] if DEBUG else []),
+]

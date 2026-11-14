@@ -6,6 +6,7 @@ Consulta rápida para a apresentação: a banca pergunta, você abre o arquivo n
 - **Caminhos:** do backend, relativos a `backend/`; do frontend, relativos a `frontend/`; `deploy/`, `.github/` e `docker-compose.yml`, à raiz.
 - **Mapas completos:** `Docs/Rastreabilidade_Requisitos.md` (RFs e RNFs) e `Docs/Rastreabilidade_Regras_Negocio.md` (93 regras de negócio).
 - **Código ao vivo na tela:** abra o arquivo e use "ir para linha" (Ctrl+G no VS Code).
+- **Auditoria final (Red Team e QA, 14 de novembro):** `apps/core/middleware.py`, `apps/core/tests/test_seguranca.py`, `src/app/not-found.tsx` e o bloco final de `config/settings.py` (da L366 em diante) são do working tree posterior ao commit `b835ed9`. Nada foi inserido no meio de `config/settings.py`, então as demais linhas citadas aqui continuam valendo.
 
 ## 1. Perguntas prováveis e onde achar
 
@@ -32,6 +33,11 @@ Consulta rápida para a apresentação: a banca pergunta, você abre o arquivo n
 | Onde está a regra dos quatro olhos? | `apps/autoria/services.py:L464` e `apps/autoria/services.py:L465` | Quem criou o conteúdo não o aprova, nem o administrador. É a transição `aprovar` em `transicionar` (`apps/autoria/services.py:L434`). |
 | Como o fluxo editorial é controlado? | `apps/autoria/services.py:L31` (`TRANSICOES`), `apps/autoria/services.py:L434` (`transicionar`) e `apps/autoria/views.py:L133` | Rascunho, revisão, aprovado, publicado; cada passo exige permissão, trava a linha e vai para a auditoria (RF15). |
 | O autor pode publicar o que escreveu? | `apps/autoria/views.py:L176` e `apps/autoria/views.py:L178` | Não. Publicar exige `trilhas.publish`, que só o administrador tem; o autor (`trilhas.submit_review`) recebe 403, mesmo no que criou (RF15-RN02). Teste: `apps/autoria/tests/test_api_questao.py:L103`. |
+| Fizeram teste de invasão? | `apps/core/tests/test_seguranca.py:L55` (rotas públicas), `apps/core/tests/test_seguranca.py:L131` (byte nulo) e `apps/core/tests/test_seguranca.py:L152` (corpo comprimido) | Sim, na auditoria final: as 98 rotas da API foram varridas como aluno, autor, administrador e anônimo, com corpos e parâmetros maliciosos. Nenhuma rota de administração abriu para aluno ou autor; os dois achados (byte nulo e API navegável) foram corrigidos com teste de regressão. |
+| E se mandarem um byte nulo (`%00`) na URL? | `apps/core/middleware.py:L6` (`RecusarNul`) e `config/settings.py:L373` (ligado) | Vira 400 no formato padrão antes de chegar ao banco. Antes da auditoria final o PostgreSQL recusava o caractere e a rota respondia 500 (busca de clãs, perfil, filtros do admin). Teste: `apps/core/tests/test_seguranca.py:L131`. |
+| A API mostra telas ou formulários em produção? | `config/settings.py:L377` | Não. Com `DEBUG=False` a API só responde JSON; a API navegável do DRF (HTML com formulários e a descrição de cada rota) existe apenas no desenvolvimento. Teste: `apps/core/tests/test_seguranca.py:L69`. |
+| Dá para forjar o IP e fugir do limite de requisições? | `deploy/nginx.conf:L118` e `apps/core/tests/test_seguranca.py:L118` | Pela internet, não: o Nginx sobrescreve o `X-Forwarded-For` com o IP real e o teste reprova se alguém trocar por anexar. Mesmo com IP trocado, a conta bloqueia na quinta senha errada. |
+| Injeção de SQL e XSS foram testados? | `src/components/licao/ConteudoDaLicao.tsx:L147` (Markdown sem HTML) e `apps/autoria/models.py:L41` (`URLField`) | Sim. Não há SQL montado à mão (só ORM), o Markdown da autoria vira nós de texto do React (nenhum `dangerouslySetInnerHTML` no projeto) e link `javascript:` é recusado com 400. |
 
 ### LGPD, auditoria e dados
 
@@ -69,6 +75,9 @@ Consulta rápida para a apresentação: a banca pergunta, você abre o arquivo n
 | Como o banco evolui? | `apps/*/migrations/` (64 arquivos) e `entrypoint.sh:L5` | Migração versionada rodada a cada subida do contêiner (RNF21). |
 | Qual é o tipo de teste e a cobertura de tipos? | `pyproject.toml:L15` (pytest), `pyproject.toml:L43` (mypy strict, cobre 8 de 11 apps), `jest.config.ts:L7` e `tsconfig.json:L7` (strict) | Pytest e Jest; o mypy estrito ainda não cobre `contas`, `progressao` e `clas` (RNF26 parcial). Os caminhos de `pyproject.toml` são do backend; `jest.config.ts` e `tsconfig.json`, do frontend. |
 | Como o frontend fala com a API? | `next.config.ts:L19` (rewrite) e `src/lib/api.ts:L253` (renovação do token) | Mesma origem: o Next encaminha `/api/*` ao Django; a renovação do token é automática e só uma por vez. |
+| O banco fica exposto na internet? | `docker-compose.yml:L18` e `apps/core/tests/test_seguranca.py:L95` | Não. O PostgreSQL só publica a porta em `127.0.0.1` da VPS; o teste reprova o projeto se qualquer serviço além do Nginx publicar porta para fora. |
+| O que garante que a configuração de produção é segura? | `.env.prod.example` (raiz) e `apps/core/tests/test_seguranca.py:L104` | O teste exige `DEBUG=False`, cookies só por HTTPS, Swagger desligado, `ALLOWED_HOSTS` sem curinga e nenhum segredo preenchido no arquivo de exemplo. |
+| O que aparece numa rota que não existe? | `src/app/not-found.tsx:L5` e `src/app/error.tsx:L7` | Uma tela 404 em português com o visual do CodeQuest (antes era a página padrão do Next, em inglês); erro de renderização cai no `error.tsx`, nunca em tela branca. |
 
 ## 2. Números para decorar
 
@@ -314,3 +323,9 @@ Principal ponto de cada RF. O mapa completo, com pontos secundários, está em `
 6. **"A RN diz só Python, o código aceita mais?"** O mapa do Judge0 tem Python e SQL (`apps/correcao/judge0.py:L12`); a RN escrita está desatualizada.
 7. **"O perfil é público?"** Exige sessão (`apps/ranking/views.py:L37`): é público entre alunos logados, não para a internet.
 8. **"Onde estão os testes?"** Ao lado do código: `apps/*/tests/` no backend (`pyproject.toml:L20` define `testpaths`) e `src/**/__tests__/` no frontend (`jest.config.ts:L10`).
+9. **"Um autor consegue ver o gabarito de qualquer exercício?"** Sim: quem tem `trilhas.view_solution` (`apps/contas/rbac.py:L79`) lê a solução de referência de qualquer exercício, não só dos que criou. É regra aprovada (a rota existe para revisar antes de publicar), com limite de 30 por minuto e `no-store`; o risco aceito é o autor usar o gabarito para ganhar XP como aluno.
+10. **"O painel do administrador escala?"** O funil faz cerca de 9 consultas por trilha publicada (`apps/progressao/painel_admin.py:L100`). Medido na auditoria final: 60 consultas com 4 trilhas e 96 com 8. É a única rota com N+1 entre as 33 listagens medidas; só o administrador a abre.
+11. **"O 429 sempre diz quando voltar?"** O limite por minuto sim, com `Retry-After: 60`. O teto diário do Judge0 por usuário responde 429 sem esse cabeçalho (`apps/correcao/excecoes.py:L22`), só com a mensagem de tentar amanhã.
+12. **"E se várias pessoas enviarem código ao mesmo tempo?"** O gunicorn sobe com 2 workers síncronos (`entrypoint.sh:L35`, relativo a `backend/`) e cada correção pode segurar um deles por até 15 segundos. Duas correções simultâneas atrasam o resto da API nesse intervalo; o ajuste é a variável `GUNICORN_WORKERS`.
+13. **"Cinco contas esgotam a correção de todo mundo?"** Sim: 10 chamadas por usuário e disjuntor em 45 por dia (`config/settings.py:L167` e `config/settings.py:L169`). É o limite do plano gratuito do Judge0, protegido pela verificação de e-mail no cadastro e pelo cache de 10 minutos.
+14. **"Há backup do banco?"** Não no deploy atual: a rotina diária foi removida (commit `1cdea8d`). Fica como trabalho futuro de infraestrutura.

@@ -1,7 +1,9 @@
 """Regressões da auditoria pré-banca (2026-11-14)."""
 
 import json
+import re
 import zlib
+from pathlib import Path
 from typing import Any
 
 from django.contrib.auth.models import AnonymousUser
@@ -10,6 +12,8 @@ from django.urls import get_resolver
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
 from rest_framework.views import APIView
+
+RAIZ = Path(__file__).resolve().parents[4]
 
 # Toda view que responde sem login. Rota nova que aceite anônimo reprova aqui
 # até entrar na lista, ou seja, até alguém decidir que ela é pública.
@@ -59,6 +63,89 @@ class RotasPublicasTest(SimpleTestCase):
                 abertas.add(cls.__name__)
 
         self.assertEqual(abertas, PUBLICAS)
+
+
+class ApiNavegavelTest(TestCase):
+    def test_html_da_api_so_existe_com_debug(self) -> None:
+        # Red team 2026-11-14: com DEBUG=False a API ainda respondia HTML
+        # (formulários e docstrings) a quem pedisse `Accept: text/html`.
+        from config import settings as modulo
+
+        navegavel = any(
+            "Browsable" in r
+            for r in modulo.REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"]
+        )
+        # `modulo.DEBUG` é o valor do ambiente; o runner só zera o do wrapper.
+        self.assertEqual(navegavel, modulo.DEBUG)
+
+        resposta = self.client.get("/api/v1/trilhas/", HTTP_ACCEPT="text/html")
+        if not modulo.DEBUG:  # a CI roda assim, como a produção
+            self.assertEqual(resposta.status_code, 406)
+
+
+class InfraDeDeployTest(SimpleTestCase):
+    """Guardas dos arquivos de deploy (auditoria de infraestrutura 2026-11-14)."""
+
+    def _ler(self, caminho: str) -> str:
+        arquivo = RAIZ / caminho
+        if not arquivo.exists():  # imagem Docker: só `backend/` é copiado
+            self.skipTest(f"{caminho} fora do alcance")
+        return arquivo.read_text(encoding="utf-8")
+
+    def test_so_o_nginx_publica_porta_para_a_internet(self) -> None:
+        compose = self._ler("docker-compose.yml")
+        portas = re.findall(r'^\s*-\s*"([\d.:]+)"\s*$', compose, re.M)
+
+        self.assertIn("127.0.0.1:5432:5432", portas)  # o banco, só no loopback
+        for porta in portas:
+            if porta not in ("80:80", "443:443"):
+                self.assertTrue(porta.startswith("127.0.0.1:"), porta)
+
+    def test_exemplo_de_producao_e_seguro_e_sem_segredo(self) -> None:
+        linhas = self._ler(".env.prod.example").splitlines()
+        env = dict(
+            linha.split("=", 1) for linha in linhas if "=" in linha and linha[0] != "#"
+        )
+
+        self.assertEqual(env["DEBUG"], "False")
+        self.assertEqual(env["AUTH_COOKIE_SECURE"], "True")
+        self.assertEqual(env["API_DOCS"], "False")
+        self.assertNotIn("*", env["ALLOWED_HOSTS"])
+        for chave, valor in env.items():
+            if re.search(r"PASSWORD|SECRET|TOKEN", chave):
+                self.assertTrue(valor == "" or valor.startswith("troque"), chave)
+
+    def test_nginx_forca_https_e_nao_repassa_ip_forjado(self) -> None:
+        nginx = self._ler("deploy/nginx.conf")
+
+        porta_80 = next(b for b in nginx.split("server {") if "listen 80" in b)
+        self.assertIn("return 301 https://", porta_80)
+        self.assertNotIn("proxy_pass", porta_80)
+        self.assertIn("Strict-Transport-Security", nginx)
+        # O throttle por IP confia no último item do X-Forwarded-For.
+        self.assertIn("proxy_set_header X-Forwarded-For $remote_addr;", nginx)
+        self.assertNotIn("$proxy_add_x_forwarded_for", nginx)
+
+
+class ByteNulNaUrlTest(TestCase):
+    def test_nul_no_caminho_ou_na_query_vira_400(self) -> None:
+        # Red team 2026-11-14: o PostgreSQL recusa NUL em texto e estas rotas
+        # devolviam 500 a qualquer usuário logado.
+        from apps.contas.tests.helpers import criar_aluno
+
+        self.client.force_login(criar_aluno("fuzz"))
+        for url in (
+            "/api/v1/clas/?busca=%00",
+            "/api/v1/eu/exercicios-concluidos/?trilha=%00",
+            "/api/v1/clas/%00/",
+            "/api/v1/perfil/%00/",
+        ):
+            with self.subTest(url=url):
+                resposta = self.client.get(url)
+                self.assertEqual(resposta.status_code, 400)
+                self.assertEqual(
+                    resposta.json()["error"]["code"], "requisicao_invalida"
+                )
 
 
 class CharsetDoCorpoTest(TestCase):
