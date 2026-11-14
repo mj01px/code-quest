@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 
 import { PainelDeCodigo } from "@/components/exercicio/PainelDeCodigo";
 import { ProvedorProgresso } from "@/components/progresso/ProvedorProgresso";
-import { BotaoProximoExercicio } from "@/components/trilhas/BotaoProximoExercicio";
 import { api as apiReal, temSessao as temSessaoReal } from "@/lib/api";
 import type {
   Correcao,
@@ -14,8 +13,8 @@ import type {
 import { minhaCriatura, progressoAtual, usuario } from "./fixtures";
 
 // Integração: o Enviar aprovado do PainelDeCodigo recarrega o Context real
-// (ProvedorProgresso) e isso habilita o BotaoProximoExercicio. Só a rede e o
-// Monaco/xterm são simulados.
+// (ProvedorProgresso), que relê as conclusões. Só a rede e o Monaco/xterm são
+// simulados.
 jest.mock("@/components/exercicio/EditorDeCodigo", () => ({
   EditorDeCodigo: ({
     valor,
@@ -128,17 +127,9 @@ function montar() {
         exercicioSlug="soma"
         especificacao={especificacao}
       />
-      <BotaoProximoExercicio
-        trilhaSlug="python"
-        exercicioSlug="soma"
-        proximoSlug="media"
-      />
     </ProvedorProgresso>,
   );
 }
-
-const bloqueado = () =>
-  screen.getByRole("button", { name: "Conclua para avançar" });
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -156,8 +147,8 @@ beforeEach(() => {
   });
 });
 
-describe("PainelDeCodigo habilita BotaoProximoExercicio", () => {
-  it("aprovação no Enviar leva ao próximo exercício", async () => {
+describe("PainelDeCodigo recarrega o Context", () => {
+  it("aprovação no Enviar relê as conclusões", async () => {
     concluirExercicio.mockResolvedValue(aprovado);
     // A releitura disparada pelo recarregar() já traz a conclusão.
     exerciciosConcluidos
@@ -166,7 +157,6 @@ describe("PainelDeCodigo habilita BotaoProximoExercicio", () => {
 
     montar();
     await waitFor(() => expect(exerciciosConcluidos).toHaveBeenCalledTimes(1));
-    expect(bloqueado()).not.toHaveAttribute("href");
 
     await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
 
@@ -174,13 +164,10 @@ describe("PainelDeCodigo habilita BotaoProximoExercicio", () => {
       "+50 XP · +1 dia",
     );
 
-    const link = await screen.findByRole("link", {
-      name: /próximo exercício/i,
-    });
-    expect(link).toHaveAttribute("href", "/trilhas/python/exercicios/media");
+    await waitFor(() => expect(exerciciosConcluidos).toHaveBeenCalledTimes(2));
   });
 
-  it("reprovação no Enviar mantém o botão bloqueado", async () => {
+  it("reprovação no Enviar não relê nada", async () => {
     concluirExercicio.mockResolvedValue({
       aprovado: false,
       correcao: correcao({ veredito: "RESPOSTA_ERRADA", aprovado: false }),
@@ -193,10 +180,6 @@ describe("PainelDeCodigo habilita BotaoProximoExercicio", () => {
     await waitFor(() => expect(concluirExercicio).toHaveBeenCalledTimes(1));
     // Reprovado não recarrega o Context: segue uma única leitura.
     expect(exerciciosConcluidos).toHaveBeenCalledTimes(1);
-    expect(bloqueado()).not.toHaveAttribute("href");
     expect(screen.queryByText(/\+1 dia/)).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: /próximo exercício/i }),
-    ).not.toBeInTheDocument();
   });
 });

@@ -12,12 +12,12 @@ import {
 } from "@/components/__tests__/fixtures";
 import { ProvedorProgresso } from "@/components/progresso/ProvedorProgresso";
 import { PainelDeDesafios } from "@/components/desafios/PainelDeDesafios";
-import { BotaoConclusao } from "@/components/trilhas/BotaoConclusao";
+import { PainelFlashcard } from "@/components/exercicio/PainelFlashcard";
 import { MapaDeFases } from "@/components/trilhas/MapaDeFases";
 import { PainelDeTrilhas } from "@/components/trilhas/PainelDeTrilhas";
 import { api as apiReal, temSessao as temSessaoReal } from "@/lib/api";
 import type { Desafio } from "@/lib/desafios";
-import type { RespostaConclusao } from "@/lib/types";
+import type { RespostaFlashcard } from "@/lib/types";
 
 // O teste que fecha a migração: o progresso saiu do navegador e foi para a
 // conta. Antes desta entrega, 215 testes ficavam verdes com a funcionalidade
@@ -46,7 +46,7 @@ jest.mock("@/lib/api", () => ({
     minhaSequencia: jest.fn(),
     exerciciosConcluidos: jest.fn(),
     trilhasIniciadas: jest.fn(),
-    concluirExercicio: jest.fn(),
+    revelarFlashcard: jest.fn(),
   },
 }));
 
@@ -64,8 +64,8 @@ const minhaSequencia = apiReal.minhaSequencia as jest.MockedFunction<
 const exerciciosConcluidos = apiReal.exerciciosConcluidos as jest.MockedFunction<
   typeof apiReal.exerciciosConcluidos
 >;
-const concluirExercicio = apiReal.concluirExercicio as jest.MockedFunction<
-  typeof apiReal.concluirExercicio
+const revelarFlashcard = apiReal.revelarFlashcard as jest.MockedFunction<
+  typeof apiReal.revelarFlashcard
 >;
 
 const TRILHA = trilhaResumo({ total_aulas: 1, total_exercicios: 2 });
@@ -124,8 +124,9 @@ beforeEach(() => {
       criado_em: "2026-09-10T12:00:00Z",
     },
   ]);
-  concluirExercicio.mockResolvedValue({
+  revelarFlashcard.mockResolvedValue({
     aprovado: true,
+    resposta: "Resposta do cartão",
     correcao: null,
     ja_concluido: false,
     xp_ganho: 50,
@@ -133,7 +134,7 @@ beforeEach(() => {
     pode_evoluir: false,
     progresso: progressoAtual(),
     sequencia: { atual: 1, recorde: 1, aumentou: true },
-  } satisfies RespostaConclusao);
+  } satisfies RespostaFlashcard);
 
   // Espionar o protótipo pega qualquer acesso, inclusive `sessionStorage`, que
   // compartilha a mesma classe e seria só a chave trocando de casa.
@@ -173,11 +174,11 @@ describe("nenhum caminho de progresso toca o armazenamento do navegador", () => 
   });
 
   it("concluir uma fase não grava nada no navegador", async () => {
-    montar(<BotaoConclusao trilhaSlug={TRILHA.slug} faseSlug="trocar" />);
+    montar(<PainelFlashcard trilhaSlug={TRILHA.slug} exercicioSlug="trocar" />);
 
     await waitFor(() => expect(exerciciosConcluidos).toHaveBeenCalled());
     await userEvent.click(document.querySelector("button")!);
-    await waitFor(() => expect(concluirExercicio).toHaveBeenCalled());
+    await waitFor(() => expect(revelarFlashcard).toHaveBeenCalled());
 
     expect(chamadasDeStorage()).toBe(0);
   });

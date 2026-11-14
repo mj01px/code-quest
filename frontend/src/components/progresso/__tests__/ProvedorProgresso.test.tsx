@@ -17,7 +17,6 @@ import {
   ProvedorProgresso,
   useProgresso,
 } from "@/components/progresso/ProvedorProgresso";
-import { BotaoConclusao } from "@/components/trilhas/BotaoConclusao";
 import { api as apiReal, temSessao as temSessaoReal } from "@/lib/api";
 
 // O Context existe por dois motivos, e os dois têm teste aqui: uma busca só
@@ -278,17 +277,21 @@ describe("ProvedorProgresso", () => {
   });
 });
 
-describe("BotaoConclusao invalida o Context", () => {
+describe("recarregar() invalida o Context", () => {
   it("a lista e o XP são relidos depois de concluir", async () => {
+    // O que toda tela de conclusão faz depois do POST aprovado.
+    function Conclui() {
+      const { recarregar } = useProgresso();
+      return <button onClick={recarregar}>Concluir</button>;
+    }
     render(
       <ProvedorProgresso>
-        <BotaoConclusao trilhaSlug="logica" faseSlug="trocar" />
+        <Conclui />
       </ProvedorProgresso>,
     );
 
     await waitFor(() => expect(exerciciosConcluidos).toHaveBeenCalledTimes(1));
     await userEvent.click(screen.getByRole("button"));
-    await waitFor(() => expect(concluirExercicio).toHaveBeenCalled());
 
     // Prova contra o código antigo: sem `recarregar()`, a segunda leitura nunca
     // acontece e a sidebar segue com o XP velho até um refresh manual.

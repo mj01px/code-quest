@@ -677,7 +677,7 @@ referência de um exercício, publicado ou não, por uma rota própria.
 - CA03: Dadas duas conclusões simultâneas de exercícios diferentes, quando processadas, então o XP final deverá somar as duas.
 - CA04: Dado um exercício de código, quando o envio for reprovado, então nenhum XP deverá ser creditado.
 
-**Fonte:** `backend/apps/progressao/views.py` (`ConcluirExercicioView`), `backend/apps/progressao/services.py` (`creditar_exercicio`, `XP_POR_DIFICULDADE`), `backend/apps/progressao/models.py` (`EventoXP`), `frontend/src/components/trilhas/BotaoConclusao.tsx`.
+**Fonte:** `backend/apps/progressao/views.py` (`ConcluirExercicioView`), `backend/apps/progressao/services.py` (`creditar_exercicio`, `XP_POR_DIFICULDADE`), `backend/apps/progressao/models.py` (`EventoXP`), `frontend/src/components/exercicio/PainelDeCodigo.tsx`, `frontend/src/components/exercicio/useRespostaEscrita.ts`.
 
 ### RF19. Consultar progresso do aluno
 
