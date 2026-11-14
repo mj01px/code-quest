@@ -81,6 +81,7 @@ export function PainelAutoria() {
   const permissoes = usuario?.permissoes ?? [];
   const podeSubmeter = permissoes.includes("trilhas.submit_review");
   const podeRevisar = permissoes.includes("trilhas.review");
+  const podePublicar = permissoes.includes("trilhas.publish");
   const podeCriar = permissoes.includes("trilhas.create");
   const podeCriarTrilha = podeCriar && permissoes.includes("trilhas.create_trilha");
   const temAcesso = podeSubmeter || podeRevisar;
@@ -236,6 +237,7 @@ export function PainelAutoria() {
               />
               <ListaAprovados
                 key={`aprovados-${versaoAprovados}`}
+                podePublicar={podePublicar}
                 aoAlterar={podeCriar ? () => setVersaoAprovados((v) => v + 1) : undefined}
                 aoContar={contar.aprovados}
               />

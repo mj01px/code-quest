@@ -58,7 +58,7 @@ const mock = jest.requireMock<{
 
 const ALUNO = usuario().permissoes;
 const AUTOR = [...ALUNO, "trilhas.submit_review"];
-const ADMIN = [...AUTOR, "trilhas.review"];
+const ADMIN = [...AUTOR, "trilhas.review", "trilhas.publish"];
 
 const rascunho: ItemEditorial = {
   id: 3,
@@ -711,16 +711,27 @@ describe("PainelAutoria: prontos para publicar", () => {
     mock.api.autoriaAprovados.mockResolvedValue([aprovada]);
     montar(AUTOR);
 
-    await screen.findByRole("button", { name: "Publicar: Aula pronta" });
+    await screen.findByText("APROVADO");
     expect(screen.queryByRole("button", { name: "Excluir: Aula pronta" })).toBeNull();
   });
 
-  it("autor publica o aprovado e abre a trilha no editor", async () => {
+  it("autor não vê o botão Publicar e lê o aviso da administração", async () => {
+    mock.api.autoriaAprovados.mockResolvedValue([aprovada]);
+    montar(AUTOR);
+
+    await screen.findByText("APROVADO");
+    expect(screen.queryByRole("button", { name: "Publicar: Aula pronta" })).toBeNull();
+    expect(
+      screen.getByText("O conteúdo aprovado será publicado pela administração."),
+    ).toBeInTheDocument();
+  });
+
+  it("admin com trilhas.publish publica o aprovado e abre a trilha no editor", async () => {
     mock.api.autoriaAprovados.mockResolvedValue([
       { id: 5, tipo: "trilhas", titulo: "Trilha pronta", status_editorial: "APROVADO" },
     ]);
     mock.api.publicarConteudo.mockResolvedValue({ id: 5, status_editorial: "PUBLICADO" });
-    montar(AUTOR);
+    montar(ADMIN);
 
     expect(
       await screen.findByRole("link", { name: "Abrir no editor: Trilha pronta" }),

@@ -100,14 +100,15 @@ def url_publicar(trilha):
     return reverse("autoria:publicar", kwargs={"tipo": "trilhas", "pk": trilha.pk})
 
 
-def test_autor_publica_a_propria_trilha_aprovada(autor):
+def test_autor_nao_publica_nem_a_propria_trilha_aprovada(autor):
+    # RF15-RN02: submit_review sem trilhas.publish recebe 403, mesmo no que criou.
     trilha = criar_trilha("minha", status=APROVADO, autor=autor)
 
     resposta = cliente(autor).post(url_publicar(trilha))
 
-    assert resposta.status_code == 200
+    assert resposta.status_code == 403
     trilha.refresh_from_db()
-    assert trilha.status == StatusEditorial.PUBLICADO
+    assert trilha.status == APROVADO
 
 
 def test_aprovados_lista_so_o_do_autor(autor):

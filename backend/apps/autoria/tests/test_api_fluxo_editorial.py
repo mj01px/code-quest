@@ -138,7 +138,7 @@ def test_anonimo_recebe_401(acao, origem, _destino):
         ("submeter", RASCUNHO, criar_aluno),
         ("aprovar", REVISAO, criar_autor),
         ("devolver", REVISAO, criar_autor),
-        # O autor tem a rota, mas o conteúdo não é dele: cai no dono.
+        # O autor tem submit_review, mas não trilhas.publish (RF15-RN02).
         ("publicar", APROVADO, criar_autor),
         ("publicar", APROVADO, criar_aluno),
     ],

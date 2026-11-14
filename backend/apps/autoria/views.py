@@ -171,14 +171,11 @@ class DevolverView(TransicaoEditorialView):
         return Response({"id": conteudo.pk, "status_editorial": conteudo.status})
 
 
-# O autor publica o que criou depois de aprovado; quem tem `trilhas.publish`
-# publica qualquer um. O dono é cobrado em `transicionar`.
+# Só quem tem `trilhas.publish` publica (RF15-RN02). Quem tem apenas
+# `trilhas.submit_review`, como o autor, envia para revisão e para aí.
 class PublicarView(TransicaoEditorialView):
     acao = "publicar"
-    permission_classes = [
-        IsAuthenticated,
-        HasAnyPerm("trilhas.publish", "trilhas.submit_review"),
-    ]
+    permission_classes = [IsAuthenticated, HasPerm("trilhas.publish")]
 
 
 # Base das duas filas, sem rota própria. Mesmo balde das ações: a tela lista e

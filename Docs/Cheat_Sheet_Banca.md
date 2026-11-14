@@ -31,7 +31,7 @@ Consulta rápida para a apresentação: a banca pergunta, você abre o arquivo n
 | E se o Judge0 cair? | `apps/correcao/excecoes.py:L7` (`CorretorIndisponivel`), `apps/correcao/views.py:L103` e `src/components/ui/ServicoIndisponivel.tsx:L7` | A API responde 503 padronizado e a tela mostra aviso; o resto da plataforma segue (RNF22). |
 | Onde está a regra dos quatro olhos? | `apps/autoria/services.py:L464` e `apps/autoria/services.py:L465` | Quem criou o conteúdo não o aprova, nem o administrador. É a transição `aprovar` em `transicionar` (`apps/autoria/services.py:L434`). |
 | Como o fluxo editorial é controlado? | `apps/autoria/services.py:L31` (`TRANSICOES`), `apps/autoria/services.py:L434` (`transicionar`) e `apps/autoria/views.py:L133` | Rascunho, revisão, aprovado, publicado; cada passo exige permissão, trava a linha e vai para a auditoria (RF15). |
-| O autor pode publicar o que escreveu? | `apps/autoria/views.py:L176` e `apps/autoria/views.py:L180` | Só depois de aprovado por outra pessoa. A permissão aceita `trilhas.submit_review` além de `trilhas.publish`; é escolha documentada (ressalva 2). |
+| O autor pode publicar o que escreveu? | `apps/autoria/views.py:L176` e `apps/autoria/views.py:L178` | Não. Publicar exige `trilhas.publish`, que só o administrador tem; o autor (`trilhas.submit_review`) recebe 403, mesmo no que criou (RF15-RN02). Teste: `apps/autoria/tests/test_api_questao.py:L103`. |
 
 ### LGPD, auditoria e dados
 
@@ -128,8 +128,8 @@ Todas sob o prefixo `/api/v1/`. A coluna "View" aponta a classe que responde.
 | PATCH | `auth/admin/usuarios/<uuid>/situacao/` | `apps/contas/views_rbac.py:L295` | RF34 |
 | GET | `auditoria/` | `apps/auditoria/views.py:L55` | RF33 |
 | GET | `admin/dashboard/` e `admin/logs/` | `apps/progressao/views.py:L96` e `apps/progressao/views.py:L111` | painel |
-| GET | `admin/solicitacoes/` (pedidos de autoria pendentes) | `apps/autoria/views.py:L349` | RF15 |
-| POST | `admin/solicitacoes/<id>/aprovar/` e `admin/solicitacoes/<id>/rejeitar/` | `apps/autoria/views.py:L377` e `apps/autoria/views.py:L390` | RF15 |
+| GET | `admin/solicitacoes/` (pedidos de autoria pendentes) | `apps/autoria/views.py:L346` | RF15 |
+| POST | `admin/solicitacoes/<id>/aprovar/` e `admin/solicitacoes/<id>/rejeitar/` | `apps/autoria/views.py:L374` e `apps/autoria/views.py:L387` | RF15 |
 
 ### Trilhas, exercícios e correção
 
@@ -151,14 +151,14 @@ Todas sob o prefixo `/api/v1/`. A coluna "View" aponta a classe que responde.
 
 | Método | Rota | View | RF |
 |---|---|---|---|
-| POST | `autoria/trilhas/`, `autoria/aulas/`, `autoria/exercicios/` | `apps/autoria/views.py:L425`, `apps/autoria/views.py:L434` e `apps/autoria/views.py:L443` | RF15 |
+| POST | `autoria/trilhas/`, `autoria/aulas/`, `autoria/exercicios/` | `apps/autoria/views.py:L422`, `apps/autoria/views.py:L431` e `apps/autoria/views.py:L440` | RF15 |
 | POST | `autoria/<tipo>/<id>/submeter/` | `apps/autoria/views.py:L144` | RF15 |
 | POST | `autoria/<tipo>/<id>/aprovar/` | `apps/autoria/views.py:L149` | RF15 |
 | POST | `autoria/<tipo>/<id>/devolver/` | `apps/autoria/views.py:L155` | RF15 |
 | POST | `autoria/<tipo>/<id>/publicar/` | `apps/autoria/views.py:L176` | RF15 |
-| GET | `autoria/rascunhos/`, `autoria/aprovados/`, `autoria/fila-revisao/` | `apps/autoria/views.py:L206`, `apps/autoria/views.py:L214` e `apps/autoria/views.py:L220` | RF15 |
+| GET | `autoria/rascunhos/`, `autoria/aprovados/`, `autoria/fila-revisao/` | `apps/autoria/views.py:L203`, `apps/autoria/views.py:L211` e `apps/autoria/views.py:L217` | RF15 |
 | GET | `autoria/exercicios/<trilha>/<exercicio>/solucao/` | `apps/autoria/views.py:L87` | RF16 |
-| POST | `autoria/solicitacoes/` | `apps/autoria/views.py:L316` | RF15 |
+| POST | `autoria/solicitacoes/` | `apps/autoria/views.py:L313` | RF15 |
 
 ### Criaturas, clãs e ranking
 

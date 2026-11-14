@@ -23,8 +23,8 @@ PERMISSAO_POR_ROTA = {
     "submeter": "HasPerm[trilhas.submit_review]",
     "aprovar": "HasPerm[trilhas.review]",
     "devolver": "HasPerm[trilhas.review]",
-    # O autor publica o próprio conteúdo aprovado; o dono é cobrado no serviço.
-    "publicar": "HasAnyPerm[trilhas.publish,trilhas.submit_review]",
+    # Publicar é só de quem tem trilhas.publish; o autor não publica (RF15-RN02).
+    "publicar": "HasPerm[trilhas.publish]",
     "rascunhos": "HasPerm[trilhas.submit_review]",
     "aprovados": "HasPerm[trilhas.submit_review]",
     "fila-revisao": "HasPerm[trilhas.review]",
