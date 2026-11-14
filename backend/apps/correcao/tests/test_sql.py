@@ -291,6 +291,85 @@ class SqlTest(TestCase):
                 )
         self.assertFalse(EventoXP.objects.exists())
 
+    def test_consulta_so_exibe_linhas_do_primeiro_caso_visivel_ao_rodar(self):
+        self.preparar_correcao("selecionar-colunas")
+        codigo = "SELECT nome, email FROM aluno ORDER BY nome"
+
+        rodada = self.executar(codigo)
+        self.assertEqual(rodada.data["veredito"], "APROVADO")
+        self.assertEqual(
+            rodada.data["saida"], "nome | email\nAna | a@escola.br\nBia | b@escola.br\n"
+        )
+        self.assertFalse(EventoXP.objects.exists())
+
+        enviada = self.enviar(codigo)
+        self.assertTrue(enviada.data["aprovado"])
+        self.assertEqual(enviada.data["correcao"]["saida"], "")
+        for caso in enviada.data["correcao"]["casos"][2:]:
+            self.assertEqual(set(caso), {"ordem", "visivel", "passou"})
+
+    def test_consulta_recusa_linhas_fixas_e_comandos_de_escrita(self):
+        self.preparar_correcao("selecionar-colunas")
+        for codigo, veredito in (
+            (
+                "SELECT 'Ana', 'a@escola.br' UNION ALL SELECT 'Bia', 'b@escola.br'",
+                "RESPOSTA_ERRADA",
+            ),
+            (
+                "WITH dados AS (SELECT 1) DELETE FROM aluno WHERE id IN (SELECT * FROM dados)",
+                "ERRO_DE_EXECUCAO",
+            ),
+            ("SELECT readfile('script.sql')", "ERRO_DE_EXECUCAO"),
+        ):
+            with self.subTest(codigo=codigo):
+                resposta = self.enviar(codigo)
+                self.assertEqual(resposta.status_code, 200)
+                self.assertFalse(resposta.data["aprovado"])
+                self.assertEqual(resposta.data["correcao"]["veredito"], veredito)
+        self.assertFalse(EventoXP.objects.exists())
+
+    def test_matricula_sem_restricao_de_duplicata_nao_credita_xp(self):
+        self.preparar_correcao("criar-matricula")
+        resposta = self.enviar(
+            "CREATE TABLE matricula ("
+            "aluno_id INTEGER NOT NULL REFERENCES aluno(id), "
+            "turma_id INTEGER NOT NULL REFERENCES turma(id), nota NUMERIC)"
+        )
+        self.assertEqual(resposta.status_code, 200)
+        self.assertFalse(resposta.data["aprovado"])
+        self.assertFalse(resposta.data["correcao"]["casos"][1]["passou"])
+        self.assertFalse(EventoXP.objects.exists())
+
+    def test_transferencia_verifica_reversao_se_o_credito_falhar(self):
+        self.preparar_correcao("transferencia-em-transacao")
+        codigo = (
+            "BEGIN; UPDATE conta SET saldo = saldo - 100 WHERE id = 1; "
+            "UPDATE conta SET saldo = saldo + 100 WHERE id = 2; COMMIT;"
+        )
+
+        resposta = self.executar(codigo)
+        self.assertEqual(resposta.data["aprovados"], 2)
+        self.assertFalse(EventoXP.objects.exists())
+
+        sem_transacao = codigo.removeprefix("BEGIN; ").removesuffix(" COMMIT;")
+        self.assertEqual(self.enviar(sem_transacao).status_code, 400)
+        self.assertFalse(EventoXP.objects.exists())
+
+        resposta = self.enviar(codigo)
+        self.assertTrue(resposta.data["aprovado"])
+        self.assertEqual(resposta.data["correcao"]["aprovados"], 4)
+        self.assertEqual(EventoXP.objects.count(), 1)
+
+    def test_consulta_de_datas_exige_busca_pelo_indice(self):
+        self.preparar_correcao("funcao-na-coluna")
+        resposta = self.enviar(
+            "SELECT * FROM matricula WHERE strftime('%Y', criado_em) = '2026'"
+        )
+        self.assertEqual(resposta.status_code, 200)
+        self.assertFalse(resposta.data["aprovado"])
+        self.assertEqual(resposta.data["correcao"]["veredito"], "RESPOSTA_ERRADA")
+        self.assertFalse(EventoXP.objects.exists())
+
     def test_resultados_incompletos_ou_duplicados_nao_creditam_xp(self):
         self.preparar_correcao("restringir-nota")
 
