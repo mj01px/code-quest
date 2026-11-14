@@ -15,6 +15,7 @@ from apps.gamificacao.models import UserCreature
 from apps.gamificacao.services import select_starter_creature
 from apps.progressao.models import EventoXP, Sequencia
 from apps.progressao.services import creditar_exercicio, ler_sequencia
+from apps.trilhas.models import Tipo
 
 from .test_credito_xp import criar_exercicio
 
@@ -177,8 +178,8 @@ class SequenciaTest(TestCase):
     def test_api_conclusao_informa_aumento_so_no_primeiro_credito_do_dia(self):
         client = APIClient()
         client.force_authenticate(user=self.user)
-        primeiro = criar_exercicio(slug="primeiro")
-        segundo = criar_exercicio(slug="segundo")
+        primeiro = criar_exercicio(slug="primeiro", tipo=Tipo.TEORICO)
+        segundo = criar_exercicio(slug="segundo", tipo=Tipo.TEORICO)
 
         def concluir(exercicio):
             return client.post(

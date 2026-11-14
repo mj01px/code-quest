@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 
 import {EditorDeCodigo} from "@/components/exercicio/EditorDeCodigo";
 import {CabecalhoDoPainel, GradeDoExercicio} from "@/components/exercicio/GradeDoExercicio";
-import {ResultadoDosCasos, comoTexto} from "@/components/exercicio/ResultadoDosCasos";
+import {ResultadoDosCasos, arquivoDeExemplo, comoArgumento, comoTexto} from "@/components/exercicio/ResultadoDosCasos";
 import {useProgresso} from "@/components/progresso/ProvedorProgresso";
 import {estaConcluida} from "@/lib/progresso";
 import {ErroApi, api} from "@/lib/api";
@@ -32,7 +32,9 @@ const CONSTRUCOES: Record<string, string> = {
     fstring: "uma f-string",
     import: "import",
     with: "um with",
+    encoding: "uma abertura de arquivo com encoding informado",
     chamada: "a função",
+    bloco_aninhado: "um bloco aninhado",
 };
 
 function descreverRequisito(requisito: RequisitoEstrutural): string {
@@ -45,16 +47,18 @@ function descreverRequisito(requisito: RequisitoEstrutural): string {
 
 function descreverExemplo(exemplo: ExemploDeCaso, funcao: string): string {
     if (exemplo.descricao) return exemplo.descricao;
-    const args = (exemplo.argumentos ?? []).map(comoTexto).join(", ");
+    const args = (exemplo.argumentos ?? []).map(comoArgumento).join(", ");
     const saida = exemplo.erro_esperado
         ? `levanta ${exemplo.erro_esperado}`
-        : `→ ${comoTexto(exemplo.esperado)}`;
+        : `→ ${arquivoDeExemplo(exemplo.argumentos?.[0])?.verificar ? "linhas gravadas " : ""}${comoTexto(exemplo.esperado)}`;
     return `${funcao}(${args}) ${saida}`;
 }
 
 function descreverResultado(caso: ResultadoDoCaso, funcao: string): string {
-    const args = (caso.argumentos ?? []).map(comoTexto).join(", ");
-    return `${funcao}(${args}) → ${caso.erro || comoTexto(caso.obtido)}`;
+    const args = (caso.argumentos ?? []).map(comoArgumento).join(", ");
+    const arquivo = arquivoDeExemplo(caso.argumentos?.[0]);
+    const resultado = caso.erro || `${arquivo?.verificar ? "linhas gravadas " : ""}${comoTexto(caso.obtido)}`;
+    return `${funcao}(${args}) → ${resultado}`;
 }
 
 function ExemploDeExecucao({ especificacao, argumentos }: {
@@ -64,7 +68,9 @@ function ExemploDeExecucao({ especificacao, argumentos }: {
     const exemplo = especificacao.exemplos[0];
     if (!exemplo) return null;
 
-    const valores = (argumentos ?? exemplo.argumentos ?? []).map(comoTexto);
+    const entradas = argumentos ?? exemplo.argumentos ?? [];
+    const arquivo = arquivoDeExemplo(entradas[0]);
+    const valores = entradas.map(comoArgumento);
     const parametros = especificacao.parametros?.slice(0, valores.length) ?? [];
     if (!valores.length || parametros.length !== valores.length) return null;
     const linhas = parametros.map((nome, indice) => `${nome} = ${valores[indice]}`);
@@ -77,6 +83,11 @@ function ExemploDeExecucao({ especificacao, argumentos }: {
             <pre aria-label="Entrada do exemplo" className="m-0 overflow-x-auto font-mono text-sm text-brand-light">
                 {linhas.join("\n")}
             </pre>
+            {arquivo && (
+                <pre aria-label="Conteúdo inicial do arquivo" className="m-0 mt-2 overflow-x-auto font-mono text-sm text-ink-body">
+                    {arquivo.conteudo || "(arquivo vazio)"}
+                </pre>
+            )}
         </div>
     );
 }
@@ -189,14 +200,14 @@ export function PainelDeCodigo({
     const exemploExecutado = correcao?.modo === "EXECUTAR"
         ? correcao.casos.find((caso) => caso.visivel)
         : undefined;
-    const saidaDoExemplo = emSql
-        ? (correcao?.veredito === "APROVADO" || correcao?.veredito === "RESPOSTA_ERRADA"
-            ? "Comando SQL executado."
-            : "")
-        : (exemploExecutado && !(correcao?.personalizado && exemploExecutado.erro)
-            ? descreverResultado(exemploExecutado, especificacao.funcao)
-            : "");
-    const saidaTerminal = correcao?.saida || saidaDoExemplo;
+    const saidaDoExemplo = !emSql && exemploExecutado && !(correcao?.personalizado && exemploExecutado.erro)
+        ? descreverResultado(exemploExecutado, especificacao.funcao)
+        : "";
+    const saidaSql = emSql && (correcao?.veredito === "APROVADO" || correcao?.veredito === "RESPOSTA_ERRADA")
+        ? (correcao.modo === "ENVIAR" ? "Envio SQL processado." : "Comando SQL executado.")
+        : "";
+    const saidaTerminal = correcao?.saida || saidaDoExemplo || saidaSql;
+    const exibirSaida = emSql || correcao?.modo === "EXECUTAR";
     const argumentosDoRodar = correcao?.modo === "EXECUTAR" && correcao.personalizado
         ? exemploExecutado?.argumentos
         : undefined;
@@ -217,6 +228,7 @@ export function PainelDeCodigo({
         return (
             <GradeDoExercicio
                 pet={pet}
+                rotuloDaDireita={emSql ? "Resultado SQL" : undefined}
                 aprender={aprender}
                 centro={
                     <>
@@ -303,19 +315,19 @@ export function PainelDeCodigo({
                 direita={
                     <>
                         <CabecalhoDoPainel>
-                            <span className="text-ink">Terminal</span>
+                            <span className="text-ink">{emSql ? "Resultado SQL" : "Terminal"}</span>
                             <span className="text-ink-dim">codequest@os</span>
                         </CabecalhoDoPainel>
                         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-field">
                             <TerminalDeSaida
                                 semMoldura
-                                classeDaArea="h-56"
+                                classeDaArea={emSql ? "h-28" : "h-56"}
                                 vazio="> aguardando execução..."
-                                saida={correcao?.modo === "EXECUTAR" ? saidaTerminal : ""}
-                                erro={correcao?.modo === "EXECUTAR" ? erroTerminal : ""}
-                                veredito={correcao?.modo === "EXECUTAR" ? correcao.veredito : ""}
+                                saida={exibirSaida ? saidaTerminal : ""}
+                                erro={exibirSaida ? erroTerminal : ""}
+                                veredito={exibirSaida ? correcao?.veredito ?? "" : ""}
                             />
-                            <div className="flex flex-col gap-3 px-4 pb-4 empty:hidden">
+                            <div className={`flex flex-col gap-3 px-4 pb-4 empty:hidden ${emSql ? "pt-4" : ""}`}>
                                 {status ? (
                                     <p
                                         role="status"
@@ -328,7 +340,7 @@ export function PainelDeCodigo({
                                     </p>
                                 ) : null}
                                 {correcao && (
-                                    <ResultadoDosCasos correcao={correcao} funcao={especificacao.funcao} semContagem/>
+                                    <ResultadoDosCasos correcao={correcao} funcao={especificacao.funcao} semContagem={!emSql}/>
                                 )}
                                 {emSql && !correcao && especificacao.exemplos.length > 0 && (
                                     <section className="space-y-2 border-2 border-edge bg-panel-soft p-4">
@@ -442,11 +454,13 @@ export function PainelDeCodigo({
                 </p>
             </div>
 
-            {mostrarTerminal && correcao && (
+            {(emSql || mostrarTerminal) && (
                 <TerminalDeSaida
+                    classeDaArea={emSql ? "h-28" : undefined}
+                    vazio={emSql ? "> aguardando execução..." : undefined}
                     saida={saidaTerminal}
                     erro={erroTerminal}
-                    veredito={correcao.veredito}
+                    veredito={correcao?.veredito ?? ""}
                 />
             )}
 

@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 
 import { ErroApi } from "@/lib/api";
 
+import PaginaFaq from "../faq/page";
 import PaginaPrivacidade from "../privacidade/page";
 import PaginaSuporte from "../suporte/page";
 import PaginaTermos from "../termos/page";
@@ -128,15 +129,12 @@ describe("Suporte", () => {
     expect(api.buscarDocumentosLegais).not.toHaveBeenCalled();
   });
 
-  it("responde pelo que a plataforma faz hoje, não pelo que vai fazer", async () => {
+  it("manda as dúvidas frequentes para o FAQ", async () => {
     render(await PaginaSuporte());
 
     expect(
-      screen.getByRole("link", { name: "recuperar senha" }),
-    ).toHaveAttribute("href", "/recuperar-senha");
-    expect(
-      screen.getByText(/progresso fica guardado na sua conta/),
-    ).toBeInTheDocument();
+      screen.getByRole("link", { name: "Perguntas Frequentes" }),
+    ).toHaveAttribute("href", "/faq");
   });
 
   it("identifica o canal como o do encarregado de dados", async () => {
@@ -146,14 +144,45 @@ describe("Suporte", () => {
   });
 });
 
+describe("FAQ", () => {
+  it("abre sem depender da API de documentos", async () => {
+    render(await PaginaFaq({}));
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: /FAQ/ }),
+    ).toBeInTheDocument();
+    expect(api.buscarDocumentosLegais).not.toHaveBeenCalled();
+  });
+
+  it("abre na categoria e na busca que vieram na URL", async () => {
+    render(
+      await PaginaFaq({
+        searchParams: Promise.resolve({ q: "ranking" }),
+      }),
+    );
+
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Resultados da busca" }),
+    ).toBeInTheDocument();
+  });
+
+  it("termina apontando para o suporte", async () => {
+    render(await PaginaFaq({}));
+
+    expect(
+      screen.getByRole("link", { name: "IR PARA O SUPORTE" }),
+    ).toHaveAttribute("href", "/suporte");
+  });
+});
+
 describe("Rodapé", () => {
-  it("não tem mais link quebrado: as três páginas existem", async () => {
+  it("não tem link quebrado: as quatro páginas existem", async () => {
     render(await PaginaTermos());
 
     const rodape = screen.getByRole("contentinfo");
     const destinos = Array.from(rodape.querySelectorAll("a")).map((a) =>
       a.getAttribute("href"),
     );
-    expect(destinos).toEqual(["/termos", "/privacidade", "/suporte"]);
+    expect(destinos).toEqual(["/termos", "/privacidade", "/faq", "/suporte"]);
   });
 });

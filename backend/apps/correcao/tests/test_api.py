@@ -1,3 +1,4 @@
+import json
 from unittest import mock
 
 from django.core.cache import cache
@@ -10,6 +11,7 @@ from apps.contas.tests.helpers import criar_aluno
 from apps.gamificacao.services import select_starter_creature
 from apps.progressao.models import EventoXP, Sequencia
 from apps.progressao.tests.test_credito_xp import criar_exercicio
+from apps.trilhas.models import Tipo
 
 from .helpers import (
     CODIGO_CERTO,
@@ -142,6 +144,50 @@ class ApiCorrecaoTest(TestCase):
         self.assertFalse(EventoXP.objects.exists())
         self.assertFalse(Sequencia.objects.exists())
 
+    def test_espaco_na_string_multilinha_nao_reusa_aprovacao(self):
+        codigo_certo = (
+            'def dobro(n):\n'
+            '    if """x\n""" == "x\\n":\n'
+            '        return n * 2\n'
+            '    return -1\n'
+        )
+        codigo_errado = codigo_certo.replace('"""x\n', '"""x \n')
+        concluir = "progressao:concluir-exercicio"
+
+        certa = self._post(concluir, {"codigo": codigo_certo})
+        self.assertEqual(certa.status_code, 200, certa.data)
+        self.assertTrue(certa.data["aprovado"])
+        self.assertGreater(certa.data["xp_ganho"], 0)
+
+        outro_aluno = criar_aluno(nickname="outro_aluno")
+        select_starter_creature(user=outro_aluno, creature_slug="shellby")
+        self.client.force_authenticate(user=outro_aluno)
+        errada = self._post(concluir, {"codigo": codigo_errado})
+
+        self.assertEqual(errada.status_code, 200, errada.data)
+        self.assertFalse(errada.data["aprovado"])
+        self.assertNotIn("xp_ganho", errada.data)
+        self.assertFalse(EventoXP.objects.filter(user=outro_aluno).exists())
+        self.assertEqual(self.executor.chamadas, 2)
+
+    def test_concluir_com_marcador_fixo_e_saida_antecipada_nao_da_xp(self):
+        resultados = [{"ok": True, "valor": valor} for valor in (4, 0, -6, 20)]
+        linha = "@@RESULTADO@@" + json.dumps(resultados)
+        codigo = (
+            f"print({linha!r})\n"
+            "raise SystemExit(0)\n"
+            "def dobro(n):\n"
+            "    pass\n"
+        )
+
+        resposta = self._post("progressao:concluir-exercicio", {"codigo": codigo})
+
+        self.assertEqual(resposta.status_code, 200, resposta.data)
+        self.assertFalse(resposta.data["aprovado"])
+        self.assertEqual(resposta.data["correcao"]["veredito"], "ERRO_DE_EXECUCAO")
+        self.assertFalse(EventoXP.objects.filter(user=self.user).exists())
+        self.assertEqual(self.executor.chamadas, 1)
+
     def test_concluir_com_codigo_certo_da_xp(self):
         resposta = self._post("progressao:concluir-exercicio", {"codigo": CODIGO_CERTO})
 
@@ -157,6 +203,26 @@ class ApiCorrecaoTest(TestCase):
         self.assertEqual(resposta.status_code, 400)
         self.assertEqual(resposta.data["error"]["details"][0]["code"], "codigo_vazio")
         self.assertFalse(EventoXP.objects.exists())
+
+    def test_post_direto_em_codigo_sem_especificacao_ou_casos_nao_da_xp(self):
+        sem_especificacao = criar_exercicio(slug="sem-especificacao")
+        sem_casos = criar_exercicio(slug="sem-casos")
+        criar_especificacao(sem_casos, casos=[])
+
+        for exercicio in (sem_especificacao, sem_casos):
+            for corpo in ({}, {"codigo": CODIGO_CERTO, "aprovado": True, "xp": 999}):
+                with self.subTest(exercicio=exercicio.slug, corpo=corpo):
+                    resposta = self._post(
+                        "progressao:concluir-exercicio", corpo, exercicio=exercicio
+                    )
+                    self.assertEqual(resposta.status_code, 400, resposta.data)
+                    self.assertEqual(
+                        resposta.data["error"]["details"][0]["code"],
+                        "sem_correcao_automatica",
+                    )
+                    self.assertFalse(EventoXP.objects.filter(user=self.user).exists())
+        self.assertFalse(Sequencia.objects.filter(user=self.user).exists())
+        self.assertEqual(self.executor.chamadas, 0)
 
     def test_concluir_com_judge0_fora_do_ar_nao_da_xp(self):
         with mock.patch(CLIENTE, return_value=ClienteForaDoAr()):
@@ -179,8 +245,8 @@ class ApiCorrecaoTest(TestCase):
             self.assertEqual(set(caso), {"ordem", "visivel", "passou"})
         self.assertNotIn("-3", str(resposta.content))
 
-    def test_exercicio_sem_correcao_segue_como_antes(self):
-        teorico = criar_exercicio(slug="ex-teorico")
+    def test_teorico_conclui_sem_correcao(self):
+        teorico = criar_exercicio(slug="ex-teorico", tipo=Tipo.TEORICO)
         resposta = self._post("progressao:concluir-exercicio", exercicio=teorico)
 
         self.assertEqual(resposta.status_code, 200)
@@ -247,8 +313,8 @@ class SemPermissaoDeSubmeterTest(TestCase):
         # Permissão vem antes da rajada: o 403 não gasta o balde do Judge0.
         self.assertIsNone(cache.get(f"throttle_judge0_{self.user.pk}"))
 
-    def test_concluir_sem_correcao_automatica_segue_permitido(self):
-        teorico = criar_exercicio(slug="ex-teorico")
+    def test_concluir_teorico_segue_permitido(self):
+        teorico = criar_exercicio(slug="ex-teorico", tipo=Tipo.TEORICO)
         resposta = self.client.post(
             _rota("progressao:concluir-exercicio", teorico), {}, format="json"
         )

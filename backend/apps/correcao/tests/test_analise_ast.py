@@ -64,6 +64,50 @@ class RequisitosTest(SimpleTestCase):
         self.assertEqual(barrado.code, "requisito_proibido")
         self.assertEqual(barrado.linha, 3)
 
+    def test_proibir_bloco_aninhado_ignora_elif_no_mesmo_nivel(self):
+        requisito = [{"regra": "proibir", "construcao": "bloco_aninhado"}]
+        codigo = (
+            "def numerar(itens):\n"
+            "    if not itens:\n"
+            "        return []\n"
+            "    elif len(itens) == 1:\n"
+            "        return itens\n"
+            "    return list(itens)\n"
+        )
+        self.assertIsNone(_barrado(codigo, requisito))
+
+    def test_proibir_bloco_aninhado_aponta_o_bloco_interno(self):
+        requisito = [{"regra": "proibir", "construcao": "bloco_aninhado"}]
+        codigo = (
+            "def numerar(itens):\n"
+            "    if itens:\n"
+            "        if len(itens) == 1:\n"
+            "            return itens\n"
+            "    return []\n"
+        )
+        barrado = _barrado(codigo, requisito)
+        self.assertEqual(barrado.code, "requisito_proibido")
+        self.assertEqual(barrado.linha, 3)
+
+    def test_exigir_encoding_aceita_argumento_nomeado_e_posicional(self):
+        requisito = [{"regra": "exigir", "construcao": "encoding"}]
+        aberturas = (
+            'open("a.txt", encoding="utf-8")',
+            'open("a.txt", "r", -1, "utf-8")',
+            'Path("a.txt").open("r", -1, "utf-8")',
+        )
+        for chamada in aberturas:
+            with self.subTest(chamada=chamada):
+                self.assertIsNone(_barrado(f"def numerar(itens):\n    {chamada}\n", requisito))
+
+    def test_exigir_encoding_recusa_abertura_sem_encoding(self):
+        requisito = [{"regra": "exigir", "construcao": "encoding"}]
+        aberturas = ('open("a.txt")', 'open("a.txt", encoding=None)', 'print(encoding="utf-8")')
+        for chamada in aberturas:
+            with self.subTest(chamada=chamada):
+                barrado = _barrado(f"def numerar(itens):\n    {chamada}\n", requisito)
+                self.assertEqual(barrado.code, "requisito_exigido")
+
     def test_proibir_import(self):
         codigo = "import os\n" + NUMERAR
         barrado = _barrado(codigo, [{"regra": "proibir", "construcao": "import"}])

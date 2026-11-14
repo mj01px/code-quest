@@ -145,6 +145,52 @@ CASOS_PYTHON: dict[str, EspecificacaoSeed] = {
             ([-0.5], {"erro": "ValueError"}, False),
         ],
     },
+    "contar-linhas": {
+        "funcao": "contar_linhas",
+        "codigo_inicial": "def contar_linhas(caminho):\n    ...\n",
+        "requisitos": [
+            {"regra": "exigir", "construcao": "with"},
+            {"regra": "exigir", "construcao": "encoding"},
+        ],
+        "casos": [
+            ([{"__cq_arquivo__": "notas.txt", "conteudo": "Ana\nBia\nCaio\n"}], 3, True),
+            ([{"__cq_arquivo__": "vazio.txt", "conteudo": ""}], 0, True),
+            ([{"__cq_arquivo__": "nomes.txt", "conteudo": "João\nÉrica"}], 2, False),
+            ([{"__cq_arquivo__": "linhas.txt", "conteudo": "A\n\nB\n"}], 3, False),
+            ([{"__cq_arquivo__": "registro.txt", "conteudo": "Uma linha"}], 1, False),
+        ],
+    },
+    "salvar-linhas": {
+        "funcao": "salvar",
+        "codigo_inicial": "def salvar(caminho, linhas):\n    ...\n",
+        "casos": [
+            (
+                [{"__cq_arquivo__": "lista.txt", "conteudo": "Antigo\n", "verificar": True}, ["Ana", "Bia"]],
+                ["Ana", "Bia"],
+                True,
+            ),
+            (
+                [{"__cq_arquivo__": "vazio.txt", "conteudo": "Apague esta linha\n", "verificar": True}, []],
+                [],
+                True,
+            ),
+            (
+                [{"__cq_arquivo__": "nomes.txt", "conteudo": "Anterior", "verificar": True}, ["João", "Érica", "João"]],
+                ["João", "Érica", "João"],
+                False,
+            ),
+            (
+                [{"__cq_arquivo__": "linhas.txt", "conteudo": "Anterior\n", "verificar": True}, ["primeira", "", "última"]],
+                ["primeira", "", "última"],
+                False,
+            ),
+            (
+                [{"__cq_arquivo__": "registro.txt", "conteudo": "Texto mais longo\n", "verificar": True}, ["Só uma"]],
+                ["Só uma"],
+                False,
+            ),
+        ],
+    },
     "media-lista-vazia": {
         "funcao": "media",
         "codigo_inicial": "def media(notas):\n    ...\n",

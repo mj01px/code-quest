@@ -51,6 +51,31 @@ function formatarBr(data: Date): string {
   return `${dd}/${mm}/${data.getFullYear()}`;
 }
 
+/** Aplica a máscara dd/mm/aaaa conforme os dígitos digitados. */
+export function mascararData(entrada: string): string {
+  const d = entrada.replace(/\D/g, "").slice(0, 8);
+  if (d.length <= 2) return d;
+  if (d.length <= 4) return `${d.slice(0, 2)}/${d.slice(2)}`;
+  return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
+}
+
+/** "dd/mm/aaaa" completo e existente no calendário vira ISO; o resto vira "". */
+export function textoParaIso(texto: string): string {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(texto);
+  if (!m) return "";
+  const [dia, mes, ano] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const data = new Date(ano, mes - 1, dia);
+  // Rejeita 31/02 e afins, que o Date "corrige" para o mês seguinte.
+  if (
+    ano < 1900 ||
+    data.getFullYear() !== ano ||
+    data.getMonth() !== mes - 1 ||
+    data.getDate() !== dia
+  )
+    return "";
+  return paraIso(ano, mes - 1, dia);
+}
+
 export function CampoData({ rotulo, value, onChange, erro, name, limpavel = false }: Props) {
   const id = useId();
   const erroId = `${id}-erro`;
@@ -58,6 +83,32 @@ export function CampoData({ rotulo, value, onChange, erro, name, limpavel = fals
 
   const [aberto, setAberto] = useState(false);
   const [visao, setVisao] = useState<"dias" | "anos">("dias");
+
+  const [texto, setTexto] = useState(() => {
+    const d = doIso(value);
+    return d ? formatarBr(d) : "";
+  });
+  // Acompanha mudanças vindas de fora (calendário, limpar, reset do form)
+  // sem apagar o que o usuário está digitando pela metade.
+  const [ultimoValor, setUltimoValor] = useState(value);
+  if (value !== ultimoValor) {
+    setUltimoValor(value);
+    if (value !== textoParaIso(texto)) {
+      const d = doIso(value);
+      setTexto(d ? formatarBr(d) : "");
+    }
+  }
+
+  const textoCompleto = texto.length === 10;
+  const erroLocal = textoCompleto && !textoParaIso(texto) ? "Data inválida." : null;
+  const erroExibido = erroLocal ?? erro;
+
+  function digitar(entrada: string) {
+    const mascarado = mascararData(entrada);
+    setTexto(mascarado);
+    const iso = textoParaIso(mascarado);
+    if (iso !== value) onChange(iso);
+  }
 
   const hoje = new Date();
   const selecionada = doIso(value);
@@ -106,7 +157,7 @@ export function CampoData({ rotulo, value, onChange, erro, name, limpavel = fals
     setMes(d.getMonth());
   }
 
-  const borda = erro ? "border-danger" : "border-brand-strong";
+  const borda = erroExibido ? "border-danger" : "border-brand-strong";
 
   // Grade do mês: offset até o primeiro dia + dias do mês.
   const primeiroDiaSemana = new Date(ano, mes, 1).getDay();
@@ -134,24 +185,35 @@ export function CampoData({ rotulo, value, onChange, erro, name, limpavel = fals
       </label>
 
       <div className="relative">
-        <button
-          type="button"
-          id={id}
-          onClick={abrir}
-          aria-haspopup="dialog"
-          aria-expanded={aberto}
-          aria-describedby={erro ? erroId : undefined}
-          className={`flex w-full items-center justify-between gap-2 border-2 ${borda} bg-field px-3 py-[11px] shadow-pixel hover:border-brand-pale`}
+        <div
+          className={`flex w-full items-center gap-2 border-2 ${borda} bg-field shadow-pixel focus-within:border-brand-pale hover:border-brand-pale`}
         >
-          <span
-            className={`font-body text-[15px] ${selecionada ? "text-ink" : "text-ink-ghost"}`}
+          <input
+            id={id}
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="dd/mm/aaaa"
+            maxLength={10}
+            value={texto}
+            onChange={(e) => digitar(e.target.value)}
+            aria-invalid={erroExibido ? true : undefined}
+            aria-describedby={erroExibido ? erroId : undefined}
+            className="min-w-0 flex-1 bg-transparent py-[11px] pl-3 font-body text-[15px] text-ink outline-none placeholder:text-ink-ghost"
+          />
+          <button
+            type="button"
+            onClick={abrir}
+            aria-label="Abrir calendário"
+            aria-haspopup="dialog"
+            aria-expanded={aberto}
+            className="shrink-0 px-3 py-[11px] text-brand hover:text-brand-light"
           >
-            {selecionada ? formatarBr(selecionada) : "dd/mm/aaaa"}
-          </span>
-          <span className="shrink-0 text-brand" aria-hidden="true">
-            <IconeCalendario />
-          </span>
-        </button>
+            <span aria-hidden="true">
+              <IconeCalendario />
+            </span>
+          </button>
+        </div>
         {/* Campo escondido: mantém o valor no envio do formulário por name. */}
         {name ? <input type="hidden" name={name} value={value} /> : null}
 
@@ -307,13 +369,13 @@ export function CampoData({ rotulo, value, onChange, erro, name, limpavel = fals
         ) : null}
       </div>
 
-      {erro ? (
+      {erroExibido ? (
         <p
           id={erroId}
           role="alert"
           className="font-body text-base leading-[1.6] tracking-wide text-danger"
         >
-          {erro}
+          {erroExibido}
         </p>
       ) : null}
     </div>

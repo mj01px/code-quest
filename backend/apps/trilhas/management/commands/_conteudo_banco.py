@@ -647,7 +647,7 @@ AULAS_BANCO: list[AulaSeed] = [
                     "SELECT a.nome, COUNT(m.id) AS matriculas\n"
                     "FROM aluno a\n"
                     "LEFT JOIN matricula m ON m.aluno_id = a.id\n"
-                    "GROUP BY a.nome;"
+                    "GROUP BY a.id, a.nome;"
                 ),
             },
             {
@@ -868,7 +868,7 @@ AULAS_BANCO: list[AulaSeed] = [
                     "FROM matricula\n"
                     "WHERE criado_em >= '2026-01-01'\n"
                     "  AND criado_em < '2027-01-01';\n\n"
-                    "O índice guarda o valor de `criado_em`, não o de "
+                    "-- O índice guarda o valor de `criado_em`, não o de "
                     "`YEAR(criado_em)`. Aplicar função na coluna esconde o valor "
                     "indexado e obriga o banco a calcular linha a linha. "
                     "Reescrever como faixa deixa a coluna sozinha de um lado da "

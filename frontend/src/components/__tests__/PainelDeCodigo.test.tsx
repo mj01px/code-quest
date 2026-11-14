@@ -129,14 +129,22 @@ describe("PainelDeCodigo", () => {
     );
 
     expect(screen.getByText("exercicio.sql")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Resultado SQL" })).toBeInTheDocument();
     expect(screen.getByText("Aceita a nota 0")).toBeInTheDocument();
+    const terminal = await screen.findByTestId("terminal");
     await userEvent.click(screen.getByRole("button", { name: "Rodar" }));
     expect(await screen.findByText("Passou em todos os casos")).toBeInTheDocument();
-    expect(screen.getByTestId("terminal")).toHaveTextContent("Comando SQL executado.");
+    expect(screen.getByText("1 de 1 caso aprovado")).toBeInTheDocument();
+    expect(screen.getByText("Aceita a nota 0")).toBeInTheDocument();
+    expect(screen.getByTestId("terminal")).toBe(terminal);
+    expect(terminal).toHaveTextContent("Comando SQL executado.");
     expect(screen.queryByText(/Caso oculto/)).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
     expect(await screen.findByText(/Caso oculto 2/)).toBeInTheDocument();
+    expect(screen.getByText("1 de 2 casos aprovados")).toBeInTheDocument();
+    expect(screen.getByTestId("terminal")).toBe(terminal);
+    expect(terminal).toHaveTextContent("Envio SQL processado.");
   });
 
   it("mostra as entradas personalizadas no Rodar e usa o resultado oficial no Enviar", async () => {
@@ -207,6 +215,71 @@ describe("PainelDeCodigo", () => {
     expect(editor).toHaveValue("def media(nota1, nota2):\n    ...");
     fireEvent.change(editor, { target: { value: "def media(nota1, nota2):\n    return (nota1 + nota2) / 2" } });
     expect(entrada.textContent).toBe("nota1 = 8\nnota2 = 6");
+  });
+
+  it("mostra os atributos da entrada Python na Arena", async () => {
+    const pessoa = { __cq_objeto__: { idade: 18, tem_habilitacao: true } };
+    executarCodigo.mockResolvedValue(
+      correcao({
+        casos: [{ ordem: 1, visivel: true, passou: true, argumentos: [pessoa], obtido: true }],
+      }),
+    );
+    render(
+      <PainelDeCodigo
+        trilhaSlug="logica-de-programacao"
+        exercicioSlug="refatorar-condicional"
+        especificacao={{
+          ...especificacao,
+          funcao: "pode_dirigir",
+          codigo_inicial: "from types import SimpleNamespace\n\ndef pode_dirigir(pessoa):\n    ...\n",
+          parametros: ["pessoa"],
+          requisitos: [{ regra: "proibir", construcao: "bloco_aninhado" }],
+          exemplos: [{ ordem: 1, argumentos: [pessoa], esperado: true }],
+        }}
+      />,
+    );
+
+    const exemplo = "SimpleNamespace(idade=18, tem_habilitacao=True)";
+    expect(screen.getByLabelText("Entrada do exemplo")).toHaveTextContent("pessoa = " + exemplo);
+    expect(screen.getByText(/não usar um bloco aninhado/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Executar" }));
+    expect(await screen.findByTestId("terminal")).toHaveTextContent(
+      "pode_dirigir(" + exemplo + ") → True",
+    );
+  });
+
+  it("mostra o arquivo inicial e as linhas gravadas no terminal", async () => {
+    const arquivo = { __cq_arquivo__: "lista.txt", conteudo: "Antigo\n", verificar: true };
+    const argumentos = [arquivo, ["Ana", "Bia"]];
+    executarCodigo.mockResolvedValue(
+      correcao({
+        casos: [{ ordem: 1, visivel: true, passou: true, argumentos, obtido: ["Ana", "Bia"] }],
+      }),
+    );
+    render(
+      <PainelDeCodigo
+        trilhaSlug="python"
+        exercicioSlug="salvar-linhas"
+        especificacao={{
+          ...especificacao,
+          funcao: "salvar",
+          codigo_inicial: "def salvar(caminho, linhas):\n    ...\n",
+          parametros: ["caminho", "linhas"],
+          exemplos: [{ ordem: 1, argumentos, esperado: ["Ana", "Bia"] }],
+        }}
+      />,
+    );
+
+    expect(screen.getByLabelText("Entrada do exemplo").textContent).toBe(
+      'caminho = "lista.txt"\nlinhas = ["Ana","Bia"]',
+    );
+    expect(screen.getByLabelText("Conteúdo inicial do arquivo")).toHaveTextContent("Antigo");
+
+    await userEvent.click(screen.getByRole("button", { name: "Executar" }));
+    expect(await screen.findByTestId("terminal")).toHaveTextContent(
+      'salvar("lista.txt", ["Ana","Bia"]) → linhas gravadas ["Ana","Bia"]',
+    );
   });
 
   it("executa o desafio na trilha interna e mostra o retorno no terminal", async () => {

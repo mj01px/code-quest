@@ -62,6 +62,7 @@ RESERVED_NICKNAMES = frozenset(
         "login",
         "logout",
         "perfil",
+        "faq",
         "ranking",
         "registrar",
         "sair",

@@ -15,7 +15,23 @@ CONSTRUCOES = {
     "import": ((ast.Import, ast.ImportFrom), "import"),
     "with": ((ast.With, ast.AsyncWith), "um with"),
     "chamada": ((ast.Call,), "a função"),
+    "encoding": ((ast.Call,), "uma abertura de arquivo com encoding informado"),
 }
+
+BLOCOS = (
+    ast.If,
+    ast.For,
+    ast.AsyncFor,
+    ast.While,
+    ast.With,
+    ast.AsyncWith,
+    ast.Try,
+    ast.TryStar,
+    ast.Match,
+    ast.FunctionDef,
+    ast.AsyncFunctionDef,
+    ast.ClassDef,
+)
 
 REGRAS = {"exigir", "proibir"}
 
@@ -39,7 +55,7 @@ def requisitos_invalidos(requisitos: object) -> list[str]:
         if item.get("regra") not in REGRAS:
             problemas.append(f"item {i}: regra deve ser exigir ou proibir")
         construcao = item.get("construcao")
-        if construcao not in CONSTRUCOES:
+        if construcao not in CONSTRUCOES and construcao != "bloco_aninhado":
             problemas.append(f"item {i}: construção desconhecida {construcao!r}")
         if construcao == "chamada" and not str(item.get("nome", "")).isidentifier():
             problemas.append(f"item {i}: chamada precisa de um nome de função válido")
@@ -67,10 +83,48 @@ def _ocorrencias(
             for no in achados
             if isinstance(no, ast.Call) and _nome_chamado(no) == item["nome"]
         ]
+    if item["construcao"] == "encoding":
+        return [
+            no
+            for no in achados
+            if isinstance(no, ast.Call)
+            and _nome_chamado(no) == "open"
+            and _tem_encoding(no)
+        ]
     return achados
 
 
+def _tem_encoding(chamada: ast.Call) -> bool:
+    for argumento in chamada.keywords:
+        if argumento.arg == "encoding":
+            return _encoding_informado(argumento.value)
+    if len(chamada.args) >= 4:
+        return _encoding_informado(chamada.args[3])
+    return (
+        isinstance(chamada.func, ast.Attribute)
+        and len(chamada.args) == 3
+        and isinstance(chamada.args[2], ast.Constant)
+        and isinstance(chamada.args[2].value, str)
+    )
+
+
+def _encoding_informado(valor: ast.expr) -> bool:
+    return not isinstance(valor, ast.Constant) or valor.value is not None
+
+
+def _blocos_aninhados(funcao: ast.FunctionDef) -> list[ast.stmt]:
+    return [
+        interno
+        for externo in funcao.body
+        if isinstance(externo, BLOCOS)
+        for interno in ast.walk(externo)
+        if isinstance(interno, BLOCOS) and interno.col_offset > externo.col_offset
+    ]
+
+
 def _descrever(item: Mapping[str, str]) -> str:
+    if item["construcao"] == "bloco_aninhado":
+        return "um bloco aninhado"
     _, descricao = CONSTRUCOES[item["construcao"]]
     if item["construcao"] == "chamada":
         return f"{descricao} {item['nome']}"
@@ -95,12 +149,16 @@ def verificar(
         )
 
     # Só vale definida no topo: o harness procura a função em globals().
-    definidas = {no.name for no in arvore.body if isinstance(no, ast.FunctionDef)}
+    definidas = {no.name: no for no in arvore.body if isinstance(no, ast.FunctionDef)}
     if funcao not in definidas:
         return Barrado(code="funcao_ausente", mensagem=f"Defina a função {funcao}.")
 
     for item in requisitos:
-        achados = _ocorrencias(arvore, item)
+        achados = (
+            _blocos_aninhados(definidas[funcao])
+            if item["construcao"] == "bloco_aninhado"
+            else _ocorrencias(arvore, item)
+        )
 
         if item["regra"] == "exigir" and not achados:
             return Barrado(

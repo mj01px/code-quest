@@ -7,10 +7,12 @@ from apps.correcao.models import CasoDeTeste, EspecificacaoDeCodigo, Linguagem
 from apps.trilhas.models import Exercicio
 
 from ._casos_desafios import CASOS_DESAFIOS
+from ._casos_logica import CASOS_LOGICA
 from ._casos_python import CASOS_PYTHON, EspecificacaoSeed
 from ._casos_sql import CASOS_SQL
 
 TRILHAS: dict[str, dict[str, EspecificacaoSeed]] = {
+    "logica-de-programacao": CASOS_LOGICA,
     "python": CASOS_PYTHON,
     "desafios-do-dia": CASOS_DESAFIOS,
     "banco-de-dados": CASOS_SQL,

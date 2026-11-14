@@ -1,36 +1,83 @@
 from django.test import SimpleTestCase
 
 from apps.correcao import harness
-from apps.correcao.models import CasoDeTeste
+from apps.correcao.models import CasoDeTeste, Linguagem
+
+from .helpers import ExecutorLocal
+
+MARCADOR = "@@RESULTADO:teste@@"
 
 
 class MontarProgramaTest(SimpleTestCase):
     def test_nome_de_funcao_invalido_nao_entra_no_programa(self):
         with self.assertRaises(ValueError):
-            harness.montar_programa(codigo="x = 1", funcao="dobro(); import os")
+            harness.montar_programa(
+                codigo="x = 1", funcao="dobro(); import os", marcador=MARCADOR
+            )
 
     def test_codigo_do_aluno_vem_antes_do_harness(self):
         programa = harness.montar_programa(
-            codigo="def dobro(n):\n    return n * 2", funcao="dobro"
+            codigo="def dobro(n):\n    return n * 2", funcao="dobro", marcador=MARCADOR
         )
         self.assertTrue(programa.startswith("def dobro(n):"))
         self.assertIn('globals().get("dobro")', programa)
+        self.assertIn(MARCADOR, programa)
+
+    def test_objeto_personalizado_preserva_atributos_no_resultado(self):
+        codigo = (
+            "from types import SimpleNamespace\n"
+            "pessoa = SimpleNamespace(idade=21, tem_habilitacao=True)\n"
+            "def pode_dirigir(pessoa):\n"
+            "    return pessoa.idade >= 18 and pessoa.tem_habilitacao\n"
+        )
+        programa = harness.montar_programa(
+            codigo=codigo, funcao="pode_dirigir", marcador=MARCADOR, entradas={0: "pessoa"}
+        )
+        execucao = ExecutorLocal().executar(
+            codigo=programa, stdin="[[null]]", linguagem=Linguagem.PYTHON
+        )
+        _, resultados = harness.separar_saida(execucao.stdout, MARCADOR)
+        self.assertEqual(
+            resultados,
+            [
+                {
+                    "ok": True,
+                    "valor": True,
+                    "argumentos": [
+                        {"__cq_objeto__": {"idade": 21, "tem_habilitacao": True}}
+                    ],
+                }
+            ],
+        )
 
 
 class SepararSaidaTest(SimpleTestCase):
     def test_print_do_aluno_fica_fora_do_resultado(self):
-        stdout = f'oi\n{harness.MARCADOR}[{{"ok": true, "valor": 4}}]\n'
-        impresso, resultados = harness.separar_saida(stdout)
+        stdout = f'oi\n{MARCADOR}[{{"ok": true, "valor": 4}}]\n'
+        impresso, resultados = harness.separar_saida(stdout, MARCADOR)
         self.assertEqual(impresso, "oi")
         self.assertEqual(resultados, [{"ok": True, "valor": 4}])
 
     def test_sem_marcador_nao_tem_resultado(self):
-        impresso, resultados = harness.separar_saida("só isso\n")
+        impresso, resultados = harness.separar_saida("só isso\n", MARCADOR)
         self.assertEqual(impresso, "só isso\n")
         self.assertIsNone(resultados)
 
+    def test_marcador_de_outra_execucao_nao_tem_resultado(self):
+        stdout = f'{MARCADOR}[{{"ok": true, "valor": 4}}]\n'
+        impresso, resultados = harness.separar_saida(stdout, "@@RESULTADO:outra@@")
+        self.assertEqual(impresso, stdout)
+        self.assertIsNone(resultados)
+
+    def test_marcadores_duplicados_nao_tem_resultado(self):
+        linha = f"{MARCADOR}[]"
+        stdout = f"{linha}\nprint do aluno\n{linha}\n"
+        impresso, resultados = harness.separar_saida(stdout, MARCADOR)
+        self.assertEqual(impresso, stdout)
+        self.assertIsNone(resultados)
+
     def test_marcador_com_json_quebrado_nao_tem_resultado(self):
-        _, resultados = harness.separar_saida(f"{harness.MARCADOR}[{{quebrado")
+        _, resultados = harness.separar_saida(f"{MARCADOR}[{{quebrado", MARCADOR)
         self.assertIsNone(resultados)
 
 

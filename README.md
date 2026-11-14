@@ -1,60 +1,59 @@
-<div align="center">
-
-<br/>
-
-<a href="https://git.io/typing-svg">
-  <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=600&size=30&pause=1000&color=A855F7&center=true&vCenter=true&width=520&lines=CodeQuest;Aprenda.+Pratique.+Evolua." alt="Typing SVG" />
-</a>
-
-<br/>
-
-<p>
-  <img src="https://img.shields.io/badge/Python-3.14-3776AB?style=flat-square&logo=python&logoColor=white"/>
-  <img src="https://img.shields.io/badge/Django-6.0-092E20?style=flat-square&logo=django&logoColor=white"/>
-  <img src="https://img.shields.io/badge/DRF-3.18-A30000?style=flat-square&logo=django&logoColor=white"/>
-  <img src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white"/>
-  <img src="https://img.shields.io/badge/React-19-20232A?style=flat-square&logo=react&logoColor=61DAFB"/>
-  <img src="https://img.shields.io/badge/TypeScript-5-007ACC?style=flat-square&logo=typescript&logoColor=white"/>
-  <img src="https://img.shields.io/badge/Tailwind-4-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white"/>
+<p align="center">
+  <img src="Docs/readme/banner.png" alt="CodeQuest: aprenda a programar como quem joga. Ao lado, o dragão Blaze adulto, a tartaruga e a cobra filhotes, e um terminal mostrando 6 de 6 testes passando e +100 XP." width="100%">
 </p>
 
-</div>
+<p align="center">
+  Uma <b>plataforma gamificada</b> para aprender a programar:<br>
+  trilhas com aulas e exercícios, e uma <b>criatura</b> que evolui junto com você.
+</p>
 
-<br/>
+<p align="center">
+  <img src="https://img.shields.io/badge/Django-6.0-A855F7?labelColor=555" alt="Django 6.0">
+  <img src="https://img.shields.io/badge/Next.js-16-A855F7?labelColor=555" alt="Next.js 16">
+  <img src="https://img.shields.io/badge/PostgreSQL-banco-6D28D9?labelColor=555" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/corre%C3%A7%C3%A3o-Judge0-A855F7?labelColor=555" alt="Correção: Judge0">
+  <img src="https://img.shields.io/badge/LGPD-exportar%20e%20excluir-6D28D9?labelColor=555" alt="LGPD: exportar e excluir">
+</p>
 
----
+## A jornada
 
-## `~/sobre`
+<img src="Docs/readme/jornada.png" alt="Como a jornada funciona: 1, escolha sua criatura, uma por área. 2, resolva no navegador, com o código corrigido na hora contra testes, alguns ocultos. 3, ganhe XP e evolua: filhote, jovem e adulto, e você decide quando evoluir. A regra da casa: só vira trilha o que foi escrito, testado e revisado." width="100%">
 
-```ts
-const codequest = {
-  tipo:        "Plataforma gamificada de ensino de programação",
-  backend:     ["Python 3.14", "Django 6.0", "Django REST Framework", "SimpleJWT", "PostgreSQL", "Judge0", "pytest"],
-  frontend:    ["Next.js 16", "React 19", "TypeScript", "Tailwind CSS v4", "Jest + RTL"],
-  recursos:    ["Trilhas de aprendizado", "Fluxo editorial", "Correção automática de código", "XP e progressão no servidor", "Criaturas companheiras", "Clãs e ranking mensal", "Conquistas e sequência diária", "Desafio do dia", "RBAC dinâmico", "2FA", "LGPD e auditoria"],
-  auth:        "JWT em cookie, Argon2, 2FA opcional, cadastro aberto a partir de 16 anos com confirmação de e-mail",
-  autores:       "Mauro Junior, github.com/mj01px", "Julio Franz,  github.com/JulioFranz", "Arthur Sabino, github.com/ArthurS357"
-} as const;
-```
+| Criatura | Domínio |
+|---|---|
+| Tartaruga (Shellby) | Fundamentos |
+| Cobra (Slyth) | Python e Scripting |
+| Dragão (Blaze) | Compiladas e OO |
+| Raposa | Web |
+| Elefante | Dados |
 
-O **CodeQuest** transforma aprender a programar em uma jornada. O conteúdo é
-organizado em **trilhas**, feitas de aulas e exercícios, e cada aluno escolhe uma
-**criatura** que ganha XP com os exercícios e pode evoluir quando o nível permite. Ele
-resolve as duas coisas de que uma plataforma para iniciantes depende: manter o
-material coerente e confiável, e dar ao aluno um motivo para voltar à próxima fase.
+## A plataforma
 
-As trilhas passam por um fluxo editorial antes de qualquer um vê-las, então nada pela
-metade chega ao aluno. O progresso vive no servidor: cada conclusão vira um evento de
-XP no banco, creditado uma única vez, e os exercícios de código são corrigidos pelo
-**Judge0** contra casos de teste, alguns deles ocultos. As contas são protegidas de
-ponta a ponta: hash com Argon2, JWT em cookies httponly, verificação de e-mail, 2FA
-opcional e uma tabela de permissões que vive em dados, não no código. Os direitos do
-titular previstos na LGPD (ver a própria atividade, exportar os dados e excluir a
-conta) têm rota própria, e os eventos sensíveis ficam numa trilha de auditoria.
+Antes de qualquer aluno ver uma trilha, ela passa por um **fluxo editorial**, então nada pela metade chega a quem está estudando. O progresso vive no servidor: cada conclusão vira um evento de XP no banco, creditado uma única vez, e os exercícios de código são corrigidos pelo **Judge0** contra casos de teste, alguns deles ocultos.
 
-Em volta do estudo há uma camada social: **clãs** de alunos, um **ranking mensal** por
-XP com pódio guardado, **conquistas** que o servidor concede sozinho, uma **sequência**
-de dias seguidos e um **desafio do dia** de código, aberto a quem ainda não tem conta.
+<img src="Docs/readme/vitrine.png" alt="Aprenda, rode e evolua: a tela do exercício com o enunciado, o editor e o terminal lado a lado, com a correção na hora." width="100%">
+
+- **Trilhas:** aulas em Markdown e exercícios de código ou teóricos, por dificuldade, com pré-requisito entre aulas e um mapa de fases com "continuar de onde parou".
+- **Aulas, quiz e flashcards:** cada lição tem leitura, um quiz no fim e um baralho de flashcards para revisar o módulo, e a trilha termina numa tela de quest concluída.
+- **Perfil:** XP total, sequência, recorde e a vitrine de conquistas de cada aluno.
+- **Correção automática:** *Executar* roda os casos visíveis para o aluno depurar, *Enviar* roda todos e só diz se os ocultos passaram.
+- **Criaturas:** XP por dificuldade (50, 100 ou 200), creditado só à criatura ativa, com bônus na trilha do domínio dela.
+- **Sequência:** dias seguidos de estudo, com o recorde guardado.
+- **Desafio do dia:** exercícios de código próprios, separados das trilhas, com um novo a cada dia.
+- **Conquistas:** 13 medalhas, algumas ocultas até serem desbloqueadas, com aviso na hora.
+- **Ranking mensal:** o top 10 do XP ganho no mês e a sua posição, com pódio guardado e conquistas para quem sobe nele.
+- **Clãs:** grupos públicos ou privados com bandeira, líder, co-líderes e link de convite.
+- **Autoria e revisão:** autores escrevem, revisores aprovam ou devolvem, e só o que foi publicado aparece.
+- **Painel de admin:** métricas da plataforma, níveis de acesso e usuários.
+
+## Pensado para proteger quem estuda
+
+- **Contas protegidas de ponta a ponta:** hash com Argon2, JWT em cookies httponly, verificação de e-mail, 2FA opcional e bloqueio após tentativas repetidas.
+- **Permissões em dados, não no código:** níveis de acesso (RBAC) editáveis no painel, sem atalho para admin nem para `is_superuser`.
+- **LGPD:** o titular vê a própria atividade, exporta os dados em JSON e exclui a conta. Os eventos sensíveis ficam numa trilha de auditoria.
+- **Cadastro a partir de 16 anos**, com aceite versionado dos Termos de Uso e da Política de Privacidade.
+
+## Rodando o projeto
 
 ```
 code-quest/
@@ -62,116 +61,7 @@ code-quest/
 └── frontend/    # Next.js App Router     →  http://localhost:3000
 ```
 
----
-
-## Arquitetura
-
-Aplicação desacoplada Cliente-Servidor, comunicando-se via API REST.
-
-- **Backend (Django + DRF):** Segue o padrão MVC (Model-View-Controller) adaptado pelo Django (MVT). Models representam o banco; Views do DRF atuam como Controllers; Serializers atuam como ViewModels.
-- **Frontend (Next.js + React):** Baseado em Componentes. Utiliza App Router com Server Components e Client Components, consumindo a API REST do backend.
-
----
-
-## `~/recursos`
-
-<table>
-  <tr>
-    <td valign="top" width="50%">
-      <b>📚 Aprendizado</b><br/><br/>
-      <ul>
-        <li>Trilhas, aulas (Markdown) e exercícios</li>
-        <li>Exercícios de código e teóricos, por dificuldade</li>
-        <li>Cada aula tem leitura, quiz e flashcards, e conclui etapa por etapa</li>
-        <li>Desafio do dia em rodízio, fora das trilhas</li>
-        <li>Pré-requisito entre aulas dentro da trilha</li>
-        <li>Mapa de fases com "continuar de onde parou"</li>
-        <li>Progresso, XP e conclusões guardados no banco, não no navegador</li>
-        <li>Trilhas iniciadas e exercícios concluídos consultados pela API</li>
-      </ul>
-      <br/>
-      <b>🐉 Gamificação</b><br/><br/>
-      <ul>
-        <li>Uma criatura por domínio de conhecimento</li>
-        <li>Três estágios: filhote, jovem e adulto</li>
-        <li>Criatura inicial escolhida no cadastro, outras adquiridas depois, uma ativa por vez</li>
-        <li>XP por dificuldade (50, 100 ou 200), creditado só à criatura ativa</li>
-        <li>Bônus de XP na trilha do domínio da criatura (<code>seed_bonus_xp</code>)</li>
-        <li>O nível libera o próximo estágio, e o aluno decide quando evoluir</li>
-      </ul>
-    </td>
-    <td valign="top" width="50%">
-      <b>✍️ Autoria e revisão</b><br/><br/>
-      <ul>
-        <li>Fluxo editorial: rascunho, revisão, aprovado, publicado</li>
-        <li>Autores editam apenas o próprio conteúdo</li>
-        <li>Autoria de trilhas, aulas, exercícios, questões de quiz e flashcards</li>
-        <li>Solicitação para virar autor, aprovada ou rejeitada por um admin</li>
-        <li>Solução de referência nunca vaza pela API pública</li>
-        <li>Comando <code>seed_trilhas</code> idempotente para semear conteúdo</li>
-      </ul>
-      <br/>
-      <b>🔒 Acesso e segurança</b><br/><br/>
-      <ul>
-        <li>Níveis de acesso e permissões dinâmicos (RBAC), com painel de admin</li>
-        <li>Hash de senha com Argon2</li>
-        <li>JWT em cookies httponly, refresh com escopo em <code>/auth/</code></li>
-        <li>Verificação de e-mail e links de recuperação de uso único</li>
-        <li>2FA opcional por app autenticador (TOTP) ou código por e-mail</li>
-        <li>Troca de e-mail confirmada no endereço atual e no novo</li>
-        <li>Bloqueio de login após tentativas repetidas</li>
-      </ul>
-    </td>
-  </tr>
-  <tr>
-    <td valign="top" width="50%">
-      <b>🧪 Correção de código</b><br/><br/>
-      <ul>
-        <li>Exercícios de Python e SQL corrigidos pelo <b>Judge0</b>, sem rede e com teto de CPU e memória</li>
-        <li><i>Executar</i> roda os casos visíveis, <i>Enviar</i> roda todos e só diz se os ocultos passaram</li>
-        <li>Análise da AST antes da chamada: sintaxe, função esperada, construções exigidas ou proibidas</li>
-        <li>Cache de submissão idêntica e cota diária por usuário e global</li>
-        <li>Casos de teste semeados pelo comando <code>seed_correcao</code></li>
-      </ul>
-    </td>
-    <td valign="top" width="50%">
-      <b>⚖️ Privacidade e LGPD</b><br/><br/>
-      <ul>
-        <li>Cadastro a partir de 16 anos, com aceite versionado dos termos e da privacidade</li>
-        <li>Histórico da própria atividade na conta</li>
-        <li>Exportação dos dados pessoais em JSON</li>
-        <li>Exclusão por anonimização, confirmada por e-mail e senha</li>
-        <li>Trilha de auditoria append-only, purgada após o prazo de retenção</li>
-      </ul>
-    </td>
-  </tr>
-  <tr>
-    <td valign="top" width="50%">
-      <b>🏆 Comunidade</b><br/><br/>
-      <ul>
-        <li>Clãs públicos ou privados, com líder, co-líderes e membros</li>
-        <li>Entrada por busca ou convite em link, e expulsão pelos gestores</li>
-        <li>Ranking mensal por XP, com pódio dos meses encerrados</li>
-        <li>Perfil público do aluno, aberto pelo ranking e pelos clãs</li>
-        <li>Conquistas concedidas pelo servidor e sequência de dias seguidos</li>
-      </ul>
-    </td>
-    <td valign="top" width="50%">
-      <b>🧱 Qualidade e entrega</b><br/><br/>
-      <ul>
-        <li>CI no GitHub Actions: lint, tipos, testes e build, com Postgres real</li>
-        <li>Deploy em VPS com Nginx, systemd e cron prontos em <code>deploy/</code></li>
-        <li>Aviso global de limite de requisições no frontend</li>
-      </ul>
-    </td>
-  </tr>
-</table>
-
----
-
-## `~/começando`
-
-### Backend
+**Backend**
 
 ```bash
 cd backend
@@ -186,36 +76,29 @@ python manage.py migrate
 python manage.py seed_trilhas       # carrega as trilhas e publica Lógica de Programação, Python e Banco de Dados
 python manage.py seed_bonus_xp      # cadastra os bônus de XP por trilha
 python manage.py seed_correcao      # cadastra os casos de teste da correção automática
-python manage.py seed_licoes        # publica as lições, o quiz e os flashcards dos módulos iniciais
-python manage.py seed_desafios      # publica a trilha oculta do desafio do dia
 python manage.py createsuperuser    # o e-mail que ele pede é o login
 python manage.py runserver 8000     # → http://localhost:8000
 ```
 
-### Frontend
+**Frontend**
 
 ```bash
 cd frontend
 npm install && npm run dev          # → http://localhost:3000
 ```
 
-O frontend pede **Node 24** (`frontend/.nvmrc`; com nvm, `nvm use`).
-
-O banco é **PostgreSQL**. Com o Postgres rodando, crie a role e o banco uma vez
-antes do `migrate` e aponte o `DATABASE_URL` do `.env` para eles:
+O banco é **PostgreSQL**. Com o Postgres rodando, crie a role e o banco uma vez antes do `migrate` e aponte o `DATABASE_URL` do `.env` para eles:
 
 ```bash
 psql postgres -c "CREATE ROLE codequest WITH LOGIN PASSWORD 'sua-senha' CREATEDB;"
 psql postgres -c "CREATE DATABASE codequest OWNER codequest;"
 ```
 
-A `CREATEDB` na role deixa o `pytest` criar o banco de testes. A documentação
-interativa da API (Swagger UI) fica em `http://localhost:8000/api/docs/`, gerada a
-partir do mesmo schema em `/api/schema/`.
+A `CREATEDB` na role deixa o `pytest` criar o banco de testes. A documentação interativa da API (Swagger UI) fica em `http://localhost:8000/api/docs/`, gerada a partir do mesmo schema em `/api/schema/`.
 
----
-
-## `~/ambiente`
+<details>
+<summary><b>Variáveis de ambiente</b></summary>
+<br>
 
 Crie o `.env` dentro de `backend/`:
 
@@ -235,9 +118,7 @@ DATABASE_URL=postgres://codequest:sua-senha@localhost:5432/codequest
 FRONTEND_URL=http://localhost:3000
 ```
 
-<details>
-<summary><b>Ajustes opcionais</b></summary>
-<br/>
+**Ajustes opcionais**
 
 ```env
 # E-mail. Sem um EMAIL_HOST_USER/PASSWORD de verdade, o Django imprime a mensagem
@@ -271,19 +152,8 @@ SPRITE_BASE_URL=/criaturas/
 CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 CSRF_TRUSTED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 
-# Throttle nas rotas públicas de catálogo, no progresso do aluno, na solução de
-# referência da autoria e nas ações do fluxo editorial
+# Throttle nas rotas públicas de catálogo
 THROTTLE_CATALOGO=60/min
-THROTTLE_EU_PROGRESSO=300/min
-THROTTLE_AUTORIA=30/min
-THROTTLE_EDITORIAL=30/min
-
-# Proxies na frente do Django: o IP do aluno é o último item do X-Forwarded-For.
-# Exige o Django só em 127.0.0.1 e o Nginx sobrescrevendo o cabeçalho.
-NUM_PROXIES=1
-
-# Máximo de membros por clã
-CLA_LIMITE_MEMBROS=50
 
 # Correção automática (Judge0). Sem URL e token, executar e enviar código
 # respondem 503 e o resto da plataforma segue funcionando. Uma URL da RapidAPI
@@ -306,209 +176,185 @@ EXCLUSAO_TOKEN_MAX_AGE=1800
 
 # Dias que um registro de auditoria vive antes do limpar_auditoria
 AUDITORIA_RETENCAO_DIAS=180
+
+# Clãs: máximo de membros e validade do link de convite, em dias
+CLA_LIMITE_MEMBROS=50
+CLA_CONVITE_VALIDADE_DIAS=7
 ```
 
 </details>
 
----
-
-## `~/comandos`
+<details>
+<summary><b>Comandos</b></summary>
+<br>
 
 ```bash
-python manage.py seed_trilhas         # carrega as trilhas (idempotente, pode rodar de novo)
-python manage.py seed_bonus_xp        # bônus de XP de cada criatura na trilha do seu domínio (idempotente)
-python manage.py seed_correcao        # especificações e casos de teste da correção (rode depois do seed_trilhas)
-python manage.py seed_licoes          # lição completa, quiz e flashcards dos módulos iniciais (rode depois do seed_correcao)
-python manage.py seed_desafios        # trilha oculta do desafio do dia, com exercícios de código próprios (idempotente)
-python manage.py seed_demo_pfc        # os nove exercícios alternativos da demonstração do PFC
-python manage.py reavaliar_conquistas # reavalia as conquistas de todos os alunos ativos
-python manage.py fechar_podios        # grava o pódio dos meses encerrados que ainda não têm (idempotente, roda no cron)
-python manage.py limpar_auditoria     # apaga auditoria além de AUDITORIA_RETENCAO_DIAS (--dry-run só conta)
-python manage.py migrate              # aplica mudanças de schema
-python manage.py createsuperuser      # cria o primeiro admin
-python manage.py runserver 8000       # → http://localhost:8000
+python manage.py seed_trilhas           # carrega as trilhas (idempotente, pode rodar de novo)
+python manage.py seed_bonus_xp          # bônus de XP de cada criatura na trilha do seu domínio (idempotente)
+python manage.py seed_correcao          # especificações e casos de teste da correção (rode depois do seed_trilhas)
+python manage.py reavaliar_conquistas   # reavalia as conquistas de todos os alunos ativos
+python manage.py fechar_podios          # grava o pódio dos meses que já viraram (--meses N)
+python manage.py limpar_auditoria       # apaga auditoria além de AUDITORIA_RETENCAO_DIAS (--dry-run só conta)
+python manage.py migrate                # aplica mudanças de schema
+python manage.py createsuperuser        # cria o primeiro admin
+python manage.py runserver 8000         # → http://localhost:8000
 ```
 
----
+</details>
 
-## `~/como-funciona`
+<details>
+<summary><b>Estrutura das pastas</b></summary>
+<br>
+
+```
+backend/
+├── config/        settings e rotas da API (/api/v1/, /api/schema/, /api/docs/)
+├── apps/
+│   ├── contas/        cadastro, login, 2FA, troca de e-mail, RBAC e LGPD
+│   ├── trilhas/       trilhas, aulas e exercícios, com o fluxo editorial
+│   ├── autoria/       rascunhos, fila de revisão e transições editoriais
+│   ├── correcao/      especificações, casos de teste e a ponte com o Judge0
+│   ├── progressao/    XP, conclusões, sequência e o dashboard do admin
+│   ├── gamificacao/   criaturas, estágios e bônus de XP
+│   ├── conquistas/    catálogo de conquistas e o que cada aluno desbloqueou
+│   ├── ranking/       placar mensal e pódios
+│   ├── clas/          clãs, membros, cargos e convites
+│   ├── auditoria/     trilha de auditoria append-only
+│   └── core/          autenticação por cookie, permissões, erros e middleware
+└── tests/
+
+frontend/
+├── src/app/          as telas (trilhas, exercício, criatura, desafios, ranking,
+│                     clãs, conquistas, autoria, admin, configurações, legais)
+├── src/components/   um diretório por área, com os testes em __tests__/
+└── public/           sprites das criaturas, bandeiras dos clãs e a marca
+
+nginx/                proxy reverso de produção
+docker-compose.yml    sobe tudo junto
+Docs/                 requisitos, termos de aceite, integração da API e as imagens deste README
+```
+
+</details>
+
+## Como funciona
 
 <details>
 <summary><b>Trilhas, o fluxo editorial que protege o conteúdo</b></summary>
-<br/>
+<br>
 
-O conteúdo tem três níveis: uma **Trilha** contém **Aulas** (material em Markdown), e
-cada aula contém **Exercícios** (de código ou teóricos, do iniciante ao avançado).
-Uma aula pode declarar um pré-requisito, validado para ser outra aula da mesma
-trilha, então o mapa de fases nunca aponta para fora da própria trilha.
+O conteúdo tem três níveis: uma **Trilha** contém **Aulas** (material em Markdown), e cada aula contém **Exercícios** (de código ou teóricos, do iniciante ao avançado). Uma aula pode declarar um pré-requisito, validado para ser outra aula da mesma trilha, então o mapa de fases nunca aponta para fora da própria trilha.
 
-Nada chega ao aluno por acidente. Cada peça passa por quatro estados editoriais
-(rascunho, em revisão, aprovado e publicado) e a API pública só devolve o que está
-publicado. Os serializers usam uma allowlist explícita de campos, então a solução de
-referência do autor (`solucao_autor`) nunca aparece num payload público: vê-la exige
-a permissão `trilhas.view_solution`, por uma rota própria.
+Nada chega ao aluno por acidente. Cada peça passa por quatro estados editoriais (rascunho, em revisão, aprovado e publicado) e a API pública só devolve o que está publicado. O autor submete para revisão, o revisor aprova ou devolve, e a publicação é uma permissão à parte. Autores editam apenas o próprio conteúdo.
 
-O `seed_trilhas` é idempotente. Seu `update_or_create` tem chave `(trilha, slug)` nos
-dois níveis, então rodar de novo reaproveita as linhas em vez de duplicá-las.
+Os serializers usam uma allowlist explícita de campos, então a solução de referência do autor (`solucao_autor`) nunca aparece num payload público: vê-la exige a permissão `trilhas.view_solution`, por uma rota própria.
+
+O `seed_trilhas` é idempotente. Seu `update_or_create` tem chave `(trilha, slug)` nos dois níveis, então rodar de novo reaproveita as linhas em vez de duplicá-las.
 
 </details>
 
 <details>
 <summary><b>Correção de código, o Judge0 atrás de uma porta estreita</b></summary>
-<br/>
+<br>
 
-Um exercício de código pode ter uma **especificação**: a linguagem (Python ou SQL), o
-nome da função que o aluno precisa definir, um código inicial e os casos de teste,
-cada um visível ou oculto. O código do aluno vai ao **Judge0** junto de um harness que
-chama a função com os argumentos de cada caso, sem rede e com teto de CPU, de tempo e
-de memória.
+Um exercício de código pode ter uma **especificação**: a linguagem (hoje, Python), o nome da função que o aluno precisa definir, um código inicial e os casos de teste, cada um visível ou oculto. O código do aluno vai ao **Judge0** junto de um harness que chama a função com os argumentos de cada caso, sem rede e com teto de CPU, de tempo e de memória.
 
-Há dois modos. *Executar* roda só os casos visíveis e devolve a saída e o erro, para
-o aluno depurar. *Enviar* roda todos, e dos ocultos conta apenas se passaram, sem
-argumentos nem resultado. O envio aprovado é o que conclui o exercício e credita o
-XP, pela mesma rota de conclusão dos exercícios sem código.
+Há dois modos. *Executar* roda só os casos visíveis e devolve a saída e o erro, para o aluno depurar. *Enviar* roda todos, e dos ocultos conta apenas se passaram, sem argumentos nem resultado. O envio aprovado é o que conclui o exercício e credita o XP, pela mesma rota de conclusão dos exercícios sem código.
 
-Antes de gastar uma chamada, o código passa por uma análise da AST: erro de sintaxe,
-função ausente e construções exigidas ou proibidas pelo exercício (um `for`, um
-`import`) param ali. Um código idêntico corrigido nos últimos 10 minutos reaproveita
-o resultado guardado. Só as chamadas pagas contam na cota, que vive no banco: um teto
-diário por usuário (429) e um disjuntor global que para em 90% da cota do plano
-(503), além de uma rajada de 5 chamadas por minuto por usuário. Se o Judge0 cai ou
-não está configurado, a API responde 503.
+Antes de gastar uma chamada, o código passa por uma análise da AST: erro de sintaxe, função ausente e construções exigidas ou proibidas pelo exercício (um `for`, um `import`) param ali. Um código idêntico corrigido nos últimos 10 minutos reaproveita o resultado guardado. Só as chamadas pagas contam na cota, que vive no banco: um teto diário por usuário (429) e um disjuntor global que para em 90% da cota do plano (503), além de uma rajada de 5 chamadas por minuto por usuário. Se o Judge0 cai ou não está configurado, a API responde 503.
 
 </details>
 
 <details>
 <summary><b>Gamificação, criaturas que ganham XP e evoluem quando o aluno quer</b></summary>
-<br/>
+<br>
 
-Existe exatamente uma criatura por domínio de conhecimento (Fundamentos, Scripting,
-Compiladas e OO, Web e Dados), garantido por uma constraint de unicidade na coluna do
-domínio. Cada uma tem três estágios (filhote, jovem e adulto), e cada estágio exige
-um nível mínimo.
+Existe exatamente uma criatura por domínio de conhecimento (Fundamentos, Scripting, Compiladas e OO, Web e Dados), garantido por uma constraint de unicidade na coluna do domínio. Cada uma tem três estágios (filhote, jovem e adulto), e cada estágio exige um nível mínimo.
 
-O XP é por criatura, não por conta: só a criatura **ativa** recebe crédito, e uma
-criatura recém-adquirida começa no nível 1 mesmo numa conta adiantada. Um exercício
-vale 50, 100 ou 200 XP conforme a dificuldade, multiplicado pelo bônus da trilha
-quando há um (o `seed_bonus_xp` dá XP em dobro na trilha do domínio da criatura). O
-valor sai sempre do servidor, nenhuma rota aceita XP vindo do cliente, e cada
-exercício credita uma vez só por conta: concluir de novo responde `ja_concluido` sem
-somar nada. A soma e a subida de nível acontecem no banco, com a linha travada, então
-dois pedidos simultâneos não perdem incremento.
+O XP é por criatura, não por conta: só a criatura **ativa** recebe crédito, e uma criatura recém-adquirida começa no nível 1 mesmo numa conta adiantada. Um exercício vale 50, 100 ou 200 XP conforme a dificuldade, multiplicado pelo bônus da trilha quando há um (o `seed_bonus_xp` dá XP em dobro na trilha do domínio da criatura). O valor sai sempre do servidor, nenhuma rota aceita XP vindo do cliente, e cada exercício credita uma vez só por conta: concluir de novo responde `ja_concluido` sem somar nada. A soma e a subida de nível acontecem no banco, com a linha travada, então dois pedidos simultâneos não perdem incremento.
 
-Evoluir não é automático. Quando o nível alcança o próximo estágio, a conclusão avisa
-(`pode_evoluir`) e o aluno escolhe a hora, um estágio por vez, então quem chega ao
-topo ainda em filhote passa por jovem antes de adulto. O estágio só avança, nunca
-regride.
+Evoluir não é automático. Quando o nível alcança o próximo estágio, a conclusão avisa (`pode_evoluir`) e o aluno escolhe a hora, um estágio por vez, então quem chega ao topo ainda em filhote passa por jovem antes de adulto. O estágio só avança, nunca regride.
 
-Três invariantes mantêm a posse honesta: um usuário só pode ter uma dada criatura uma
-vez, no máximo uma inicial (a escolhida no cadastro) e no máximo uma ativa. Os três
-são constraints no banco, não checagens na view. Escolher a inicial é uma única
-operação atômica, então uma corrida não entrega duas para ninguém.
+Três invariantes mantêm a posse honesta: um usuário só pode ter uma dada criatura uma vez, no máximo uma inicial (a escolhida no cadastro) e no máximo uma ativa. Os três são constraints no banco, não checagens na view. Escolher a inicial é uma única operação atômica, então uma corrida não entrega duas para ninguém.
 
 </details>
 
 <details>
-<summary><b>Comunidade, clãs, ranking, conquistas e sequência</b></summary>
-<br/>
+<summary><b>Sequência e desafio do dia, motivos para voltar amanhã</b></summary>
+<br>
 
-Um **clã** tem nome, descrição, bandeira e uma tag de 8 caracteres gerada pelo
-servidor. Pode ser público (aparece na busca e qualquer um entra) ou privado (para
-quem não é membro, responde 404 como se não existisse). O aluno está em no máximo um
-clã, e o clã tem teto de membros (`CLA_LIMITE_MEMBROS`, 50 por padrão). Há três
-cargos: líder, co-líder e membro. Os gestores promovem, rebaixam e expulsam, e o líder
-pode transferir a liderança. Um link de convite novo derruba o anterior, e o token
-fica guardado só como hash. Se o último membro sai, o clã é apagado.
+A **sequência** conta os dias seguidos em que o aluno concluiu alguma coisa. Ela é atualizada na mesma transação da conclusão, com a linha travada, e guarda o recorde. Um dia sem estudo zera a sequência atual na leitura, mas nunca o recorde.
 
-O **ranking mensal** mostra o top 10 do mês e a posição de quem pediu, somando o XP
-dos eventos do mês. O comando `fechar_podios` grava os três primeiros de cada mês
-encerrado e é idempotente, então roda no cron sem risco de duplicar. A partir do
-ranking e dos clãs se abre o **perfil público** do aluno.
+O **desafio do dia** escolhe três fases entre as trilhas publicadas, sorteadas pela data, então todo mundo vê as mesmas três no mesmo dia. Ele não dá XP extra: concluir uma fase do desafio é concluir o exercício normal da trilha.
 
-As **conquistas** são linhas de dados com um critério e uma meta (exercícios
-concluídos, nível alcançado, aprovado de primeira, membro de clã, pódios e vitórias
-mensais, entre outros). O servidor avalia os critérios quando algo relevante acontece e
-registra o desbloqueio uma vez só. O `reavaliar_conquistas` refaz a conta para todos
-os alunos ativos, útil depois de criar uma conquista nova.
+</details>
 
-A **sequência** conta dias seguidos com atividade e vale o dia de hoje ou o de ontem:
-quem deixa passar um dia volta a zero, mas o recorde fica guardado. O **desafio do
-dia** sai de um rodízio fixo pela data de São Paulo, então o mesmo dia devolve sempre
-o mesmo desafio, e a rota é pública.
+<details>
+<summary><b>Conquistas, medalhas que o servidor confere</b></summary>
+<br>
+
+Cada conquista tem um critério e uma meta, e o catálogo vive no banco. São 13 hoje: Ovo Chocado, Hello, World!, Explorador, Roda na Minha Máquina, De Primeira!, Debugger, Aquecendo os Motores, Engrenando, Level Up, Não Estou Sozinho, Pódio do Mês, Campeão do Mês e Freguês do Pódio.
+
+Os critérios cobrem escolher a criatura, concluir exercícios, iniciar trilhas, alcançar um nível, executar código, ser aprovado no primeiro envio ou depois de errar, entrar num clã e subir no pódio do ranking. Algumas são **ocultas** e aparecem como ??? até serem desbloqueadas. A avaliação roda por sinais, no momento em que o evento acontece, e cada conquista desbloqueia uma vez só por aluno. O aviso aparece até o aluno vê-lo (`vista_em`), e o `reavaliar_conquistas` confere todo mundo de novo quando o catálogo muda.
+
+</details>
+
+<details>
+<summary><b>Ranking mensal, o placar que zera sem apagar nada</b></summary>
+<br>
+
+O ranking é a soma do XP ganho no mês corrente, ajustes do admin incluídos. Não existe reset físico: a virada do mês só muda a janela da soma, então XP e nível das criaturas nunca são tocados.
+
+A tela mostra o top 10 e a posição de quem está logado. Empate fica para quem chegou primeiro àquele XP. Ficam de fora contas com 0 XP no mês, suspensas e anonimizadas.
+
+O **pódio** (os 3 primeiros) de cada mês é gravado sob demanda, na primeira leitura do ranking depois da virada, sem precisar de tarefa agendada. O comando `fechar_podios` grava os meses que faltarem. É o pódio que alimenta as conquistas Pódio do Mês, Campeão do Mês e Freguês do Pódio.
+
+</details>
+
+<details>
+<summary><b>Clãs, grupos com regras no banco</b></summary>
+<br>
+
+Um clã tem nome, descrição, uma das quatro bandeiras, tipo (público ou privado) e um nível mínimo para entrar. A **tag** de 8 caracteres é o identificador público e imutável, exibida com `#` na frente, e não usa 0, O, 1 nem I para não confundir. Nome e descrição passam por um filtro de palavras proibidas que pega acento, leet (`b0b0`), letras separadas e letra repetida.
+
+Criar um clã exige e-mail confirmado e a criatura no nível 5. Cada aluno está em um clã por vez, e cada clã tem até `CLA_LIMITE_MEMBROS` membros (50 por padrão). Os cargos são líder, co-líder e membro: líder e co-líderes editam o clã, mudam cargos, expulsam e geram o link de convite, e só existe um líder por clã, garantido no banco. O líder pode transferir a liderança.
+
+Clãs públicos aparecem na busca e aceitam entrada direta de quem tiver o nível mínimo (contado pela criatura mais forte do aluno, nunca abaixo de 5). Nos privados, a entrada é só por link de convite, com validade de `CLA_CONVITE_VALIDADE_DIAS` dias, um ativo por vez e revogável pela liderança. O banco guarda o hash do token, não o token. Quando uma conta é excluída, ela sai do clã junto.
 
 </details>
 
 <details>
 <summary><b>Acesso, contas, papéis e a segunda camada</b></summary>
-<br/>
+<br>
 
-O login é por e-mail, e as senhas usam hash **Argon2**. No sucesso, a API emite um
-par de JWT do SimpleJWT e o guarda em **cookies httponly** (`cq_access`,
-`cq_refresh`). O JavaScript nunca toca nos tokens. Um sinalizador `cq_sessao`
-separado, sem credencial nenhuma, só deixa a interface supor que há sessão. O cookie
-de refresh tem escopo no caminho `/auth/`, então ele viaja só com as rotas que
-precisam dele.
+O login é por e-mail, e as senhas usam hash **Argon2**. No sucesso, a API emite um par de JWT do SimpleJWT e o guarda em **cookies httponly** (`cq_access`, `cq_refresh`). O JavaScript nunca toca nos tokens. Um sinalizador `cq_sessao` separado, sem credencial nenhuma, só deixa a interface supor que há sessão. O cookie de refresh tem escopo no caminho `/auth/`, então ele viaja só com as rotas que precisam dele.
 
-O cadastro é aberto a partir de **16 anos** (a data de nascimento é conferida no
-servidor) e exige o aceite da versão vigente dos Termos de Uso e da Política de
-Privacidade. Contas não verificadas ficam inertes até que o link enviado por e-mail
-seja usado, e tanto o link de verificação quanto o de redefinição de senha são de uso
-único e com prazo. Logins que falham repetidamente bloqueiam a conta por uma janela
-configurável.
+O cadastro é aberto a partir de **16 anos** (a data de nascimento é conferida no servidor) e exige o aceite da versão vigente dos Termos de Uso e da Política de Privacidade. Contas não verificadas ficam inertes até que o link enviado por e-mail seja usado, e tanto o link de verificação quanto o de redefinição de senha são de uso único e com prazo. Logins que falham repetidamente bloqueiam a conta por uma janela configurável.
 
-O **2FA** é opcional e tem um método ativo por vez: app autenticador (TOTP, ativado
-por QR code) ou código enviado por e-mail. Ao ativar, o aluno recebe 8 códigos de
-recuperação de uso único, que valem para qualquer método. Com o 2FA ligado, o login
-vira dois passos: a senha certa devolve só um `mfa_token` de vida curta, e a sessão
-sai em `/auth/login/mfa/` depois do segundo fator. Desligar o 2FA também exige um
-código válido.
+O **2FA** é opcional e tem um método ativo por vez: app autenticador (TOTP, ativado por QR code) ou código enviado por e-mail. Ao ativar, o aluno recebe 8 códigos de recuperação de uso único, que valem para qualquer método. Com o 2FA ligado, o login vira dois passos: a senha certa devolve só um `mfa_token` de vida curta, e a sessão sai em `/auth/login/mfa/` depois do segundo fator. Desligar o 2FA também exige um código válido.
 
-Trocar o e-mail pede a senha atual e duas confirmações: um link no endereço atual
-autoriza a troca, e um segundo link, no endereço novo, prova que ele é do titular. Só
-então o e-mail muda. Até lá, login, 2FA e recuperação de senha seguem no endereço
-antigo.
+Trocar o e-mail pede a senha atual e duas confirmações: um link no endereço atual autoriza a troca, e um segundo link, no endereço novo, prova que ele é do titular. Só então o e-mail muda. Até lá, login, 2FA e recuperação de senha seguem no endereço antigo.
 
-As permissões vivem numa tabela e são agrupadas em **níveis de acesso**. Cada conta
-nasce no nível de sistema do seu papel (Aluno, Autor ou Admin) e tem exatamente as
-permissões do nível, admin inclusive: nem o papel nem o `is_superuser` dão atalho,
-então rebaixar o nível de alguém de fato o rebaixa. O painel de RBAC (`/admin` no
-frontend) cria e edita níveis e os atribui a usuários, e o acesso ao próprio painel
-vem de uma marca no nível (`acesso_admin`), não do papel. Conceder autoria ou a fila
-de revisão é dado, não deploy.
+As permissões vivem numa tabela e são agrupadas em **níveis de acesso**. Cada conta nasce no nível de sistema do seu papel (Aluno, Autor ou Admin) e tem exatamente as permissões do nível, admin inclusive: nem o papel nem o `is_superuser` dão atalho, então rebaixar o nível de alguém de fato o rebaixa. O painel de RBAC (`/admin` no frontend) cria e edita níveis e os atribui a usuários, e o acesso ao próprio painel vem de uma marca no nível (`acesso_admin`), não do papel. Conceder autoria ou a fila de revisão é dado, não deploy.
+
+O mesmo painel tem uma aba de **dashboard**: total de usuários, trilhas publicadas, tamanho da fila de revisão, submissões ao Judge0, novos usuários e submissões aprovadas e rejeitadas nos últimos 7 dias, e os logs mais recentes da auditoria. Como mostra logs, abrir o dashboard também fica registrado como acesso à auditoria.
 
 </details>
 
 <details>
 <summary><b>Privacidade, os direitos do titular e a trilha de auditoria</b></summary>
-<br/>
+<br>
 
-Os eventos sensíveis (login e falha de login, cadastro, redefinição de senha, troca
-de e-mail, 2FA, exportação, exclusão, mudanças nos níveis de acesso) vão para uma
-**trilha de auditoria** append-only: o `save()` recusa alterar um registro já
-gravado. Quem tem `auditoria.view` consulta tudo em `/auditoria/`, e a própria
-consulta também fica registrada. Cada titular vê só as próprias linhas, filtradas às
-ações que dizem respeito a ele, na seção de atividade da conta. O comando
-`limpar_auditoria` apaga o que passou de `AUDITORIA_RETENCAO_DIAS` (180 por
-padrão) e foi feito para rodar por cron.
+Os eventos sensíveis (login e falha de login, cadastro, redefinição de senha, troca de e-mail, 2FA, exportação, exclusão, mudanças nos níveis de acesso, ações nos clãs) vão para uma **trilha de auditoria** append-only: o `save()` recusa alterar um registro já gravado. Quem tem `auditoria.view` consulta tudo em `/auditoria/`, e a própria consulta também fica registrada. Cada titular vê só as próprias linhas, filtradas às ações que dizem respeito a ele, na seção de atividade da conta. O comando `limpar_auditoria` apaga o que passou de `AUDITORIA_RETENCAO_DIAS` (180 por padrão) e foi feito para rodar por cron.
 
-A exportação devolve em JSON os dados pessoais do titular. A exclusão tem dois
-passos: um pedido autenticado manda um link por e-mail, e esse link, junto com a
-senha, anonimiza a conta na hora e encerra a sessão. Anonimizar embaralha os dados
-pessoais e apaga os derivados (o e-mail guardado na auditoria e o IP dos aceites),
-mas mantém os agregados e a prova de aceite dos termos. Quando os Termos ou a
-Política de Privacidade mudam de versão, a API aponta o documento pendente e registra
-o novo aceite.
+A exportação devolve em JSON os dados pessoais do titular. A exclusão tem dois passos: um pedido autenticado manda um link por e-mail, e esse link, junto com a senha, anonimiza a conta na hora e encerra a sessão. Anonimizar embaralha os dados pessoais e apaga os derivados (o e-mail guardado na auditoria e o IP dos aceites), mas mantém os agregados e a prova de aceite dos termos. Quando os Termos ou a Política de Privacidade mudam de versão, a API aponta o documento pendente e registra o novo aceite.
 
 </details>
 
 <details>
 <summary><b>API</b></summary>
-<br/>
+<br>
 
-Tudo sob `/api/v1/`. Toda falha responde no mesmo envelope
-`{ error: { code, message, details } }`. Fora as rotas marcadas como públicas, tudo
-exige sessão, e a permissão do RBAC que a rota pede, quando pede, vem entre
-parênteses.
+Tudo sob `/api/v1/`. Toda falha responde no mesmo envelope `{ error: { code, message, details } }`. Fora as rotas marcadas como públicas, tudo exige sessão, e a permissão do RBAC que a rota pede, quando pede, vem entre parênteses.
 
 **Conteúdo**
 
@@ -516,30 +362,29 @@ parênteses.
 |---|---|
 | `GET /trilhas/` · `/trilhas/{slug}/` | A lista de trilhas publicadas, e uma trilha com seu mapa de fases. **Público** |
 | `GET /exercicios/{trilha_slug}/{exercicio_slug}/` | Um único exercício publicado. **Público** |
-| `GET /autoria/exercicios/{trilha_slug}/{exercicio_slug}/solucao/` | A solução de referência do autor (`trilhas.view_solution`) |
+
+**Autoria e revisão**
+
+| Rota | O que faz |
+|---|---|
 | `GET /autoria/rascunhos/` · `/autoria/fila-revisao/` | Trilhas, aulas e exercícios em rascunho (`trilhas.submit_review`) ou em revisão (`trilhas.review`) |
 | `GET /autoria/{tipo}/{pk}/detalhe/` | O conteúdo inteiro em qualquer status, sem a solução (`trilhas.submit_review` ou `trilhas.review`) |
-| `POST /autoria/trilhas/` · `/aulas/` · `/exercicios/` | Cria uma trilha, uma aula ou um exercício em rascunho |
-| `PUT` · `DELETE /autoria/{tipo}/{pk}/` | Edita ou exclui o conteúdo, só enquanto é rascunho |
-| `POST /autoria/{tipo}/{pk}/submeter/` · `/aprovar/` · `/devolver/` · `/publicar/` | As transições do fluxo editorial |
-| `POST /autoria/questoes/` · `/flashcards/`, e `/{id}/` | Cria, edita e remove questões de quiz e flashcards de uma aula em rascunho |
-| `GET /autoria/meus-envios/` · `/autoria/aprovados/` | Os envios do autor, e os conteúdos já aprovados (`trilhas.submit_review`) |
-| `POST /autoria/solicitacoes/` · `GET /autoria/solicitacoes/minha/` | Pede para virar autor, e a solicitação mais recente do usuário |
-| `GET /desafios/` · `/desafios/hoje/` | Os desafios publicados, e o do dia com os próximos da agenda. **Público** |
+| `POST /autoria/{tipo}/{pk}/submeter/` | Manda o rascunho para revisão (`trilhas.submit_review`) |
+| `POST /autoria/{tipo}/{pk}/aprovar/` · `/devolver/` | Aprova ou devolve ao autor (`trilhas.review`) |
+| `POST /autoria/{tipo}/{pk}/publicar/` | Publica o que foi aprovado (`trilhas.publish`) |
+| `GET /autoria/exercicios/{trilha_slug}/{exercicio_slug}/solucao/` | A solução de referência do autor (`trilhas.view_solution`) |
+
+`{tipo}` é `trilhas`, `aulas` ou `exercicios`. Qualquer outro valor nem chega à view (404).
 
 **Progressão**
 
 | Rota | O que faz |
 |---|---|
 | `GET /eu/progresso/` | XP e nível da criatura ativa, com quanto falta para o próximo (204 sem criatura ativa) |
+| `GET /eu/sequencia/` | A sequência atual, o recorde e se o aluno já estudou hoje |
 | `POST /trilhas/{slug}/iniciar/` | Marca a trilha como iniciada: 201 na primeira vez, 200 nas seguintes (`trilhas.enroll`) |
 | `GET /eu/trilhas/` | Os slugs das trilhas que o aluno já iniciou |
 | `GET /eu/exercicios-concluidos/` | As conclusões do aluno, com filtro opcional `?trilha={slug}` |
-| `POST /aulas/{trilha_slug}/{aula_slug}/leitura/concluir/` · `/quiz/concluir/` | Conclui a leitura ou o quiz de uma aula (`exercicios.complete`) |
-| `GET /eu/etapas-concluidas/` | As etapas de aula (leitura e quiz) que o aluno concluiu |
-| `GET /eu/trilhas/{slug}/passos/` · `/conclusao/` | Os passos da trilha para o aluno, e o resumo ao concluí-la |
-| `GET /eu/trilha-atual/` | A trilha em que o aluno está |
-| `GET /eu/sequencia/` | Dias seguidos atuais, recorde e se já fez algo hoje |
 | `POST /exercicios/{trilha_slug}/{exercicio_slug}/concluir/` | Conclui o exercício e credita o XP. Com correção automática, recebe o `codigo` e só credita se o envio passar (`exercicios.complete`, e `submissoes.create` quando há código) |
 
 **Correção de código**
@@ -560,21 +405,27 @@ parênteses.
 | `POST /eu/criaturas/{slug}/evoluir/` | Sobe a criatura um estágio, se o nível dela permitir (`criaturas.evolve`) |
 | `GET /eu/bonus/` | Os bônus de XP que valem para as criaturas do usuário (`criaturas.view`) |
 
-**Comunidade**
+**Conquistas e ranking**
 
 | Rota | O que faz |
 |---|---|
-| `GET /ranking/mensal/` | O top 10 do mês e a posição de quem pediu |
-| `GET /perfil/{nickname}/` | O perfil público de um aluno |
-| `GET /eu/conquistas/` · `POST /eu/conquistas/vistas/` | As conquistas do aluno, e marcar as novas como vistas |
-| `GET` · `POST /clas/` | Busca clãs públicos, e cria um clã |
-| `GET` · `PATCH /clas/{tag}/` | Um clã visível ao aluno, e a edição pelos gestores |
-| `POST /clas/{tag}/entrar/` | Entra num clã público |
-| `GET /clas/{tag}/membros/` · `PATCH` · `DELETE /clas/{tag}/membros/{id}/` | Os membros, a mudança de cargo e a expulsão |
-| `POST /clas/{tag}/lideranca/` | O líder transfere a liderança |
-| `POST` · `DELETE /clas/{tag}/convite/` | Gera um link de convite novo, e revoga o ativo |
+| `GET /eu/conquistas/` | O catálogo com as conquistas do aluno marcadas, e as ocultas como ??? |
+| `POST /eu/conquistas/vistas/` | Marca os avisos de desbloqueio como vistos |
+| `GET /ranking/mensal/` | O top 10 do mês, a posição de quem pediu e os pódios dele |
+
+**Clãs**
+
+| Rota | O que faz |
+|---|---|
+| `GET` · `POST /clas/` | Busca clãs, e cria um (`comunidades.create`) |
+| `GET` · `PATCH /clas/{tag}/` | Um clã, e a edição pela liderança |
+| `POST /clas/{tag}/entrar/` | Entra num clã público (`comunidades.join`) |
+| `GET /clas/{tag}/membros/` | Os membros e seus cargos |
+| `PATCH` · `DELETE /clas/{tag}/membros/{id}/` | Muda o cargo de um membro, ou o expulsa |
+| `POST /clas/{tag}/lideranca/` | Transfere a liderança |
+| `POST` · `DELETE /clas/{tag}/convite/` | Gera ou revoga o link de convite |
 | `GET /convites/{token}/` · `POST /convites/{token}/aceitar/` | A prévia do convite, e o aceite |
-| `GET /eu/cla/` · `POST /eu/cla/sair/` | O clã do aluno, e sair dele |
+| `GET /eu/cla/` · `POST /eu/cla/sair/` | O clã do usuário, e a saída dele |
 
 **Conta e sessão**
 
@@ -612,86 +463,67 @@ parênteses.
 
 | Rota | O que faz |
 |---|---|
+| `GET /admin/dashboard/` | As métricas do painel e os logs recentes (nível com `acesso_admin`) |
 | `GET /auditoria/` | A trilha de auditoria, com filtros `acao`, `actor`, `desde` e `ate` (`auditoria.view`) |
-| `GET /admin/dashboard/` | Os números do painel, com filtro `?periodo=` |
-| `GET /admin/logs/` | Os logs do painel, paginados (também exige `auditoria.view`) |
-| `GET /admin/solicitacoes/` · `POST /admin/solicitacoes/{id}/aprovar/` · `/rejeitar/` | As solicitações de autoria pendentes, e a decisão |
 | `GET /auth/admin/permissoes/` | O catálogo de permissões concedíveis |
 | `/auth/admin/niveis/` · `/niveis/{id}/` | Lista, cria, edita e remove níveis de acesso |
 | `GET /auth/admin/usuarios/` · `PATCH /usuarios/{id}/nivel/` | Os usuários, e a atribuição de nível a um deles |
 
-As rotas `/auth/admin/` exigem um nível com `acesso_admin`. Docs interativas em
-`/api/docs/`, schema em `/api/schema/`.
+As rotas `/auth/admin/` exigem um nível com `acesso_admin`. Docs interativas em `/api/docs/`, schema em `/api/schema/`.
 
 </details>
 
----
-
-## `~/deploy`
-
-Feito para rodar numa **VPS** (DigitalOcean), backend e frontend no mesmo servidor,
-não em plataformas serverless. O Django serve a API e o Next serve as telas, com um
-proxy reverso (Nginx) na frente e o banco na própria máquina.
-
-```
-DigitalOcean Droplet
-├── Nginx        # proxy reverso + TLS
-├── Django       # gunicorn, API em /api/
-├── Next.js      # next start, telas
-└── PostgreSQL   # banco relacional no droplet
-```
-
-A configuração fica em [`deploy/`](deploy/), pronta para copiar para o servidor
-(repositório em `/srv/codequest`, usuário `codequest`):
-
-| Arquivo | Destino |
-|---|---|
-| `nginx.conf` | `/etc/nginx/sites-available/codequest` (TLS com certbot) |
-| `codequest-api.service` · `codequest-web.service` | `/etc/systemd/system/` |
-| `gunicorn.conf.py` | lido pela unidade da API |
-| `crontab` | `crontab -u codequest deploy/crontab` (auditoria e pódio) |
-
-1. `backend/`: criar a `.venv`, `pip install -r requirements.txt` e o `.env` de
-   produção (`DEBUG=False`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `DATABASE_URL`).
-2. `systemctl enable --now codequest-api` (roda o `migrate`, que também cria a
-   tabela do cache de throttle).
-3. `frontend/`: `npm ci && npm run build` com a API já no ar, porque o build lê o
-   catálogo; depois `systemctl enable --now codequest-web`.
-4. Ativar o site no Nginx e instalar o `crontab`.
-
----
-
-## `~/testes`
+## Testes
 
 ```bash
-cd backend && pytest                 # 1332 testes, mais 1150 subtests
-cd frontend && npm test              # 612 testes (Jest + React Testing Library)
+cd backend && pytest                 # API, regras de negócio e segurança
+cd frontend && npm test              # Jest + React Testing Library
 ```
 
-A suíte do backend cobre a API de conteúdo, o fluxo editorial, a tabela de RBAC, os
-fluxos de autenticação, o 2FA, a troca de e-mail, os direitos da LGPD, a auditoria, o
-crédito de XP e a correção de código, incluindo o que **não** pode funcionar: um link
-de redefinição usado duas vezes, conteúdo não publicado vazando pela API, uma
-solução de referência chegando a um payload público, o login bloqueando após
-tentativas demais, um crédito de XP apagando o que outro pedido gravou no meio do
-caminho e um aluno estourando a cota do Judge0. Nos testes, o Judge0 dá lugar a um
-executor Python local, então a suíte não gasta cota nem precisa de rede. A CI (`.github/workflows/ci.yml`) roda tudo isso a cada push, com Postgres de verdade. Nenhum model é registrado no admin do Django, então toda ação administrativa
-passa pelas regras de negócio.
+A suíte do backend cobre a API de conteúdo, o fluxo editorial, a tabela de RBAC, os fluxos de autenticação, o 2FA, a troca de e-mail, os direitos da LGPD, a auditoria, o crédito de XP, a correção de código, as conquistas, o ranking e os clãs, incluindo o que **não** pode funcionar: um link de redefinição usado duas vezes, conteúdo não publicado vazando pela API, uma solução de referência chegando a um payload público, o login bloqueando após tentativas demais, um crédito de XP apagando o que outro pedido gravou no meio do caminho e um aluno estourando a cota do Judge0.
 
----
+Nos testes, o Judge0 dá lugar a um executor Python local, então a suíte não gasta cota nem precisa de rede. Nenhum model é registrado no admin do Django, então toda ação administrativa passa pelas regras de negócio.
 
-## `~/stack`
+## Deploy
 
-<div align="center">
+Feito para rodar numa **VPS** (DigitalOcean) com **Docker Compose**: quatro containers no mesmo servidor, não em plataformas serverless. O Nginx recebe tudo e repassa ao Next, que serve as telas e encaminha `/api/*` ao Django.
+
+```
+DigitalOcean Droplet (docker-compose.yml)
+├── nginx       # porta 80 (443 com o certificado), config em deploy/nginx.conf
+├── frontend    # Next.js; faz o build na subida, porque o prerender lê a API
+├── backend     # Django + gunicorn; migrate, seeds e admin inicial no entrypoint
+└── db          # PostgreSQL 18, publicado só em 127.0.0.1:5432
+```
+
+1. Na VPS: `git clone`, `cp .env.prod.example .env.prod` e preencher (os
+   comentários do arquivo explicam cada variável).
+2. `docker compose --env-file .env.prod up -d --build`. O primeiro deploy, com
+   `RODAR_SEEDS=1` e `ADMIN_*` preenchidos, carrega o conteúdo e cria o admin
+   (`manage.py criar_admin`: nível Admin do RBAC, e-mail já verificado).
+3. Depois que subir: `RODAR_SEEDS=0` e apagar `ADMIN_PASSWORD` do `.env.prod`.
+4. `crontab deploy/crontab` (limpeza da auditoria e pódio do ranking).
+
+Atualizar: `git pull && docker compose --env-file .env.prod up -d --build`.
+Trilha nova publicada pelo painel só vira página depois de reiniciar o
+`frontend` (`docker compose restart frontend`), que refaz o build.
+
+O banco não fica exposto: para inspecioná-lo (DBeaver, pgAdmin), túnel SSH até
+a VPS e conexão em `localhost:5432`.
+
+## Stack
 
 | Camada | Tecnologias |
-|-------|-------------|
-| **Backend** | ![Python](https://img.shields.io/badge/Python_3.14-3776AB?style=flat-square&logo=python&logoColor=white) ![Django](https://img.shields.io/badge/Django_6.0-092E20?style=flat-square&logo=django&logoColor=white) ![DRF](https://img.shields.io/badge/DRF-A30000?style=flat-square&logo=django&logoColor=white) ![JWT](https://img.shields.io/badge/SimpleJWT-000000?style=flat-square&logo=jsonwebtokens&logoColor=white) ![pytest](https://img.shields.io/badge/pytest-0A9EDC?style=flat-square&logo=pytest&logoColor=white) |
-| **Frontend** | ![Next.js](https://img.shields.io/badge/Next.js_16-000000?style=flat-square&logo=nextdotjs&logoColor=white) ![React](https://img.shields.io/badge/React_19-20232A?style=flat-square&logo=react&logoColor=61DAFB) ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat-square&logo=typescript&logoColor=white) ![Tailwind](https://img.shields.io/badge/Tailwind_v4-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white) ![Jest](https://img.shields.io/badge/Jest-C21325?style=flat-square&logo=jest&logoColor=white) |
-| **Banco** | ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white) |
-| **Infra** | ![DigitalOcean](https://img.shields.io/badge/DigitalOcean-0080FF?style=flat-square&logo=digitalocean&logoColor=white) ![Nginx](https://img.shields.io/badge/Nginx-009639?style=flat-square&logo=nginx&logoColor=white) |
-| **Docs da API** | ![OpenAPI](https://img.shields.io/badge/drf--spectacular-6BA539?style=flat-square&logo=openapiinitiative&logoColor=white) ![Swagger](https://img.shields.io/badge/Swagger_UI-85EA2D?style=flat-square&logo=swagger&logoColor=black) |
+|---|---|
+| **Backend** | Python 3.14, Django 6.0, Django REST Framework 3.18, SimpleJWT, Argon2, pytest |
+| **Frontend** | Next.js 16 (App Router), React 19, TypeScript 5, Tailwind CSS v4, Jest + React Testing Library |
+| **Banco** | PostgreSQL |
+| **Correção de código** | Judge0 CE |
+| **Infra** | DigitalOcean, Nginx, Docker Compose |
+| **Docs da API** | drf-spectacular, Swagger UI |
 
-</div>
+## Quem fez
 
----
+**[Mauro Junior](https://github.com/mj01px)**, **[Julio Franz](https://github.com/JulioFranz)** e **[Arthur Sabino](https://github.com/ArthurS357)**<br>
+Orientadora: Viviane Guimarães Ribeiro<br>
+Projeto Final de Curso · Engenharia de Software, 8B Noturno · Universidade de Mogi das Cruzes · 2026

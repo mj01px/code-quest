@@ -23,6 +23,7 @@ from apps.correcao.services import executar_codigo
 from apps.gamificacao.services import select_starter_creature
 from apps.progressao.models import EventoXP
 from apps.progressao.tests.test_credito_xp import criar_exercicio
+from apps.trilhas.models import Tipo
 
 from .helpers import (
     CODIGO_CERTO,
@@ -87,10 +88,10 @@ class ThrottlePorUsuarioTest(_ComJudge0Falso):
         self.assertEqual(r.status_code, 429)
         self.assertFalse(EventoXP.objects.exists())
 
-    def test_concluir_sem_correcao_automatica_nao_gasta_o_balde_do_judge0(self):
+    def test_concluir_teorico_nao_usa_o_balde_do_judge0(self):
         cliente = self._cliente("aluno_a")
         self._esgotar_por_minuto(cliente)
-        leitura = criar_exercicio(slug="leitura")  # sem especificação de código
+        leitura = criar_exercicio(slug="leitura", tipo=Tipo.TEORICO)
 
         r = cliente.post(_rota(CONCLUIR, leitura), format="json")
 
@@ -161,15 +162,13 @@ class CacheDeSubmissaoTest(_ComJudge0Falso):
 
     def test_identica_dentro_de_10_minutos_nao_bate_no_judge0(self):
         self._executar(CODIGO_CERTO)
-        # Espaço no fim de linha e linhas em branco nas bordas não contam.
-        self._executar("\n\n" + CODIGO_CERTO.replace("\n", "   \n") + "\n\n")
+        self._executar(CODIGO_CERTO)
 
         self.assertEqual(self.executor.chamadas, 1)
 
     def test_codigo_diferente_bate_as_duas(self):
         self._executar(CODIGO_CERTO)
         self._executar(CODIGO_ERRADO)
-        # Indentação interna não é normalizada.
         self._executar(CODIGO_CERTO.replace("    ", "  "))
 
         self.assertEqual(self.executor.chamadas, 3)

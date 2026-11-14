@@ -3,6 +3,7 @@ import json
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import timedelta
+from secrets import token_hex
 from typing import NotRequired, TypedDict
 
 from django.conf import settings
@@ -12,6 +13,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.contas.models import User
+from apps.progressao.models import Origem
 from apps.trilhas.models import Exercicio
 
 from . import analise_ast, harness, sql
@@ -102,10 +104,6 @@ def especificacao_de(exercicio: Exercicio) -> EspecificacaoDeCodigo | None:
     )
 
 
-def tem_correcao_automatica(exercicio: Exercicio) -> bool:
-    return EspecificacaoDeCodigo.objects.filter(exercicio=exercicio).exists()
-
-
 def codigo_aprovado(*, user: User, exercicio: Exercicio | int) -> str:
     submissao = (
         Submissao.objects.filter(
@@ -113,6 +111,8 @@ def codigo_aprovado(*, user: User, exercicio: Exercicio | int) -> str:
             exercicio=exercicio,
             modo=Modo.ENVIAR,
             veredito=Veredito.APROVADO,
+            exercicio__eventos_xp__user=user,
+            exercicio__eventos_xp__origem=Origem.EXERCICIO,
         )
         .order_by("-criado_em")
         .values_list("codigo", flat=True)
@@ -189,22 +189,12 @@ def _reservar_chamada(submissao: Submissao) -> None:
         submissao.save()
 
 
-def _normalizar(codigo: str) -> str:
-    # Só para a chave do cache: espaço no fim de linha e linhas em branco nas
-    # bordas não mudam o resultado. A indentação fica como está. Quebra só em
-    # \n, \r\n e \r, os fins de linha do Python (splitlines quebraria em U+2028
-    # e juntaria programas diferentes na mesma chave).
-    # ponytail: espaço no fim de linha DENTRO de string multilinha muda o valor
-    # e cai na mesma chave; normalizar via tokenize se algum exercício depender.
-    linhas = codigo.replace("\r\n", "\n").replace("\r", "\n").split("\n")
-    return "\n".join(linha.rstrip() for linha in linhas).strip("\n")
-
-
 def _hash(
     *, especificacao: EspecificacaoDeCodigo, casos: Sequence[CasoDeTeste], codigo: str
 ) -> str:
     base = json.dumps(
         {
+            "versao_cache": 2,
             "harness": sql.VERSAO
             if especificacao.linguagem == Linguagem.SQL
             else harness.VERSAO,
@@ -221,7 +211,7 @@ def _hash(
                 [c.ordem, c.argumentos, c.esperado, c.erro_esperado, c.visivel]
                 for c in casos
             ],
-            "codigo": _normalizar(codigo),
+            "codigo": codigo,
         },
         ensure_ascii=False,
         sort_keys=True,
@@ -238,7 +228,11 @@ def _descrever_erro(resultado: object) -> str:
 
 
 def _julgar(
-    *, casos: Sequence[CasoDeTeste], execucao: Execucao, personalizado: bool = False
+    *,
+    casos: Sequence[CasoDeTeste],
+    execucao: Execucao,
+    marcador: str,
+    personalizado: bool = False,
 ) -> Resultado:
     total = len(casos)
 
@@ -252,7 +246,7 @@ def _julgar(
             "erro": "",
         }
 
-    impresso, resultados = harness.separar_saida(execucao.stdout)
+    impresso, resultados = harness.separar_saida(execucao.stdout, marcador)
 
     if (
         execucao.status_id != STATUS_ACEITO
@@ -360,13 +354,42 @@ def _julgar_sql(
 ) -> Resultado:
     saida = []
     respostas = {}
+    grade = None
+    casos_por_ordem = {str(caso.ordem): caso for caso in casos}
+    protocolo_valido = True
     for linha in execucao.stdout.splitlines(keepends=True):
         if marcador and linha.startswith(f"{marcador}:"):
             ordem, _, valor = linha.removeprefix(f"{marcador}:").strip().partition(":")
-            if valor in ("0", "1"):
-                respostas[ordem] = valor == "1"
+            if ordem == "saida" and grade is None:
+                try:
+                    grade = json.loads(valor)
+                except ValueError:
+                    protocolo_valido = False
+            elif ordem in respostas or ordem not in casos_por_ordem:
+                protocolo_valido = False
+            else:
+                passou = sql.resultado_do_caso(casos_por_ordem[ordem], valor)
+                if passou is None:
+                    protocolo_valido = False
+                else:
+                    respostas[ordem] = passou
         else:
             saida.append(linha)
+
+    if casos and (saida or respostas.keys() != casos_por_ordem.keys()):
+        protocolo_valido = False
+    if grade is not None and (
+        not isinstance(grade, list)
+        or any(not isinstance(linha, list) for linha in grade)
+    ):
+        protocolo_valido = False
+    if not protocolo_valido:
+        respostas.clear()
+    elif grade:
+        saida.extend(
+            " | ".join("NULL" if valor is None else str(valor) for valor in linha) + "\n"
+            for linha in grade
+        )
 
     detalhes: list[CasoJulgado] = [
         {
@@ -380,7 +403,11 @@ def _julgar_sql(
     aprovados = sum(caso["passou"] for caso in detalhes)
     if execucao.status_id == STATUS_TEMPO_ESGOTADO:
         veredito = Veredito.TEMPO_ESGOTADO
-    elif execucao.status_id != STATUS_ACEITO or execucao.stderr.strip():
+    elif (
+        execucao.status_id != STATUS_ACEITO
+        or execucao.stderr.strip()
+        or not protocolo_valido
+    ):
         veredito = Veredito.ERRO_DE_EXECUCAO
     elif aprovados < len(casos):
         veredito = Veredito.RESPOSTA_ERRADA
@@ -400,13 +427,18 @@ def _julgar_sql(
 def _corrigir(
     *, user: User, exercicio: Exercicio, codigo: object, modo: Modo
 ) -> Correcao:
-    codigo = _validar(user=user, exercicio=exercicio, codigo=codigo)
-
     especificacao = especificacao_de(exercicio)
     if especificacao is None:
         raise ValidationError({"exercicio": _sem_correcao()})
 
     em_sql = especificacao.linguagem == Linguagem.SQL
+    casos = list(especificacao.casos.all())
+    if modo == Modo.EXECUTAR:
+        casos = [c for c in casos if c.visivel]
+    if not casos and (not em_sql or modo == Modo.ENVIAR):
+        raise ValidationError({"exercicio": _sem_correcao()})
+
+    codigo = _validar(user=user, exercicio=exercicio, codigo=codigo)
     if not em_sql:
         barrado = analise_ast.verificar(
             codigo=codigo,
@@ -421,20 +453,10 @@ def _corrigir(
                 {"codigo": ValidationError(mensagem, code=barrado.code)}
             )
 
-    casos = list(especificacao.casos.all())
-    if modo == Modo.EXECUTAR:
-        casos = [c for c in casos if c.visivel]
-    if not casos and (not em_sql or modo == Modo.ENVIAR):
-        raise ValidationError({"exercicio": _sem_correcao()})
-
     entradas: dict[int, str] = {}
-    codigo_sql = None
-    marcador_sql = ""
+    comando_sql = None
     if em_sql:
-        if casos:
-            codigo_sql, marcador_sql = sql.montar_correcao(codigo, casos)
-        else:
-            codigo_sql = sql.montar_programa(codigo)
+        comando_sql = sql.preparar_comando(codigo, casos)
     elif modo == Modo.EXECUTAR:
         parametros = harness.parametros_de(
             especificacao.codigo_inicial, especificacao.funcao
@@ -466,21 +488,34 @@ def _corrigir(
     else:
         cliente = obter_cliente()  # sem configuração não há chamada a contar
         _reservar_chamada(submissao)
-        execucao = cliente.executar(
-            codigo=codigo_sql
-            if codigo_sql is not None
-            else harness.montar_programa(
-                codigo=codigo, funcao=especificacao.funcao, entradas=entradas
-            ),
-            stdin="" if codigo_sql is not None else harness.montar_entrada(casos),
-            linguagem=especificacao.linguagem,
-        )
-        resultado = (
-            _julgar_sql(execucao, casos, marcador_sql)
-            if codigo_sql is not None
-            else _julgar(casos=casos, execucao=execucao, personalizado=bool(entradas))
-        )
-        if not em_sql:
+        if comando_sql is not None:
+            if modo == Modo.ENVIAR:
+                casos = sql.complementar_casos(casos)
+            entrada_sql, marcador_sql = sql.montar_entrada(
+                comando_sql, casos, mostrar_saida=modo == Modo.EXECUTAR
+            )
+            execucao = cliente.executar(
+                codigo=sql.PROGRAMA, stdin=entrada_sql, linguagem=Linguagem.PYTHON
+            )
+            resultado = _julgar_sql(execucao, casos, marcador_sql)
+        else:
+            marcador = f"@@RESULTADO:{token_hex(16)}@@"
+            execucao = cliente.executar(
+                codigo=harness.montar_programa(
+                    codigo=codigo,
+                    funcao=especificacao.funcao,
+                    marcador=marcador,
+                    entradas=entradas,
+                ),
+                stdin=harness.montar_entrada(casos),
+                linguagem=especificacao.linguagem,
+            )
+            resultado = _julgar(
+                casos=casos,
+                execucao=execucao,
+                marcador=marcador,
+                personalizado=bool(entradas),
+            )
             resultado["personalizado"] = bool(entradas)
         resultado["tempo"] = execucao.tempo
         resultado["memoria"] = execucao.memoria

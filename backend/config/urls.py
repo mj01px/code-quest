@@ -19,10 +19,16 @@ api = [
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
     path("api/v1/", include(api)),
-    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
-    path(
-        "api/docs/",
-        SpectacularSwaggerView.as_view(url_name="schema"),
-        name="docs",
-    ),
 ]
+
+# Swagger e schema entregam o mapa de todas as rotas: so com API_DOCS=True
+# (padrao: o mesmo que DEBUG, ou seja, ligado no dev e desligado em producao).
+if settings.API_DOCS:
+    urlpatterns += [
+        path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+        path(
+            "api/docs/",
+            SpectacularSwaggerView.as_view(url_name="schema"),
+            name="docs",
+        ),
+    ]
