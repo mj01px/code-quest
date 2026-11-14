@@ -14,7 +14,7 @@ from apps.core.permissions import HasPerm, IsAdmin
 from apps.correcao.excecoes import CorretorIndisponivel
 from apps.correcao.judge0 import Judge0Error
 from apps.correcao.serializers import CorrecaoSerializer, EnvioDeCodigoSerializer
-from apps.correcao.services import corrigir_envio, tem_correcao_automatica
+from apps.correcao.services import corrigir_envio
 from apps.correcao.views import PODE_SUBMETER_CODIGO, Judge0PorMinuto, codigo_enviado
 from apps.trilhas.models import (
     AlternativaExercicio,
@@ -238,10 +238,7 @@ class ConcluirExercicioView(APIView):
             revelacao = RevelarFlashcardSerializer(data=request.data)
             revelacao.is_valid(raise_exception=True)
 
-        if exercicio.tipo == Tipo.CODIGO and tem_correcao_automatica(exercicio):
-            # Só o envio que chama o Judge0 gasta o balde dele, o mesmo de
-            # executar/. Concluir exercício sem código segue em `conclusao`.
-            # Permissão antes do balde: 403 não gasta a rajada de ninguém.
+        if exercicio.tipo == Tipo.CODIGO:
             self.permission_classes = [PODE_SUBMETER_CODIGO]
             self.check_permissions(request)
             self.throttle_classes = [Judge0PorMinuto]
@@ -269,9 +266,7 @@ class ConcluirExercicioView(APIView):
             "aprovado": True,
             "correcao": CorrecaoSerializer(correcao).data if correcao else None,
         }
-        if exercicio.tipo in (Tipo.ALTERNATIVA, Tipo.TEORICO) or (
-            exercicio.tipo == Tipo.CODIGO and correcao is None
-        ):
+        if exercicio.tipo in (Tipo.ALTERNATIVA, Tipo.TEORICO):
             resposta["explicacao"] = exercicio.explicacao
         elif exercicio.tipo == Tipo.FLASHCARD:
             resposta["resposta"] = exercicio.explicacao

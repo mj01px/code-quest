@@ -21,10 +21,19 @@ from apps.gamificacao.services import select_starter_creature
 from apps.progressao import services
 from apps.progressao.models import EventoXP, ProgressoCriatura
 from apps.progressao.services import creditar_exercicio
-from apps.trilhas.models import Aula, Dificuldade, Exercicio, StatusEditorial, Trilha
+from apps.trilhas.models import (
+    Aula,
+    Dificuldade,
+    Exercicio,
+    StatusEditorial,
+    Tipo,
+    Trilha,
+)
 
 
-def criar_exercicio(dificuldade=Dificuldade.INICIANTE, slug="ex-1", publicado=True):
+def criar_exercicio(
+    dificuldade=Dificuldade.INICIANTE, slug="ex-1", publicado=True, *, tipo=Tipo.CODIGO
+):
     status = StatusEditorial.PUBLICADO if publicado else StatusEditorial.RASCUNHO
     trilha = Trilha.objects.get_or_create(
         slug="python",
@@ -40,6 +49,7 @@ def criar_exercicio(dificuldade=Dificuldade.INICIANTE, slug="ex-1", publicado=Tr
         titulo="Exercício",
         slug=slug,
         enunciado="x",
+        tipo=tipo,
         dificuldade=dificuldade,
         status=status,
     )

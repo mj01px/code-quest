@@ -26,8 +26,7 @@ class RespostaDeReferenciaTest(APITestCase):
         )
 
     def test_teorico_devolve_a_explicacao_e_credita(self):
-        exercicio = criar_exercicio(slug="teorico")
-        exercicio.tipo = Tipo.TEORICO
+        exercicio = criar_exercicio(slug="teorico", tipo=Tipo.TEORICO)
         exercicio.explicacao = "É float, porque / sempre devolve float."
         exercicio.save()
 
@@ -40,12 +39,13 @@ class RespostaDeReferenciaTest(APITestCase):
             resposta.data["explicacao"], "É float, porque / sempre devolve float."
         )
 
-    def test_codigo_sem_correcao_automatica_tambem_devolve(self):
+    def test_codigo_sem_correcao_automatica_nao_devolve_explicacao(self):
         exercicio = criar_exercicio(slug="sql")
-        exercicio.tipo = Tipo.CODIGO
         exercicio.explicacao = "CREATE TABLE aluno (...);"
         exercicio.save()
 
         resposta = self.concluir(exercicio)
 
-        self.assertEqual(resposta.data["explicacao"], "CREATE TABLE aluno (...);")
+        self.assertEqual(resposta.status_code, 400)
+        self.assertNotIn("explicacao", resposta.data)
+        self.assertNotContains(resposta, exercicio.explicacao, status_code=400)

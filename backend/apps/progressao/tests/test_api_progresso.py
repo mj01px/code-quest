@@ -13,7 +13,7 @@ from rest_framework.test import APIClient
 from apps.contas.tests.helpers import criar_aluno
 from apps.gamificacao.services import select_starter_creature
 from apps.progressao.models import EventoXP
-from apps.trilhas.models import StatusEditorial
+from apps.trilhas.models import StatusEditorial, Tipo
 
 from .test_credito_xp import criar_exercicio
 
@@ -51,7 +51,7 @@ class ApiProgressoTest(TestCase):
 
     def test_progresso_traz_valores_relativos_para_a_barra(self):
         select_starter_creature(user=self.user, creature_slug="shellby")
-        self._concluir(criar_exercicio())
+        self._concluir(criar_exercicio(tipo=Tipo.TEORICO))
 
         resposta = self.client.get(reverse("progressao:meu-progresso"))
         self.assertEqual(resposta.status_code, 200)
@@ -62,7 +62,7 @@ class ApiProgressoTest(TestCase):
 
     def test_xp_no_corpo_da_requisicao_e_ignorado(self):
         select_starter_creature(user=self.user, creature_slug="shellby")
-        exercicio = criar_exercicio()
+        exercicio = criar_exercicio(tipo=Tipo.TEORICO)
 
         resposta = self.client.post(
             reverse(
@@ -86,7 +86,7 @@ class ApiProgressoTest(TestCase):
 
     def test_repetir_devolve_ja_concluido_e_nao_soma(self):
         select_starter_creature(user=self.user, creature_slug="shellby")
-        exercicio = criar_exercicio()
+        exercicio = criar_exercicio(tipo=Tipo.TEORICO)
 
         self._concluir(exercicio)
         segunda = self._concluir(exercicio)
@@ -96,7 +96,7 @@ class ApiProgressoTest(TestCase):
         self.assertEqual(segunda.data["progresso"]["xp_total"], 50)
 
     def test_concluir_exige_autenticacao(self):
-        exercicio = criar_exercicio()
+        exercicio = criar_exercicio(tipo=Tipo.TEORICO)
         anonimo = APIClient()
 
         resposta = anonimo.post(
@@ -117,7 +117,7 @@ class ApiProgressoTest(TestCase):
         # Slug vindo do próprio exercício: com a trilha hardcoded, trocar o
         # helper faria o 404 passar a vir da trilha ausente e o teste ficaria
         # verde sem testar nada.
-        exercicio = criar_exercicio()
+        exercicio = criar_exercicio(tipo=Tipo.TEORICO)
 
         resposta = self.client.post(
             reverse(
@@ -134,7 +134,7 @@ class ApiProgressoTest(TestCase):
     def test_exercicio_publicado_sob_aula_nao_publicada_devolve_404(self):
         # O catálogo esconde esse exercício; a conclusão não pode creditar XP.
         select_starter_creature(user=self.user, creature_slug="shellby")
-        exercicio = criar_exercicio()
+        exercicio = criar_exercicio(tipo=Tipo.TEORICO)
         exercicio.aula.status = StatusEditorial.REVISAO
         exercicio.aula.save(update_fields=["status"])
 
@@ -142,7 +142,7 @@ class ApiProgressoTest(TestCase):
         self.assertEqual(EventoXP.objects.count(), 0)
 
     def test_sem_criatura_ativa_devolve_400_e_nao_credita(self):
-        resposta = self._concluir(criar_exercicio())
+        resposta = self._concluir(criar_exercicio(tipo=Tipo.TEORICO))
 
         self.assertEqual(resposta.status_code, 400)
         self.assertEqual(
@@ -155,7 +155,7 @@ class ApiProgressoTest(TestCase):
         # falsa no crédito novo, senão o ganho some da tela.
         select_starter_creature(user=self.user, creature_slug="shellby")
 
-        resposta = self._concluir(criar_exercicio())
+        resposta = self._concluir(criar_exercicio(tipo=Tipo.TEORICO))
 
         self.assertEqual(resposta.status_code, 200)
         # `assertIs` e não `assertFalse`: este campo é o discriminante da união
@@ -169,7 +169,7 @@ class ApiProgressoTest(TestCase):
         # campo aqui passaria verde sem isto e quebraria a tela em runtime.
         select_starter_creature(user=self.user, creature_slug="shellby")
 
-        resposta = self._concluir(criar_exercicio())
+        resposta = self._concluir(criar_exercicio(tipo=Tipo.TEORICO))
 
         self.assertEqual(
             set(resposta.data),

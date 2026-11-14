@@ -23,6 +23,7 @@ from apps.correcao.services import executar_codigo
 from apps.gamificacao.services import select_starter_creature
 from apps.progressao.models import EventoXP
 from apps.progressao.tests.test_credito_xp import criar_exercicio
+from apps.trilhas.models import Tipo
 
 from .helpers import (
     CODIGO_CERTO,
@@ -87,10 +88,10 @@ class ThrottlePorUsuarioTest(_ComJudge0Falso):
         self.assertEqual(r.status_code, 429)
         self.assertFalse(EventoXP.objects.exists())
 
-    def test_concluir_sem_correcao_automatica_nao_gasta_o_balde_do_judge0(self):
+    def test_concluir_teorico_nao_usa_o_balde_do_judge0(self):
         cliente = self._cliente("aluno_a")
         self._esgotar_por_minuto(cliente)
-        leitura = criar_exercicio(slug="leitura")  # sem especificação de código
+        leitura = criar_exercicio(slug="leitura", tipo=Tipo.TEORICO)
 
         r = cliente.post(_rota(CONCLUIR, leitura), format="json")
 
