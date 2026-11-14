@@ -123,15 +123,17 @@ class SeedLicoesTest(TestCase):
 
         for especificacao in especificacoes:
             casos = list(especificacao.casos.all())
+            marcador = "@@RESULTADO:teste@@"
             execucao = executor.executar(
                 codigo=harness.montar_programa(
                     codigo=especificacao.exercicio.solucao_autor,
                     funcao=especificacao.funcao,
+                    marcador=marcador,
                 ),
                 stdin=harness.montar_entrada(casos),
                 linguagem=especificacao.linguagem,
             )
-            _, resultados = harness.separar_saida(execucao.stdout)
+            _, resultados = harness.separar_saida(execucao.stdout, marcador)
 
             with self.subTest(exercicio=especificacao.exercicio.slug):
                 self.assertIsNotNone(resultados, execucao.stderr)

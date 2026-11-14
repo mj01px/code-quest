@@ -5,9 +5,7 @@ from collections.abc import Iterable
 
 from .models import CasoDeTeste
 
-MARCADOR = "@@RESULTADO@@"
-
-VERSAO = "4"
+VERSAO = "7"
 
 _MODELO = """
 
@@ -15,6 +13,29 @@ import json as _cq_json
 import sys as _cq_sys
 from contextlib import redirect_stdout as _cq_redirect_stdout, redirect_stderr as _cq_redirect_stderr
 from io import StringIO as _cq_StringIO
+from pathlib import Path as _cq_Path
+from tempfile import TemporaryDirectory as _cq_TemporaryDirectory
+from types import SimpleNamespace as _cq_SimpleNamespace
+
+def _cq_executar(funcao, args, arquivo):
+    if arquivo is None:
+        return funcao(*args)
+
+    with _cq_TemporaryDirectory() as pasta:
+        raiz = _cq_Path(pasta).resolve()
+        caminho = (raiz / args[0]).resolve()
+        if raiz not in caminho.parents:
+            raise ValueError("Use um caminho relativo para o arquivo.")
+        caminho.parent.mkdir(parents=True, exist_ok=True)
+        caminho.write_text(arquivo["conteudo"], encoding="utf-8")
+        valor = funcao(str(caminho), *args[1:])
+        if arquivo.get("verificar"):
+            conteudo = caminho.read_text(encoding="utf-8")
+            if conteudo.endswith("\\n"):
+                return conteudo[:-1].split("\\n")
+            return conteudo.split("\\n") if conteudo else []
+        return valor
+
 
 _cq_funcao = globals().get("{funcao}")
 _cq_casos = _cq_json.loads(_cq_sys.stdin.read())
@@ -25,8 +46,17 @@ for _cq_indice, _cq_args in enumerate(_cq_casos):
         _cq_saida.append({{"ok": False, "erro": "FuncaoAusente", "mensagem": ""}})
         continue
     try:
+        _cq_args = [
+            _cq_SimpleNamespace(**_cq_arg["__cq_objeto__"])
+            if isinstance(_cq_arg, dict) and set(_cq_arg) == {{"__cq_objeto__"}}
+            else _cq_arg
+            for _cq_arg in _cq_args
+        ]
+        _cq_arquivo = None
+        if _cq_args and isinstance(_cq_args[0], dict) and "__cq_arquivo__" in _cq_args[0]:
+            _cq_arquivo = _cq_args[0]
+            _cq_args[0] = _cq_arquivo["__cq_arquivo__"]
         if {personalizado}:
-            _cq_args = list(_cq_args)
             for _cq_i in range(len(_cq_args), max(_cq_entradas_personalizadas) + 1):
                 if _cq_i in _cq_entradas_personalizadas:
                     _cq_args.append(_cq_entradas_personalizadas[_cq_i])
@@ -35,9 +65,14 @@ for _cq_indice, _cq_args in enumerate(_cq_casos):
                     _cq_inicio = _cq_funcao.__code__.co_argcount - len(_cq_padroes)
                     _cq_args.append(_cq_padroes[_cq_i - _cq_inicio])
             _cq_args = [_cq_entradas_personalizadas.get(_cq_i, _cq_arg) for _cq_i, _cq_arg in enumerate(_cq_args)]
-            _cq_argumentos = _cq_json.loads(_cq_json.dumps(_cq_args))
+            _cq_argumentos = _cq_json.loads(_cq_json.dumps([
+                {{"__cq_objeto__": vars(_cq_arg)}} if isinstance(_cq_arg, _cq_SimpleNamespace) else _cq_arg
+                for _cq_arg in _cq_args
+            ]))
+            if _cq_arquivo is not None:
+                _cq_argumentos[0] = {{**_cq_arquivo, "__cq_arquivo__": _cq_args[0]}}
         with _cq_redirect_stdout(_cq_sys.stdout if _cq_indice == 0 else _cq_StringIO()), _cq_redirect_stderr(_cq_sys.stderr if _cq_indice == 0 else _cq_StringIO()):
-            _cq_valor = _cq_funcao(*_cq_args)
+            _cq_valor = _cq_executar(_cq_funcao, _cq_args, _cq_arquivo)
         _cq_json.dumps(_cq_valor)
         _cq_saida.append({{"ok": True, "valor": _cq_valor}})
     except Exception as _cq_e:
@@ -80,7 +115,11 @@ def entradas_do_codigo(
 
 
 def montar_programa(
-    *, codigo: str, funcao: str, entradas: dict[int, str] | None = None
+    *,
+    codigo: str,
+    funcao: str,
+    marcador: str,
+    entradas: dict[int, str] | None = None,
 ) -> str:
     if not funcao.isidentifier():
         raise ValueError(f"nome de função inválido: {funcao!r}")
@@ -98,7 +137,7 @@ def montar_programa(
     return (
         codigo.rstrip()
         + "\n"
-        + _MODELO.format(funcao=funcao, marcador=MARCADOR, personalizado=bool(entradas))
+        + _MODELO.format(funcao=funcao, marcador=marcador, personalizado=bool(entradas))
     )
 
 
@@ -106,17 +145,17 @@ def montar_entrada(casos: Iterable[CasoDeTeste]) -> str:
     return json.dumps([caso.argumentos for caso in casos], ensure_ascii=False)
 
 
-def separar_saida(stdout: str) -> tuple[str, list[object] | None]:
+def separar_saida(stdout: str, marcador: str) -> tuple[str, list[object] | None]:
     linhas = stdout.splitlines()
     marcadores = [
-        indice for indice, linha in enumerate(linhas) if linha.startswith(MARCADOR)
+        indice for indice, linha in enumerate(linhas) if linha.startswith(marcador)
     ]
     if len(marcadores) != 1:
         return stdout, None
 
     indice = marcadores[0]
     try:
-        resultados = json.loads(linhas[indice][len(MARCADOR) :])
+        resultados = json.loads(linhas[indice][len(marcador) :])
     except ValueError:
         return stdout, None
     if not isinstance(resultados, list):

@@ -3,6 +3,7 @@ import json
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import timedelta
+from secrets import token_hex
 from typing import NotRequired, TypedDict
 
 from django.conf import settings
@@ -101,10 +102,6 @@ def especificacao_de(exercicio: Exercicio) -> EspecificacaoDeCodigo | None:
         .prefetch_related("casos")
         .first()
     )
-
-
-def tem_correcao_automatica(exercicio: Exercicio) -> bool:
-    return EspecificacaoDeCodigo.objects.filter(exercicio=exercicio).exists()
 
 
 def codigo_aprovado(*, user: User, exercicio: Exercicio | int) -> str:
@@ -235,7 +232,11 @@ def _descrever_erro(resultado: object) -> str:
 
 
 def _julgar(
-    *, casos: Sequence[CasoDeTeste], execucao: Execucao, personalizado: bool = False
+    *,
+    casos: Sequence[CasoDeTeste],
+    execucao: Execucao,
+    marcador: str,
+    personalizado: bool = False,
 ) -> Resultado:
     total = len(casos)
 
@@ -249,7 +250,7 @@ def _julgar(
             "erro": "",
         }
 
-    impresso, resultados = harness.separar_saida(execucao.stdout)
+    impresso, resultados = harness.separar_saida(execucao.stdout, marcador)
 
     if (
         execucao.status_id != STATUS_ACEITO
@@ -357,21 +358,42 @@ def _julgar_sql(
 ) -> Resultado:
     saida = []
     respostas = {}
+    grade = None
+    casos_por_ordem = {str(caso.ordem): caso for caso in casos}
     protocolo_valido = True
     for linha in execucao.stdout.splitlines(keepends=True):
         if marcador and linha.startswith(f"{marcador}:"):
             ordem, _, valor = linha.removeprefix(f"{marcador}:").strip().partition(":")
-            if ordem in respostas or valor not in ("0", "1"):
+            if ordem == "saida" and grade is None:
+                try:
+                    grade = json.loads(valor)
+                except ValueError:
+                    protocolo_valido = False
+            elif ordem in respostas or ordem not in casos_por_ordem:
                 protocolo_valido = False
             else:
-                respostas[ordem] = valor == "1"
+                passou = sql.resultado_do_caso(casos_por_ordem[ordem], valor)
+                if passou is None:
+                    protocolo_valido = False
+                else:
+                    respostas[ordem] = passou
         else:
             saida.append(linha)
 
-    if casos and (saida or respostas.keys() != {str(caso.ordem) for caso in casos}):
+    if casos and (saida or respostas.keys() != casos_por_ordem.keys()):
+        protocolo_valido = False
+    if grade is not None and (
+        not isinstance(grade, list)
+        or any(not isinstance(linha, list) for linha in grade)
+    ):
         protocolo_valido = False
     if not protocolo_valido:
         respostas.clear()
+    elif grade:
+        saida.extend(
+            " | ".join("NULL" if valor is None else str(valor) for valor in linha) + "\n"
+            for linha in grade
+        )
 
     detalhes: list[CasoJulgado] = [
         {
@@ -409,13 +431,18 @@ def _julgar_sql(
 def _corrigir(
     *, user: User, exercicio: Exercicio, codigo: object, modo: Modo
 ) -> Correcao:
-    codigo = _validar(user=user, exercicio=exercicio, codigo=codigo)
-
     especificacao = especificacao_de(exercicio)
     if especificacao is None:
         raise ValidationError({"exercicio": _sem_correcao()})
 
     em_sql = especificacao.linguagem == Linguagem.SQL
+    casos = list(especificacao.casos.all())
+    if modo == Modo.EXECUTAR:
+        casos = [c for c in casos if c.visivel]
+    if not casos and (not em_sql or modo == Modo.ENVIAR):
+        raise ValidationError({"exercicio": _sem_correcao()})
+
+    codigo = _validar(user=user, exercicio=exercicio, codigo=codigo)
     if not em_sql:
         barrado = analise_ast.verificar(
             codigo=codigo,
@@ -429,12 +456,6 @@ def _corrigir(
             raise ValidationError(
                 {"codigo": ValidationError(mensagem, code=barrado.code)}
             )
-
-    casos = list(especificacao.casos.all())
-    if modo == Modo.EXECUTAR:
-        casos = [c for c in casos if c.visivel]
-    if not casos and (not em_sql or modo == Modo.ENVIAR):
-        raise ValidationError({"exercicio": _sem_correcao()})
 
     entradas: dict[int, str] = {}
     comando_sql = None
@@ -474,21 +495,30 @@ def _corrigir(
         if comando_sql is not None:
             if modo == Modo.ENVIAR:
                 casos = sql.complementar_casos(casos)
-            entrada_sql, marcador_sql = sql.montar_entrada(comando_sql, casos)
+            entrada_sql, marcador_sql = sql.montar_entrada(
+                comando_sql, casos, mostrar_saida=modo == Modo.EXECUTAR
+            )
             execucao = cliente.executar(
                 codigo=sql.PROGRAMA, stdin=entrada_sql, linguagem=Linguagem.PYTHON
             )
             resultado = _julgar_sql(execucao, casos, marcador_sql)
         else:
+            marcador = f"@@RESULTADO:{token_hex(16)}@@"
             execucao = cliente.executar(
                 codigo=harness.montar_programa(
-                    codigo=codigo, funcao=especificacao.funcao, entradas=entradas
+                    codigo=codigo,
+                    funcao=especificacao.funcao,
+                    marcador=marcador,
+                    entradas=entradas,
                 ),
                 stdin=harness.montar_entrada(casos),
                 linguagem=especificacao.linguagem,
             )
             resultado = _julgar(
-                casos=casos, execucao=execucao, personalizado=bool(entradas)
+                casos=casos,
+                execucao=execucao,
+                marcador=marcador,
+                personalizado=bool(entradas),
             )
             resultado["personalizado"] = bool(entradas)
         resultado["tempo"] = execucao.tempo

@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 
 import {EditorDeCodigo} from "@/components/exercicio/EditorDeCodigo";
 import {CabecalhoDoPainel, GradeDoExercicio} from "@/components/exercicio/GradeDoExercicio";
-import {ResultadoDosCasos, comoTexto} from "@/components/exercicio/ResultadoDosCasos";
+import {ResultadoDosCasos, arquivoDeExemplo, comoArgumento, comoTexto} from "@/components/exercicio/ResultadoDosCasos";
 import {useProgresso} from "@/components/progresso/ProvedorProgresso";
 import {estaConcluida} from "@/lib/progresso";
 import {ErroApi, api} from "@/lib/api";
@@ -32,7 +32,9 @@ const CONSTRUCOES: Record<string, string> = {
     fstring: "uma f-string",
     import: "import",
     with: "um with",
+    encoding: "uma abertura de arquivo com encoding informado",
     chamada: "a função",
+    bloco_aninhado: "um bloco aninhado",
 };
 
 function descreverRequisito(requisito: RequisitoEstrutural): string {
@@ -45,16 +47,18 @@ function descreverRequisito(requisito: RequisitoEstrutural): string {
 
 function descreverExemplo(exemplo: ExemploDeCaso, funcao: string): string {
     if (exemplo.descricao) return exemplo.descricao;
-    const args = (exemplo.argumentos ?? []).map(comoTexto).join(", ");
+    const args = (exemplo.argumentos ?? []).map(comoArgumento).join(", ");
     const saida = exemplo.erro_esperado
         ? `levanta ${exemplo.erro_esperado}`
-        : `→ ${comoTexto(exemplo.esperado)}`;
+        : `→ ${arquivoDeExemplo(exemplo.argumentos?.[0])?.verificar ? "linhas gravadas " : ""}${comoTexto(exemplo.esperado)}`;
     return `${funcao}(${args}) ${saida}`;
 }
 
 function descreverResultado(caso: ResultadoDoCaso, funcao: string): string {
-    const args = (caso.argumentos ?? []).map(comoTexto).join(", ");
-    return `${funcao}(${args}) → ${caso.erro || comoTexto(caso.obtido)}`;
+    const args = (caso.argumentos ?? []).map(comoArgumento).join(", ");
+    const arquivo = arquivoDeExemplo(caso.argumentos?.[0]);
+    const resultado = caso.erro || `${arquivo?.verificar ? "linhas gravadas " : ""}${comoTexto(caso.obtido)}`;
+    return `${funcao}(${args}) → ${resultado}`;
 }
 
 function ExemploDeExecucao({ especificacao, argumentos }: {
@@ -64,7 +68,9 @@ function ExemploDeExecucao({ especificacao, argumentos }: {
     const exemplo = especificacao.exemplos[0];
     if (!exemplo) return null;
 
-    const valores = (argumentos ?? exemplo.argumentos ?? []).map(comoTexto);
+    const entradas = argumentos ?? exemplo.argumentos ?? [];
+    const arquivo = arquivoDeExemplo(entradas[0]);
+    const valores = entradas.map(comoArgumento);
     const parametros = especificacao.parametros?.slice(0, valores.length) ?? [];
     if (!valores.length || parametros.length !== valores.length) return null;
     const linhas = parametros.map((nome, indice) => `${nome} = ${valores[indice]}`);
@@ -77,6 +83,11 @@ function ExemploDeExecucao({ especificacao, argumentos }: {
             <pre aria-label="Entrada do exemplo" className="m-0 overflow-x-auto font-mono text-sm text-brand-light">
                 {linhas.join("\n")}
             </pre>
+            {arquivo && (
+                <pre aria-label="Conteúdo inicial do arquivo" className="m-0 mt-2 overflow-x-auto font-mono text-sm text-ink-body">
+                    {arquivo.conteudo || "(arquivo vazio)"}
+                </pre>
+            )}
         </div>
     );
 }

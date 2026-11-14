@@ -15,8 +15,38 @@ export function comoTexto(valor: unknown): string {
   return JSON.stringify(valor) ?? String(valor);
 }
 
+export function arquivoDeExemplo(valor: unknown) {
+  if (
+    typeof valor === "object" && valor !== null &&
+    "__cq_arquivo__" in valor && typeof valor.__cq_arquivo__ === "string" &&
+    "conteudo" in valor && typeof valor.conteudo === "string"
+  ) {
+    return {
+      nome: valor.__cq_arquivo__,
+      conteudo: valor.conteudo,
+      verificar: "verificar" in valor && valor.verificar === true,
+    };
+  }
+  return null;
+}
+
+export function comoArgumento(valor: unknown): string {
+  const arquivo = arquivoDeExemplo(valor);
+  if (arquivo) return comoTexto(arquivo.nome);
+  if (typeof valor === "object" && valor !== null && "__cq_objeto__" in valor && Object.keys(valor).length === 1) {
+    const atributos = valor.__cq_objeto__;
+    if (typeof atributos === "object" && atributos !== null && !Array.isArray(atributos)) {
+      const argumentos = Object.entries(atributos).map(([nome, conteudo]) => (
+        `${nome}=${comoTexto(conteudo)}`
+      ));
+      return `SimpleNamespace(${argumentos.join(", ")})`;
+    }
+  }
+  return comoTexto(valor);
+}
+
 function chamada(caso: ResultadoDoCaso, funcao: string): string {
-  const args = (caso.argumentos ?? []).map(comoTexto).join(", ");
+  const args = (caso.argumentos ?? []).map(comoArgumento).join(", ");
   return `${funcao}(${args})`;
 }
 
@@ -40,7 +70,8 @@ function Caso({ caso, funcao }: { caso: ResultadoDoCaso; funcao: string }) {
       </p>
       {!caso.passou && !caso.descricao && (
         <p className="text-ink-muted">
-          esperado {caso.erro_esperado || comoTexto(caso.esperado)}, obtido{" "}
+          {arquivoDeExemplo(caso.argumentos?.[0])?.verificar ? "linhas esperadas" : "esperado"}{" "}
+          {caso.erro_esperado || comoTexto(caso.esperado)}, obtido{" "}
           {caso.erro ? caso.erro : comoTexto(caso.obtido)}
         </p>
       )}
