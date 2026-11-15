@@ -19,7 +19,12 @@ from apps.trilhas.models import (
     Tipo,
     Trilha,
 )
-from apps.trilhas.serializers import ExercicioDetalheSerializer, TrilhaDetalheSerializer
+from apps.trilhas.serializers import (
+    AulaSerializer,
+    ExercicioDetalheSerializer,
+    ExercicioResumoSerializer,
+    TrilhaDetalheSerializer,
+)
 
 from .models import SolicitacaoAutoria
 from .services import (
@@ -116,9 +121,36 @@ class ExercicioEditorialSerializer(ExercicioDetalheSerializer):
         read_only_fields = fields
 
 
+# Aula e exercício na leitura editorial trazem o próprio status: cada item se
+# edita pelo estado dele, não pelo da trilha (uma aula pode estar em revisão
+# dentro de uma trilha publicada). Por método, como na trilha abaixo.
+class ExercicioNaAulaSerializer(ExercicioResumoSerializer):
+    status_editorial = serializers.SerializerMethodField()
+
+    class Meta(ExercicioResumoSerializer.Meta):
+        fields = [*ExercicioResumoSerializer.Meta.fields, "status_editorial"]
+        read_only_fields = fields
+
+    def get_status_editorial(self, obj: Exercicio) -> str:
+        return obj.status
+
+
+class AulaEditorialSerializer(AulaSerializer):
+    exercicios = ExercicioNaAulaSerializer(many=True, read_only=True)
+    status_editorial = serializers.SerializerMethodField()
+
+    class Meta(AulaSerializer.Meta):
+        fields = [*AulaSerializer.Meta.fields, "status_editorial"]
+        read_only_fields = fields
+
+    def get_status_editorial(self, obj: Aula) -> str:
+        return obj.status
+
+
 # Trilha na leitura editorial: o editor precisa do status para oferecer o
 # "publicar". Sai por método porque `status` é nome proibido na varredura.
 class TrilhaEditorialSerializer(TrilhaDetalheSerializer):
+    aulas = AulaEditorialSerializer(many=True, read_only=True)
     status_editorial = serializers.SerializerMethodField()
     criatura_bonus = serializers.SerializerMethodField()
 
@@ -493,11 +525,18 @@ class EdicaoExercicioSerializer(serializers.ModelSerializer[Exercicio]):
             spec.funcao = funcao
             spec.save(update_fields=["funcao", "atualizado_em"])
         if spec is not None and testes:
-            spec.casos.all().delete()
-            CasoDeTeste.objects.bulk_create(
-                CasoDeTeste(especificacao=spec, ordem=i, **caso)
-                for i, caso in enumerate(testes, start=1)
-            )
+            atuais = [
+                {"argumentos": c.argumentos, "esperado": c.esperado, "visivel": c.visivel}
+                for c in spec.casos.all()
+            ]
+            # A tela reenvia a lista inteira a cada edição. Igual à atual, não
+            # recria: recriar apagaria `erro_esperado`, que a tela não conhece.
+            if [dict(caso) for caso in testes] != atuais:
+                spec.casos.all().delete()
+                CasoDeTeste.objects.bulk_create(
+                    CasoDeTeste(especificacao=spec, ordem=i, **caso)
+                    for i, caso in enumerate(testes, start=1)
+                )
         return exercicio
 
 

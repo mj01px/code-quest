@@ -25,8 +25,10 @@ jest.mock("@/lib/api", () => ({
     autoriaFilaRevisao: jest.fn(),
     autoriaAprovados: jest.fn(),
     autoriaMeusEnvios: jest.fn(),
+    autoriaMeusConteudos: jest.fn(),
     publicarConteudo: jest.fn(),
     detalheEditorial: jest.fn(),
+    diffEditorial: jest.fn(),
     submeterRevisao: jest.fn(),
     aprovarConteudo: jest.fn(),
     devolverConteudo: jest.fn(),
@@ -109,6 +111,8 @@ beforeEach(() => {
     devolvidos: [],
     excluidos: [],
   });
+  mock.api.autoriaMeusConteudos.mockResolvedValue([]);
+  mock.api.diffEditorial.mockResolvedValue({ campos: [], filhos: [] });
 });
 
 describe("PainelAutoria: RBAC", () => {
@@ -171,9 +175,10 @@ describe("PainelAutoria: RBAC", () => {
     expect(
       screen.queryByRole("region", { name: "Revisão de conteúdo" }),
     ).not.toBeInTheDocument();
-    // Sem a fila, sobram produção e meus envios.
+    // Sem a fila, sobram produção, meus conteúdos e meus envios.
     expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual([
       "CRIAÇÃO E PUBLICAÇÃO",
+      "MEUS CONTEÚDOS",
       "MEUS ENVIOS",
     ]);
     expect(mock.api.autoriaFilaRevisao).not.toHaveBeenCalled();
@@ -224,12 +229,13 @@ describe("PainelAutoria: abas", () => {
     await waitFor(() => expect(within(aba).getByText("1")).toBeInTheDocument());
   });
 
-  it("as três abas seguem a ordem produção, fila, envios", async () => {
+  it("as quatro abas seguem a ordem produção, meus conteúdos, fila, envios", async () => {
     montar(ADMIN);
 
     await screen.findByRole("tab", { name: /REVISÃO DE CONTEÚDO/ });
     expect(screen.getAllByRole("tab").map((t) => t.textContent?.replace(/\d+$/, ""))).toEqual([
       "CRIAÇÃO E PUBLICAÇÃO",
+      "MEUS CONTEÚDOS",
       "REVISÃO DE CONTEÚDO",
       "MEUS ENVIOS",
     ]);
@@ -930,5 +936,38 @@ describe("PainelAutoria: meus envios", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Calma.");
     expect(mock.api.autoriaMeusEnvios).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("PainelAutoria: meus conteúdos", () => {
+  it("a aba lista o que o autor criou e só busca ao abrir", async () => {
+    mock.api.autoriaMeusConteudos.mockResolvedValue([
+      { id: 7, tipo: "trilhas", titulo: "Lógica", status_editorial: "PUBLICADO" },
+    ]);
+    montar([...AUTOR, "trilhas.create"]);
+
+    const aba = await screen.findByRole("tab", { name: "MEUS CONTEÚDOS" });
+    expect(mock.api.autoriaMeusConteudos).not.toHaveBeenCalled();
+    await userEvent.click(aba);
+
+    const lista = await screen.findByRole("region", { name: "Meus conteúdos" });
+    expect(within(lista).getByText("Lógica")).toBeInTheDocument();
+    expect(within(lista).getByRole("link", { name: "Editar: Lógica" })).toHaveAttribute(
+      "href",
+      "/autoria/novo?trilha_id=7",
+    );
+    expect(screen.getByRole("heading", { level: 1, name: "Meus Conteúdos" })).toBeInTheDocument();
+  });
+
+  it("sem trilhas.create a lista aparece, mas sem o botão de editar", async () => {
+    mock.api.autoriaMeusConteudos.mockResolvedValue([
+      { id: 7, tipo: "trilhas", titulo: "Lógica", status_editorial: "PUBLICADO" },
+    ]);
+    montar(AUTOR);
+
+    await userEvent.click(await screen.findByRole("tab", { name: "MEUS CONTEÚDOS" }));
+
+    expect(await screen.findByText("Lógica")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Editar: Lógica" })).toBeNull();
   });
 });

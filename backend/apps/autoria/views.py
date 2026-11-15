@@ -32,11 +32,11 @@ from apps.trilhas.models import (
     StatusEditorial,
     Trilha,
 )
-from apps.trilhas.serializers import AulaSerializer
 
 from .models import SolicitacaoAutoria
 from .serializers import (
     EDICAO,
+    AulaEditorialSerializer,
     EdicaoFlashcardSerializer,
     EdicaoQuestaoSerializer,
     ExercicioEditorialSerializer,
@@ -68,6 +68,13 @@ from .services import (
     itens_no_status,
     rascunho_editavel,
     transicionar,
+)
+from .versoes import (
+    EDITAVEIS,
+    antes_da_edicao,
+    conteudos_do_autor,
+    diff_editorial,
+    reabrir_se_mudou,
 )
 
 # Escopo próprio: conteúdo sensível não divide balde com `catalogo` nem com
@@ -244,7 +251,7 @@ class MeusEnviosView(APIView):
 
 # Serializer e consulta por tipo, sem filtro de status: ler o rascunho antes de
 # agir é o motivo da rota. As relações vêm junto, sem N+1 nas aulas da trilha.
-# Os serializers são os do catálogo público, que já deixam `solucao_autor` de
+# Os serializers partem dos do catálogo público, que já deixam `solucao_autor` de
 # fora; a varredura transversal de serializers garante isso.
 DETALHE: dict[str, tuple[type[serializers.ModelSerializer[Any]], QuerySet[Any]]] = {
     "trilhas": (
@@ -257,7 +264,7 @@ DETALHE: dict[str, tuple[type[serializers.ModelSerializer[Any]], QuerySet[Any]]]
         ),
     ),
     "aulas": (
-        AulaSerializer,
+        AulaEditorialSerializer,
         Aula.objects.select_related("pre_requisito").prefetch_related(
             "exercicios", "flashcards", "questoes"
         ),
@@ -448,7 +455,8 @@ class CriarExercicioView(CriarConteudoView):
 
 # --- Edição e exclusão de rascunho ---
 # Mesma permissão de criar: quem não cria não tem o que editar. Dono e status
-# são cobrados no serviço, com a linha travada.
+# são cobrados no serviço, com a linha travada. O PUT vale também para o
+# aprovado e o publicado, que voltam para revisão; o DELETE, não.
 @extend_schema(
     tags=["autoria"],
     parameters=[
@@ -474,11 +482,14 @@ class RascunhoView(APIView):
     def put(self, request: Request, tipo: str, pk: str) -> Response:
         with transaction.atomic():
             conteudo = rascunho_editavel(
-                MODELOS[tipo], int(pk), cast(User, request.user)
+                MODELOS[tipo], int(pk), cast(User, request.user), EDITAVEIS
             )
+            # Aprovado ou publicado que mudou de fato volta para revisão.
+            antes = antes_da_edicao(conteudo)
             entrada = EDICAO[tipo](conteudo, data=request.data)
             entrada.is_valid(raise_exception=True)
             entrada.save()
+            reabrir_se_mudou(conteudo, antes, request)
             registrar(
                 AcaoAuditoria.CONTEUDO_EDITADO,
                 request=request,
@@ -650,3 +661,80 @@ class QuestaoView(APIView):
                 questao=pk,
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# --- Meus conteúdos e diff da edição ---
+# Tudo o que o usuário criou, em qualquer status. Sempre só o dele: o filtro
+# é `request.user`, sem atalho para o admin.
+@extend_schema(tags=["autoria"], responses=ItemEditorialSerializer(many=True))
+class MeusConteudosView(APIView):
+    permission_classes = [IsAuthenticated, HasPerm("trilhas.submit_review")]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = ESCOPO_EDITORIAL
+
+    def get(self, request: Request) -> Response:
+        itens = conteudos_do_autor(cast(User, request.user))
+        return Response(ItemEditorialSerializer(itens, many=True).data)
+
+
+# O que mudou desde a última versão aprovada, no conteúdo e nos filhos dele.
+# Mesma regra de leitura do detalhe: quem revisa lê qualquer um; quem só
+# submete lê o que criou.
+CAMPOS_ALTERADOS = inline_serializer(
+    "CampoAlterado",
+    {
+        "campo": serializers.CharField(),
+        "linhas": inline_serializer(
+            "LinhaDoDiff",
+            {
+                "tipo": serializers.ChoiceField(["igual", "removido", "adicionado"]),
+                "texto": serializers.CharField(allow_blank=True),
+            },
+            many=True,
+        ),
+    },
+    many=True,
+)
+
+
+@extend_schema(
+    tags=["autoria"],
+    parameters=[
+        OpenApiParameter("tipo", str, OpenApiParameter.PATH, enum=list(MODELOS)),
+        OpenApiParameter("pk", int, OpenApiParameter.PATH),
+    ],
+    responses=inline_serializer(
+        "DiffEditorial",
+        {
+            "campos": CAMPOS_ALTERADOS,
+            "filhos": inline_serializer(
+                "FilhoAlterado",
+                {
+                    "tipo": serializers.ChoiceField(["aulas", "exercicios"]),
+                    "id": serializers.IntegerField(),
+                    "titulo": serializers.CharField(),
+                    "campos": CAMPOS_ALTERADOS,
+                },
+                many=True,
+            ),
+        },
+    ),
+)
+class DiffEditorialView(APIView):
+    permission_classes = [
+        IsAuthenticated,
+        HasAnyPerm("trilhas.submit_review", "trilhas.review"),
+    ]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = ESCOPO_EDITORIAL
+
+    def get(self, request: Request, tipo: str, pk: str) -> Response:
+        conteudo = MODELOS[tipo].objects.filter(pk=int(pk)).first()
+        if conteudo is None:
+            raise Http404("Conteúdo não encontrado.")
+        usuario = cast(User, request.user)
+        revisor = usuario.has_perm("trilhas.review")
+        if not revisor and not eh_dono_ou_admin(conteudo, usuario):
+            raise PermissionDenied("Você só pode abrir o que criou.")
+        # Quem não revisa lê só o diff dos filhos que ele mesmo criou.
+        return Response(diff_editorial(conteudo, None if revisor else usuario))

@@ -108,14 +108,18 @@ def test_dono_nao_exclui_o_que_ja_foi_publicado(tipo, dono):
     assert MODELOS[tipo].objects.filter(pk=conteudo.pk).exists()
 
 
-def test_aprovado_nao_e_editavel(dono):
+# Antes o aprovado não se editava; agora edita e volta para revisão. O ciclo
+# inteiro (versão anterior, diff) está em test_api_edicao_publicado.py.
+def test_aprovado_editado_volta_para_revisao(dono):
     conteudo = criar_conteudo("trilhas", dono, status=StatusEditorial.APROVADO)
 
     resposta = cliente(dono).put(
         url("trilhas", conteudo.pk), EDICAO["trilhas"], format="json"
     )
 
-    assert resposta.status_code == 400
+    assert resposta.status_code == 200
+    conteudo.refresh_from_db()
+    assert conteudo.status == REVISAO
 
 
 def test_trilha_aprovada_leva_a_aula_aprovada_junto(dono):

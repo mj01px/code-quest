@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import {
@@ -25,6 +25,7 @@ jest.mock("@/lib/api", () => ({
   ...jest.requireActual("@/lib/api"),
   api: {
     detalheEditorial: jest.fn(),
+    diffEditorial: jest.fn(),
     executarCodigo: jest.fn(),
     concluirExercicio: jest.fn(),
   },
@@ -82,12 +83,12 @@ const TRILHA = trilhaDetalhe({
   ],
 });
 
-function montar(item: Partial<ItemEditorial> = {}) {
+function montar(item: Partial<ItemEditorial> = {}, acoes: { rotulo: string }[] = []) {
   return render(
     <ModalVisualizacao
       item={{ id: 100, tipo: "trilhas", titulo: "Lógica", status_editorial: "RASCUNHO", ...item }}
       rotulo="PRÉVIA DA TRILHA"
-      acoes={[]}
+      acoes={acoes}
       ocupado={false}
       erro={null}
       onAgir={jest.fn()}
@@ -98,6 +99,8 @@ function montar(item: Partial<ItemEditorial> = {}) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // Sem edição pendente: é o caso de todo conteúdo que nunca foi aprovado.
+  mock.api.diffEditorial.mockResolvedValue({ campos: [], filhos: [] });
   mock.api.detalheEditorial.mockImplementation(async (tipo: string, id: number) => {
     if (tipo === "trilhas") return TRILHA;
     return id === 2 ? TEORICO : exercicioEditorial();
@@ -193,5 +196,78 @@ describe("ModalVisualizacao", () => {
 
     expect(await screen.findByLabelText("Código")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Executar" })).toBeInTheDocument();
+  });
+
+  it("sem edição pendente, a seção de alterações não aparece", async () => {
+    montar();
+
+    await screen.findByRole("heading", { name: "Guardar um valor" });
+    expect(mock.api.diffEditorial).toHaveBeenCalledWith("trilhas", 100);
+    expect(screen.queryByRole("region", { name: "Alterações desde a versão aprovada" })).toBeNull();
+  });
+
+  it("com edição pendente, mostra o que entrou e o que saiu, campo a campo", async () => {
+    mock.api.diffEditorial.mockResolvedValue({
+      campos: [
+        {
+          campo: "descricao",
+          linhas: [
+            { tipo: "igual", texto: "Primeira linha" },
+            { tipo: "removido", texto: "Texto antigo" },
+            { tipo: "adicionado", texto: "Texto novo" },
+          ],
+        },
+      ],
+      filhos: [
+        {
+          tipo: "aulas",
+          id: 4,
+          titulo: "Laços",
+          campos: [{ campo: "titulo", linhas: [{ tipo: "adicionado", texto: "Laços e repetição" }] }],
+        },
+      ],
+    });
+    montar();
+
+    const secao = await screen.findByRole("region", { name: "Alterações desde a versão aprovada" });
+    const descricao = within(secao).getByLabelText("Alterações em DESCRIÇÃO");
+    expect(within(descricao).getByText("Primeira linha").tagName).toBe("SPAN");
+    expect(within(descricao).getByText("- Texto antigo").tagName).toBe("DEL");
+    expect(within(descricao).getByText("+ Texto novo").tagName).toBe("INS");
+    // A aula editada dentro da trilha vem no mesmo modal, com o nome dela.
+    expect(within(secao).getByRole("heading", { name: "AULA: LAÇOS" })).toBeInTheDocument();
+    expect(within(secao).getByText("+ Laços e repetição").tagName).toBe("INS");
+  });
+
+  it("a ação só libera depois de o diff chegar: ninguém aprova sem ver o que mudou", async () => {
+    let entregar: (diff: unknown) => void = () => {};
+    mock.api.diffEditorial.mockReturnValue(new Promise((resolver) => (entregar = resolver)));
+    montar({}, [{ rotulo: "Aprovar" }]);
+
+    const aprovar = screen.getByRole("button", { name: "Aprovar" });
+    // O detalhe já chegou; o diff ainda não.
+    await waitFor(() => expect(mock.api.detalheEditorial).toHaveBeenCalled());
+    expect(aprovar).toBeDisabled();
+    expect(screen.queryByRole("heading", { name: "Guardar um valor" })).toBeNull();
+
+    await act(async () => {
+      entregar({
+        campos: [{ campo: "nome", linhas: [{ tipo: "adicionado", texto: "Lógica 2" }] }],
+        filhos: [],
+      });
+    });
+
+    expect(await screen.findByText("+ Lógica 2")).toBeInTheDocument();
+    expect(aprovar).toBeEnabled();
+  });
+
+  it("falha ao carregar o diff avisa, mas o conteúdo ainda abre", async () => {
+    mock.api.diffEditorial.mockRejectedValue(new Error("fora do ar"));
+    montar();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Não foi possível carregar as alterações desta edição.",
+    );
+    expect(await screen.findByRole("heading", { name: "Guardar um valor" })).toBeInTheDocument();
   });
 });

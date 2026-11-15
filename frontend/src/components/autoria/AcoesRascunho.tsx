@@ -52,6 +52,20 @@ function mensagemDe(erro: unknown, padrao: string): string {
   return Object.values(erro.porCampo())[0] ?? erro.message;
 }
 
+// Aviso de quem edita o que já passou pela revisão: salvar tira do ar.
+export function AvisoDeReabertura() {
+  return (
+    <p
+      role="note"
+      className={`m-0 border-2 border-warning bg-panel-deep px-3 py-2 text-warning ${TIPO.corpo}`}
+    >
+      Este conteúdo já foi aprovado. Ao salvar uma alteração, ele volta para
+      revisão; se estiver publicado, sai do ar até ser aprovado e publicado de
+      novo.
+    </p>
+  );
+}
+
 // Lápis e lixeira de um rascunho. Os dois terminam em `aoAlterar`, que
 // recarrega a lista: excluir uma trilha leva junto as aulas dela. O lápis da
 // trilha é um link para o editor completo; o de aula e exercício abre o modal.
@@ -59,14 +73,19 @@ export function AcoesRascunho({
   item,
   aoAlterar,
   soExcluir = false,
+  soEditar = false,
 }: {
   item: ItemEditorial;
   aoAlterar: () => void;
-  /** Aprovado não se edita: só a lixeira. */
+  /** Só a lixeira, sem o lápis. */
   soExcluir?: boolean;
+  /** Só o lápis, sem a lixeira. */
+  soEditar?: boolean;
 }) {
   const id = useId();
   const noModal: TipoNoModal | null = item.tipo === "trilhas" ? null : item.tipo;
+  // O backend devolve para revisão a edição do que já foi aprovado.
+  const reabre = item.status_editorial === "APROVADO" || item.status_editorial === "PUBLICADO";
   const [modo, setModo] = useState<"editar" | "excluir" | null>(null);
   const [detalhe, setDetalhe] = useState<DetalheEditorial | null>(null);
   const [titulo, setTitulo] = useState("");
@@ -155,14 +174,16 @@ export function AcoesRascunho({
           <IconeLapis className="h-4 w-4" />
         </button>
       )}
-      <button
-        type="button"
-        onClick={() => setModo("excluir")}
-        aria-label={`Excluir: ${item.titulo}`}
-        className={`${BOTAO_ICONE} hover:border-danger hover:text-danger`}
-      >
-        <IconeLixeira className="h-4 w-4" />
-      </button>
+      {soEditar ? null : (
+        <button
+          type="button"
+          onClick={() => setModo("excluir")}
+          aria-label={`Excluir: ${item.titulo}`}
+          className={`${BOTAO_ICONE} hover:border-danger hover:text-danger`}
+        >
+          <IconeLixeira className="h-4 w-4" />
+        </button>
+      )}
 
       {modo === "excluir" ? (
         <ModalConfirmacao
@@ -185,7 +206,7 @@ export function AcoesRascunho({
 
       {modo === "editar" && noModal !== null ? (
         <ModalConfirmacao
-          rotulo="EDITAR RASCUNHO"
+          rotulo={reabre ? "EDITAR CONTEÚDO APROVADO" : "EDITAR RASCUNHO"}
           titulo={item.titulo}
           textoConfirmar="SALVAR"
           carregando={ocupado}
@@ -205,6 +226,7 @@ export function AcoesRascunho({
             )
           ) : (
             <div className="flex flex-col gap-5">
+              {reabre ? <AvisoDeReabertura /> : null}
               <PixelField
                 rotulo="TÍTULO"
                 value={titulo}

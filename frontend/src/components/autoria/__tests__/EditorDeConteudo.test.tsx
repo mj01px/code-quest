@@ -29,6 +29,7 @@ jest.mock("@/lib/api", () => ({
     editarQuestao: jest.fn(),
     excluirQuestao: jest.fn(),
     detalheEditorial: jest.fn(),
+    diffEditorial: jest.fn(),
     publicarConteudo: jest.fn(),
     submeterRevisao: jest.fn(),
     editarRascunho: jest.fn(),
@@ -114,6 +115,7 @@ beforeEach(() => {
   });
   mock.api.exerciciosConcluidos.mockResolvedValue([]);
   mock.api.trilhasIniciadas.mockResolvedValue([]);
+  mock.api.diffEditorial.mockResolvedValue({ campos: [], filhos: [] });
   mock.api.catalogo.mockResolvedValue([
     { slug: "shellby", nome: "Shellby", dominio_rotulo: "Fundamentos", disponivel: true },
     { slug: "slyth", nome: "Slyth", dominio_rotulo: "Scripting", disponivel: true },
@@ -662,8 +664,6 @@ describe("EditorDeConteudo", () => {
     montar(AUTOR, 9);
 
     await userEvent.click(await screen.findByRole("button", { name: "PUBLICAR TRILHA" }));
-    // Fora de rascunho, nome e descrição não se editam.
-    expect(screen.queryByLabelText("NOME DA TRILHA")).toBeNull();
 
     expect(mock.api.publicarConteudo).toHaveBeenCalledWith("trilhas", 9);
     expect(await screen.findByText(/TRILHA PUBLICADA/)).toBeInTheDocument();
@@ -860,5 +860,121 @@ describe("EditorDeConteudo", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Não deu.");
     expect(screen.getByRole("button", { name: "ENVIAR PARA REVISÃO" })).toBeEnabled();
+  });
+
+  it.each(["APROVADO", "PUBLICADO"])(
+    "trilha em %s se edita com aviso, e salvar a leva para revisão",
+    async (status) => {
+      const u = userEvent.setup();
+      mock.api.detalheEditorial.mockResolvedValue(trilhaSalva(status));
+      mock.api.editarRascunho.mockResolvedValue({});
+      montar(AUTOR, 9);
+
+      const nome = await screen.findByLabelText("NOME DA TRILHA");
+      expect(screen.getByRole("note")).toHaveTextContent(/volta para\s+revisão/);
+      await u.clear(nome);
+      await u.type(nome, "TS avançado");
+      await u.click(screen.getByRole("button", { name: "SALVAR DADOS DA TRILHA" }));
+
+      expect(mock.api.editarRascunho).toHaveBeenCalledWith("trilhas", 9, {
+        nome: "TS avançado",
+        descricao: "Tipos",
+      });
+      // Em revisão a trilha vira texto: o formulário some com o selo novo.
+      expect(await screen.findByText("TRILHA EM REVISÃO")).toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent("TRILHA ENVIADA PARA REVISÃO");
+      expect(screen.queryByLabelText("NOME DA TRILHA")).toBeNull();
+      expect(screen.queryByRole("button", { name: "PUBLICAR TRILHA" })).toBeNull();
+    },
+  );
+
+  it("trilha publicada mostra o lápis da leitura e do exercício, sem lixeira nem edição de questão", async () => {
+    mock.api.detalheEditorial.mockResolvedValue(trilhaSalva("PUBLICADO"));
+    montar(AUTOR, 9);
+
+    expect(await screen.findByRole("button", { name: "EDITAR LEITURA" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Editar: Soma" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Excluir: Soma" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Editar: Qual é primitivo?" })).toBeNull();
+  });
+
+  // A trilha publicada com cada filho no próprio status, como o backend manda.
+  function trilhaComFilhos(aulaStatus: string, exercicioStatus: string) {
+    const salva = trilhaSalva("PUBLICADO");
+    const [primeira] = salva.aulas;
+    return {
+      ...salva,
+      aulas: [
+        {
+          ...primeira,
+          status_editorial: aulaStatus,
+          exercicios: [
+            exercicioResumo({ id: 2, titulo: "Soma", status_editorial: exercicioStatus } as never),
+          ],
+        },
+      ],
+    };
+  }
+
+  it("cada item segue o próprio status: aula em revisão não se edita dentro de trilha publicada", async () => {
+    mock.api.detalheEditorial.mockResolvedValue(trilhaComFilhos("REVISAO", "RASCUNHO"));
+    montar(AUTOR, 9);
+
+    // O exercício em rascunho mantém lápis e lixeira; a leitura da aula, não.
+    expect(await screen.findByRole("button", { name: "Editar: Soma" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Excluir: Soma" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "EDITAR LEITURA" })).toBeNull();
+    expect(screen.getByText("EM REVISÃO")).toBeInTheDocument();
+  });
+
+  it("editar o exercício publicado avisa, salva e some com o lápis: ele foi para revisão", async () => {
+    const u = userEvent.setup();
+    const antes = trilhaComFilhos("PUBLICADO", "PUBLICADO");
+    const depois = trilhaComFilhos("PUBLICADO", "REVISAO").aulas[0];
+    mock.api.detalheEditorial.mockImplementation(async (tipo: string) => {
+      if (tipo === "trilhas") return antes;
+      // Depois de salvar, o editor relê a aula: o exercício voltou em revisão.
+      if (tipo === "aulas") return depois;
+      return { id: 2, titulo: "Soma", enunciado: "Some dois números." };
+    });
+    mock.api.editarRascunho.mockResolvedValue({});
+    montar(AUTOR, 9);
+
+    await u.click(await screen.findByRole("button", { name: "Editar: Soma" }));
+    const modal = within(await screen.findByRole("dialog"));
+    const campo = await modal.findByLabelText("TÍTULO");
+    expect(modal.getByRole("note")).toHaveTextContent(/volta para\s+revisão/);
+    await u.type(campo, " 2");
+    await u.click(modal.getByRole("button", { name: "SALVAR" }));
+
+    expect(mock.api.editarRascunho).toHaveBeenCalledWith("exercicios", 2, {
+      titulo: "Soma 2",
+      enunciado: "Some dois números.",
+    });
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Editar: Soma" })).toBeNull());
+    expect(screen.getByText("EM REVISÃO")).toBeInTheDocument();
+    // A leitura da aula, ainda publicada, continua editável.
+    expect(screen.getByRole("button", { name: "EDITAR LEITURA" })).toBeInTheDocument();
+  });
+
+  it("salvar a leitura de uma aula publicada a leva para revisão e some com o botão", async () => {
+    const u = userEvent.setup();
+    const antes = trilhaComFilhos("PUBLICADO", "PUBLICADO");
+    // Depois de salvar, o editor relê a aula: o backend a pôs em revisão.
+    const depois = trilhaComFilhos("REVISAO", "PUBLICADO").aulas[0];
+    mock.api.detalheEditorial.mockImplementation(async (tipo: string) =>
+      tipo === "trilhas" ? antes : depois,
+    );
+    mock.api.editarRascunho.mockResolvedValue({});
+    montar(AUTOR, 9);
+
+    await u.click(await screen.findByRole("button", { name: "EDITAR LEITURA" }));
+    const formulario = within(screen.getByRole("form", { name: "Editar leitura" }));
+    expect(formulario.getByRole("note")).toHaveTextContent(/volta para\s+revisão/);
+    await u.click(formulario.getByRole("button", { name: "SALVAR LEITURA" }));
+
+    await waitFor(() => expect(mock.api.editarRascunho).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByRole("button", { name: "EDITAR LEITURA" })).toBeNull());
+    expect(screen.getByText("EM REVISÃO")).toBeInTheDocument();
   });
 });

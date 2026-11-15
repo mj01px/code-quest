@@ -25,7 +25,7 @@ from rest_framework import serializers as drf
 
 import apps
 
-CAMPOS_PROIBIDOS = frozenset({"solucao_autor", "status"})
+CAMPOS_PROIBIDOS = frozenset({"solucao_autor", "status", "conteudo_anterior"})
 
 # Palavras que fazem um campo declarado merecer inspeção do corpo do método.
 SUSPEITAS = ("solucao", "autor")

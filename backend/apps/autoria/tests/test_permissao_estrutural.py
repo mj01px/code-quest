@@ -44,6 +44,8 @@ PERMISSAO_POR_ROTA = {
     # Pedir autoria é de qualquer conta logada: o login é a permissão.
     "solicitacoes": "IsAuthenticated",
     "minha-solicitacao": "IsAuthenticated",
+    "meus-conteudos": "HasPerm[trilhas.submit_review]",
+    "diff": "HasAnyPerm[trilhas.submit_review,trilhas.review]",
 }
 
 

@@ -11,8 +11,10 @@ from .views import (
     CriarTrilhaView,
     DetalheEditorialView,
     DevolverView,
+    DiffEditorialView,
     FilaRevisaoView,
     FlashcardView,
+    MeusConteudosView,
     MeusEnviosView,
     MinhaSolicitacaoView,
     PublicarView,
@@ -69,6 +71,9 @@ urlpatterns = [
     path("autoria/fila-revisao/", FilaRevisaoView.as_view(), name="fila-revisao"),
     path("autoria/meus-envios/", MeusEnviosView.as_view(), name="meus-envios"),
     path(
+        "autoria/meus-conteudos/", MeusConteudosView.as_view(), name="meus-conteudos"
+    ),
+    path(
         "autoria/exercicios/<slug:trilha_slug>/<slug:exercicio_slug>/solucao/",
         SolucaoAutorView.as_view(),
         name="solucao-autor",
@@ -80,6 +85,7 @@ urlpatterns = [
     re_path(rf"{CONTEUDO}/devolver/$", DevolverView.as_view(), name="devolver"),
     re_path(rf"{CONTEUDO}/publicar/$", PublicarView.as_view(), name="publicar"),
     re_path(rf"{CONTEUDO}/detalhe/$", DetalheEditorialView.as_view(), name="detalhe"),
-    # PUT edita e DELETE exclui, os dois só em rascunho.
+    re_path(rf"{CONTEUDO}/diff/$", DiffEditorialView.as_view(), name="diff"),
+    # PUT edita (o aprovado e o publicado voltam para revisão); DELETE exclui.
     re_path(rf"{CONTEUDO}/$", RascunhoView.as_view(), name="rascunho"),
 ]

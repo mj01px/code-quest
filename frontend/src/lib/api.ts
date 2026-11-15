@@ -14,6 +14,7 @@ import type {
   DashboardAdmin,
   DesafioDeHoje,
   DetalheEditorial,
+  DiffEditorial,
   Dificuldade,
   DocumentosLegais,
   EdicaoRascunho,
@@ -1071,6 +1072,20 @@ export const api = {
     });
   },
 
+  // Tudo o que o próprio usuário criou, em qualquer status.
+  autoriaMeusConteudos() {
+    return requisicao<ItemEditorial[]>("/autoria/meus-conteudos/", {
+      autenticado: true,
+    });
+  },
+
+  // O que mudou desde a última versão aprovada; vazio se não há edição pendente.
+  diffEditorial(tipo: TipoConteudo, id: number) {
+    return requisicao<DiffEditorial>(`/autoria/${tipo}/${id}/diff/`, {
+      autenticado: true,
+    });
+  },
+
   submeterRevisao(tipo: TipoConteudo, id: number) {
     return requisicao<TransicaoEditorial>(`/autoria/${tipo}/${id}/submeter/`, {
       metodo: "POST",
@@ -1102,7 +1117,8 @@ export const api = {
     });
   },
 
-  // Edição e exclusão valem só para rascunho do próprio autor (ou admin).
+  // Do próprio autor (ou admin). Editar o aprovado ou o publicado devolve o
+  // conteúdo para revisão; excluir vale só para rascunho e aprovado.
   editarRascunho(tipo: TipoConteudo, id: number, dados: EdicaoRascunho) {
     return requisicao<unknown>(`/autoria/${tipo}/${id}/`, {
       metodo: "PUT",

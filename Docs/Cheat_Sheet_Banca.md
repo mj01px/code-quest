@@ -7,6 +7,7 @@ Consulta rápida para a apresentação: a banca pergunta, você abre o arquivo n
 - **Mapas completos:** `Docs/Rastreabilidade_Requisitos.md` (RFs e RNFs) e `Docs/Rastreabilidade_Regras_Negocio.md` (93 regras de negócio).
 - **Código ao vivo na tela:** abra o arquivo e use "ir para linha" (Ctrl+G no VS Code).
 - **Auditoria final (Red Team e QA, 14 de novembro):** `apps/core/middleware.py`, `apps/core/tests/test_seguranca.py`, `src/app/not-found.tsx` e o bloco final de `config/settings.py` (da L366 em diante) são do working tree posterior ao commit `b835ed9`. Nada foi inserido no meio de `config/settings.py`, então as demais linhas citadas aqui continuam valendo.
+- **Edição de conteúdo aprovado (15 de novembro):** a aba "Meus Conteúdos", a trava de revisão e o diff são do working tree, posteriores ao commit `65fd4c4`. O código novo ficou em `apps/autoria/versoes.py`, no fim de `apps/autoria/services.py` (nenhuma linha citada de lá deslocou) e no fim de `apps/autoria/views.py`. Deslocaram e foram realinhadas aqui e nos dois mapas, uma a uma pelo conteúdo que a linha tinha no commit: `apps/autoria/views.py`, `apps/autoria/serializers.py`, `apps/trilhas/models.py`, `src/lib/api.ts`, `src/components/autoria/PainelAutoria.tsx` e `src/components/autoria/EditorDeConteudo.tsx`.
 
 ## 1. Perguntas prováveis e onde achar
 
@@ -19,20 +20,24 @@ Consulta rápida para a apresentação: a banca pergunta, você abre o arquivo n
 | Onde está a regra de CSP? | `src/proxy.ts:L16` (`cspCom`) e `src/proxy.ts:L37` (`proxy`) | Nonce novo por requisição, `script-src` sem `unsafe-inline`, `object-src 'none'` e `frame-ancestors 'none'` (RNF11). |
 | Por que o site não é pré-gerado? | `src/app/layout.tsx:L19` (`await connection()`) | O nonce só vale em HTML gerado na hora; é o custo conhecido da CSP (ressalva 8 da rastreabilidade). |
 | Onde ficam os tokens de login? | `apps/contas/cookies.py:L18` (grava), `apps/contas/cookies.py:L23` (acesso HttpOnly), `apps/contas/cookies.py:L44` (renovação HttpOnly, só na rota `/api/v1/auth/`) | O JavaScript nunca vê o token. O cookie `cq_sessao` (L33) é só um sinalizador sem credencial (RNF02). |
-| Como se protegem de CSRF? | `apps/contas/autenticacao.py:L25` (`_exigir_csrf`), `apps/contas/views.py:L144` (`CsrfView`), `config/settings.py:L252` (origens confiáveis), `src/lib/api.ts:L163` (cliente busca o token) | Toda requisição autenticada por cookie passa pela checagem de CSRF do Django (RNF03). |
+| Como se protegem de CSRF? | `apps/contas/autenticacao.py:L25` (`_exigir_csrf`), `apps/contas/views.py:L144` (`CsrfView`), `config/settings.py:L252` (origens confiáveis), `src/lib/api.ts:L164` (cliente busca o token) | Toda requisição autenticada por cookie passa pela checagem de CSRF do Django (RNF03). |
 | Como evitam força bruta no login? | `apps/contas/models.py:L267` (`registrar_falha_de_login`), `config/settings.py:L294` (5 tentativas) e `config/settings.py:L295` (15 minutos) | Cinco falhas bloqueiam a conta por 15 minutos e a mensagem é igual para conta inexistente, bloqueada ou senha errada (RNF04, RNF09). |
 | Como funciona o limite de requisições? | `config/settings.py:L133` (`CACHES`) e `config/settings.py:L189` (taxas) | Os contadores ficam no PostgreSQL (`DatabaseCache`), então valem para todos os workers e sobrevivem a reinício (RNF05). |
 | Como as senhas são guardadas? | `config/settings.py:L118` (Argon2 primeiro), `apps/contas/validators.py:L105` (política) e `config/settings.py:L330` | Hash Argon2 e política própria de complexidade; a senha tem teto de 128 caracteres (`apps/contas/validators.py:L28`) (RNF01). |
 | O 2FA pode ser reaproveitado (replay)? | `apps/contas/mfa.py:L74` (`_consumir_totp`) e `apps/contas/mfa.py:L176` (código de recuperação) | O passo do TOTP só avança com `UPDATE` condicional e o código de recuperação só vale uma vez (RF04-RN03). |
 | Como funciona a autorização por permissão? | `apps/contas/rbac.py:L13` (catálogo), `apps/core/permissions.py:L18` (`HasPerm`), `apps/contas/models.py:L212` (`has_perm`), `config/settings.py:L180` (padrão `IsAuthenticated`) | Toda rota exige login por padrão e as permissões vêm do nível de acesso, sem atalho por papel (RNF07). |
 | O que a interface faz sobre permissão? | `src/components/layout/PortaDeAcesso.tsx:L7` | Esconde a tela; quem decide de verdade é o servidor (a interface não é a trava). |
-| O aluno consegue ver a resposta do exercício? | `apps/trilhas/serializers.py:L143` (lista fechada, sem `solucao_autor`), `apps/correcao/services.py:L333` (caso oculto) e `apps/autoria/views.py:L85` (rota de autoria, `no-store`) | A solução de referência só sai pela rota de autoria, com permissão, limite de 30 por minuto e sem cache (RNF08). Exceção conhecida: o quiz devolve `resposta_correta` (`apps/trilhas/serializers.py:L19`, ressalva 1). |
+| O aluno consegue ver a resposta do exercício? | `apps/trilhas/serializers.py:L143` (lista fechada, sem `solucao_autor`), `apps/correcao/services.py:L333` (caso oculto) e `apps/autoria/views.py:L92` (rota de autoria, `no-store`) | A solução de referência só sai pela rota de autoria, com permissão, limite de 30 por minuto e sem cache (RNF08). Exceção conhecida: o quiz devolve `resposta_correta` (`apps/trilhas/serializers.py:L19`, ressalva 1). |
 | Como o código do aluno é executado com segurança? | `apps/correcao/judge0.py:L19` (limites), `apps/correcao/analise_ast.py:L134` (análise antes de executar), `apps/correcao/services.py:L31` (10.000 caracteres) | Roda num Judge0 externo, sem rede, 2 s de CPU, 5 s de relógio e 128.000 KB de memória; código proibido nem chega a ele (RNF10). |
 | Como controlam o custo do Judge0? | `apps/correcao/services.py:L154` (cota), `apps/correcao/services.py:L164` (por usuário), `apps/correcao/services.py:L169` (disjuntor), `config/settings.py:L167` e `config/settings.py:L169` (valores), `config/settings.py:L201` (5 por minuto) | 10 chamadas pagas por usuário por dia, 50 por dia no total com disjuntor em 90%, e resultado idêntico em 10 minutos vem do cache (RNF16, RNF17). |
 | E se o Judge0 cair? | `apps/correcao/excecoes.py:L7` (`CorretorIndisponivel`), `apps/correcao/views.py:L103` e `src/components/ui/ServicoIndisponivel.tsx:L7` | A API responde 503 padronizado e a tela mostra aviso; o resto da plataforma segue (RNF22). |
 | Onde está a regra dos quatro olhos? | `apps/autoria/services.py:L464` e `apps/autoria/services.py:L465` | Quem criou o conteúdo não o aprova, nem o administrador. É a transição `aprovar` em `transicionar` (`apps/autoria/services.py:L434`). |
-| Como o fluxo editorial é controlado? | `apps/autoria/services.py:L31` (`TRANSICOES`), `apps/autoria/services.py:L434` (`transicionar`) e `apps/autoria/views.py:L133` | Rascunho, revisão, aprovado, publicado; cada passo exige permissão, trava a linha e vai para a auditoria (RF15). |
-| O autor pode publicar o que escreveu? | `apps/autoria/views.py:L176` e `apps/autoria/views.py:L178` | Não. Publicar exige `trilhas.publish`, que só o administrador tem; o autor (`trilhas.submit_review`) recebe 403, mesmo no que criou (RF15-RN02). Teste: `apps/autoria/tests/test_api_questao.py:L103`. |
+| Como o fluxo editorial é controlado? | `apps/autoria/services.py:L31` (`TRANSICOES`), `apps/autoria/services.py:L434` (`transicionar`) e `apps/autoria/views.py:L140` | Rascunho, revisão, aprovado, publicado; cada passo exige permissão, trava a linha e vai para a auditoria (RF15). |
+| O autor pode publicar o que escreveu? | `apps/autoria/views.py:L183` e `apps/autoria/views.py:L185` | Não. Publicar exige `trilhas.publish`, que só o administrador tem; o autor (`trilhas.submit_review`) recebe 403, mesmo no que criou (RF15-RN02). Teste: `apps/autoria/tests/test_api_questao.py:L103`. |
+| O autor pode editar o que já foi aprovado ou publicado? | `apps/autoria/versoes.py:L98` (`reabrir_se_mudou`), chamado em `apps/autoria/views.py:L492` | Pode, mas a edição nunca vai ao ar sozinha: o servidor guarda a versão anterior em `conteudo_anterior` (`apps/trilhas/models.py:L124`), devolve o conteúdo para revisão e ele sai do catálogo até ser aprovado e publicado de novo. Em revisão não se edita, nem o filho cuja trilha ou aula está em revisão (`apps/autoria/versoes.py:L78`); salvar sem mudar nada não tira nada do ar (RF15). Teste: `apps/autoria/tests/test_api_edicao_publicado.py:L70`. |
+| Como o revisor vê o que mudou numa edição? | `apps/autoria/versoes.py:L143` (`diff_editorial`), `apps/autoria/views.py:L723` (`DiffEditorialView`) e `src/components/autoria/ModalVisualizacao.tsx:L205` | O servidor compara a versão anterior com o texto atual usando `difflib`, da biblioteca padrão, campo a campo e linha a linha; o modal de revisão mostra em verde o que entrou e em vermelho riscado o que saiu, inclusive das aulas e exercícios editados dentro da trilha. Não há histórico de versões: só a última versão aprovada. Teste: `apps/autoria/tests/test_api_edicao_publicado.py:L317`. |
+| Editar e depois excluir derruba conteúdo publicado? | `apps/autoria/services.py:L535` (`exigir_excluivel`) e `apps/autoria/services.py:L529` (`ja_foi_ao_ar`) | Não. O que já foi publicado continua marcado enquanto a edição não volta ao ar; mesmo devolvido como rascunho, só sai pela moderação (`trilhas.delete_published`), com motivo obrigatório e registro próprio na auditoria. Teste: `apps/autoria/tests/test_api_edicao_publicado.py:L247`. |
+| Um autor vê o conteúdo de outro em "Meus Conteúdos"? | `apps/autoria/versoes.py:L192` (`conteudos_do_autor`) e `apps/autoria/views.py:L670` (`MeusConteudosView`) | Não. A lista é filtrada pelo usuário da sessão, sem atalho nem para o administrador, e a edição cobra o dono no servidor (403). Teste: `apps/autoria/tests/test_api_edicao_publicado.py:L493`. |
 | Fizeram teste de invasão? | `apps/core/tests/test_seguranca.py:L55` (rotas públicas), `apps/core/tests/test_seguranca.py:L131` (byte nulo) e `apps/core/tests/test_seguranca.py:L152` (corpo comprimido) | Sim, na auditoria final: as 98 rotas da API foram varridas como aluno, autor, administrador e anônimo, com corpos e parâmetros maliciosos. Nenhuma rota de administração abriu para aluno ou autor; os dois achados (byte nulo e API navegável) foram corrigidos com teste de regressão. |
 | E se mandarem um byte nulo (`%00`) na URL? | `apps/core/middleware.py:L6` (`RecusarNul`) e `config/settings.py:L373` (ligado) | Vira 400 no formato padrão antes de chegar ao banco. Antes da auditoria final o PostgreSQL recusava o caractere e a rota respondia 500 (busca de clãs, perfil, filtros do admin). Teste: `apps/core/tests/test_seguranca.py:L131`. |
 | A API mostra telas ou formulários em produção? | `config/settings.py:L377` | Não. Com `DEBUG=False` a API só responde JSON; a API navegável do DRF (HTML com formulários e a descrição de cada rota) existe apenas no desenvolvimento. Teste: `apps/core/tests/test_seguranca.py:L69`. |
@@ -74,7 +79,7 @@ Consulta rápida para a apresentação: a banca pergunta, você abre o arquivo n
 | Qual é o padrão de erro da API? | `apps/core/exceptions.py:L52` e `config/settings.py:L184` (`EXCEPTION_HANDLER`) | Toda exceção sai no mesmo formato, com código e mensagem (RNF28). |
 | Como o banco evolui? | `apps/*/migrations/` (64 arquivos) e `entrypoint.sh:L5` | Migração versionada rodada a cada subida do contêiner (RNF21). |
 | Qual é o tipo de teste e a cobertura de tipos? | `pyproject.toml:L15` (pytest), `pyproject.toml:L43` (mypy strict, cobre 8 de 11 apps), `jest.config.ts:L7` e `tsconfig.json:L7` (strict) | Pytest e Jest; o mypy estrito ainda não cobre `contas`, `progressao` e `clas` (RNF26 parcial). Os caminhos de `pyproject.toml` são do backend; `jest.config.ts` e `tsconfig.json`, do frontend. |
-| Como o frontend fala com a API? | `next.config.ts:L19` (rewrite) e `src/lib/api.ts:L253` (renovação do token) | Mesma origem: o Next encaminha `/api/*` ao Django; a renovação do token é automática e só uma por vez. |
+| Como o frontend fala com a API? | `next.config.ts:L19` (rewrite) e `src/lib/api.ts:L254` (renovação do token) | Mesma origem: o Next encaminha `/api/*` ao Django; a renovação do token é automática e só uma por vez. |
 | O banco fica exposto na internet? | `docker-compose.yml:L18` e `apps/core/tests/test_seguranca.py:L95` | Não. O PostgreSQL só publica a porta em `127.0.0.1` da VPS; o teste reprova o projeto se qualquer serviço além do Nginx publicar porta para fora. |
 | O que garante que a configuração de produção é segura? | `.env.prod.example` (raiz) e `apps/core/tests/test_seguranca.py:L104` | O teste exige `DEBUG=False`, cookies só por HTTPS, Swagger desligado, `ALLOWED_HOSTS` sem curinga e nenhum segredo preenchido no arquivo de exemplo. |
 | O que aparece numa rota que não existe? | `src/app/not-found.tsx:L5` e `src/app/error.tsx:L7` | Uma tela 404 em português com o visual do CodeQuest (antes era a página padrão do Next, em inglês); erro de renderização cai no `error.tsx`, nunca em tela branca. |
@@ -95,7 +100,7 @@ Consulta rápida para a apresentação: a banca pergunta, você abre o arquivo n
 | Tamanho máximo do código | 10.000 caracteres | `apps/correcao/services.py:L31` |
 | Taxas gerais | anônimo 60/min, usuário 600/min, login 20/min, verificação 5/min, conclusão 30/min, catálogo 60/min | `config/settings.py:L189` |
 | Apps do backend | 11 (`contas`, `trilhas`, `autoria`, `progressao`, `gamificacao`, `conquistas`, `ranking`, `clas`, `correcao`, `auditoria`, `core`) | `config/urls.py:L6` |
-| Migrações | 64 | `apps/*/migrations/` |
+| Migrações | 65 | `apps/*/migrations/` |
 | Requisitos | 37 RFs e 33 RNFs (32 implementados, RNF26 parcial) | `Docs/Rastreabilidade_Requisitos.md` |
 
 ## 3. Rotas da API
@@ -137,8 +142,8 @@ Todas sob o prefixo `/api/v1/`. A coluna "View" aponta a classe que responde.
 | PATCH | `auth/admin/usuarios/<uuid>/situacao/` | `apps/contas/views_rbac.py:L295` | RF34 |
 | GET | `auditoria/` | `apps/auditoria/views.py:L55` | RF33 |
 | GET | `admin/dashboard/` e `admin/logs/` | `apps/progressao/views.py:L96` e `apps/progressao/views.py:L111` | painel |
-| GET | `admin/solicitacoes/` (pedidos de autoria pendentes) | `apps/autoria/views.py:L346` | RF15 |
-| POST | `admin/solicitacoes/<id>/aprovar/` e `admin/solicitacoes/<id>/rejeitar/` | `apps/autoria/views.py:L374` e `apps/autoria/views.py:L387` | RF15 |
+| GET | `admin/solicitacoes/` (pedidos de autoria pendentes) | `apps/autoria/views.py:L353` | RF15 |
+| POST | `admin/solicitacoes/<id>/aprovar/` e `admin/solicitacoes/<id>/rejeitar/` | `apps/autoria/views.py:L381` e `apps/autoria/views.py:L394` | RF15 |
 
 ### Trilhas, exercícios e correção
 
@@ -160,14 +165,17 @@ Todas sob o prefixo `/api/v1/`. A coluna "View" aponta a classe que responde.
 
 | Método | Rota | View | RF |
 |---|---|---|---|
-| POST | `autoria/trilhas/`, `autoria/aulas/`, `autoria/exercicios/` | `apps/autoria/views.py:L422`, `apps/autoria/views.py:L431` e `apps/autoria/views.py:L440` | RF15 |
-| POST | `autoria/<tipo>/<id>/submeter/` | `apps/autoria/views.py:L144` | RF15 |
-| POST | `autoria/<tipo>/<id>/aprovar/` | `apps/autoria/views.py:L149` | RF15 |
-| POST | `autoria/<tipo>/<id>/devolver/` | `apps/autoria/views.py:L155` | RF15 |
-| POST | `autoria/<tipo>/<id>/publicar/` | `apps/autoria/views.py:L176` | RF15 |
-| GET | `autoria/rascunhos/`, `autoria/aprovados/`, `autoria/fila-revisao/` | `apps/autoria/views.py:L203`, `apps/autoria/views.py:L211` e `apps/autoria/views.py:L217` | RF15 |
-| GET | `autoria/exercicios/<trilha>/<exercicio>/solucao/` | `apps/autoria/views.py:L87` | RF16 |
-| POST | `autoria/solicitacoes/` | `apps/autoria/views.py:L313` | RF15 |
+| POST | `autoria/trilhas/`, `autoria/aulas/`, `autoria/exercicios/` | `apps/autoria/views.py:L429`, `apps/autoria/views.py:L438` e `apps/autoria/views.py:L447` | RF15 |
+| POST | `autoria/<tipo>/<id>/submeter/` | `apps/autoria/views.py:L151` | RF15 |
+| POST | `autoria/<tipo>/<id>/aprovar/` | `apps/autoria/views.py:L156` | RF15 |
+| POST | `autoria/<tipo>/<id>/devolver/` | `apps/autoria/views.py:L162` | RF15 |
+| POST | `autoria/<tipo>/<id>/publicar/` | `apps/autoria/views.py:L183` | RF15 |
+| GET | `autoria/rascunhos/`, `autoria/aprovados/`, `autoria/fila-revisao/` | `apps/autoria/views.py:L210`, `apps/autoria/views.py:L218` e `apps/autoria/views.py:L224` | RF15 |
+| GET | `autoria/meus-conteudos/` (tudo o que o usuário criou) | `apps/autoria/views.py:L670` | RF15 |
+| PUT e DELETE | `autoria/<tipo>/<id>/` (editar e excluir) | `apps/autoria/views.py:L477` | RF15 |
+| GET | `autoria/<tipo>/<id>/diff/` (alterações desde a versão aprovada) | `apps/autoria/views.py:L723` | RF15 |
+| GET | `autoria/exercicios/<trilha>/<exercicio>/solucao/` | `apps/autoria/views.py:L94` | RF16 |
+| POST | `autoria/solicitacoes/` | `apps/autoria/views.py:L320` | RF15 |
 
 ### Criaturas, clãs e ranking
 
@@ -196,7 +204,7 @@ Rotas do App Router. Os grupos `(app)` e `(foco)` não aparecem na URL. A coluna
 |---|---|---|
 | `/` | `src/app/page.tsx:L17` | Landing pública |
 | `/admin` | `src/app/(app)/admin/page.tsx:L10` | Painel administrativo: níveis, usuários e auditoria (RF10, RF11, RF33, RF34) |
-| `/autoria` | `src/app/(app)/autoria/page.tsx:L10` | Painel de autoria e fila de revisão (RF15) |
+| `/autoria` | `src/app/(app)/autoria/page.tsx:L10` | Painel de autoria, com as abas de criação, Meus Conteúdos (`src/components/autoria/MeusConteudos.tsx:L30`), fila de revisão e Meus Envios (RF15) |
 | `/autoria/novo` | `src/app/(app)/autoria/novo/page.tsx:L12` | Editor de conteúdo (RF15) |
 | `/cadastro` | `src/app/cadastro/page.tsx:L11` | Cadastro (RF01) |
 | `/clas` | `src/app/(app)/clas/page.tsx:L11` | Lista e busca de clãs (RF35) |
@@ -242,7 +250,7 @@ Principal ponto de cada RF. O mapa completo, com pontos secundários, está em `
 | RF03 | Autenticar usuário | `apps/contas/views.py:L154` | `src/components/auth/FormularioLogin.tsx:L33` |
 | RF04 | Autenticar com segundo fator (2FA) | `apps/contas/views.py:L452` | `src/components/auth/FormularioLogin.tsx:L106` |
 | RF05 | Ativar e desativar o 2FA | `apps/contas/views.py:L489` | `src/components/configuracoes/SecaoSeguranca.tsx:L35` |
-| RF06 | Renovar e encerrar sessão | `apps/contas/views.py:L186` | `src/lib/api.ts:L253` |
+| RF06 | Renovar e encerrar sessão | `apps/contas/views.py:L186` | `src/lib/api.ts:L254` |
 | RF07 | Recuperar senha | `apps/contas/views.py:L313` | `src/components/auth/FormularioSenhaEsquecida.tsx:L17` |
 | RF08 | Consultar e editar perfil | `apps/contas/views.py:L232` | `src/components/configuracoes/PainelConfiguracoes.tsx:L21` |
 | RF09 | Trocar e-mail da conta | `apps/contas/views.py:L250` | `src/components/configuracoes/PainelConfiguracoes.tsx:L133` |
@@ -251,8 +259,8 @@ Principal ponto de cada RF. O mapa completo, com pontos secundários, está em `
 | RF12 | Consultar catálogo de trilhas | `apps/trilhas/views.py:L43` | `src/components/trilhas/PainelDeTrilhas.tsx:L101` |
 | RF13 | Consultar trilha e mapa de fases | `apps/trilhas/views.py:L77` | `src/components/trilhas/MapaDeFases.tsx:L12` |
 | RF14 | Consultar exercício | `apps/trilhas/views.py:L101` | `src/app/(foco)/trilhas/[trilhaSlug]/exercicios/[exercicioSlug]/page.tsx:L78` |
-| RF15 | Controlar fluxo editorial do conteúdo | `apps/autoria/views.py:L133` | `src/components/autoria/PainelAutoria.tsx:L59` |
-| RF16 | Consultar solução de referência | `apps/autoria/views.py:L87` | `src/components/exercicio/PetDoExercicio.tsx:L30` |
+| RF15 | Controlar fluxo editorial do conteúdo | `apps/autoria/views.py:L140` | `src/components/autoria/PainelAutoria.tsx:L66` |
+| RF16 | Consultar solução de referência | `apps/autoria/views.py:L94` | `src/components/exercicio/PetDoExercicio.tsx:L30` |
 | RF17 | Iniciar trilha | `apps/progressao/views.py:L137` | `src/components/trilhas/BotaoIniciarTrilha.tsx:L23` |
 | RF18 | Concluir exercício e creditar XP | `apps/progressao/services.py:L545` | `src/components/exercicio/PainelDeCodigo.tsx:L160` |
 | RF19 | Consultar progresso do aluno | `apps/progressao/views.py:L70` | `src/components/progresso/ProvedorProgresso.tsx:L82` |
@@ -280,13 +288,13 @@ Principal ponto de cada RF. O mapa completo, com pontos secundários, está em `
 | Requisito | Nome | Backend (a partir de `backend/`) | Frontend (a partir de `frontend/`) |
 |---|---|---|---|
 | RNF01 | Armazenamento e política de senha | `config/settings.py:L118` | não se aplica |
-| RNF02 | Sessão em cookies protegidos | `apps/contas/cookies.py:L18` | `src/lib/api.ts:L169` |
-| RNF03 | Proteção contra CSRF e origens não autorizadas | `config/settings.py:L252` | `src/lib/api.ts:L163` |
+| RNF02 | Sessão em cookies protegidos | `apps/contas/cookies.py:L18` | `src/lib/api.ts:L170` |
+| RNF03 | Proteção contra CSRF e origens não autorizadas | `config/settings.py:L252` | `src/lib/api.ts:L164` |
 | RNF04 | Bloqueio por tentativas de login | `apps/contas/models.py:L267` | não se aplica |
 | RNF05 | Limitação de taxa de requisições | `config/settings.py:L133` | não se aplica |
 | RNF06 | Proteção dos segredos do segundo fator | `apps/contas/mfa.py:L45` | não se aplica |
 | RNF07 | Autorização por permissão em cada rota | `config/settings.py:L180` | `src/components/layout/PortaDeAcesso.tsx:L7` |
-| RNF08 | Não exposição de gabaritos e casos ocultos | `apps/autoria/views.py:L87` | não se aplica |
+| RNF08 | Não exposição de gabaritos e casos ocultos | `apps/autoria/views.py:L94` | não se aplica |
 | RNF09 | Respostas que não revelam contas existentes | `apps/contas/views.py:L313` | não se aplica |
 | RNF10 | Isolamento da execução de código do aluno | `apps/correcao/judge0.py:L19` | não se aplica |
 | RNF11 | Política de segurança de conteúdo no navegador | não se aplica | `src/proxy.ts:L16` |
@@ -328,4 +336,8 @@ Principal ponto de cada RF. O mapa completo, com pontos secundários, está em `
 11. **"O 429 sempre diz quando voltar?"** O limite por minuto sim, com `Retry-After: 60`. O teto diário do Judge0 por usuário responde 429 sem esse cabeçalho (`apps/correcao/excecoes.py:L22`), só com a mensagem de tentar amanhã.
 12. **"E se várias pessoas enviarem código ao mesmo tempo?"** O gunicorn sobe com 2 workers síncronos (`entrypoint.sh:L35`, relativo a `backend/`) e cada correção pode segurar um deles por até 15 segundos. Duas correções simultâneas atrasam o resto da API nesse intervalo; o ajuste é a variável `GUNICORN_WORKERS`.
 13. **"Cinco contas esgotam a correção de todo mundo?"** Sim: 10 chamadas por usuário e disjuntor em 45 por dia (`config/settings.py:L167` e `config/settings.py:L169`). É o limite do plano gratuito do Judge0, protegido pela verificação de e-mail no cadastro e pelo cache de 10 minutos.
+14. **"Corrigir um erro de digitação numa aula publicada tira a aula do ar?"** Sim. Qualquer edição do que está aprovado ou publicado volta para revisão (`apps/autoria/versoes.py:L98`), e o item fica fora do catálogo até o revisor aprovar e o administrador publicar de novo. Foi a escolha de menor risco: o texto novo nunca aparece sem revisão, ao custo de o item ficar indisponível nesse intervalo. Manter a versão antiga no ar durante a revisão exigiria guardar duas versões vivas do mesmo conteúdo.
+15. **"O diff mostra tudo o que mudou?"** Mostra os campos que a edição alcança (nome, descrição, nível e bônus da trilha; título e texto da aula; título, enunciado, nível, função e casos de teste do exercício), por linha inteira, sem marcar a palavra dentro da linha (`apps/autoria/versoes.py:L176`). Flashcards e questões de uma aula aprovada ou publicada continuam sem edição: só mudam com a aula em rascunho.
+16. **"Quem edita pode aprovar a própria edição?"** O autor do conteúdo, não: a regra dos quatro olhos barra quem criou (`apps/autoria/services.py:L464`). Mas a regra olha o criador, não quem editou: um administrador que edite o conteúdo publicado de outro autor (ou o conteúdo semeado, que não tem autor) consegue aprovar a própria edição. É limite conhecido; fechar exigiria guardar quem editou e, com um único administrador, travaria a correção de conteúdo semeado.
+17. **"Editar um exercício de código pode quebrar os testes dele?"** A tela de edição não conhece o campo `erro_esperado` dos casos (o caso que espera uma exceção). Por isso o servidor não recria os casos quando a lista recebida é igual à atual (`apps/autoria/serializers.py:L534`), e, se os casos forem trocados, o diff mostra o erro esperado que saiu. Teste: `apps/autoria/tests/test_api_edicao_publicado.py:L400`.
 14. **"Há backup do banco?"** Não no deploy atual: a rotina diária foi removida (commit `1cdea8d`). Fica como trabalho futuro de infraestrutura.

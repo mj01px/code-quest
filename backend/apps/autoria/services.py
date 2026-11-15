@@ -301,12 +301,12 @@ def excluir_rascunho(
         except modelo.DoesNotExist:
             raise Http404("Conteúdo não encontrado.") from None
         # Sem a permissão, o publicado cai na regra comum (403 ou 400), como antes.
-        if conteudo.status == StatusEditorial.PUBLICADO and usuario.has_perm(
+        if ja_foi_ao_ar(conteudo) and usuario.has_perm(
             "trilhas.delete_published"
         ):
             _excluir_publicado(conteudo, tipo, request, motivo)
             return
-        exigir_rascunho_do_dono(conteudo, usuario, EXCLUIVEIS)
+        exigir_excluivel(conteudo, usuario)
         # Filhos travados antes de checar: sem o lock, um "submeter" simultâneo
         # de um filho passaria pela checagem e seria apagado em cascata. Ordem
         # pai e depois filho, a mesma do cascade, sem deadlock com `transicionar`.
@@ -320,7 +320,7 @@ def excluir_rascunho(
             filhos = [*Exercicio.objects.select_for_update().filter(aula=conteudo)]
         else:
             filhos = []
-        if any(f.status in FILHO_TRAVA for f in filhos):
+        if any(f.status in FILHO_TRAVA or ja_foi_ao_ar(f) for f in filhos):
             raise ValidationError(
                 "Há conteúdo aqui dentro em revisão ou já publicado.",
                 code="filho_avancado",
@@ -500,10 +500,13 @@ def transicionar(
 
 def _gravar_status(conteudo: Conteudo, destino: StatusEditorial) -> None:
     conteudo.status = destino
+    # De volta ao estado de antes da edição, a versão anterior já não serve.
+    if (conteudo.conteudo_anterior or {}).get("status") == destino:
+        conteudo.conteudo_anterior = None
     # `auto_now` só grava o carimbo se o campo entrar em update_fields, e
     # o nome varia entre os models (atualizada_em, atualizado_em).
     carimbos = [f.name for f in conteudo._meta.fields if getattr(f, "auto_now", False)]
-    conteudo.save(update_fields=["status", *carimbos])
+    conteudo.save(update_fields=["status", "conteudo_anterior", *carimbos])
 
 
 def _filhos_em(conteudo: Conteudo, status: StatusEditorial) -> list[Aula | Exercicio]:
@@ -516,3 +519,29 @@ def _filhos_em(conteudo: Conteudo, status: StatusEditorial) -> list[Aula | Exerc
     if isinstance(conteudo, Aula):
         return [*Exercicio.objects.select_for_update().filter(aula=conteudo, status=status)]
     return []
+
+
+# --- Conteúdo que já foi ao ar ---
+# No fim do arquivo de propósito: os Docs citam as linhas acima por número.
+# A edição do aprovado e do publicado mora em `versoes.py`.
+
+
+def ja_foi_ao_ar(conteudo: Conteudo) -> bool:
+    """Publicado agora, ou publicado antes de uma edição que ainda não voltou ao ar."""
+    anterior = conteudo.conteudo_anterior or {}
+    return StatusEditorial.PUBLICADO in (conteudo.status, anterior.get("status"))
+
+
+def exigir_excluivel(conteudo: Conteudo, usuario: User) -> None:
+    """A regra de exclusão do rascunho, mais uma: o que já foi ao ar só sai pela moderação.
+
+    Sem isto, editar o publicado (que volta para revisão) e esperar a devolução
+    daria ao autor um rascunho apagável, com o progresso dos alunos junto.
+    """
+    exigir_rascunho_do_dono(conteudo, usuario, EXCLUIVEIS)
+    # Quem tem `trilhas.delete_published` já saiu pela moderação, com motivo.
+    if ja_foi_ao_ar(conteudo):
+        raise ValidationError(
+            "Conteúdo que já foi publicado só pode ser excluído pela moderação.",
+            code="ja_publicado",
+        )

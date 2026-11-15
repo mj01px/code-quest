@@ -10,9 +10,9 @@ import { api } from "@/lib/api";
 // O que a revisão aprovou volta para o autor acompanhar. Só quem tem
 // `trilhas.publish` (a administração) vê o botão Publicar; para o autor a lista
 // é de leitura. A trilha também abre
-// no editor, onde dá para ver o que ainda falta antes de publicar. Aprovado não
-// se edita (só rascunho), mas se exclui: `aoAlterar` liga a lixeira e o painel
-// recarrega a lista.
+// no editor, onde dá para ver o que ainda falta antes de publicar e também
+// editar (a edição devolve o item para revisão). Aqui só se exclui: `aoAlterar`
+// liga a lixeira e o painel recarrega a lista.
 export function ListaAprovados({
   aoAlterar,
   aoContar,

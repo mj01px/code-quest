@@ -119,7 +119,7 @@ Trava extra do mesmo requisito, fora das RNs escritas: o admin não altera o pr�
 
 | RN | Regra e observação | Onde está a trava | Camada |
 |---|---|---|---|
-| RF13-RN01 | O pré-requisito de uma aula é outra aula da mesma trilha. | `apps/trilhas/models.py:L226` (`Aula.clean`, recusa pré-requisito de outra trilha). Atenção: `clean` roda em formulário e `full_clean`, não em todo `save()` | Servidor |
+| RF13-RN01 | O pré-requisito de uma aula é outra aula da mesma trilha. | `apps/trilhas/models.py:L246` (`Aula.clean`, recusa pré-requisito de outra trilha). Atenção: `clean` roda em formulário e `full_clean`, não em todo `save()` | Servidor |
 | RF13-RN02 | Trilha não publicada responde 404. | `apps/trilhas/views.py:L98` (o detalhe só enxerga `publicados()`; o que não está no queryset vira 404 no `RetrieveAPIView`) | Servidor |
 | RF13-RN03 | A retomada leva à primeira fase não concluída. | Interface decide o destino em `src/components/trilhas/BotaoIniciarTrilha.tsx:L53` (usa o `proximo` passo); a ordem e o estado de cada passo vêm do servidor em `apps/progressao/views.py:L386` (`PassosDaTrilhaView`) | Interface e Servidor |
 
@@ -128,17 +128,17 @@ Trava extra do mesmo requisito, fora das RNs escritas: o admin não altera o pr�
 | RN | Regra e observação | Onde está a trava | Camada |
 |---|---|---|---|
 | RF14-RN01 | A solução de referência do autor nunca faz parte da resposta. | `apps/trilhas/serializers.py:L143` (lista fechada de campos, sem `solucao_autor`) e `apps/trilhas/views.py:L111` (só exercício publicado) | Servidor |
-| RF14-RN02 | O slug do exercício é único dentro da trilha. | `apps/trilhas/models.py:L436` (restrição `exercicio_slug_unico_por_trilha`) | Banco |
+| RF14-RN02 | O slug do exercício é único dentro da trilha. | `apps/trilhas/models.py:L466` (restrição `exercicio_slug_unico_por_trilha`) | Banco |
 
 ## RF15 Controlar fluxo editorial do conteúdo
 
 | RN | Regra e observação | Onde está a trava | Camada |
 |---|---|---|---|
 | RF15-RN01 | A API pública só devolve conteúdo PUBLICADO. | `apps/trilhas/models.py:L33` (`publicados()`), aplicado em `apps/trilhas/views.py:L52`, `apps/trilhas/views.py:L98` e `apps/trilhas/views.py:L111` | Servidor |
-| RF15-RN02 | Cada transição exige a permissão correspondente. | `apps/autoria/views.py:L146` (`trilhas.submit_review`), `apps/autoria/views.py:L151` e `apps/autoria/views.py:L157` (`trilhas.review`), `apps/autoria/views.py:L178` (publicar, `HasPerm("trilhas.publish")`). Corrigido em 14 de novembro de 2026: antes a rota aceitava também `trilhas.submit_review` e o autor publicava o que criou; agora o autor recebe 403, inclusive no próprio conteúdo. Testes: `apps/autoria/tests/test_api_questao.py:L103` (própria trilha, 403), `apps/autoria/tests/test_api_fluxo_editorial.py:L142` (403 sem permissão) e `apps/autoria/tests/test_permissao_estrutural.py:L27` (permissão exigida pela rota) | Servidor |
+| RF15-RN02 | Cada transição exige a permissão correspondente. | `apps/autoria/views.py:L153` (`trilhas.submit_review`), `apps/autoria/views.py:L158` e `apps/autoria/views.py:L158` (`trilhas.review`), `apps/autoria/views.py:L185` (publicar, `HasPerm("trilhas.publish")`). Corrigido em 14 de novembro de 2026: antes a rota aceitava também `trilhas.submit_review` e o autor publicava o que criou; agora o autor recebe 403, inclusive no próprio conteúdo. Testes: `apps/autoria/tests/test_api_questao.py:L103` (própria trilha, 403), `apps/autoria/tests/test_api_fluxo_editorial.py:L142` (403 sem permissão) e `apps/autoria/tests/test_permissao_estrutural.py:L27` (permissão exigida pela rota) | Servidor |
 | RF15-RN03 | Editar e excluir só rascunho e só o dono (ou admin); excluir é recusado se um filho já saiu do rascunho. | `apps/autoria/services.py:L248` (`exigir_rascunho_do_dono`: dono antes do estado), `apps/autoria/services.py:L288` (`excluir_rascunho`), `apps/autoria/services.py:L243` (estados que excluem) e `apps/autoria/services.py:L245` (filhos que travam a exclusão). Nota: excluir também vale para o aprovado ainda não publicado, não só para rascunho | Servidor |
-| RF15-RN04 | Aula, exercício, flashcard e questão só entram em pai do próprio autor (salvo admin); flashcard e questão só em aula em rascunho. | `apps/autoria/serializers.py:L277` (`_exigir_dono`), usada em `apps/autoria/serializers.py:L355` (aula) e `apps/autoria/serializers.py:L395` (exercício); flashcard e questão em `apps/autoria/views.py:L513` (`rascunho_editavel` da aula). **Atenção:** `_exigir_dono` também deixa passar quando pai e trilha já estão publicados (`apps/autoria/serializers.py:L284`), o que a RN escrita não menciona | Servidor |
-| RF15-RN05 | Autor, status e slug não vêm do corpo da requisição. | `apps/autoria/views.py:L413` (`autor=self.request.user`); slug e id somente leitura em `apps/autoria/serializers.py:L341`, `apps/autoria/serializers.py:L352` e `apps/autoria/serializers.py:L392`; o status nasce rascunho e muda só por `apps/autoria/services.py:L501` (`_gravar_status`) | Servidor |
+| RF15-RN04 | Aula, exercício, flashcard e questão só entram em pai do próprio autor (salvo admin); flashcard e questão só em aula em rascunho. | `apps/autoria/serializers.py:L309` (`_exigir_dono`), usada em `apps/autoria/serializers.py:L387` (aula) e `apps/autoria/serializers.py:L427` (exercício); flashcard e questão em `apps/autoria/views.py:L524` (`rascunho_editavel` da aula). **Atenção:** `_exigir_dono` também deixa passar quando pai e trilha já estão publicados (`apps/autoria/serializers.py:L316`), o que a RN escrita não menciona | Servidor |
+| RF15-RN05 | Autor, status e slug não vêm do corpo da requisição. | `apps/autoria/views.py:L420` (`autor=self.request.user`); slug e id somente leitura em `apps/autoria/serializers.py:L373`, `apps/autoria/serializers.py:L373` e `apps/autoria/serializers.py:L424`; o status nasce rascunho e muda só por `apps/autoria/services.py:L501` (`_gravar_status`) | Servidor |
 
 Fluxo resultante: o autor submete, outra pessoa com `trilhas.review` aprova e só quem tem `trilhas.publish` (hoje o administrador) publica. Regra que a documentação chama de "quatro olhos", fora das cinco RNs numeradas: quem criou não aprova o próprio conteúdo, nem o admin (`apps/autoria/services.py:L464` a `apps/autoria/services.py:L465`).
 
@@ -146,8 +146,8 @@ Fluxo resultante: o autor submete, outra pessoa com `trilhas.review` aprova e s�
 
 | RN | Regra e observação | Onde está a trava | Camada |
 |---|---|---|---|
-| RF16-RN01 | A resposta não pode ser guardada em cache intermediário (`private, no-store`). | `apps/autoria/views.py:L85` (`cache_control(private=True, no_store=True)` na `SolucaoAutorView`) | Servidor |
-| RF16-RN02 | Limite de taxa próprio de 30 por minuto. | `apps/autoria/views.py:L91` (escopo `autoria`) e `config/settings.py:L156` (30 por minuto) | Servidor |
+| RF16-RN01 | A resposta não pode ser guardada em cache intermediário (`private, no-store`). | `apps/autoria/views.py:L92` (`cache_control(private=True, no_store=True)` na `SolucaoAutorView`) | Servidor |
+| RF16-RN02 | Limite de taxa próprio de 30 por minuto. | `apps/autoria/views.py:L98` (escopo `autoria`) e `config/settings.py:L156` (30 por minuto) | Servidor |
 
 ## RF17 Iniciar trilha
 
@@ -279,9 +279,9 @@ Concorrência do mesmo requisito: o progresso é travado com `select_for_update`
 
 ## Pontos que a banca pode explorar
 
-1. **RF15-RN04, pai publicado.** `_exigir_dono` deixa qualquer autor com permissão de criar anexar aula ou exercício a trilha ou aula já publicada (`apps/autoria/serializers.py:L284`); o item novo nasce em rascunho.
+1. **RF15-RN04, pai publicado.** `_exigir_dono` deixa qualquer autor com permissão de criar anexar aula ou exercício a trilha ou aula já publicada (`apps/autoria/serializers.py:L316`); o item novo nasce em rascunho.
 2. **RF20-RN01, linguagens.** O código aceita Python e SQL (`apps/correcao/judge0.py:L12`); a RN diz só Python.
 3. **RF32-RN01, imutabilidade.** Vale para `save()` do modelo; `update()` e `delete()` em lote existem e são usados na anonimização e na retenção.
 4. **RF32-RN02, segredos na auditoria.** Convenção de código, sem filtro automático.
-5. **RF13-RN01, pré-requisito.** A regra está em `Aula.clean`, que não roda em todo `save()` (`apps/trilhas/models.py:L218`).
+5. **RF13-RN01, pré-requisito.** A regra está em `Aula.clean`, que não roda em todo `save()` (`apps/trilhas/models.py:L238`).
 6. **RF27-RN02 e RF31-RN06.** Regras por ausência: não existe código de XP de desafio nem prazo de arrependimento; a prova é a falta desses caminhos no código mostrado acima.

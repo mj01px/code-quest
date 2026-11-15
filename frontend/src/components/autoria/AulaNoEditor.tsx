@@ -9,7 +9,7 @@ import {
   questaoCompleta,
   questaoLimpa,
 } from "@/components/autoria/AcoesQuestao";
-import { AcoesRascunho } from "@/components/autoria/AcoesRascunho";
+import { AcoesRascunho, AvisoDeReabertura } from "@/components/autoria/AcoesRascunho";
 import { AreaDeTexto } from "@/components/autoria/AreaDeTexto";
 import {
   CASO_VAZIO,
@@ -31,7 +31,7 @@ import { ErroApi, api } from "@/lib/api";
 import { plural } from "@/lib/derivados";
 import { minutosDeLeitura, rotuloDaSecao, secoesDaLicao } from "@/lib/licao";
 import { TIPO } from "@/lib/tipografia";
-import type { Flashcard, NovaAula, Questao, TipoExercicio } from "@/lib/types";
+import type { Flashcard, NovaAula, Questao, StatusEditorial, TipoExercicio } from "@/lib/types";
 
 // A aula dentro do editor de trilhas: o card do módulo com as três partes e
 // os formulários de criação. Mora fora do EditorDeConteudo para ele caber.
@@ -42,6 +42,8 @@ export interface ExercicioEditor {
   id: number;
   titulo: string;
   tipo: TipoExercicio;
+  /** Ausente em leitura antiga: vale o status da trilha. */
+  status_editorial?: StatusEditorial;
 }
 
 // O que o editor guarda de cada aula: o bastante para listar e para continuar
@@ -53,12 +55,16 @@ export interface AulaEditor {
   exercicios: ExercicioEditor[];
   flashcards: Flashcard[];
   questoes: Questao[];
+  /** Ausente em leitura antiga: vale o status da trilha. */
+  status_editorial?: StatusEditorial;
 }
 
 export const aulaNova = (a: NovaAula): AulaEditor => ({
   id: a.id,
   titulo: a.titulo,
   conteudo: a.conteudo,
+  // Tudo nasce em rascunho, mesmo dentro de trilha publicada.
+  status_editorial: "RASCUNHO",
   exercicios: [],
   flashcards: [],
   questoes: [],
@@ -147,11 +153,14 @@ export function FormAula({
 function FormLeitura({
   aula,
   conteudo,
+  reabre,
   aoSalvar,
   aoCancelar,
 }: {
   aula: AulaEditor;
   conteudo: string;
+  /** Aula aprovada ou publicada: salvar a devolve para revisão. */
+  reabre: boolean;
   aoSalvar: (conteudo: string) => void;
   aoCancelar: () => void;
 }) {
@@ -174,6 +183,7 @@ function FormLeitura({
 
   return (
     <form onSubmit={salvar} aria-label="Editar leitura" className="flex flex-col gap-5">
+      {reabre ? <AvisoDeReabertura /> : null}
       <EditorDeSecoes
         id={`leitura-${aula.id}`}
         inicial={conteudo}
@@ -234,20 +244,27 @@ function Bloco({
 export function ItemAula({
   numero,
   aula,
-  editavel,
+  statusDaTrilha,
   podeExercicio,
   aberta,
 }: {
   numero: number;
   aula: AulaEditor;
-  /** Lápis e lixeira nos exercícios: só com a trilha em rascunho, como no backend. */
-  editavel: boolean;
+  /** Vale para a aula e o exercício que vierem sem status próprio. */
+  statusDaTrilha: StatusEditorial;
   /** Sem `trilhas.create_exercicio`, os botões de adicionar somem. */
   podeExercicio: boolean;
   /** Card aberto ao montar: a aula em que o autor está trabalhando. */
   aberta: boolean;
 }) {
   const [conteudo, setConteudo] = useState(aula.conteudo);
+  // Cada item se edita pelo próprio status, como no backend: a aula pode estar
+  // em revisão dentro de uma trilha publicada.
+  const [status, setStatus] = useState(aula.status_editorial ?? statusDaTrilha);
+  // Quiz, flashcards e lixeira: só em rascunho. Aprovado e publicado aceitam
+  // editar leitura e exercício, e a edição os devolve para revisão.
+  const editavel = status === "RASCUNHO";
+  const reabre = status === "APROVADO" || status === "PUBLICADO";
   const [editandoLeitura, setEditandoLeitura] = useState(false);
   const [exercicios, setExercicios] = useState(aula.exercicios);
   const [questoes, setQuestoes] = useState(aula.questoes);
@@ -258,6 +275,7 @@ export function ItemAula({
     if (!("conteudo" in lida)) return;
     setExercicios(lida.exercicios);
     setQuestoes(lida.questoes);
+    if (lida.status_editorial) setStatus(lida.status_editorial);
   }
   // Formulário aberto; null mostra os botões de adicionar das partes.
   const [novo, setNovo] = useState<TipoNovo | null>(null);
@@ -279,7 +297,7 @@ export function ItemAula({
         aula={aula.id}
         aoCancelar={() => setNovo(null)}
         aoCriarExercicio={(ex) => {
-          setExercicios((atual) => [...atual, ex]);
+          setExercicios((atual) => [...atual, { ...ex, status_editorial: "RASCUNHO" }]);
           setNovo(null);
         }}
         aoCriarQuestao={(q) => {
@@ -309,6 +327,9 @@ export function ItemAula({
               {resumo}
             </span>
           </span>
+          {status === "REVISAO" && statusDaTrilha !== "REVISAO" ? (
+            <Badge tom="alerta">EM REVISÃO</Badge>
+          ) : null}
           <span className="shrink-0 font-label text-[11px] tracking-[2px] text-brand-light uppercase">
             Leitura · {minutosDeLeitura(conteudo)} min
           </span>
@@ -326,7 +347,7 @@ export function ItemAula({
           <Bloco
             titulo="LEITURA"
             acao={
-              editavel && !editandoLeitura ? (
+              status !== "REVISAO" && !editandoLeitura ? (
                 <PixelButton type="button" variante="secundaria" onClick={() => setEditandoLeitura(true)}>
                   EDITAR LEITURA
                 </PixelButton>
@@ -337,10 +358,13 @@ export function ItemAula({
               <FormLeitura
                 aula={aula}
                 conteudo={conteudo}
+                reabre={reabre}
                 aoCancelar={() => setEditandoLeitura(false)}
                 aoSalvar={(salvo) => {
                   setConteudo(salvo);
                   setEditandoLeitura(false);
+                  // Só o backend sabe se a edição mudou algo e levou a aula para revisão.
+                  if (reabre) recarregar().catch(() => {});
                 }}
               />
             ) : (
@@ -408,7 +432,9 @@ export function ItemAula({
             <p className={VAZIO}>&gt; NENHUM EXERCÍCIO AINDA.</p>
           ) : (
             <ul className="m-0 list-none divide-y-2 divide-edge border-2 border-edge p-0">
-              {exercicios.map((ex, i) => (
+              {exercicios.map((ex, i) => {
+                const statusEx = ex.status_editorial ?? statusDaTrilha;
+                return (
                 <li key={`ex-${ex.id}`} className={LINHA}>
                   <span aria-hidden="true" className={`${MARCA} border-edge-soft text-ink-muted`}>
                     {String(i + 1).padStart(2, "0")}
@@ -419,21 +445,28 @@ export function ItemAula({
                   <Badge tom={ex.tipo === "CODIGO" ? "sucesso" : "acento"}>
                     {ex.tipo === "CODIGO" ? "CÓDIGO" : "TEÓRICO"}
                   </Badge>
-                  {editavel ? (
+                  {statusEx === "REVISAO" ? (
+                    statusDaTrilha === "REVISAO" ? null : (
+                      <Badge tom="alerta">EM REVISÃO</Badge>
+                    )
+                  ) : (
                     <span className="flex items-center gap-2">
                       <AcoesRascunho
                         item={{
                           id: ex.id,
                           tipo: "exercicios",
                           titulo: ex.titulo,
-                          status_editorial: "RASCUNHO",
+                          status_editorial: statusEx,
                         }}
                         aoAlterar={recarregar}
+                        // Aprovado e publicado se editam, mas não se excluem por aqui.
+                        soEditar={statusEx !== "RASCUNHO"}
                       />
                     </span>
-                  ) : null}
+                  )}
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
           {adicionando && !escolhendo ? (

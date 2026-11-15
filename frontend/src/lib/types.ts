@@ -165,6 +165,30 @@ export interface TransicaoEditorial {
   status_editorial: StatusEditorial;
 }
 
+/** Uma linha do diff entre a versão aprovada e o texto atual. */
+export interface LinhaDoDiff {
+  tipo: "igual" | "removido" | "adicionado";
+  texto: string;
+}
+
+export interface CampoAlterado {
+  /** Nome do campo no backend: titulo, conteudo, enunciado, testes... */
+  campo: string;
+  linhas: LinhaDoDiff[];
+}
+
+/** Vazio (sem campos nem filhos) quando não há edição esperando revisão. */
+export interface DiffEditorial {
+  campos: CampoAlterado[];
+  /** Aulas e exercícios editados dentro do conteúdo: na fila, o pai aparece no lugar deles. */
+  filhos: {
+    tipo: Exclude<TipoConteudo, "trilhas">;
+    id: number;
+    titulo: string;
+    campos: CampoAlterado[];
+  }[];
+}
+
 // --- Solicitação de autoria ---
 export type SituacaoSolicitacao = "PENDENTE" | "APROVADA" | "REJEITADA";
 export type TipoPretendido = "TRILHA" | "AULA" | "EXERCICIO" | "COMPLETO";
@@ -285,6 +309,8 @@ export interface ExercicioResumo {
   dificuldade: Dificuldade;
   dificuldade_label: string;
   ordem: number;
+  /** Só na leitura editorial; o catálogo público não traz. */
+  status_editorial?: StatusEditorial;
 }
 
 export interface Aula {
@@ -297,6 +323,8 @@ export interface Aula {
   exercicios: ExercicioResumo[];
   flashcards: Flashcard[];
   questoes: Questao[];
+  /** Só na leitura editorial; o catálogo público não traz. */
+  status_editorial?: StatusEditorial;
 }
 
 export interface Flashcard {

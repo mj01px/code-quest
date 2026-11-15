@@ -13,6 +13,7 @@ import {
   mensagemDe,
   type AulaEditor,
 } from "@/components/autoria/AulaNoEditor";
+import { AvisoDeReabertura } from "@/components/autoria/AcoesRascunho";
 import { ModalVisualizacao } from "@/components/autoria/ModalVisualizacao";
 import { ModalConfirmacao } from "@/components/clas/ModalConfirmacao";
 import { useProgresso } from "@/components/progresso/ProvedorProgresso";
@@ -81,6 +82,8 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
   const { usuario, carregando, erro } = useProgresso();
   const [trilha, setTrilha] = useState<TrilhaEditor | null>(null);
   const [aulas, setAulas] = useState<AulaEditor[]>([]);
+  // Sobe a cada releitura da trilha: remonta as aulas com o status novo.
+  const [versaoAulas, setVersaoAulas] = useState(0);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
   // O formulário de aula fica atrás de um botão: aberto, esconde o botão.
   const [novaAula, setNovaAula] = useState(false);
@@ -147,6 +150,19 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
 
   const retomando = trilhaId !== null;
 
+  // Submeter e publicar levam junto as aulas e os exercícios que estavam no
+  // estado da trilha: relê em vez de adivinhar o status de cada um aqui.
+  async function relerAulas(id: number) {
+    try {
+      const lida = await api.detalheEditorial("trilhas", id);
+      if (!("aulas" in lida)) return;
+      setAulas(lida.aulas);
+      setVersaoAulas((v) => v + 1);
+    } catch {
+      // Sem a releitura a lista fica como estava; o backend recusa o que não vale mais.
+    }
+  }
+
   async function excluir() {
     if (!trilha) return;
     setOcupado(true);
@@ -170,6 +186,7 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
       await api.submeterRevisao("trilhas", trilha.id);
       setRevisando(false);
       setTrilha({ ...trilha, status_editorial: "REVISAO" });
+      void relerAulas(trilha.id);
     } catch (e) {
       setErroEnvio(mensagemDe(e));
     } finally {
@@ -217,7 +234,10 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
       {trilha?.status_editorial === "APROVADO" ? (
         <BotaoPublicar
           trilha={trilha.id}
-          aoPublicar={() => setTrilha({ ...trilha, status_editorial: "PUBLICADO" })}
+          aoPublicar={() => {
+            setTrilha({ ...trilha, status_editorial: "PUBLICADO" });
+            void relerAulas(trilha.id);
+          }}
         />
       ) : null}
 
@@ -253,10 +273,10 @@ export function EditorDeConteudo({ trilhaId = null }: { trilhaId?: number | null
               <ol className="m-0 flex list-none flex-col gap-4 p-0">
                 {aulas.map((aula, i) => (
                   <ItemAula
-                    key={aula.id}
+                    key={`${aula.id}-${versaoAulas}`}
                     numero={i + 1}
                     aula={aula}
-                    editavel={trilha.status_editorial === "RASCUNHO"}
+                    statusDaTrilha={trilha.status_editorial}
                     podeExercicio={podeExercicio}
                     // A última é a recém-criada ou onde o autor parou; as outras fecham.
                     aberta={i === aulas.length - 1}
@@ -377,8 +397,11 @@ function BotaoPublicar({ trilha, aoPublicar }: { trilha: number; aoPublicar: () 
   );
 }
 
-// Nome e descrição só se editam em rascunho, a mesma regra do backend; fora
-// dele a trilha aparece como texto, com o status em destaque.
+// Aprovado e publicado se editam, mas a edição volta para revisão (backend).
+const REABRIVEIS: StatusEditorial[] = ["APROVADO", "PUBLICADO"];
+
+// Em revisão a trilha aparece como texto, com o status em destaque: o revisor
+// está lendo. Nos outros estados nome e descrição se editam, como no backend.
 function DadosTrilha({
   trilha,
   aoSalvar,
@@ -400,10 +423,18 @@ function DadosTrilha({
     </span>
   );
 
-  if (trilha.status_editorial !== "RASCUNHO") {
+  const reabre = REABRIVEIS.includes(trilha.status_editorial);
+
+  if (trilha.status_editorial === "REVISAO") {
     return (
       <section className={HERO} aria-label="Trilha">
         {status}
+        {/* Só logo depois de salvar a edição do aprovado: o formulário sumiu. */}
+        {salvo ? (
+          <p role="status" className={`m-0 text-success ${TIPO.etiqueta}`}>
+            &gt; ALTERAÇÃO SALVA. TRILHA ENVIADA PARA REVISÃO.
+          </p>
+        ) : null}
         <h2 className={`m-0 text-ink ${TIPO.tituloApp}`}>{trilha.nome}</h2>
         <p className="m-0 max-w-prose font-body text-lg leading-[1.7] tracking-[1px] text-ink-body text-pretty">
           {trilha.descricao}
@@ -424,7 +455,12 @@ function DadosTrilha({
         ...dados,
         ...(bonusMudou ? { criatura_bonus: bonus || null } : {}),
       });
-      aoSalvar({ ...trilha, ...dados, criatura_bonus: bonus || null });
+      aoSalvar({
+        ...trilha,
+        ...dados,
+        criatura_bonus: bonus || null,
+        status_editorial: reabre ? "REVISAO" : trilha.status_editorial,
+      });
       setSalvo(true);
     } catch (e) {
       setErro(mensagemDe(e));
@@ -439,6 +475,7 @@ function DadosTrilha({
   return (
     <form onSubmit={salvar} className={HERO} aria-label="Trilha">
       {status}
+      {reabre ? <AvisoDeReabertura /> : null}
       <PixelField
         rotulo="NOME DA TRILHA"
         value={nome}

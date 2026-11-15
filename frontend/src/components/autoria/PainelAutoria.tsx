@@ -7,6 +7,7 @@ import { CriacaoRapida } from "@/components/autoria/CriacaoRapida";
 import { FilaRevisao } from "@/components/autoria/FilaRevisao";
 import { ListaAprovados } from "@/components/autoria/ListaAprovados";
 import { ListaRascunhos } from "@/components/autoria/ListaRascunhos";
+import { MeusConteudos } from "@/components/autoria/MeusConteudos";
 import { MeusEnvios } from "@/components/autoria/MeusEnvios";
 import { useProgresso } from "@/components/progresso/ProvedorProgresso";
 import { Badge } from "@/components/ui/Badge";
@@ -15,10 +16,10 @@ import { ServicoIndisponivel } from "@/components/ui/ServicoIndisponivel";
 import { TIPO } from "@/lib/tipografia";
 
 type Lista = "rascunhos" | "aprovados" | "fila";
-type Aba = "producao" | "revisao" | "envios";
+type Aba = "producao" | "conteudos" | "revisao" | "envios";
 
 // Ordem das abas na tela.
-const ORDEM: readonly Aba[] = ["producao", "revisao", "envios"];
+const ORDEM: readonly Aba[] = ["producao", "conteudos", "revisao", "envios"];
 
 // Cabeçalho e aba mudam juntos: produção e envios são do autor, a fila do revisor.
 const ABAS: Record<Aba, { rotulo: string; titulo: string; subtitulo: string }> = {
@@ -26,6 +27,12 @@ const ABAS: Record<Aba, { rotulo: string; titulo: string; subtitulo: string }> =
     rotulo: "CRIAÇÃO E PUBLICAÇÃO",
     titulo: "Produção de Conteúdo",
     subtitulo: "Crie conteúdo, envie rascunhos para revisão e publique o que foi aprovado.",
+  },
+  conteudos: {
+    rotulo: "MEUS CONTEÚDOS",
+    titulo: "Meus Conteúdos",
+    subtitulo:
+      "Tudo o que você criou, com o status de cada item. Editar o que já foi aprovado ou publicado envia de volta para revisão.",
   },
   revisao: {
     rotulo: "REVISÃO DE CONTEÚDO",
@@ -90,6 +97,7 @@ export function PainelAutoria() {
   // a fila, sem barra de abas.
   const disponivel: Record<Aba, boolean> = {
     producao: podeSubmeter,
+    conteudos: podeSubmeter,
     revisao: podeRevisar,
     envios: podeSubmeter,
   };
@@ -268,6 +276,26 @@ export function PainelAutoria() {
             aoDevolver={() => setVersaoRascunhos((v) => v + 1)}
             aoAprovar={() => setVersaoAprovados((v) => v + 1)}
             aoContar={contar.fila}
+          />
+        </div>
+      ) : null}
+
+      {/* Monta só aberta: cada visita busca a lista de novo, já com o status atual. */}
+      {aba === "conteudos" ? (
+        <div
+          role={comAbas ? "tabpanel" : undefined}
+          id="painel-conteudos"
+          aria-labelledby={comAbas ? "aba-conteudos" : undefined}
+        >
+          {/* Editar é de quem cria (trilhas.create), como no backend. */}
+          <MeusConteudos
+            podeEditar={podeCriar}
+            aoAlterar={() => {
+              // O item editado pode ter saído dos aprovados e entrado na fila.
+              setVersaoRascunhos((v) => v + 1);
+              setVersaoAprovados((v) => v + 1);
+              setVersaoFila((v) => v + 1);
+            }}
           />
         </div>
       ) : null}

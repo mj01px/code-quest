@@ -119,6 +119,16 @@ class Trilha(models.Model):
     criada_em = models.DateTimeField(auto_now_add=True, verbose_name=_("criada em"))
     atualizada_em = models.DateTimeField(auto_now=True, verbose_name=_("atualizada em"))
 
+    # Preenchido quando o aprovado ou publicado é editado; some quando o
+    # conteúdo volta ao estado de antes da edição (apps.autoria.services).
+    conteudo_anterior = models.JSONField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("conteúdo anterior"),
+        help_text=_("Última versão aprovada, enquanto a edição espera revisão."),
+    )
+
     objects = PublicavelQuerySet.as_manager()
 
     class Meta:
@@ -190,6 +200,16 @@ class Aula(models.Model):
 
     criada_em = models.DateTimeField(auto_now_add=True, verbose_name=_("criada em"))
     atualizada_em = models.DateTimeField(auto_now=True, verbose_name=_("atualizada em"))
+
+    # Preenchido quando o aprovado ou publicado é editado; some quando o
+    # conteúdo volta ao estado de antes da edição (apps.autoria.services).
+    conteudo_anterior = models.JSONField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("conteúdo anterior"),
+        help_text=_("Última versão aprovada, enquanto a edição espera revisão."),
+    )
 
     objects = PublicavelQuerySet.as_manager()
 
@@ -425,6 +445,16 @@ class Exercicio(models.Model):
 
     criado_em = models.DateTimeField(auto_now_add=True, verbose_name=_("criado em"))
     atualizado_em = models.DateTimeField(auto_now=True, verbose_name=_("atualizado em"))
+
+    # Preenchido quando o aprovado ou publicado é editado; some quando o
+    # conteúdo volta ao estado de antes da edição (apps.autoria.services).
+    conteudo_anterior = models.JSONField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("conteúdo anterior"),
+        help_text=_("Última versão aprovada, enquanto a edição espera revisão."),
+    )
 
     objects = PublicavelQuerySet.as_manager()
 

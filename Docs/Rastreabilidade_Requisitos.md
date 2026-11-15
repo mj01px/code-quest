@@ -10,6 +10,7 @@ que o implementa, com caminho e número de linha conferidos lendo o arquivo.
 - **Fontes dos enunciados:** RF01 a RF35 e RNF01 a RNF33 em `Docs/Requisitos/requisitos-funcionais.md` e `Docs/Requisitos/requisitos-nao-funcionais.md`. RF36 (Consultar ranking) e RF37 (Perfil público) estão só na monografia; os nomes usados aqui seguem a monografia e o código.
 - **Regras de negócio e consulta rápida:** as RNs de cada RF, com linha exata, estão em `Docs/Rastreabilidade_Regras_Negocio.md`; o roteiro de perguntas da banca, em `Docs/Cheat_Sheet_Banca.md`.
 - **Atenção:** os dois documentos de requisitos foram escritos sobre o commit `1d82ca0` (25/10/2026) e ainda marcam como `Parcial`, `Planejado` ou `Em desenvolvimento` itens que hoje estão no código (RF16, RF27 com backend, RF30, RF33, RF34, RF35). Este arquivo reflete o código atual.
+- **Atualização de 15 de novembro de 2026 (working tree, depois do commit `65fd4c4`):** entraram a aba "Meus Conteúdos", a trava de revisão para edição do aprovado e do publicado e o diff da edição (RF15, ressalva 9). As linhas de `apps/autoria/views.py`, `apps/autoria/serializers.py`, `apps/trilhas/models.py`, `src/lib/api.ts`, `src/components/autoria/PainelAutoria.tsx` e `src/components/autoria/EditorDeConteudo.tsx` deslocaram e foram realinhadas neste arquivo, uma a uma pelo conteúdo da linha; as de `apps/autoria/services.py` não deslocaram.
 
 ## Requisitos funcionais (37)
 
@@ -18,7 +19,7 @@ que o implementa, com caminho e número de linha conferidos lendo o arquivo.
 [RF03] - Autenticar usuário - Backend: `apps/contas/views.py:L154` - Frontend: `src/components/auth/FormularioLogin.tsx:L33`
 [RF04] - Autenticar com segundo fator (2FA) - Backend: `apps/contas/views.py:L452` - Frontend: `src/components/auth/FormularioLogin.tsx:L106`
 [RF05] - Ativar e desativar o 2FA - Backend: `apps/contas/views.py:L489` - Frontend: `src/components/configuracoes/SecaoSeguranca.tsx:L35`
-[RF06] - Renovar e encerrar sessão - Backend: `apps/contas/views.py:L186` - Frontend: `src/lib/api.ts:L253`
+[RF06] - Renovar e encerrar sessão - Backend: `apps/contas/views.py:L186` - Frontend: `src/lib/api.ts:L254`
 [RF07] - Recuperar senha - Backend: `apps/contas/views.py:L313` - Frontend: `src/components/auth/FormularioSenhaEsquecida.tsx:L17`
 [RF08] - Consultar e editar perfil - Backend: `apps/contas/views.py:L232` - Frontend: `src/components/configuracoes/PainelConfiguracoes.tsx:L21`
 [RF09] - Trocar e-mail da conta - Backend: `apps/contas/views.py:L250` - Frontend: `src/components/configuracoes/PainelConfiguracoes.tsx:L133`
@@ -27,8 +28,8 @@ que o implementa, com caminho e número de linha conferidos lendo o arquivo.
 [RF12] - Consultar catálogo de trilhas - Backend: `apps/trilhas/views.py:L43` - Frontend: `src/components/trilhas/PainelDeTrilhas.tsx:L101`
 [RF13] - Consultar trilha e mapa de fases - Backend: `apps/trilhas/views.py:L77` - Frontend: `src/components/trilhas/MapaDeFases.tsx:L12`
 [RF14] - Consultar exercício - Backend: `apps/trilhas/views.py:L101` - Frontend: `src/app/(foco)/trilhas/[trilhaSlug]/exercicios/[exercicioSlug]/page.tsx:L78`
-[RF15] - Controlar fluxo editorial do conteúdo - Backend: `apps/autoria/views.py:L133` - Frontend: `src/components/autoria/PainelAutoria.tsx:L59`
-[RF16] - Consultar solução de referência - Backend: `apps/autoria/views.py:L87` - Frontend: `src/components/exercicio/PetDoExercicio.tsx:L30`
+[RF15] - Controlar fluxo editorial do conteúdo - Backend: `apps/autoria/views.py:L140` - Frontend: `src/components/autoria/PainelAutoria.tsx:L66`
+[RF16] - Consultar solução de referência - Backend: `apps/autoria/views.py:L94` - Frontend: `src/components/exercicio/PetDoExercicio.tsx:L30`
 [RF17] - Iniciar trilha - Backend: `apps/progressao/views.py:L137` - Frontend: `src/components/trilhas/BotaoIniciarTrilha.tsx:L23`
 [RF18] - Concluir exercício e creditar XP - Backend: `apps/progressao/services.py:L545` - Frontend: `src/components/exercicio/PainelDeCodigo.tsx:L160`
 [RF19] - Consultar progresso do aluno - Backend: `apps/progressao/views.py:L70` - Frontend: `src/components/progresso/ProvedorProgresso.tsx:L82`
@@ -65,7 +66,7 @@ Quando a regra mora fora da view, este é o segundo ponto a abrir.
 | RF07 | `apps/contas/views.py:L333` (`RedefinirSenhaView`) |
 | RF09 | `apps/contas/views.py:L274` (`ConfirmarTrocaEmailView`) |
 | RF11 | `apps/contas/views_rbac.py:L159` (`UsuarioListView`) |
-| RF15 | `apps/autoria/views.py:L176` (`PublicarView`), `src/components/autoria/EditorDeConteudo.tsx:L79` |
+| RF15 | `apps/autoria/views.py:L183` (`PublicarView`), `src/components/autoria/EditorDeConteudo.tsx:L80`, `apps/autoria/versoes.py:L98` (`reabrir_se_mudou`, trava de revisão), `apps/autoria/views.py:L670` (`MeusConteudosView`), `apps/autoria/views.py:L723` (`DiffEditorialView`), `src/components/autoria/MeusConteudos.tsx:L30`, `src/components/autoria/ModalVisualizacao.tsx:L205` (`DiffDaEdicao`) |
 | RF17 | `apps/progressao/services.py:L258` (`iniciar_trilha`) |
 | RF18 | `apps/progressao/views.py:L183` (`ConcluirExercicioView`) |
 | RF21 | `apps/progressao/views.py:L247` (chamada de `corrigir_envio` dentro da conclusão) |
@@ -84,13 +85,13 @@ Quando a regra mora fora da view, este é o segundo ponto a abrir.
 ## Requisitos não funcionais (33)
 
 [RNF01] - Armazenamento e política de senha - Backend: `config/settings.py:L118` - Frontend: Não se aplica
-[RNF02] - Sessão em cookies protegidos - Backend: `apps/contas/cookies.py:L18` - Frontend: `src/lib/api.ts:L169`
-[RNF03] - Proteção contra CSRF e origens não autorizadas - Backend: `config/settings.py:L252` - Frontend: `src/lib/api.ts:L163`
+[RNF02] - Sessão em cookies protegidos - Backend: `apps/contas/cookies.py:L18` - Frontend: `src/lib/api.ts:L170`
+[RNF03] - Proteção contra CSRF e origens não autorizadas - Backend: `config/settings.py:L252` - Frontend: `src/lib/api.ts:L164`
 [RNF04] - Bloqueio por tentativas de login - Backend: `apps/contas/models.py:L267` - Frontend: Não se aplica
 [RNF05] - Limitação de taxa de requisições - Backend: `config/settings.py:L133` (`CACHES` com o DatabaseCache do Django: os contadores ficam no PostgreSQL e valem para todos os workers) - Frontend: Não se aplica
 [RNF06] - Proteção dos segredos do segundo fator - Backend: `apps/contas/mfa.py:L45` - Frontend: Não se aplica
 [RNF07] - Autorização por permissão em cada rota - Backend: `config/settings.py:L180` - Frontend: `src/components/layout/PortaDeAcesso.tsx:L7`
-[RNF08] - Não exposição de gabaritos e casos ocultos - Backend: `apps/autoria/views.py:L87` - Frontend: Não se aplica
+[RNF08] - Não exposição de gabaritos e casos ocultos - Backend: `apps/autoria/views.py:L94` - Frontend: Não se aplica
 [RNF09] - Respostas que não revelam contas existentes - Backend: `apps/contas/views.py:L313` - Frontend: Não se aplica
 [RNF10] - Isolamento da execução de código do aluno - Backend: `apps/correcao/judge0.py:L19` - Frontend: Não se aplica
 [RNF11] - Política de segurança de conteúdo no navegador - Backend: Não se aplica - Frontend: `src/proxy.ts:L16` (`cspCom`: nonce novo por request, `script-src` sem `'unsafe-inline'`)
@@ -166,7 +167,7 @@ Quando a regra mora fora da view, este é o segundo ponto a abrir.
 Registradas para decisão da equipe.
 
 1. **RNF08 (gabarito do quiz no payload).** `apps/trilhas/serializers.py:L19` (`QuestaoSerializer`) devolve `resposta_correta` ao navegador. O comentário `ponytail` acima dele justifica isso porque "o quiz corrige no navegador e não dá XP", mas hoje o quiz é corrigido no servidor (`apps/progressao/views.py:L342`, `ConcluirQuizView`, e `apps/progressao/services.py:L365`, `concluir_quiz`) e grava `acertos`. Com o gabarito no payload, o aluno pode tirar nota máxima lendo a resposta da rede. Não dá XP, mas a nota gravada perde valor.
-2. **RF15 RN02 (resolvida em 2026-11-14).** `apps/autoria/views.py:L178` (`PublicarView`) agora exige só `trilhas.publish`; o autor, que tem `trilhas.submit_review`, recebe 403 ao publicar, inclusive o que criou. Na interface, o botão Publicar da lista "Prontos para publicar" só aparece com `trilhas.publish` (`src/components/autoria/ListaAprovados.tsx:L39`, prop vinda de `src/components/autoria/PainelAutoria.tsx:L84`); o autor vê a lista em leitura, com o aviso de que a administração publica.
+2. **RF15 RN02 (resolvida em 2026-11-14).** `apps/autoria/views.py:L185` (`PublicarView`) agora exige só `trilhas.publish`; o autor, que tem `trilhas.submit_review`, recebe 403 ao publicar, inclusive o que criou. Na interface, o botão Publicar da lista "Prontos para publicar" só aparece com `trilhas.publish` (`src/components/autoria/ListaAprovados.tsx:L39`, prop vinda de `src/components/autoria/PainelAutoria.tsx:L91`); o autor vê a lista em leitura, com o aviso de que a administração publica.
 3. **Componentes órfãos no frontend (resolvido em 2026-11-14).** `BotaoSolucao`, `BotaoConclusao`, `BotaoProximoExercicio`, `GraficoAtividade` e `ADefinir` não eram importados por nenhuma tela e foram removidos. A solução de referência (RF16) é exibida por `PetDoExercicio.tsx` e a conclusão (RF18) por `PainelDeCodigo.tsx` e `useRespostaEscrita.ts`.
 4. **Segredo TOTP em texto puro.** `apps/contas/models.py` (`ConfiguracaoMFA.totp_secret`, `L512`) guarda o segredo base32 sem cifra. O RNF06 promete hash só para os códigos por e-mail e de recuperação, o que é cumprido; o segredo TOTP precisa ser legível para validar o código, mas um vazamento do banco o revela.
 5. **Documentos de requisitos desatualizados.** `Docs/Requisitos/requisitos-funcionais.md` não traz RF36 e RF37 e ainda marca RF16, RF30 e RF33 como parciais, RF34 como planejado e RF35 como em desenvolvimento. O `README.md` cita 1140 testes no backend e 435 no frontend, números anteriores aos atuais.
@@ -174,6 +175,7 @@ Registradas para decisão da equipe.
 7. **Acoplamento entre apps do backend.** Há importações nos dois sentidos entre apps (por exemplo, `progressao` importa de `conquistas` e `conquistas` importa de `progressao`; `contas` e `progressao` também se importam). Funciona, porque várias importações ficam dentro de funções, mas enfraquece a fronteira dos módulos descrita na monografia.
 
 8. **Custo do nonce da CSP (RNF11).** O Next só aplica o nonce em HTML gerado na hora, então o layout raiz força render por request (`src/app/layout.tsx:L19`) e nenhuma página é mais pré-gerada no build. Duas consequências: o catálogo é buscado na API a cada visita (o `revalidate` das páginas continua cacheando os `fetch`), e um slug de trilha inexistente (`/trilhas/nao-existe`) mostra a tela de 404 com status HTTP 200, porque o `loading.tsx` de `(app)/trilhas` já iniciou o streaming. O `style-src` mantém `'unsafe-inline'`, pois o Monaco e o Next injetam estilos sem nonce; o RNF11 trata de script.
+9. **RF15: edição do aprovado e do publicado, "Meus Conteúdos" e diff (2026-11-15).** Antes desta data o `PUT` de `autoria/<tipo>/<id>/` recusava com 400 tudo o que não fosse rascunho: nada ia ao ar sem revisão, mas o autor não tinha como corrigir o que já estava publicado. Agora a edição é aceita em rascunho, aprovado e publicado (`apps/autoria/versoes.py:L28`, `EDITAVEIS`) e, nos dois últimos, se o texto mudou de fato, `reabrir_se_mudou` (`apps/autoria/versoes.py:L98`) guarda a versão anterior em `conteudo_anterior` (`apps/trilhas/models.py:L124`, `apps/trilhas/models.py:L206` e `apps/trilhas/models.py:L451`, migração `0012_conteudo_anterior`) e devolve o conteúdo para revisão, com registro na auditoria. A versão anterior some quando o conteúdo volta ao estado de antes da edição (`apps/autoria/services.py:L501`, `_gravar_status`). O revisor lê o diff em `autoria/<tipo>/<id>/diff/` (`apps/autoria/views.py:L723`), calculado com `difflib` (`apps/autoria/versoes.py:L143`) e exibido no modal de revisão (`src/components/autoria/ModalVisualizacao.tsx:L205`). A aba "Meus Conteúdos" (`src/components/autoria/MeusConteudos.tsx:L30`, rota `autoria/meus-conteudos/` em `apps/autoria/views.py:L670`) lista só o que o usuário da sessão criou. Salvar sem mudar nada não tira nada do ar, e o filho não se edita enquanto a trilha ou a aula dele está em revisão (`apps/autoria/versoes.py:L78`, `antes_da_edicao`). O editor decide o lápis pelo status de cada aula e exercício, que a leitura editorial passou a trazer (`apps/autoria/serializers.py:L138`, `AulaEditorialSerializer`). Pontos para a equipe decidir ou conhecer: (a) o conteúdo publicado que é editado sai do catálogo até ser aprovado e publicado de novo, mesmo numa correção pequena; (b) o que já foi publicado não pode mais ser excluído pelo autor, nem depois de devolvido como rascunho (`apps/autoria/services.py:L535`), só pela moderação, com motivo; (c) flashcards e questões de aula aprovada ou publicada continuam sem edição, e o diff é por linha inteira; (d) a regra dos quatro olhos olha quem criou, não quem editou (`apps/autoria/services.py:L464`): um administrador que edite o conteúdo publicado de outro autor consegue aprovar a própria edição; (e) cada abertura do modal de revisão faz duas leituras no limite `editorial` (30 por minuto), o detalhe e o diff. Testes: `apps/autoria/tests/test_api_edicao_publicado.py`, `src/components/autoria/__tests__/MeusConteudos.test.tsx` e `src/components/autoria/__tests__/ModalVisualizacao.test.tsx`.
 
 ## Verificação de acessibilidade (RNF30)
 

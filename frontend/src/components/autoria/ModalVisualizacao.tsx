@@ -11,7 +11,9 @@ import { ErroApi, api } from "@/lib/api";
 import { TIPO } from "@/lib/tipografia";
 import type {
   Aula,
+  CampoAlterado,
   DetalheEditorial,
+  DiffEditorial,
   ExercicioEditorial,
   ExercicioResumo,
   ItemEditorial,
@@ -47,8 +49,31 @@ export function ModalVisualizacao({
   const tituloId = useId();
   const [detalhe, setDetalhe] = useState<DetalheEditorial | null>(null);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
+  const [diff, setDiff] = useState<DiffEditorial | null>(null);
+  const [erroDiff, setErroDiff] = useState(false);
+
+  // Quem revisa só age depois de ver o que mudou: o diff carrega junto.
+  const carregando = detalhe === null || (diff === null && !erroDiff);
 
   useModal(painel, onFechar, ocupado);
+
+  // À parte do detalhe: se o diff falhar, o conteúdo ainda abre, com o aviso.
+  // ponytail: são duas leituras do balde `editorial` (30/min) por abertura;
+  // juntar o diff ao detalhe se o revisor esbarrar no limite.
+  useEffect(() => {
+    let ativo = true;
+    api
+      .diffEditorial(item.tipo, item.id)
+      .then((d) => {
+        if (ativo) setDiff(d);
+      })
+      .catch(() => {
+        if (ativo) setErroDiff(true);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [item.tipo, item.id]);
 
   useEffect(() => {
     let ativo = true;
@@ -117,16 +142,25 @@ export function ModalVisualizacao({
           </button>
         </div>
 
+        {erroDiff ? (
+          <p role="alert" className={`m-0 text-danger ${TIPO.corpo}`}>
+            Não foi possível carregar as alterações desta edição.
+          </p>
+        ) : null}
+
         {erroCarga ? (
           <p role="alert" className={`m-0 text-danger ${TIPO.corpo}`}>
             {erroCarga}
           </p>
-        ) : detalhe === null ? (
+        ) : carregando || detalhe === null ? (
           <p className={`m-0 text-brand-light ${TIPO.etiqueta}`}>
             &gt; CARREGANDO...
           </p>
         ) : (
-          <Corpo detalhe={detalhe} />
+          <>
+            {diff ? <DiffDaEdicao diff={diff} /> : null}
+            <Corpo detalhe={detalhe} />
+          </>
         )}
 
         {erro ? (
@@ -140,7 +174,7 @@ export function ModalVisualizacao({
             <button
               key={acao.rotulo}
               type="button"
-              disabled={ocupado || detalhe === null}
+              disabled={ocupado || carregando}
               onClick={() => onAgir(indice)}
               className={BOTAO}
             >
@@ -148,6 +182,92 @@ export function ModalVisualizacao({
             </button>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+const ROTULO_CAMPO: Record<string, string> = {
+  nome: "NOME",
+  descricao: "DESCRIÇÃO",
+  dificuldade: "NÍVEL",
+  criatura_bonus: "BÔNUS DE CRIATURA",
+  titulo: "TÍTULO",
+  conteudo: "TEXTO DA AULA",
+  enunciado: "ENUNCIADO",
+  funcao: "FUNÇÃO",
+  testes: "CASOS DE TESTE",
+};
+
+// O que mudou desde a versão aprovada, calculado no backend (difflib). Some
+// quando não há edição pendente. Com filhos, um bloco por aula ou exercício
+// editado: na fila a trilha aparece no lugar deles.
+function DiffDaEdicao({ diff }: { diff: DiffEditorial }) {
+  const blocos = [
+    { chave: "proprio", titulo: null, campos: diff.campos },
+    ...diff.filhos.map((f) => ({
+      // O título não é único (só o slug é): a chave vem do tipo e do id.
+      chave: `${f.tipo}-${f.id}`,
+      titulo: `${f.tipo === "aulas" ? "AULA" : "EXERCÍCIO"}: ${f.titulo}`,
+      campos: f.campos,
+    })),
+  ].filter((bloco) => bloco.campos.length > 0);
+  if (blocos.length === 0) return null;
+
+  return (
+    <section
+      aria-label="Alterações desde a versão aprovada"
+      className="flex flex-col gap-4 border-2 border-warning bg-panel-deep p-4"
+    >
+      <h3 className={`m-0 text-warning ${TIPO.etiqueta}`}>
+        ALTERAÇÕES DESDE A VERSÃO APROVADA
+      </h3>
+      <p className={`m-0 text-ink-muted ${TIPO.corpo}`}>
+        Linhas com + entraram nesta edição; linhas com - riscadas saíram.
+      </p>
+      {blocos.map((bloco) => (
+        <div key={bloco.chave} className="flex flex-col gap-3">
+          {bloco.titulo ? (
+            <h4 className={`m-0 text-brand-light ${TIPO.etiqueta}`}>{bloco.titulo.toUpperCase()}</h4>
+          ) : null}
+          {bloco.campos.map((campo) => (
+            <CampoDoDiff key={campo.campo} campo={campo} />
+          ))}
+        </div>
+      ))}
+    </section>
+  );
+}
+
+// `ins` e `del` dizem ao leitor de tela o que entrou e o que saiu; o sinal na
+// frente e o riscado valem para quem não distingue verde de vermelho.
+function CampoDoDiff({ campo }: { campo: CampoAlterado }) {
+  const rotulo = ROTULO_CAMPO[campo.campo] ?? campo.campo.toUpperCase();
+  return (
+    <div className="flex flex-col gap-2">
+      <span className={`text-ink-soft ${TIPO.etiqueta}`}>{rotulo}</span>
+      <div
+        role="group"
+        tabIndex={0}
+        aria-label={`Alterações em ${rotulo}`}
+        className="max-h-72 overflow-y-auto border-2 border-edge bg-panel py-1 font-terminal text-sm leading-[1.6]"
+      >
+        {campo.linhas.map((linha, i) =>
+          linha.tipo === "adicionado" ? (
+            <ins key={i} className="block bg-success/15 px-3 whitespace-pre-wrap text-success no-underline">
+              <span className="sr-only">Adicionado: </span>+ {linha.texto}
+            </ins>
+          ) : linha.tipo === "removido" ? (
+            <del key={i} className="block bg-danger/15 px-3 whitespace-pre-wrap text-danger line-through">
+              <span className="sr-only">Removido: </span>- {linha.texto}
+            </del>
+          ) : (
+            // Linha em branco do Markdown: o espaço duro segura a altura.
+            <span key={i} className="block px-3 whitespace-pre-wrap text-ink-muted">
+              {linha.texto || "\u00a0"}
+            </span>
+          ),
+        )}
       </div>
     </div>
   );
