@@ -24,7 +24,7 @@ Significado de cada estado:
 | `Planejado` | Previsto (permissão no RBAC, código de auditoria reservado ou documentação), sem implementação na `main` |
 | `Em desenvolvimento` | Em construção numa branch da equipe, ainda não integrada à `main` |
 
-Base da verificação: branch `ArthurMain` no commit `1d82ca0` (25 de outubro de 2026).
+Base da verificação: branch `main` no commit `e0fd532` (15 de novembro de 2026).
 Os números de regras de negócio (RN) e critérios de aceite (CA) recomeçam a cada
 requisito.
 
@@ -40,7 +40,7 @@ requisito.
 | Judge0 | Serviço externo que executa o código enviado pelo aluno |
 
 As permissões de cada ator vêm do nível de acesso da conta, não do papel
-(`backend/apps/contas/rbac.py` e `NivelDeAcesso` em `backend/apps/contas/models.py`).
+(`backend/apps/contas/rbac.py:L13` e `NivelDeAcesso` em `backend/apps/contas/models.py:L356`).
 
 ## Quadro resumo
 
@@ -61,7 +61,7 @@ As permissões de cada ator vêm do nível de acesso da conta, não do papel
 | RF13 | Consultar trilha e mapa de fases | Alta | Implementado |
 | RF14 | Consultar exercício | Alta | Implementado |
 | RF15 | Controlar fluxo editorial do conteúdo | Média | Implementado |
-| RF16 | Consultar solução de referência | Baixa | Parcial |
+| RF16 | Consultar solução de referência | Baixa | Implementado |
 | RF17 | Iniciar trilha | Média | Implementado |
 | RF18 | Concluir exercício e creditar XP | Alta | Implementado |
 | RF19 | Consultar progresso do aluno | Alta | Implementado |
@@ -75,12 +75,14 @@ As permissões de cada ator vêm do nível de acesso da conta, não do papel
 | RF27 | Apresentar desafios do dia | Baixa | Implementado |
 | RF28 | Consultar histórico da própria atividade | Média | Implementado |
 | RF29 | Exportar dados pessoais | Alta | Implementado |
-| RF30 | Renovar consentimento dos documentos legais | Média | Parcial |
+| RF30 | Renovar consentimento dos documentos legais | Média | Implementado |
 | RF31 | Excluir conta por anonimização | Alta | Implementado |
 | RF32 | Registrar eventos na trilha de auditoria | Alta | Implementado |
-| RF33 | Consultar trilha de auditoria | Média | Parcial |
-| RF34 | Suspender e reativar conta | Baixa | Planejado |
-| RF35 | Gerenciar clãs | Média | Em desenvolvimento |
+| RF33 | Consultar trilha de auditoria | Média | Implementado |
+| RF34 | Suspender e reativar conta | Baixa | Implementado |
+| RF35 | Gerenciar clãs | Média | Implementado |
+| RF36 | Consultar ranking | Média | Implementado |
+| RF37 | Consultar perfil público | Baixa | Implementado |
 
 ---
 
@@ -121,7 +123,7 @@ vigente dos Termos de Uso e da Política de Privacidade.
 - CA03: Dado um e-mail já cadastrado, quando um visitante tentar se cadastrar com ele, então nenhuma conta deverá ser criada e a resposta deverá ser igual à de um cadastro novo.
 - CA04: Dado um cadastro válido, quando concluído, então deverão existir dois registros de aceite (Termos e Privacidade) com a versão vigente.
 
-**Fonte:** `backend/apps/contas/views.py` (`RegistrarView`), `backend/apps/contas/serializers.py` (`RegistroSerializer`), `backend/apps/contas/validators.py`, `backend/apps/contas/cadastro_alerta.py`, `frontend/src/app/cadastro/page.tsx`, `frontend/src/components/auth/FormularioCadastro.tsx`.
+**Fonte:** `backend/apps/contas/views.py:L72` (`RegistrarView`), `backend/apps/contas/serializers.py:L122` (`RegistroSerializer`), `backend/apps/contas/validators.py:L13` (`IDADE_MINIMA_ANOS`, `calcular_idade` em `:L16`, `PasswordComplexityValidator` em `:L105`), `backend/apps/contas/cadastro_alerta.py:L28` (`avisar_tentativa_de_cadastro`), `frontend/src/app/cadastro/page.tsx:L11` (`PaginaCadastro`), `frontend/src/components/auth/FormularioCadastro.tsx:L50` (`FormularioCadastro`).
 
 ### RF02. Verificar e-mail da conta
 
@@ -153,7 +155,7 @@ por meio de um link assinado e com prazo, e permitir o reenvio desse link.
 - CA02: Dado um link vencido de uma conta ainda pendente, quando aberto, então o sistema deverá recusar e orientar o pedido de novo e-mail.
 - CA03: Dado um e-mail inexistente, quando o visitante pedir o reenvio, então a resposta deverá ser a mesma de um e-mail existente.
 
-**Fonte:** `backend/apps/contas/views.py` (`VerificarEmailView`, `ReenviarVerificacaoView`), `backend/apps/contas/verificacao.py`, `frontend/src/app/verificar-email/page.tsx`, `frontend/src/app/confirmar-email/page.tsx`.
+**Fonte:** `backend/apps/contas/views.py:L100` (`VerificarEmailView`), `backend/apps/contas/views.py:L122` (`ReenviarVerificacaoView`), `backend/apps/contas/verificacao.py:L55` (`enviar_verificacao`), `frontend/src/app/verificar-email/page.tsx:L15` (`PaginaVerificarEmail`), `frontend/src/app/confirmar-email/page.tsx:L15` (`PaginaConfirmarEmail`), `frontend/src/components/auth/PainelVerificarEmail.tsx:L48` (`PainelVerificarEmail`).
 
 ### RF03. Autenticar usuário
 
@@ -188,7 +190,7 @@ seu nível de acesso.
 - CA03: Dado um usuário que errou a senha 5 vezes, quando tentar de novo com a senha correta dentro de 15 minutos, então o sistema deverá recusar o acesso.
 - CA04: Dado um usuário com e-mail não verificado, quando informar credenciais corretas, então o sistema deverá recusar e pedir a confirmação do e-mail.
 
-**Fonte:** `backend/apps/contas/views.py` (`LoginView`), `backend/apps/contas/serializers.py` (`LoginSerializer`), `backend/apps/contas/models.py` (`registrar_falha_de_login`), `backend/apps/contas/cookies.py`, `frontend/src/app/entrar/page.tsx`.
+**Fonte:** `backend/apps/contas/views.py:L154` (`LoginView`), `backend/apps/contas/serializers.py:L228` (`LoginSerializer`), `backend/apps/contas/models.py:L267` (`registrar_falha_de_login`), `backend/apps/contas/cookies.py:L18` (`gravar_sessao`), `frontend/src/app/entrar/page.tsx:L11` (`PaginaEntrar`), `frontend/src/components/auth/FormularioLogin.tsx:L33` (`FormularioLogin`).
 
 ### RF04. Autenticar com segundo fator (2FA)
 
@@ -221,7 +223,7 @@ ou um código de recuperação.
 - CA02: Dado um código de recuperação já usado, quando informado, então o sistema deverá recusá-lo.
 - CA03: Dado um `mfa_token` com mais de 5 minutos, quando usado, então o sistema deverá recusar o segundo passo.
 
-**Fonte:** `backend/apps/contas/views.py` (`LoginMfaView`), `backend/apps/contas/mfa.py`, `frontend/src/components/auth/FormularioLogin.tsx`.
+**Fonte:** `backend/apps/contas/views.py:L452` (`LoginMfaView`), `backend/apps/contas/mfa.py:L45` (`_hash`), `frontend/src/components/auth/FormularioLogin.tsx:L106` (passo de 2FA em `FormularioLogin`).
 
 ### RF05. Ativar e desativar o 2FA
 
@@ -255,7 +257,7 @@ mediante um código válido.
 - CA02: Dado o 2FA ativo, quando o usuário tentar iniciar outro método, então o sistema deverá recusar com a orientação de desativar antes.
 - CA03: Dado um código incorreto, quando o usuário tentar desativar o 2FA, então o 2FA deverá continuar ativo.
 
-**Fonte:** `backend/apps/contas/views.py` (`MfaIniciarView`, `MfaConfirmarView`, `MfaDesativarIniciarView`, `MfaDesativarView`), `backend/apps/contas/mfa.py`, `frontend/src/components/configuracoes/SecaoSeguranca.tsx`.
+**Fonte:** `backend/apps/contas/views.py:L489` (`MfaIniciarView`), `backend/apps/contas/views.py:L518` (`MfaConfirmarView`), `backend/apps/contas/views.py:L555` (`MfaDesativarIniciarView`), `backend/apps/contas/views.py:L577` (`MfaDesativarView`), `backend/apps/contas/mfa.py:L45` (`_hash`), `frontend/src/components/configuracoes/SecaoSeguranca.tsx:L35` (`SecaoSeguranca`).
 
 ### RF06. Renovar e encerrar sessão
 
@@ -284,7 +286,7 @@ token de renovação for válido, e permitir que o usuário encerre a sessão.
 - CA01: Dado um token de renovação já usado, quando reapresentado, então o sistema deverá recusá-lo.
 - CA02: Dado um usuário autenticado, quando sair, então os três cookies de sessão deverão ser removidos.
 
-**Fonte:** `backend/apps/contas/views.py` (`RenovarView`, `SairView`), `backend/config/settings.py` (`SIMPLE_JWT`), `frontend/src/lib/api.ts`.
+**Fonte:** `backend/apps/contas/views.py:L186` (`RenovarView`), `backend/apps/contas/views.py:L212` (`SairView`), `backend/config/settings.py:L216` (`SIMPLE_JWT`), `frontend/src/lib/api.ts:L254` (`renovarSessao`).
 
 ### RF07. Recuperar senha
 
@@ -315,7 +317,7 @@ um link de uso único enviado ao e-mail da conta.
 - CA02: Dado um e-mail sem conta, quando o visitante pedir a recuperação, então a resposta deverá ser igual à de um e-mail existente.
 - CA03: Dado um usuário com sessão aberta em outro dispositivo, quando redefinir a senha, então aquela sessão não deverá conseguir renovar o token.
 
-**Fonte:** `backend/apps/contas/views.py` (`SenhaEsquecidaView`, `RedefinirSenhaView`), `backend/apps/contas/senha.py`, `frontend/src/app/recuperar-senha/page.tsx`, `frontend/src/app/redefinir-senha/page.tsx`.
+**Fonte:** `backend/apps/contas/views.py:L313` (`SenhaEsquecidaView`), `backend/apps/contas/views.py:L333` (`RedefinirSenhaView`), `backend/apps/contas/senha.py:L60` (`enviar_redefinicao`), `frontend/src/app/recuperar-senha/page.tsx:L11` (`PaginaRecuperarSenha`), `frontend/src/app/redefinir-senha/page.tsx:L15` (`PaginaRedefinirSenha`), `frontend/src/components/auth/FormularioSenhaEsquecida.tsx:L17` (`FormularioSenhaEsquecida`).
 
 ### RF08. Consultar e editar perfil
 
@@ -344,7 +346,7 @@ permitir a troca do nickname.
 - CA01: Dado um nickname já usado por outra conta, com qualquer combinação de maiúsculas, quando o usuário tentar adotá-lo, então o sistema deverá recusar.
 - CA02: Dado um nickname válido e livre, quando salvo, então o perfil deverá exibi-lo imediatamente.
 
-**Fonte:** `backend/apps/contas/views.py` (`EuView`), `frontend/src/components/configuracoes/PainelConfiguracoes.tsx`, `frontend/src/components/configuracoes/SecaoPerfil.tsx`.
+**Fonte:** `backend/apps/contas/views.py:L232` (`EuView`), `frontend/src/components/configuracoes/PainelConfiguracoes.tsx:L21` (`PainelConfiguracoes`), `frontend/src/components/configuracoes/SecaoPerfil.tsx:L30` (`SecaoPerfil`).
 
 ### RF09. Trocar e-mail da conta
 
@@ -377,7 +379,7 @@ senha atual e duas confirmações: uma no endereço atual e outra no endereço n
 - CA02: Dado o segundo link aberto, quando confirmado, então o login deverá passar a funcionar apenas com o e-mail novo.
 - CA03: Dado uma senha atual incorreta, quando o usuário pedir a troca, então o sistema deverá recusar e contar uma falha de login.
 
-**Fonte:** `backend/apps/contas/views.py` (`TrocarEmailView`, `ConfirmarTrocaEmailView`), `backend/apps/contas/troca_email.py`, `frontend/src/components/configuracoes/PainelConfiguracoes.tsx`, `frontend/src/components/__tests__/ConfirmarTrocaEmail.test.tsx`.
+**Fonte:** `backend/apps/contas/views.py:L250` (`TrocarEmailView`), `backend/apps/contas/views.py:L274` (`ConfirmarTrocaEmailView`), `backend/apps/contas/troca_email.py:L85` (`enviar_troca_email`), `frontend/src/components/configuracoes/PainelConfiguracoes.tsx:L133` (`PainelConfiguracoes`), `frontend/src/components/__tests__/ConfirmarTrocaEmail.test.tsx:L22` (`PainelConfirmarEmail`).
 
 ## 2. Controle de acesso (RBAC)
 
@@ -409,7 +411,7 @@ remova níveis de acesso, cada um formado por um conjunto de permissões do cat�
 - CA01: Dado um aluno, quando tentar acessar as rotas `/auth/admin/`, então o sistema deverá recusar com 403.
 - CA02: Dado o nível de sistema Aluno, quando o administrador tentar removê-lo, então o sistema deverá recusar.
 
-**Fonte:** `backend/apps/contas/views_rbac.py`, `backend/apps/contas/rbac.py`, `backend/apps/core/permissions.py`, `frontend/src/components/admin/GestaoNiveis.tsx`.
+**Fonte:** `backend/apps/contas/views_rbac.py:L71` (`NivelListCreateView`), `backend/apps/contas/views_rbac.py:L91` (`NivelDetailView`), `backend/apps/contas/rbac.py:L13` (`CATALOG`), `backend/apps/core/permissions.py:L18` (`HasPerm`), `frontend/src/components/admin/GestaoNiveis.tsx:L25` (`GestaoNiveis`).
 
 ### RF11. Atribuir nível de acesso a usuário
 
@@ -438,7 +440,7 @@ atribua a cada um o nível de acesso que define suas permissões.
 - CA01: Dado um administrador movido para o nível Aluno, quando tentar abrir o painel, então o sistema deverá recusar o acesso.
 - CA02: Dado um aluno movido para o nível Autor, quando pedir a solução de referência (RF16), então o sistema deverá atendê-lo.
 
-**Fonte:** `backend/apps/contas/views_rbac.py` (`UsuarioListView`, `UsuarioNivelView`), `backend/apps/contas/models.py` (`has_perm`), `frontend/src/components/admin/ModalAtribuirNivel.tsx`.
+**Fonte:** `backend/apps/contas/views_rbac.py:L159` (`UsuarioListView`), `backend/apps/contas/views_rbac.py:L247` (`UsuarioNivelView`), `backend/apps/contas/models.py:L212` (`has_perm`), `frontend/src/components/admin/ModalAtribuirNivel.tsx:L35` (`ModalAtribuirNivel`).
 
 ## 3. Conteúdo de aprendizado
 
@@ -467,7 +469,7 @@ a quantidade de aulas e exercícios publicados de cada uma.
 - CA01: Dada uma trilha em rascunho, quando o catálogo for consultado, então ela não deverá aparecer.
 - CA02: Dada uma trilha publicada com uma aula em rascunho, quando o catálogo for consultado, então a contagem não deverá incluir essa aula.
 
-**Fonte:** `backend/apps/trilhas/views.py` (`TrilhaListView`), `frontend/src/app/(app)/trilhas/page.tsx`, `frontend/src/components/trilhas/ListaDeTrilhas.tsx`.
+**Fonte:** `backend/apps/trilhas/views.py:L43` (`TrilhaListView`), `frontend/src/app/(app)/trilhas/page.tsx:L12` (`TrilhasPage`), `frontend/src/components/trilhas/PainelDeTrilhas.tsx:L101` (`PainelDeTrilhas`), `frontend/src/components/trilhas/ListaDeTrilhas.tsx:L30` (`ListaDeTrilhas`).
 
 ### RF13. Consultar trilha e mapa de fases
 
@@ -498,7 +500,7 @@ exercícios (fases) publicados, o pré-requisito entre aulas e o atalho
 - CA01: Dado um slug de trilha em rascunho, quando acessado, então o sistema deverá responder 404.
 - CA02: Dado um aluno que concluiu as fases 1 e 3, quando abrir a trilha, então o destaque deverá apontar para a fase 2.
 
-**Fonte:** `backend/apps/trilhas/views.py` (`TrilhaDetailView`), `backend/apps/trilhas/models.py` (`Aula.clean`), `frontend/src/app/(app)/trilhas/[trilhaSlug]/page.tsx`, `frontend/src/components/trilhas/MapaDeFases.tsx`, `frontend/src/components/trilhas/CartaoDestaque.tsx`.
+**Fonte:** `backend/apps/trilhas/views.py:L77` (`TrilhaDetailView`), `backend/apps/trilhas/models.py:L238` (`Aula.clean`), `frontend/src/app/(app)/trilhas/[trilhaSlug]/page.tsx:L57` (`TrilhaPage`), `frontend/src/components/trilhas/MapaDeFases.tsx:L12` (`MapaDeFases`), `frontend/src/components/trilhas/CartaoDestaque.tsx:L16` (`CartaoDestaque`).
 
 ### RF14. Consultar exercício
 
@@ -526,7 +528,7 @@ tipo (código ou teórico), dificuldade e o contexto da aula e da trilha.
 - CA01: Dado qualquer exercício publicado, quando consultado, então a resposta não deverá conter o campo `solucao_autor`.
 - CA02: Dado um exercício publicado dentro de uma aula em rascunho, quando consultado, então o sistema deverá responder 404.
 
-**Fonte:** `backend/apps/trilhas/views.py` (`ExercicioDetailView`), `backend/apps/trilhas/serializers.py`, `frontend/src/app/(app)/trilhas/[trilhaSlug]/exercicios/[exercicioSlug]/page.tsx`.
+**Fonte:** `backend/apps/trilhas/views.py:L101` (`ExercicioDetailView`), `backend/apps/trilhas/serializers.py:L116` (`ExercicioDetalheSerializer`), `frontend/src/app/(foco)/trilhas/[trilhaSlug]/exercicios/[exercicioSlug]/page.tsx:L78` (`ExercicioPage`).
 
 ### RF15. Controlar fluxo editorial do conteúdo
 
@@ -535,7 +537,8 @@ tipo (código ou teórico), dificuldade e o contexto da aula e da trilha.
 **Descrição:** O sistema deverá permitir que o autor crie conteúdo e o conduza pelos
 estados RASCUNHO → REVISAO → APROVADO → PUBLICADO (trilhas, aulas, exercícios, e
 dentro da aula, flashcards e questões de múltipla escolha), de modo que somente
-conteúdo publicado chegue ao aluno.
+conteúdo publicado chegue ao aluno, e que edições em conteúdos aprovados ou publicados
+guardem a versão anterior, retornem à revisão e exibam o diff para o revisor.
 
 **Atores:** Autor, Revisor, Administrador.
 
@@ -545,64 +548,58 @@ autor pede acesso em `/ser-autor` e o administrador aprova o pedido.
 **Fluxo principal:**
 1. O usuário solicita autoria em `/ser-autor`; o administrador aprova ou rejeita a solicitação.
 2. O autor cria o conteúdo em `/autoria/novo`: trilha, aula e exercício, com flashcards e questões de múltipla escolha dentro da aula. Tudo nasce em rascunho, com ele como autor.
-3. Enquanto estiver em rascunho, o autor edita ou exclui o próprio conteúdo.
-4. O autor abre `/autoria`, vê a lista de rascunhos e envia o conteúdo para revisão.
-5. O revisor abre a fila de revisão, consulta o conteúdo no modal (sem a solução do autor) e aprova ou devolve ao rascunho.
-6. O autor vê a lista de aprovados e publica o que criou; quem tem `trilhas.publish` publica qualquer conteúdo aprovado.
+3. Em `/autoria`, o autor acompanha na aba "Meus Conteúdos" tudo o que criou com o status atual, edita rascunhos, aprovados ou publicados e envia rascunhos para revisão.
+4. Quando um conteúdo em `APROVADO` ou `PUBLICADO` é editado com alteração efetiva de texto, o sistema salva a versão anterior em `conteudo_anterior` e reabre o item em `REVISAO`.
+5. O revisor abre a fila de revisão, consulta o conteúdo e o diff de alterações no modal e aprova (regra dos quatro olhos) ou devolve ao rascunho informando o parecer obrigatório.
+6. Quem possui a permissão `trilhas.publish` (administrador) vê a lista de aprovados e publica o conteúdo.
 
 **Regras de negócio:**
 - RN01: A API pública só devolve conteúdo PUBLICADO.
-- RN02: Cada transição exige a permissão correspondente (`trilhas.create`, `trilhas.submit_review`, `trilhas.review`, `trilhas.publish`).
-- RN03: Editar e excluir valem só para rascunho e só para o dono (ou administrador); excluir é recusado se algum filho já saiu do rascunho.
-- RN04: Aula, exercício, flashcard e questão só entram em pai do próprio autor (salvo administrador); flashcard e questão só em aula em rascunho.
-- RN05: Autor, status e slug não vêm do corpo da requisição: o servidor define.
+- RN02: Cada transição exige a permissão correspondente (`trilhas.create`, `trilhas.submit_review`, `trilhas.review`, `trilhas.publish`); a publicação exige exclusivamente `trilhas.publish` e a aprovação exige pessoa distinta do autor (quatro olhos).
+- RN03: A edição é permitida em `RASCUNHO`, `APROVADO` e `PUBLICADO` pelo dono (ou administrador), mas bloqueada em `REVISAO` ou quando a trilha ou aula pai está em revisão; se o conteúdo aprovado ou publicado mudar, ele volta para `REVISAO` guardando `conteudo_anterior`. A exclusão pelo autor vale apenas para rascunho inédito (`ja_foi_ao_ar` impede excluir item que já foi publicado).
+- RN04: Aula, exercício, flashcard e questão só entram em pai do próprio autor (salvo administrador); flashcard e questão só são editados em aula em rascunho.
+- RN05: Autor, status e slug não vêm do corpo da requisição: o servidor define. Na devolução para rascunho, o parecer do revisor é obrigatório.
 
-**Pós-condições:** Conteúdo no novo estado editorial, com a ação registrada na auditoria.
+**Pós-condições:** Conteúdo no novo estado editorial, versão anterior preservada quando reaberto para revisão e ação registrada na auditoria.
 
 **Critérios de aceite:**
 - CA01: Dado um exercício em APROVADO, quando a API pública for consultada, então ele não deverá aparecer.
-- CA02: Dado um aluno, quando tentar publicar ou criar conteúdo, então o sistema deverá recusar.
-- CA03: Dado um autor, quando tentar editar o rascunho de outro autor, então o sistema deverá recusar.
-- CA04: Dado um conteúdo fora de RASCUNHO, quando o autor tentar editá-lo ou excluí-lo, então o sistema deverá recusar.
+- CA02: Dado um autor sem `trilhas.publish`, quando tentar publicar um conteúdo aprovado, então o sistema deverá recusar com 403.
+- CA03: Dado um autor, quando tentar editar o conteúdo de outro autor, então o sistema deverá recusar com 403.
+- CA04: Dado um conteúdo em `PUBLICADO`, quando o autor alterar seu texto e salvar, então o sistema deverá gravar a versão anterior em `conteudo_anterior`, mudar o status para `REVISAO` e exibir o diff no modal de revisão.
 
 **O que existe:** os quatro estados no modelo, o filtro de publicados em todas as
 rotas públicas, as permissões no catálogo do RBAC, o comando de carga
-idempotente (`seed_trilhas`) e as rotas de transição (enviar para revisão,
-aprovar, devolver ao rascunho e publicar) para trilhas, aulas e exercícios.
-Cada rota exige a permissão correspondente, recusa transição fora de ordem e
-registra a mudança na trilha de auditoria. A publicação de trilha ou aula é
-recusada enquanto houver conteúdo filho em rascunho ou em revisão. A criação
-de trilha, aula e exercício (`POST /autoria/{trilhas,aulas,exercicios}/`), a
-edição e a exclusão de rascunho (`PUT` e `DELETE /autoria/<tipo>/<pk>/`), os
-flashcards (`/autoria/flashcards/`) e as questões de múltipla escolha
-(`/autoria/questoes/`) estão implementados, com a solicitação de autoria
-(`/autoria/solicitacoes/`) decidida pelo administrador. As rotas
-`GET /autoria/rascunhos/`, `GET /autoria/aprovados/` e `GET /autoria/fila-revisao/`
-listam os três tipos de conteúdo em cada fila, e a tela `/autoria` mostra cada
-lista só a quem tem a permissão dela, com os botões de enviar para revisão,
-editar, excluir, aprovar, devolver e publicar. Clicar no título abre o
-conteúdo inteiro num modal (`GET /autoria/<tipo>/<pk>/detalhe/`, sem a solução
-do autor), com as mesmas ações. O aluno responde as questões de múltipla
-escolha na aula; a correção ocorre no navegador e não concede XP.
+idempotente (`seed_trilhas`) e as rotas de transição (`SubmeterRevisaoView`,
+`AprovarView`, `DevolverView` com parecer obrigatório e `PublicarView` restrita a
+`trilhas.publish`) para trilhas, aulas e exercícios. A edição de itens em
+`APROVADO` e `PUBLICADO` (`EDITAVEIS` em `backend/apps/autoria/versoes.py:L28`) preserva a versão
+anterior em `conteudo_anterior` (`backend/apps/trilhas/models.py:L124`, `:L206` e `:L451`) e
+reabre o conteúdo em `REVISAO` (`reabrir_se_mudou` em `backend/apps/autoria/versoes.py:L98`), com
+cálculo de diff por linha via `difflib` (`diff_editorial` em `backend/apps/autoria/versoes.py:L143`,
+exposto em `DiffEditorialView` em `backend/apps/autoria/views.py:L723` e exibido por `DiffDaEdicao` em
+`frontend/src/components/autoria/ModalVisualizacao.tsx:L205`). A aba "Meus Conteúdos" (`frontend/src/components/autoria/MeusConteudos.tsx:L30` e
+`MeusConteudosView` em `backend/apps/autoria/views.py:L670`) lista todas as criações do autor logado.
+O quiz de múltipla escolha da aula é corrigido no servidor (`ConcluirQuizView` em
+`backend/apps/progressao/views.py:L342`).
 
-**O que falta:** a comporta automática e o registro do parecer do revisor na devolução.
-
-**Fonte:** `backend/apps/autoria/views.py`, `backend/apps/autoria/services.py`, `backend/apps/autoria/serializers.py`, `backend/apps/trilhas/models.py` (`StatusEditorial`, `Flashcard`, `Questao`), `backend/apps/contas/rbac.py`, `frontend/src/app/(app)/autoria/novo/page.tsx`, `frontend/src/app/(app)/ser-autor/page.tsx`, `frontend/src/components/autoria/PainelAutoria.tsx`, `frontend/src/components/autoria/EditorDeConteudo.tsx`, `frontend/src/components/trilhas/QuizQuestao.tsx`.
+**Fonte:** `backend/apps/autoria/views.py:L140` (`TransicaoEditorialView`, `SubmeterRevisaoView` em `:L151`, `AprovarView` em `:L156`, `DevolverView` em `:L162`, `PublicarView` em `:L183`, `MeusConteudosView` em `:L670`, `DiffEditorialView` em `:L723`), `backend/apps/autoria/services.py:L31` (`TRANSICOES`, `transicionar` em `:L434`, quatro olhos em `:L464`, `exigir_excluivel` em `:L535`), `backend/apps/autoria/versoes.py:L28` (`EDITAVEIS`, `antes_da_edicao` em `:L78`, `reabrir_se_mudou` em `:L98`, `diff_editorial` em `:L143`, `conteudos_do_autor` em `:L192`), `backend/apps/autoria/serializers.py:L138` (`AulaEditorialSerializer`), `backend/apps/trilhas/models.py:L9` (`StatusEditorial`, `Trilha.conteudo_anterior` em `:L124`, `Aula.conteudo_anterior` em `:L206`, `Flashcard` em `:L252`, `Questao` em `:L309`, `Exercicio.conteudo_anterior` em `:L451`), `backend/apps/contas/rbac.py:L13` (`CATALOG`), `frontend/src/app/(app)/autoria/novo/page.tsx:L12` (`PaginaNovoConteudo`), `frontend/src/app/(app)/ser-autor/page.tsx:L10` (`PaginaSerAutor`), `frontend/src/components/autoria/PainelAutoria.tsx:L66` (`PainelAutoria`), `frontend/src/components/autoria/MeusConteudos.tsx:L30` (`MeusConteudos`), `frontend/src/components/autoria/ModalVisualizacao.tsx:L205` (`DiffDaEdicao`), `frontend/src/components/autoria/EditorDeConteudo.tsx:L80` (`EditorDeConteudo`), `frontend/src/components/trilhas/QuizQuestao.tsx:L12` (`QuizQuestao`).
 
 ### RF16. Consultar solução de referência
 
-**Prioridade:** Baixa · **Estado:** Parcial
+**Prioridade:** Baixa · **Estado:** Implementado
 
-**Descrição:** O sistema deverá permitir que autores consultem a solução de
-referência de um exercício, publicado ou não, por uma rota própria.
+**Descrição:** O sistema deverá permitir que autores e administradores consultem a
+solução de referência de um exercício, publicado ou não, por uma rota própria e
+pelo painel do mascote na tela do exercício.
 
 **Atores:** Autor, Administrador.
 
 **Pré-condições:** Usuário autenticado com a permissão `trilhas.view_solution`.
 
 **Fluxo principal:**
-1. O autor pede a solução de um exercício pelo par trilha e exercício.
-2. O sistema confere a permissão e devolve a solução.
+1. O autor pede a solução de um exercício pelo par trilha e exercício na tela do exercício (`PetDoExercicio`).
+2. O sistema confere a permissão `trilhas.view_solution` e devolve a solução com cabeçalho `Cache-Control: private, no-store`.
 
 **Regras de negócio:**
 - RN01: A resposta não pode ser guardada em cache intermediário (`Cache-Control: private, no-store`).
@@ -614,9 +611,7 @@ referência de um exercício, publicado ou não, por uma rota própria.
 - CA01: Dado um aluno, quando pedir a solução, então o sistema deverá responder 403.
 - CA02: Dado um autor, quando pedir a solução de um exercício em rascunho, então o sistema deverá devolvê-la.
 
-**O que falta:** a regra está na API, mas o frontend não tem tela que consuma a rota.
-
-**Fonte:** `backend/apps/autoria/views.py` (`SolucaoAutorView`), `backend/apps/autoria/urls.py`.
+**Fonte:** `backend/apps/autoria/views.py:L94` (`SolucaoAutorView`), `backend/apps/autoria/urls.py:L77` (rota `solucao-autor`), `frontend/src/components/exercicio/PetDoExercicio.tsx:L30` (`PetDoExercicio`).
 
 ## 4. Progressão do aluno
 
@@ -644,7 +639,7 @@ referência de um exercício, publicado ou não, por uma rota própria.
 - CA01: Dado um aluno que já iniciou a trilha, quando acionar de novo, então o sistema deverá responder 200 sem criar outro registro.
 - CA02: Dada uma trilha em rascunho, quando o aluno tentar iniciá-la, então o sistema deverá responder 404.
 
-**Fonte:** `backend/apps/progressao/views.py` (`IniciarTrilhaView`), `backend/apps/progressao/services.py` (`iniciar_trilha`), `frontend/src/components/trilhas/BotaoIniciarTrilha.tsx`.
+**Fonte:** `backend/apps/progressao/views.py:L137` (`IniciarTrilhaView`), `backend/apps/progressao/services.py:L258` (`iniciar_trilha`), `frontend/src/components/trilhas/BotaoIniciarTrilha.tsx:L23` (`BotaoIniciarTrilha`).
 
 ### RF18. Concluir exercício e creditar XP
 
@@ -658,7 +653,7 @@ referência de um exercício, publicado ou não, por uma rota própria.
 **Pré-condições:** Aluno autenticado com `exercicios.complete`, exercício publicado e uma criatura ativa.
 
 **Fluxo principal:**
-1. O aluno conclui a fase: no exercício teórico, pelo botão de conclusão; no de código, por um envio aprovado (RF21).
+1. O aluno conclui a fase: no exercício teórico, pelo botão de conclusão; no de código, digitando a solução no editor (com colagem bloqueada pelo aviso do Warden) e obtendo aprovação no envio (RF21).
 2. O sistema calcula o XP: 50 (iniciante), 100 (intermediário) ou 200 (avançado), multiplicado pelo bônus da criatura na trilha, se houver.
 3. O sistema soma o XP à criatura ativa e recalcula o nível.
 4. A resposta informa o XP ganho, o novo nível e se a criatura já pode evoluir.
@@ -667,7 +662,7 @@ referência de um exercício, publicado ou não, por uma rota própria.
 - RN01: O valor do XP é sempre calculado no servidor; nenhuma rota aceita XP vindo do cliente.
 - RN02: Cada exercício credita XP uma única vez por conta; repetir responde `ja_concluido` sem somar.
 - RN03: Só a criatura ativa recebe XP.
-- RN04: Em exercício com correção automática, só o envio aprovado conclui.
+- RN04: Em exercício com correção automática, só o envio aprovado conclui, e o editor de código bloqueia a colagem (`Ctrl+V`/`Cmd+V` e evento `paste`) exibindo o modal `"WARDEN.EXE"`.
 
 **Pós-condições:** Evento de XP gravado, XP e nível da criatura atualizados.
 
@@ -677,7 +672,7 @@ referência de um exercício, publicado ou não, por uma rota própria.
 - CA03: Dadas duas conclusões simultâneas de exercícios diferentes, quando processadas, então o XP final deverá somar as duas.
 - CA04: Dado um exercício de código, quando o envio for reprovado, então nenhum XP deverá ser creditado.
 
-**Fonte:** `backend/apps/progressao/views.py` (`ConcluirExercicioView`), `backend/apps/progressao/services.py` (`creditar_exercicio`, `XP_POR_DIFICULDADE`), `backend/apps/progressao/models.py` (`EventoXP`), `frontend/src/components/exercicio/PainelDeCodigo.tsx`, `frontend/src/components/exercicio/useRespostaEscrita.ts`.
+**Fonte:** `backend/apps/progressao/views.py:L183` (`ConcluirExercicioView`), `backend/apps/progressao/services.py:L545` (`creditar_exercicio`, `XP_POR_DIFICULDADE` em `:L37`), `backend/apps/progressao/models.py:L77` (`EventoXP`), `frontend/src/components/exercicio/PainelDeCodigo.tsx:L160` (`PainelDeCodigo`), `frontend/src/components/exercicio/EditorDeCodigo.tsx:L112` (`EditorDeCodigo`, `AvisoDoWarden` em `:L60`, bloqueio em `:L144` e `:L157`), `frontend/src/components/exercicio/useRespostaEscrita.ts:L19` (`useRespostaEscrita`).
 
 ### RF19. Consultar progresso do aluno
 
@@ -706,7 +701,7 @@ quanto falta para o próximo nível, as trilhas iniciadas e os exercícios concl
 - CA01: Dado um aluno sem criatura ativa, quando consultar o progresso, então o sistema deverá responder 204.
 - CA02: Dado o filtro `?trilha=<slug>`, quando o aluno consultar os concluídos, então só deverão vir conclusões dessa trilha.
 
-**Fonte:** `backend/apps/progressao/views.py` (`MeuProgressoView`, `MinhasTrilhasIniciadasView`, `MeusExerciciosConcluidosView`), `frontend/src/components/progresso/ProvedorProgresso.tsx`, `frontend/src/lib/progresso.ts`.
+**Fonte:** `backend/apps/progressao/views.py:L70` (`MeuProgressoView`), `backend/apps/progressao/views.py:L165` (`MinhasTrilhasIniciadasView`), `backend/apps/progressao/views.py:L286` (`MeusExerciciosConcluidosView`), `frontend/src/components/progresso/ProvedorProgresso.tsx:L82` (`ProvedorProgresso`), `frontend/src/lib/progresso.ts:L11` (`chaveDaFase`).
 
 ## 5. Correção automática de código
 
@@ -714,9 +709,9 @@ quanto falta para o próximo nível, as trilhas iniciadas e os exercícios concl
 
 **Prioridade:** Alta · **Estado:** Implementado
 
-**Descrição:** O sistema deverá permitir que o aluno execute sua solução contra os
-casos de teste visíveis do exercício, recebendo saída e erros para depurar, sem
-ganhar XP.
+**Descrição:** O sistema deverá permitir que o aluno digite e execute sua solução
+contra os casos de teste visíveis do exercício, recebendo saída e erros para
+depurar, sem ganhar XP, bloqueando a colagem de código pronto no editor.
 
 **Atores:** Aluno, Judge0.
 
@@ -724,7 +719,7 @@ ganhar XP.
 
 **Fluxo principal:**
 1. O aluno abre o exercício e recebe a especificação: função esperada, código inicial, requisitos e casos visíveis.
-2. O aluno escreve o código no editor e aciona "Executar".
+2. O aluno digita o código no editor (tentativas de colar via `Ctrl+V`/`Cmd+V` ou menu de contexto são interceptadas e abrem o aviso do `"WARDEN.EXE"`) e aciona "Executar".
 3. O sistema analisa a AST (sintaxe, função esperada, construções exigidas ou proibidas).
 4. Se a análise passar, o sistema envia o código ao Judge0 com o harness dos casos visíveis.
 5. O sistema devolve o resultado de cada caso, a saída e o erro.
@@ -734,6 +729,7 @@ ganhar XP.
 - RN02: O código tem no máximo 10.000 caracteres.
 - RN03: Código barrado pela análise da AST não consome chamada ao Judge0.
 - RN04: Valem os limites de uso do RNF17.
+- RN05: O editor de código bloqueia colagem (`onKeyDownCapture` para `Ctrl+V`/`Cmd+V` e `onPasteCapture`) e exibe o modal pedagógico `"WARDEN.EXE"` (`AvisoDoWarden`).
 
 **Pós-condições:** Submissão do modo executar registrada; nenhum XP creditado.
 
@@ -741,8 +737,9 @@ ganhar XP.
 - CA01: Dado um código com erro de sintaxe, quando executado, então o sistema deverá apontar o erro sem chamar o Judge0.
 - CA02: Dado um código que não define a função esperada, quando executado, então o sistema deverá recusar com a mensagem correspondente.
 - CA03: Dado o Judge0 sem configuração, quando o aluno executar, então o sistema deverá responder 503.
+- CA04: Dado o editor de código aberto, quando o aluno tentar colar texto (`Ctrl+V`, `Cmd+V` ou evento `paste`), então a colagem deverá ser impedida e o aviso `"WARDEN.EXE"` deverá ser exibido.
 
-**Fonte:** `backend/apps/correcao/views.py` (`EspecificacaoView`, `ExecutarCodigoView`), `backend/apps/correcao/services.py`, `backend/apps/correcao/analise_ast.py`, `backend/apps/correcao/harness.py`, `frontend/src/components/exercicio/AreaDeResolucao.tsx`, `frontend/src/components/exercicio/EditorDeCodigo.tsx`.
+**Fonte:** `backend/apps/correcao/views.py:L62` (`EspecificacaoView`), `backend/apps/correcao/views.py:L81` (`ExecutarCodigoView`), `backend/apps/correcao/services.py:L536` (`executar_codigo`), `backend/apps/correcao/analise_ast.py:L134` (`verificar`), `backend/apps/correcao/harness.py:L117` (`montar_programa`), `frontend/src/components/exercicio/PainelDeCodigo.tsx:L136` (`PainelDeCodigo`), `frontend/src/components/exercicio/AreaDeResolucao.tsx:L27` (`AreaDeResolucao`), `frontend/src/components/exercicio/EditorDeCodigo.tsx:L112` (`EditorDeCodigo`, `AvisoDoWarden` em `:L60`, `onKeyDownCapture` em `:L144`, `onPasteCapture` em `:L157`).
 
 ### RF21. Enviar código para correção automática
 
@@ -765,6 +762,7 @@ teste, visíveis e ocultos, e concluir o exercício quando todos passarem.
 **Regras de negócio:**
 - RN01: Dos casos ocultos não são revelados argumentos nem resultado esperado.
 - RN02: Um código idêntico corrigido nos últimos 10 minutos reaproveita o resultado guardado (RNF16).
+- RN03: Assim como na execução (RF20), a digitação no editor tem colagem bloqueada pelo aviso do `"WARDEN.EXE"`.
 
 **Pós-condições:** Submissão registrada com o veredito; exercício concluído se aprovado.
 
@@ -772,7 +770,7 @@ teste, visíveis e ocultos, e concluir o exercício quando todos passarem.
 - CA01: Dado um código que passa nos visíveis e falha num oculto, quando enviado, então o veredito deverá ser reprovado e a resposta não deverá conter os argumentos do caso oculto.
 - CA02: Dado um código aprovado, quando enviado, então o exercício deverá constar entre os concluídos do aluno.
 
-**Fonte:** `backend/apps/progressao/views.py` (`ConcluirExercicioView`), `backend/apps/correcao/services.py` (`corrigir_envio`), `backend/apps/correcao/judge0.py`, `frontend/src/components/exercicio/ResultadoDosCasos.tsx`.
+**Fonte:** `backend/apps/progressao/views.py:L183` (`ConcluirExercicioView`, chamada de `corrigir_envio` em `:L247`), `backend/apps/correcao/services.py:L540` (`corrigir_envio`), `backend/apps/correcao/judge0.py:L19` (`LIMITES`), `frontend/src/components/exercicio/ResultadoDosCasos.tsx:L82` (`ResultadoDosCasos`), `frontend/src/components/exercicio/EditorDeCodigo.tsx:L112` (`EditorDeCodigo`, `AvisoDoWarden` em `:L60`).
 
 ## 6. Gamificação
 
@@ -802,7 +800,7 @@ inicial entre as disponíveis, que passa a ser a criatura ativa.
 **Critérios de aceite:**
 - CA01: Dado um aluno que já escolheu, quando tentar escolher outra inicial, então o sistema deverá recusar com `inicial_ja_escolhida`.
 
-**Fonte:** `backend/apps/gamificacao/views.py` (`MinhasCriaturasView`), `backend/apps/gamificacao/services.py` (`select_starter_creature`), `backend/apps/gamificacao/models/ownership.py`, `frontend/src/app/escolher-criatura/page.tsx`.
+**Fonte:** `backend/apps/gamificacao/views.py:L60` (`MinhasCriaturasView`), `backend/apps/gamificacao/services.py:L39` (`select_starter_creature`), `backend/apps/gamificacao/models/ownership.py:L8` (`UserCreature`, `UniqueConstraint` em `:L58`), `frontend/src/app/escolher-criatura/page.tsx:L11` (`PaginaEscolherCriatura`), `frontend/src/components/criaturas/SeletorCriatura.tsx:L10` (`SeletorCriatura`).
 
 ### RF23. Adquirir nova criatura
 
@@ -828,7 +826,7 @@ catálogo além da inicial.
 **Critérios de aceite:**
 - CA01: Dada uma criatura que o aluno já possui, quando ele tentar adquiri-la, então o sistema deverá recusar com `criatura_ja_possuida`.
 
-**Fonte:** `backend/apps/gamificacao/views.py` (`AdquirirCriaturaView`), `backend/apps/gamificacao/services.py` (`adquirir_criatura`), `frontend/src/components/criatura/PainelCriatura.tsx`.
+**Fonte:** `backend/apps/gamificacao/views.py:L99` (`AdquirirCriaturaView`), `backend/apps/gamificacao/services.py:L77` (`adquirir_criatura`), `frontend/src/components/criatura/PainelCriatura.tsx:L51` (`PainelCriatura`).
 
 ### RF24. Definir criatura ativa
 
@@ -853,7 +851,7 @@ fica ativa e recebe o XP.
 **Critérios de aceite:**
 - CA01: Dada uma criatura que o aluno não possui, quando ele tentar ativá-la, então o sistema deverá recusar com `criatura_nao_possuida`.
 
-**Fonte:** `backend/apps/gamificacao/views.py` (`CriaturaAtivaView`), `backend/apps/gamificacao/services.py` (`definir_criatura_ativa`), `frontend/src/components/criaturas/SeletorAtiva.tsx`.
+**Fonte:** `backend/apps/gamificacao/views.py:L122` (`CriaturaAtivaView`), `backend/apps/gamificacao/services.py:L118` (`definir_criatura_ativa`), `frontend/src/components/criaturas/SeletorAtiva.tsx:L96` (`SeletorAtiva`).
 
 ### RF25. Evoluir criatura
 
@@ -883,7 +881,7 @@ próximo estágio (filhote, jovem, adulto) quando o nível dela permitir.
 - CA01: Dada uma criatura abaixo do nível do próximo estágio, quando o aluno tentar evoluir, então o sistema deverá recusar.
 - CA02: Dada uma criatura filhote com nível de adulto, quando o aluno evoluir uma vez, então ela deverá passar para jovem, não para adulto.
 
-**Fonte:** `backend/apps/gamificacao/views.py` (`EvoluirCriaturaView`), `backend/apps/progressao/services.py` (`evoluir_criatura`), `frontend/src/components/gamificacao/TelaDeEvolucao.tsx`.
+**Fonte:** `backend/apps/gamificacao/views.py:L152` (`EvoluirCriaturaView`), `backend/apps/progressao/services.py:L219` (`evoluir_criatura`), `frontend/src/components/gamificacao/TelaDeEvolucao.tsx:L148` (`TelaDeEvolucao`).
 
 ### RF26. Consultar criaturas e bônus de XP
 
@@ -910,14 +908,14 @@ aluno, suas criaturas com estágio e nível e os bônus de XP que valem para ela
 **Critérios de aceite:**
 - CA01: Dado um aluno sem criaturas, quando consultar os bônus, então a resposta deverá ser uma lista vazia.
 
-**Fonte:** `backend/apps/gamificacao/views.py` (`CatalogoCriaturasView`, `MeusBonusView`), `backend/apps/gamificacao/models/catalog.py`, `backend/apps/gamificacao/models/bonus.py`, `frontend/src/components/gamificacao/SeloBonusXp.tsx`.
+**Fonte:** `backend/apps/gamificacao/views.py:L45` (`CatalogoCriaturasView`), `backend/apps/gamificacao/views.py:L198` (`MeusBonusView`), `backend/apps/gamificacao/models/catalog.py:L41` (`Creature`), `backend/apps/gamificacao/models/bonus.py:L10` (`XpBonus`), `frontend/src/components/gamificacao/SeloBonusXp.tsx:L14` (`SeloBonusXp`).
 
 ### RF27. Apresentar desafios do dia
 
 **Prioridade:** Baixa · **Estado:** Implementado
 
-**Descrição:** O sistema deverá sugerir ao aluno, a cada dia, três exercícios
-escolhidos do catálogo publicado, como atalho para as fases.
+**Descrição:** O sistema deverá sugerir ao aluno, a cada dia, desafios escolhidos de
+forma determinística do catálogo publicado, como atalho para as fases.
 
 **Atores:** Aluno.
 
@@ -925,19 +923,19 @@ escolhidos do catálogo publicado, como atalho para as fases.
 
 **Fluxo principal:**
 1. O aluno abre "Desafio do dia".
-2. A tela escolhe três exercícios publicados a partir da data local.
+2. O sistema calcula o desafio do dia e os próximos no fuso `America/Sao_Paulo` a partir do catálogo publicado.
 3. Cada cartão leva à fase correspondente.
 
 **Regras de negócio:**
-- RN01: A escolha é determinística pela data: no mesmo dia, a lista é a mesma.
-- RN02: O desafio não dá XP extra; o crédito continua sendo o da conclusão da fase (RF18).
+- RN01: A escolha é determinística pela data: no mesmo dia, o desafio é o mesmo para todos os alunos.
+- RN02: O desafio usa os exercícios publicados e o crédito de XP segue a regra normal de conclusão da fase (RF18).
 
-**Pós-condições:** Lista de desafios apresentada.
+**Pós-condições:** Desafio do dia e fila de próximos desafios apresentados.
 
 **Critérios de aceite:**
-- CA01: Dada a mesma data, quando a lista for gerada duas vezes, então os três exercícios deverão ser os mesmos.
+- CA01: Dada a mesma data, quando o desafio for consultado duas vezes, então o exercício retornado deverá ser o mesmo.
 
-**Fonte:** `frontend/src/lib/desafios.ts`, `frontend/src/app/(app)/desafios/page.tsx`, `frontend/src/components/desafios/PainelDeDesafios.tsx`.
+**Fonte:** `backend/apps/trilhas/views.py:L125` (`DesafiosView`), `backend/apps/trilhas/views.py:L137` (`DesafioDeHojeView`), `backend/apps/trilhas/desafios.py:L22` (`rodizio`), `frontend/src/lib/desafios.ts:L34` (`diaEmSaoPaulo`), `frontend/src/app/(app)/desafios/page.tsx:L17` (`DesafiosPage`), `frontend/src/components/desafios/PainelDeDesafios.tsx:L20` (`PainelDeDesafios`).
 
 ## 7. Privacidade e LGPD
 
@@ -965,7 +963,7 @@ os eventos da trilha de auditoria que dizem respeito a ele.
 **Critérios de aceite:**
 - CA01: Dado o usuário A, quando consultar a atividade, então nenhuma linha do usuário B deverá aparecer.
 
-**Fonte:** `backend/apps/auditoria/views.py` (`MinhaAtividadeView`), `backend/apps/auditoria/models.py` (`ACOES_DO_TITULAR`), `frontend/src/components/configuracoes/SecaoAtividade.tsx`.
+**Fonte:** `backend/apps/auditoria/views.py:L111` (`MinhaAtividadeView`), `backend/apps/auditoria/models.py:L82` (`ACOES_DO_TITULAR`), `frontend/src/components/configuracoes/SecaoAtividade.tsx:L25` (`SecaoAtividade`).
 
 ### RF29. Exportar dados pessoais
 
@@ -993,11 +991,11 @@ perfil, aceites, trilhas iniciadas, eventos de XP, criaturas e atividade.
 - CA01: Dado um titular com dois eventos de XP, quando exportar, então o pacote deverá conter os dois eventos.
 - CA02: Dado qualquer titular, quando exportar, então o pacote não deverá conter o hash da senha.
 
-**Fonte:** `backend/apps/contas/views.py` (`ExportarDadosView`), `backend/apps/contas/lgpd.py` (`exportar_dados`), `frontend/src/components/configuracoes/SecaoMeusDados.tsx`.
+**Fonte:** `backend/apps/contas/views.py:L368` (`ExportarDadosView`), `backend/apps/contas/lgpd.py:L12` (`exportar_dados`), `frontend/src/components/configuracoes/SecaoMeusDados.tsx:L6` (`SecaoMeusDados`).
 
 ### RF30. Renovar consentimento dos documentos legais
 
-**Prioridade:** Média · **Estado:** Parcial
+**Prioridade:** Média · **Estado:** Implementado
 
 **Descrição:** O sistema deverá informar ao titular quando a versão vigente dos
 Termos de Uso ou da Política de Privacidade mudar e registrar o novo aceite.
@@ -1006,9 +1004,9 @@ Termos de Uso ou da Política de Privacidade mudar e registrar o novo aceite.
 
 **Pré-condições:** Usuário autenticado.
 
-**Fluxo principal (previsto):**
-1. O sistema compara a versão vigente de cada documento com a última aceita.
-2. Havendo pendência, a interface apresenta o documento atualizado.
+**Fluxo principal:**
+1. O sistema compara a versão vigente de cada documento com a última aceita pelo titular.
+2. Havendo pendência, a interface apresenta o modal bloqueante com o documento atualizado (`AvisoConsentimento`).
 3. O titular aceita.
 4. O sistema registra o aceite das versões pendentes, com data e IP, e o evento `CONSENTIMENTO_ACEITO`.
 
@@ -1022,11 +1020,7 @@ Termos de Uso ou da Política de Privacidade mudar e registrar o novo aceite.
 - CA01: Dado um titular que aceitou a versão 1.1 e a vigente é 1.2, quando consultar os consentimentos, então o documento deverá aparecer como pendente.
 - CA02: Dado o aceite das pendências, quando consultado de novo, então nenhum documento deverá aparecer como pendente.
 
-**O que falta:** a API (`/auth/eu/consentimentos/` e `/aceitar/`) e as funções do
-cliente em `frontend/src/lib/api.ts` existem, mas nenhuma tela as chama; o titular
-não é avisado da nova versão na interface.
-
-**Fonte:** `backend/apps/contas/views.py` (`ConsentimentosView`, `AceitarConsentimentosView`), `backend/apps/contas/documentos.py`, `backend/apps/contas/models.py` (`AceiteDeTermos.registrar_pendentes`).
+**Fonte:** `backend/apps/contas/views.py:L382` (`ConsentimentosView`), `backend/apps/contas/views.py:L394` (`AceitarConsentimentosView`), `backend/apps/contas/documentos.py:L23` (`VIGENTES`), `backend/apps/contas/models.py:L476` (`AceiteDeTermos.registrar_pendentes`), `frontend/src/components/legal/AvisoConsentimento.tsx:L15` (`AvisoConsentimento`).
 
 ### RF31. Excluir conta por anonimização
 
@@ -1060,7 +1054,7 @@ passos: pedido autenticado e confirmação por link enviado ao e-mail, com a sen
 - CA02: Dada a confirmação com senha correta, quando concluída, então o login com o e-mail antigo deverá falhar.
 - CA03: Dada a confirmação, quando concluída, então nenhum registro de auditoria do titular deverá conter o e-mail original.
 
-**Fonte:** `backend/apps/contas/views.py` (`SolicitarExclusaoView`, `ConfirmarExclusaoView`), `backend/apps/contas/exclusao.py`, `backend/apps/contas/lgpd.py` (`anonimizar_conta`), `backend/apps/contas/models.py` (`User.anonimizar`), `frontend/src/components/configuracoes/SecaoZonaRisco.tsx`, `frontend/src/app/confirmar-exclusao/page.tsx`.
+**Fonte:** `backend/apps/contas/views.py:L415` (`SolicitarExclusaoView`), `backend/apps/contas/views.py:L432` (`ConfirmarExclusaoView`), `backend/apps/contas/exclusao.py:L67` (`enviar_confirmacao_exclusao`), `backend/apps/contas/lgpd.py:L108` (`anonimizar_conta`), `backend/apps/contas/models.py:L292` (`User.anonimizar`), `frontend/src/components/configuracoes/SecaoZonaRisco.tsx:L6` (`SecaoZonaRisco`), `frontend/src/app/confirmar-exclusao/page.tsx:L15` (`PaginaConfirmarExclusao`).
 
 ## 8. Auditoria e administração
 
@@ -1089,11 +1083,11 @@ navegador e metadados não sensíveis.
 - CA01: Dado um registro existente, quando o código tentar alterá-lo, então o sistema deverá recusar a gravação.
 - CA02: Dada uma falha de login, quando registrada, então os metadados não deverão conter a senha tentada.
 
-**Fonte:** `backend/apps/auditoria/models.py` (`RegistroDeAuditoria`, `AcaoAuditoria`), `backend/apps/auditoria/services.py` (`registrar`).
+**Fonte:** `backend/apps/auditoria/models.py:L113` (`RegistroDeAuditoria`, `AcaoAuditoria` em `:L9`), `backend/apps/auditoria/services.py:L58` (`registrar`).
 
 ### RF33. Consultar trilha de auditoria
 
-**Prioridade:** Média · **Estado:** Parcial
+**Prioridade:** Média · **Estado:** Implementado
 
 **Descrição:** O sistema deverá permitir que usuários com a permissão
 `auditoria.view` consultem toda a trilha de auditoria, com filtros por ação, autor
@@ -1104,7 +1098,7 @@ e período.
 **Pré-condições:** Usuário autenticado com `auditoria.view`.
 
 **Fluxo principal:**
-1. O administrador consulta a auditoria, opcionalmente com os filtros `acao`, `actor`, `desde` e `ate`.
+1. O administrador consulta a auditoria no painel `/admin`, opcionalmente com os filtros `acao`, `actor`, `desde` e `ate`.
 2. O sistema devolve os registros paginados (50 por página, até 200).
 3. O sistema registra a própria consulta como `ACESSO_AUDITORIA`.
 
@@ -1117,54 +1111,128 @@ e período.
 - CA01: Dado um aluno, quando consultar a auditoria, então o sistema deverá responder 403.
 - CA02: Dado o filtro `acao=LOGIN_FALHA`, quando aplicado, então só deverão vir falhas de login.
 
-**O que existe na tela:** abaixo do dashboard do `/admin`, a lista dos registros mais recentes, 10 por página (`LogsAuditoria.tsx`, `GET /admin/logs/`), com a ação em texto legível; cada página consultada é registrada como `ACESSO_AUDITORIA`. O botão AUDITORIA COMPLETA abre em modal a consulta completa, paginada e com os filtros por ação, autor e período (`GestaoAuditoria.tsx`). As duas exigem `auditoria.view`.
-
-**Fonte:** `backend/apps/auditoria/views.py` (`AuditoriaListView`), `backend/apps/progressao/views.py` (`AdminLogsView`).
+**Fonte:** `backend/apps/auditoria/views.py:L55` (`AuditoriaListView`), `backend/apps/progressao/views.py:L111` (`AdminLogsView`), `frontend/src/components/admin/GestaoAuditoria.tsx:L32` (`GestaoAuditoria`), `frontend/src/components/admin/LogsAuditoria.tsx:L17` (`LogsAuditoria`).
 
 ### RF34. Suspender e reativar conta
 
-**Prioridade:** Baixa · **Estado:** Planejado
+**Prioridade:** Baixa · **Estado:** Implementado
 
 **Descrição:** O sistema deverá permitir que um administrador suspenda e reative
 contas de usuários.
 
 **Atores:** Administrador.
 
-**O que existe:** a permissão `usuarios.suspend` no catálogo do RBAC, o campo
-`is_active` (conta inativa não autentica) e os códigos de auditoria
-`CONTA_SUSPENSA` e `CONTA_REATIVADA`, reservados e sem uso. Não há rota nem tela
-para suspender ou reativar; por isso pré-condições, fluxo e critérios de aceite
-não são detalhados aqui.
+**Pré-condições:** Usuário autenticado num nível com `acesso_admin` e permissão `usuarios.suspend`.
 
-**Fonte:** `backend/apps/contas/rbac.py`, `backend/apps/auditoria/models.py` (comentário de `AcaoAuditoria`).
+**Fluxo principal:**
+1. O administrador abre o modal de gestão do usuário no painel `/admin`.
+2. O administrador aciona a suspensão (informando o motivo) ou a reativação da conta.
+3. O sistema altera `is_active`, invalida as sessões ativas ao suspender e registra `CONTA_SUSPENSA` ou `CONTA_REATIVADA` na auditoria.
+
+**Regras de negócio:**
+- RN01: O administrador não pode suspender a própria conta.
+- RN02: Conta anonimizada pela LGPD não pode ser reativada.
+- RN03: Suspender uma conta encerra seus tokens de renovação ativos.
+
+**Pós-condições:** Conta suspensa (impedida de autenticar) ou reativada, com registro na auditoria.
+
+**Critérios de aceite:**
+- CA01: Dado um administrador, quando tentar suspender a própria conta, então o sistema deverá recusar com 400.
+- CA02: Dada uma conta suspensa, quando tentar autenticar ou renovar sessão, então o sistema deverá recusar.
+
+**Fonte:** `backend/apps/contas/views_rbac.py:L295` (`UsuarioSituacaoView`), `backend/apps/contas/rbac.py:L50` (`usuarios.suspend`), `backend/apps/auditoria/models.py:L76` (`CONTA_SUSPENSA`, `CONTA_REATIVADA` em `:L77`), `frontend/src/components/admin/ModalAtribuirNivel.tsx:L125` (`alternarSituacao`, botão em `:L309`).
 
 ## 9. Comunidade
 
 ### RF35. Gerenciar clãs
 
-**Prioridade:** Média · **Estado:** Em desenvolvimento
+**Prioridade:** Média · **Estado:** Implementado
 
 **Descrição:** O sistema deverá permitir que alunos formem clãs (grupos) para
 estudar juntos, criando, buscando, entrando e saindo de clãs, com papéis de
-liderança e convites para clãs privados.
+liderança (líder, co-líder e membro) e links de convite para clãs privados.
 
 **Atores:** Aluno.
 
-**Situação na `main`:** só existem as permissões `comunidades.create` e
-`comunidades.join` no catálogo do RBAC, concedidas ao nível Aluno, sem rota nem
-tela.
+**Pré-condições:** Usuário autenticado com `comunidades.create` (para criar) e `comunidades.join` (para entrar).
 
-**Situação na branch `origin/feat/funcionalidade-cla`** (8 commits de Mauro
-Junior, de 1 de outubro de 2026, ainda não integrados à `main`): app de backend
-`clas` com modelos, serviços, rotas e testes para criar, consultar, editar,
-buscar, entrar e sair de clã; gestão de membros com cargos (líder, co-líder e
-membro), expulsão e transferência de liderança; link de convite para clã privado;
-sucessão de liderança quando a conta do líder é excluída; auditoria, limites de
-requisição, inclusão na exportação LGPD e filtro de palavras proibidas. A branch
-não traz telas no frontend, só as imagens das bandeiras.
+**Fluxo principal:**
+1. O aluno acessa `/clas` para buscar clãs existentes ou criar um novo clã (informando nome, descrição, bandeira, tipo aberto ou privado e nível mínimo).
+2. Para clã aberto, o aluno que atende ao nível mínimo entra diretamente; para clã privado, entra por link de convite gerado pelo líder ou co-líder.
+3. O líder e os co-líderes gerenciam os membros (promoção, rebaixamento, expulsão e transferência de liderança).
+4. Ao sair do clã ou excluir a conta, se o usuário for o líder, a liderança passa ao membro mais antigo (co-líder primeiro) ou o clã é dissolvido se ficar vazio.
 
-Fluxo, regras e critérios de aceite serão escritos quando a funcionalidade for
-integrada à `main`, para descrever o comportamento revisado e não o de uma branch
-em andamento.
+**Regras de negócio:**
+- RN01: Cada usuário participa de no máximo um clã por vez (`OneToOneField` em `MembroDoCla`) e cada clã comporta até 50 membros.
+- RN02: Criar clã exige nível mínimo 3 da criatura ativa (`NIVEL_MINIMO_CRIAR_CLA`).
+- RN03: Nomes e descrições passam por validação contra palavras proibidas e a tag de 4 caracteres é gerada automaticamente.
+- RN04: O token de convite para clã privado é armazenado apenas em hash SHA-256 e vale por 7 dias.
 
-**Fonte:** `backend/apps/contas/rbac.py` (`main`); `backend/apps/clas/` na branch `origin/feat/funcionalidade-cla`.
+**Pós-condições:** Clã criado, atualizado ou dissolvido, ou vínculo de membro alterado, com registro na trilha de auditoria.
+
+**Critérios de aceite:**
+- CA01: Dado um aluno que já pertence a um clã, quando tentar criar ou entrar em outro clã, então o sistema deverá recusar com 409 (`ja_em_cla`).
+- CA02: Dado um clã privado, quando um aluno tentar entrar sem link de convite válido, então o sistema deverá recusar com 403 (`cla_privado`).
+- CA03: Dado um líder que sai de um clã com outros membros, quando a saída for concluída, então a liderança deverá ser transferida automaticamente ao sucessor elegível.
+
+**Fonte:** `backend/apps/clas/views.py:L70` (`ClasView`, `ClaDetalheView` em `:L109`, `EntrarNoClaView` em `:L133`, `SairDoClaView` em `:L157`, `MembroView` em `:L178`, `LiderancaView` em `:L206`, `ConviteView` em `:L225`, `AceitarConviteView` em `:L259`), `backend/apps/clas/services.py:L116` (`criar_cla`, `entrar_no_cla` em `:L241`, `sair_do_cla` em `:L251`), `backend/apps/clas/models.py:L47` (`Cla`, `MembroDoCla` em `:L139`, `ConviteDoCla` em `:L202`), `frontend/src/app/(app)/clas/page.tsx:L11` (`ClasPage`), `frontend/src/components/clas/PainelDeClas.tsx:L26` (`PainelDeClas`).
+
+### RF36. Consultar ranking
+
+**Prioridade:** Média · **Estado:** Implementado
+
+**Descrição:** O sistema deverá apresentar o ranking mensal de alunos ordenado pelo
+XP obtido em exercícios concluídos no mês corrente (no fuso `America/Sao_Paulo`),
+destacando os 50 primeiros colocados e a posição do próprio aluno autenticado.
+
+**Atores:** Aluno, Autor, Administrador.
+
+**Pré-condições:** Usuário autenticado.
+
+**Fluxo principal:**
+1. O usuário acessa a tela `/ranking`.
+2. O sistema agrega os eventos de XP do mês corrente das contas ativas e verificadas, ordenando por XP decrescente, data do primeiro XP no mês e nickname.
+3. A tela exibe o pódio, a tabela dos 50 primeiros com criatura ativa e medalhas de pódios anteriores, e o cartão com a posição do usuário logado.
+
+**Regras de negócio:**
+- RN01: Entram no placar apenas contas ativas (`is_active=True`) e com e-mail verificado (`email_verified_at__isnull=False`).
+- RN02: O desempate usa quem alcançou o XP primeiro no mês (`primeiro_xp`) e, persistindo o empate, a ordem alfabética do nickname.
+- RN03: O fechamento mensal grava os 3 primeiros colocados em `PodioMensal` de forma idempotente.
+
+**Pós-condições:** Placar mensal e posição individual apresentados.
+
+**Critérios de aceite:**
+- CA01: Dado um aluno com XP no mês corrente fora dos 50 primeiros, quando consultar o ranking, então sua posição e pontuação deverão aparecer em `minha_posicao`.
+- CA02: Dada uma conta suspensa ou anonimizada, quando o ranking for calculado, então ela não deverá figurar no placar.
+
+**Fonte:** `backend/apps/ranking/views.py:L16` (`RankingMensalView`), `backend/apps/ranking/services.py:L224` (`ranking_mensal`, `placar` em `:L135`, `fechar_mes` em `:L176`), `frontend/src/app/(app)/ranking/page.tsx:L10` (`RankingPage`), `frontend/src/components/ranking/PainelDeRanking.tsx:L54` (`PainelDeRanking`).
+
+### RF37. Consultar perfil público
+
+**Prioridade:** Baixa · **Estado:** Implementado
+
+**Descrição:** O sistema deverá permitir que usuários autenticados consultem o
+perfil público de outro aluno pelo nickname, exibindo criatura ativa, nível, XP
+total, estatísticas de exercícios, medalhas de pódio, conquistas e progresso nas
+trilhas publicadas, sem expor dados privados.
+
+**Atores:** Aluno, Autor, Administrador.
+
+**Pré-condições:** Usuário autenticado; conta consultada ativa e com e-mail verificado.
+
+**Fluxo principal:**
+1. O usuário clica num participante no ranking ou no clã, ou acessa `/perfil/<nickname>`.
+2. O sistema busca a conta pelo nickname (sem diferenciar maiúsculas) e reúne criatura ativa, totais de XP e exercícios, pódios, conquistas desbloqueadas e bloqueadas e progresso por trilha publicada.
+3. A tela apresenta o cartão do perfil público.
+
+**Regras de negócio:**
+- RN01: A busca por nickname é case-insensitive (`nickname__iexact`), e contas inativas ou sem e-mail verificado respondem 404.
+- RN02: A resposta nunca inclui dados pessoais sensíveis (e-mail, data de nascimento, configurações de 2FA ou histórico de auditoria).
+
+**Pós-condições:** Perfil público apresentado.
+
+**Critérios de aceite:**
+- CA01: Dado o nickname de uma conta ativa, quando consultado com qualquer combinação de maiúsculas, então o sistema deverá devolver os dados públicos do perfil.
+- CA02: Dado o perfil público devolvido pela API, quando inspecionado, então o payload não deverá conter o campo `email` nem `birth_date`.
+
+**Fonte:** `backend/apps/ranking/views.py:L34` (`PerfilPublicoView`), `backend/apps/ranking/services.py:L268` (`perfil_publico`), `frontend/src/app/(app)/perfil/[nickname]/page.tsx:L10` (`PerfilPage`), `frontend/src/components/perfil/PainelDePerfil.tsx:L25` (`PainelDePerfil`).

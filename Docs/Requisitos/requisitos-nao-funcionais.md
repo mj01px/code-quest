@@ -20,7 +20,7 @@ Cada requisito traz:
 | Critério mensurável | O limite ou a condição objetiva que comprova o atendimento |
 | Fonte | Onde o requisito está no código (caminhos relativos à raiz do repositório) |
 
-Base da verificação: branch `ArthurMain` no commit `1d82ca0` (25 de outubro de 2026). RNF05, RNF11, RNF13, RNF24, RNF25, RNF26, RNF27, RNF30 e RNF32 foram revistos em 11 de novembro de 2026, sobre o commit `23ea838`.
+Base da verificação: branch `main` no commit `e0fd532` (15 de novembro de 2026), com todas as linhas reconferidas contra o código desse commit.
 Os valores citados são os padrões do código; os que vêm de variável de ambiente
 estão indicados pelo nome da variável.
 
@@ -82,7 +82,7 @@ padrão `Argon2PasswordHasher`.
 - CA01: Dada a senha `abcdefgh`, quando usada no cadastro, então o sistema deverá recusá-la.
 - CA02: Dada uma conta recém-criada, quando o campo de senha for lido no banco, então deverá começar com o prefixo `argon2`.
 
-**Fonte:** `backend/config/settings.py` (`PASSWORD_HASHERS`, `AUTH_PASSWORD_VALIDATORS`), `backend/apps/contas/validators.py` (`PasswordComplexityValidator`, `SENHA_MAX_LENGTH`).
+**Fonte:** `backend/config/settings.py:L118` (`PASSWORD_HASHERS`), `backend/config/settings.py:L330` (`AUTH_PASSWORD_VALIDATORS`), `backend/apps/contas/validators.py:L105` (`PasswordComplexityValidator`, `SENHA_MAX_LENGTH` em `:L28`).
 
 ### RNF02. Sessão em cookies protegidos
 
@@ -101,23 +101,26 @@ de acesso de 15 minutos; token de renovação de 7 dias, restrito ao caminho
 - CA01: Dado um login bem-sucedido, quando os cabeçalhos da resposta forem inspecionados, então `cq_access` e `cq_refresh` deverão ter `HttpOnly` e `SameSite=Lax`.
 - CA02: Dado um token de renovação já usado, quando reapresentado, então o sistema deverá recusá-lo.
 
-**Fonte:** `backend/apps/contas/cookies.py`, `backend/apps/contas/autenticacao.py`, `backend/config/settings.py` (`SIMPLE_JWT`).
+**Fonte:** `backend/apps/contas/cookies.py:L18` (`gravar_sessao`), `backend/apps/contas/autenticacao.py:L10` (`CookieJWTAuthentication`), `backend/config/settings.py:L216` (`SIMPLE_JWT`), `frontend/src/lib/api.ts:L170` (`credentials: "include"`).
 
 ### RNF03. Proteção contra CSRF e origens não autorizadas
 
 **Categoria:** Segurança · **Stakeholder:** Usuários · **Prioridade:** Alta · **Estado:** Implementado
 
-**Descrição:** Requisições que alteram estado deverão exigir token CSRF, e apenas
-as origens configuradas poderão fazer requisições com credenciais.
+**Descrição:** Requisições que alteram estado deverão exigir token CSRF, apenas
+as origens configuradas poderão fazer requisições com credenciais, e URLs com
+byte nulo (`%00`) deverão ser recusadas antes do roteamento.
 
 **Critério mensurável:** `CsrfViewMiddleware` ativo, cookie CSRF com
 `SameSite=Lax`; origens permitidas apenas as listadas em `CSRF_TRUSTED_ORIGINS` e
-`CORS_ALLOWED_ORIGINS` (padrão: `localhost:3000` e `127.0.0.1:3000`).
+`CORS_ALLOWED_ORIGINS` (padrão: `localhost:3000` e `127.0.0.1:3000`); middleware
+`RecusarNul` rejeitando `%00` no caminho da requisição com status 400.
 
 **Critérios de aceite:**
 - CA01: Dada uma origem fora de `CORS_ALLOWED_ORIGINS`, quando o navegador fizer uma requisição com credenciais, então a resposta não deverá autorizar essa origem.
+- CA02: Dada uma requisição cuja URL contenha `%00`, quando recebida pelo backend, então o middleware deverá recusá-la com status 400.
 
-**Fonte:** `backend/config/settings.py` (`MIDDLEWARE`, `CSRF_*`, `CORS_*`), `backend/apps/contas/views.py` (`CsrfView`).
+**Fonte:** `backend/config/settings.py:L66` (`MIDDLEWARE`), `backend/config/settings.py:L252` (`CSRF_TRUSTED_ORIGINS`), `backend/config/settings.py:L262` (`CORS_ALLOWED_ORIGINS`), `backend/apps/contas/views.py:L144` (`CsrfView`), `backend/apps/core/middleware.py:L6` (`RecusarNul`, registrado em `backend/config/settings.py:L373`), `frontend/src/lib/api.ts:L164` (`X-CSRFToken`).
 
 ### RNF04. Bloqueio por tentativas de login
 
@@ -135,7 +138,7 @@ no mesmo bloqueio.
 - CA01: Dada uma conta com 5 falhas seguidas, quando a senha correta for informada antes de 15 minutos, então o login deverá ser recusado.
 - CA02: Dado um login bem-sucedido, quando concluído, então o contador de falhas deverá voltar a zero.
 
-**Fonte:** `backend/apps/contas/models.py` (`registrar_falha_de_login`, `esta_bloqueado`), `backend/apps/contas/serializers.py` (`LoginSerializer`, `TrocaEmailSerializer`).
+**Fonte:** `backend/apps/contas/models.py:L267` (`registrar_falha_de_login`, `esta_bloqueado` em `:L264`), `backend/apps/contas/serializers.py:L228` (`LoginSerializer`), `backend/apps/contas/serializers.py:L344` (`TrocaEmailSerializer`, `exigir_senha_atual` em `:L42`).
 
 ### RNF05. Limitação de taxa de requisições
 
@@ -159,9 +162,9 @@ que o próprio cliente consiga forjar. Acima do limite, a resposta é 429.
 **Observação:** os contadores foram implementados usando o DatabaseCache do
 PostgreSQL, garantindo persistência e compartilhamento entre workers sem novas
 dependências de infraestrutura. A tabela do cache é criada pela migração
-`backend/apps/core/migrations/0001_tabela_de_cache.py`.
+`backend/apps/core/migrations/0001_tabela_de_cache.py:L11`.
 
-**Fonte:** `backend/config/settings.py` (`REST_FRAMEWORK`, `CACHES`), `backend/apps/core/migrations/0001_tabela_de_cache.py`, `throttle_scope` nas views de cada app.
+**Fonte:** `backend/config/settings.py:L133` (`CACHES`), `backend/config/settings.py:L175` (`REST_FRAMEWORK`, `DEFAULT_THROTTLE_RATES` em `:L189`), `backend/apps/core/migrations/0001_tabela_de_cache.py:L11` (`criar_tabela_de_cache`).
 
 ### RNF06. Proteção dos segredos do segundo fator
 
@@ -178,7 +181,7 @@ constante (`hmac.compare_digest`); TOTP com tolerância de uma janela.
 **Critérios de aceite:**
 - CA01: Dada a ativação do 2FA, quando a tabela de códigos de recuperação for lida, então nenhum código deverá aparecer em texto puro.
 
-**Fonte:** `backend/apps/contas/mfa.py`, `backend/apps/contas/models.py` (`ConfiguracaoMFA`, `CodigoRecuperacaoMFA`).
+**Fonte:** `backend/apps/contas/mfa.py:L45` (`_hash`, `_confere` em `:L49`), `backend/apps/contas/models.py:L490` (`ConfiguracaoMFA`, `CodigoRecuperacaoMFA` em `:L538`).
 
 ### RNF07. Autorização por permissão em cada rota
 
@@ -197,7 +200,7 @@ Nenhum modelo é registrado no admin do Django.
 - CA01: Dado um usuário sem `exercicios.complete`, quando tentar concluir um exercício, então o sistema deverá responder 403.
 - CA02: Dado o admin do Django, quando consultado, então nenhum modelo do projeto deverá estar registrado.
 
-**Fonte:** `backend/config/settings.py` (`DEFAULT_PERMISSION_CLASSES`), `backend/apps/core/permissions.py`, `backend/apps/contas/rbac.py`, `backend/apps/contas/models.py` (`has_perm`).
+**Fonte:** `backend/config/settings.py:L180` (`DEFAULT_PERMISSION_CLASSES`), `backend/apps/core/permissions.py:L18` (`HasPerm`), `backend/apps/contas/rbac.py:L13` (`CATALOG`), `backend/apps/contas/models.py:L212` (`has_perm`), `frontend/src/components/layout/PortaDeAcesso.tsx:L7` (`PortaDeAcesso`).
 
 ### RNF08. Não exposição de gabaritos e casos ocultos
 
@@ -213,7 +216,7 @@ rota de solução responde com `Cache-Control: private, no-store`.
 **Critérios de aceite:**
 - CA01: Dada qualquer resposta das rotas públicas de trilhas, quando inspecionada, então não deverá conter `solucao_autor`.
 
-**Fonte:** `backend/apps/trilhas/serializers.py`, `backend/apps/autoria/views.py`, `backend/apps/correcao/serializers.py`.
+**Fonte:** `backend/apps/trilhas/serializers.py:L116` (`ExercicioDetalheSerializer`), `backend/apps/autoria/views.py:L94` (`SolucaoAutorView`), `backend/apps/correcao/serializers.py:L67` (`ResultadoDoCasoSerializer`).
 
 ### RNF09. Respostas que não revelam contas existentes
 
@@ -230,7 +233,7 @@ bloqueada.
 **Critérios de aceite:**
 - CA01: Dados um e-mail cadastrado e um não cadastrado, quando cada um pedir recuperação de senha, então as duas respostas deverão ser 204 sem corpo.
 
-**Fonte:** `backend/apps/contas/views.py` (`RegistrarView`, `SenhaEsquecidaView`, `ReenviarVerificacaoView`), `backend/apps/contas/serializers.py` (`LoginSerializer`).
+**Fonte:** `backend/apps/contas/views.py:L72` (`RegistrarView`), `backend/apps/contas/views.py:L122` (`ReenviarVerificacaoView`), `backend/apps/contas/views.py:L313` (`SenhaEsquecidaView`), `backend/apps/contas/serializers.py:L228` (`LoginSerializer`).
 
 ### RNF10. Isolamento da execução de código do aluno
 
@@ -247,7 +250,7 @@ da AST antes de qualquer chamada; tempo limite de 15 s na chamada ao Judge0
 **Critérios de aceite:**
 - CA01: Dado um código com laço infinito, quando executado, então o resultado deverá indicar tempo esgotado sem afetar o servidor da API.
 
-**Fonte:** `backend/apps/correcao/judge0.py`, `backend/apps/correcao/services.py` (`LIMITE_DE_CARACTERES`), `backend/apps/correcao/analise_ast.py`.
+**Fonte:** `backend/apps/correcao/judge0.py:L19` (`LIMITES`), `backend/apps/correcao/services.py:L31` (`LIMITE_DE_CARACTERES`), `backend/apps/correcao/analise_ast.py:L134` (`verificar`).
 
 ### RNF11. Política de segurança de conteúdo no navegador
 
@@ -270,7 +273,7 @@ editor fica restrita ao caminho da versão do Monaco usada pelo carregador. O
 `style-src` mantém `'unsafe-inline'`, porque o editor e o Next injetam estilos sem
 nonce.
 
-**Fonte:** `frontend/src/proxy.ts`, `frontend/src/app/layout.tsx`, `frontend/src/__tests__/proxy.test.ts`.
+**Fonte:** `frontend/src/proxy.ts:L16` (`cspCom`, `proxy` em `:L37`), `frontend/src/app/layout.tsx:L19` (`connection()`), `frontend/src/__tests__/proxy.test.ts:L1`.
 
 ## 2. Privacidade (LGPD)
 
@@ -287,7 +290,7 @@ existente; metadados nunca incluem senha, token nem código do 2FA.
 **Critérios de aceite:**
 - CA01: Dado um registro gravado, quando o código tentar alterá-lo, então deverá ocorrer erro e o registro deverá permanecer igual.
 
-**Fonte:** `backend/apps/auditoria/models.py` (`RegistroDeAuditoria.save`), `backend/apps/auditoria/services.py`.
+**Fonte:** `backend/apps/auditoria/models.py:L237` (`RegistroDeAuditoria.save`), `backend/apps/auditoria/services.py:L58` (`registrar`).
 
 ### RNF13. Retenção e descarte da auditoria
 
@@ -302,10 +305,10 @@ retenção.
 **Critérios de aceite:**
 - CA01: Dado um registro com 181 dias, quando o comando for executado, então o registro deverá ser removido.
 
-**Observação:** o agendamento está versionado em `deploy/crontab`, que executa o
+**Observação:** o agendamento está versionado em `deploy/crontab:L9`, que executa o
 comando todos os dias às 3h30 e passa a valer quando instalado no servidor.
 
-**Fonte:** `backend/apps/auditoria/management/commands/limpar_auditoria.py`, `backend/config/settings.py` (`AUDITORIA_RETENCAO_DIAS`), `deploy/crontab`.
+**Fonte:** `backend/apps/auditoria/management/commands/limpar_auditoria.py:L20` (`Command`), `backend/config/settings.py:L313` (`AUDITORIA_RETENCAO_DIAS`), `deploy/crontab:L9`.
 
 ### RNF14. Anonimização na exclusão de conta
 
@@ -322,7 +325,7 @@ registros de auditoria e IP apagado dos aceites; falha ao gravar o registro
 **Critérios de aceite:**
 - CA01: Dada uma conta anonimizada, quando os registros de auditoria do titular forem lidos, então o campo `actor_email_snapshot` deverá estar vazio em todos.
 
-**Fonte:** `backend/apps/contas/lgpd.py` (`anonimizar_conta`), `backend/apps/contas/models.py` (`User.anonimizar`).
+**Fonte:** `backend/apps/contas/lgpd.py:L108` (`anonimizar_conta`), `backend/apps/contas/models.py:L292` (`User.anonimizar`).
 
 ### RNF15. Consentimento versionado e idade mínima
 
@@ -339,7 +342,7 @@ servidor.
 **Critérios de aceite:**
 - CA01: Dado um cadastro com versão de documento diferente da vigente, quando enviado, então o sistema deverá recusar com `versao_desatualizada`.
 
-**Fonte:** `backend/apps/contas/documentos.py` (`VIGENTES`), `backend/apps/contas/models.py` (`AceiteDeTermos`), `backend/apps/contas/validators.py` (`IDADE_MINIMA_ANOS`), `Docs/Termos_de_Aceite/`.
+**Fonte:** `backend/apps/contas/documentos.py:L23` (`VIGENTES`), `backend/apps/contas/models.py:L402` (`AceiteDeTermos`), `backend/apps/contas/validators.py:L13` (`IDADE_MINIMA_ANOS`), `frontend/src/components/legal/AvisoConsentimento.tsx:L15` (`AvisoConsentimento`), `Docs/Termos_de_Aceite/`.
 
 ## 3. Desempenho
 
@@ -356,7 +359,7 @@ normalizado junto com a especificação e os casos de teste.
 **Critérios de aceite:**
 - CA01: Dado um código corrigido há 5 minutos, quando o mesmo código for enviado de novo, então o resultado deverá vir do registro guardado e a cota não deverá diminuir.
 
-**Fonte:** `backend/apps/correcao/services.py` (`CACHE_DE_SUBMISSAO`, `_hash`).
+**Fonte:** `backend/apps/correcao/services.py:L32` (`CACHE_DE_SUBMISSAO`, `_hash` em `:L192`).
 
 ### RNF17. Cotas e disjuntor da correção automática
 
@@ -375,7 +378,7 @@ contagem diária fica no banco.
 - CA01: Dado um aluno com 10 chamadas pagas no dia, quando enviar a 11ª, então o sistema deverá responder 429 sem chamar o Judge0.
 - CA02: Dadas 45 chamadas pagas no dia com cota de 50, quando qualquer aluno enviar código novo, então o sistema deverá responder 503.
 
-**Fonte:** `backend/apps/correcao/services.py` (`DISJUNTOR`, `_checar_cota_diaria`), `backend/apps/correcao/excecoes.py`, `backend/config/settings.py` (`JUDGE0_*`).
+**Fonte:** `backend/apps/correcao/services.py:L154` (`_checar_cota_diaria`, `DISJUNTOR` em `:L33`), `backend/apps/correcao/views.py:L35` (`Judge0PorMinuto`), `backend/apps/correcao/excecoes.py:L15` (`CotaDiariaEsgotada`, `CotaDoUsuarioEsgotada` em `:L22`), `backend/config/settings.py:L167` (`JUDGE0_LIMITE_DIARIO`, `JUDGE0_LIMITE_POR_USUARIO` em `:L169`).
 
 ### RNF18. Consultas ao banco com número constante
 
@@ -392,7 +395,7 @@ reaproveitadas por 60 s (`DB_CONN_MAX_AGE`) com verificação de saúde.
 **Critérios de aceite:**
 - CA01: Dada uma trilha com 26 exercícios, quando o detalhe for consultado, então o número de consultas ao banco deverá ser o mesmo de uma trilha com 1 exercício.
 
-**Fonte:** `backend/apps/trilhas/views.py` (`annotate`, `Prefetch`), `backend/apps/trilhas/tests/test_views.py`, `backend/apps/progressao/tests/test_api_exercicios_concluidos.py`, `backend/apps/progressao/tests/test_credito_xp.py`, `backend/config/settings.py` (`DATABASES`).
+**Fonte:** `backend/apps/trilhas/views.py:L54` (`annotate`), `backend/apps/trilhas/views.py:L84` (`Prefetch` em `TrilhaDetailView.get_queryset`), `backend/apps/trilhas/tests/test_views.py:L18` (`ListaDeTrilhasTest`), `backend/apps/progressao/tests/test_api_exercicios_concluidos.py:L24`, `backend/apps/progressao/tests/test_credito_xp.py:L1`, `backend/config/settings.py:L103` (`DATABASES`).
 
 ## 4. Confiabilidade
 
@@ -411,7 +414,7 @@ criatura por domínio e uma conclusão creditada por exercício.
 **Critérios de aceite:**
 - CA01: Dadas duas conclusões simultâneas para a mesma criatura, quando processadas, então o XP final deverá ser a soma das duas.
 
-**Fonte:** `backend/apps/progressao/services.py` (`creditar_exercicio`), `backend/apps/gamificacao/models/ownership.py`, `backend/apps/gamificacao/models/catalog.py`, `backend/apps/progressao/models.py`.
+**Fonte:** `backend/apps/progressao/services.py:L557` (`select_for_update` em `creditar_exercicio` `:L545`), `backend/apps/gamificacao/models/ownership.py:L58` (`UniqueConstraint`, e `:L63`, `:L71`), `backend/apps/gamificacao/models/catalog.py:L63` (`domain`), `backend/apps/progressao/models.py:L124` (`UniqueConstraint`).
 
 ### RNF20. Suíte de testes automatizados
 
@@ -420,9 +423,9 @@ criatura por domínio e uma conclusão creditada por exercício.
 **Descrição:** O comportamento do sistema deverá ser verificado por testes
 automatizados executáveis localmente, sem depender de serviços externos.
 
-**Critério mensurável:** 996 testes automatizados no backend (pytest e
+**Critério mensurável:** 1.413 testes automatizados no backend (pytest e
 pytest-django), incluindo casos negativos de segurança, com cobertura de 97%;
-375 no frontend, em 51 suítes (Jest e React Testing Library); total de 1.371
+638 no frontend, em 87 suítes (Jest e React Testing Library); total de 2.051
 testes verdes; nos testes o Judge0 é substituído por um executor local;
 cobertura medida com `pytest-cov` e `jest --coverage`.
 
@@ -432,7 +435,7 @@ cobertura medida com `pytest-cov` e `jest --coverage`.
 **Observação:** a cobertura é medida, mas não há percentual mínimo obrigatório
 configurado (`fail_under` ou `coverageThreshold`).
 
-**Fonte:** `backend/apps/*/tests/`, `backend/pyproject.toml`, `frontend/jest.config.ts`, `frontend/src/**/__tests__/`.
+**Fonte:** `backend/pyproject.toml:L15` (`[tool.pytest.ini_options]`), `frontend/jest.config.ts:L7` (`config`), `backend/apps/*/tests/`, `frontend/src/**/__tests__/`.
 
 ### RNF21. Evolução versionada do banco de dados
 
@@ -441,13 +444,13 @@ configurado (`fail_under` ou `coverageThreshold`).
 **Descrição:** Toda mudança de esquema e os dados de referência (catálogo de
 permissões, níveis de sistema) deverão ser aplicados por migrations versionadas.
 
-**Critério mensurável:** 40 arquivos de migration versionados no repositório; o
+**Critério mensurável:** 65 arquivos de migration versionados no repositório; o
 catálogo de permissões é semeado por migração de dados.
 
 **Critérios de aceite:**
 - CA01: Dado um banco vazio, quando `python manage.py migrate` for executado, então o esquema completo deverá ser criado sem passos manuais.
 
-**Fonte:** `backend/apps/*/migrations/`.
+**Fonte:** `backend/apps/*/migrations/` (65 migrações versionadas).
 
 ### RNF22. Degradação controlada sem o Judge0
 
@@ -463,7 +466,7 @@ progresso e exercícios teóricos continuam funcionando.
 **Critérios de aceite:**
 - CA01: Dado o Judge0 não configurado, quando um aluno concluir um exercício teórico, então o XP deverá ser creditado normalmente.
 
-**Fonte:** `backend/apps/correcao/judge0.py` (`obter_cliente`), `backend/apps/correcao/excecoes.py` (`CorretorIndisponivel`).
+**Fonte:** `backend/apps/correcao/judge0.py:L120` (`obter_cliente`), `backend/apps/correcao/excecoes.py:L7` (`CorretorIndisponivel`), `frontend/src/components/ui/ServicoIndisponivel.tsx:L7` (`ServicoIndisponivel`).
 
 ## 5. Portabilidade
 
@@ -482,7 +485,7 @@ de SMTP, o e-mail é impresso no console.
 **Critérios de aceite:**
 - CA01: Dado um `DATABASE_URL` apontando para outro servidor PostgreSQL, quando a aplicação iniciar, então ela deverá usar esse banco sem mudança de código.
 
-**Fonte:** `backend/config/settings.py`, `backend/.env.example`, `frontend/.env.example`.
+**Fonte:** `backend/config/settings.py:L21` (`env`), `frontend/next.config.ts:L3` (`API_ORIGIN`), `backend/.env.example:L1`, `frontend/.env.example:L1`.
 
 ### RNF24. Versões de dependências e de runtime fixadas
 
@@ -502,22 +505,32 @@ qualquer máquina reproduza o mesmo ambiente.
 **Observação:** a versão do Python (3.14) aparece na configuração do ruff e do
 mypy e no workflow de CI, sem arquivo de runtime próprio.
 
-**Fonte:** `backend/requirements.txt`, `backend/pyproject.toml`, `frontend/package.json`, `frontend/package-lock.json`, `frontend/.nvmrc`.
+**Fonte:** `backend/requirements.txt:L1`, `backend/pyproject.toml:L3` (`target-version`), `frontend/package.json:L5` (`engines.node`, `dependencies` em `:L27`), `frontend/.nvmrc:L1`, `frontend/package-lock.json`.
 
 ### RNF25. Implantação em servidor próprio (VPS)
 
 **Categoria:** Portabilidade · **Stakeholder:** Equipe de operação · **Prioridade:** Média · **Estado:** Implementado (configuração pronta)
 
-**Descrição:** O sistema deverá rodar numa VPS (DigitalOcean), com Nginx como proxy
-reverso e TLS, Django servido por gunicorn, Next.js por `next start` e o
-PostgreSQL na mesma máquina.
+**Descrição:** O sistema deverá rodar numa VPS (DigitalOcean) com Docker Compose
+orquestrando quatro contêineres (`db`, `backend`, `frontend` e `nginx`), com Nginx
+como proxy reverso e TLS, Django servido por Gunicorn configurado com 2 workers e
+4 threads por worker (8 requisições simultâneas), Next.js em `node:24-alpine` e
+PostgreSQL 18 publicado apenas em `127.0.0.1:5432`.
 
-**Observação:** a configuração está versionada em `deploy/`: site do Nginx com
-TLS, configuração do gunicorn (fixado no `requirements.txt`), unidades do systemd
-para a API e para o frontend e o `crontab` das rotinas agendadas. O roteiro de
-implantação está no `README.md`. Os arquivos ainda não foram executados numa VPS.
+**Critério mensurável:** `docker-compose.yml` com os serviços `db`, `backend`,
+`frontend` e `nginx`; Gunicorn iniciado em `backend/entrypoint.sh` com
+`--workers "${GUNICORN_WORKERS:-2}"` e `--threads "${GUNICORN_THREADS:-4}"`
+(documentados em `.env.prod.example`); Nginx com TLS 1.2/1.3 e HSTS em
+`deploy/nginx.conf`; rotinas agendadas em `deploy/crontab`.
 
-**Fonte:** `deploy/`, `README.md` (seção `~/deploy`).
+**Critérios de aceite:**
+- CA01: Dada a stack definida em `docker-compose.yml`, quando iniciada com `.env.prod`, então o `entrypoint.sh` do backend deverá aplicar as migrações e subir o Gunicorn com 2 workers e 4 threads em `0.0.0.0:8000`.
+
+**Observação:** a stack completa em contêineres e os arquivos de deploy estão
+versionados no repositório; o roteiro de implantação passo a passo está no
+`README.md`.
+
+**Fonte:** `docker-compose.yml:L7` (`db`, `backend` em `:L26`, `frontend` em `:L41`, `nginx` em `:L51`), `backend/Dockerfile:L1`, `backend/entrypoint.sh:L37` (`exec gunicorn`, `--workers` em `:L39`, `--threads` em `:L40`), `frontend/Dockerfile:L2`, `.env.prod.example:L44` (`GUNICORN_WORKERS=2`, `GUNICORN_THREADS=4` em `:L45`), `deploy/nginx.conf:L92` (bloco HTTPS, TLS em `:L98`, HSTS em `:L104`), `deploy/crontab:L9`, `backend/requirements.txt:L11` (`gunicorn`), `README.md:L487` (seção Deploy).
 
 ## 6. Manutenibilidade
 
@@ -529,9 +542,9 @@ implantação está no `README.md`. Os arquivos ainda não foram executados numa
 tipos.
 
 **Critério mensurável:** `ruff check` sem erros no backend (regras E, F, W, I, N,
-UP); `mypy --strict` sem erros em 153 arquivos, cobrindo os apps `trilhas`,
+UP); `mypy --strict` sem erros cobrindo 8 das 11 apps (`trilhas`,
 `autoria`, `correcao`, `conquistas`, `ranking`, `auditoria`, `gamificacao` e
-`core`; ESLint e `tsc --noEmit` sem erros no frontend.
+`core`); ESLint e `tsc --noEmit` sem erros no frontend.
 
 **Critérios de aceite:**
 - CA01: Dado o repositório na `main`, quando `ruff check .` e `mypy` forem executados no backend, então nenhum erro deverá ser reportado.
@@ -540,37 +553,42 @@ UP); `mypy --strict` sem erros em 153 arquivos, cobrindo os apps `trilhas`,
 `contas`, `progressao`, `clas` e `config` estão com `ignore_errors`, somando 574
 erros que são quase todos anotação de tipo faltando.
 
-**Fonte:** `backend/pyproject.toml` (`[tool.ruff]`, `[tool.mypy]`), `frontend/eslint.config.mjs`, `frontend/tsconfig.json`.
+**Fonte:** `backend/pyproject.toml:L1` (`[tool.ruff]`), `backend/pyproject.toml:L43` (`[tool.mypy]`, `files` em `:L47`), `frontend/eslint.config.mjs:L5` (`eslintConfig`), `frontend/tsconfig.json:L7` (`strict`).
 
 ### RNF27. Integração contínua
 
 **Categoria:** Manutenibilidade · **Stakeholder:** Equipe de desenvolvimento · **Prioridade:** Média · **Estado:** Implementado (configuração pronta)
 
-**Descrição:** Cada pull request deverá rodar automaticamente testes, lint e
-verificação de tipos antes do merge.
+**Descrição:** Cada pull request e push na `main` deverá rodar automaticamente
+testes, lint, verificação de tipos e build antes do merge.
 
-**Observação:** o workflow `.github/workflows/ci.yml` roda a cada push e pull
-request, em dois jobs com PostgreSQL: no backend, ruff, mypy e pytest; no
-frontend, ESLint, `tsc --noEmit`, Jest e o `next build`. Ainda não foi executado
-no GitHub.
+**Observação:** o workflow `.github/workflows/ci.yml` dispara em push e pull
+request para a `main`, dividido em quatro jobs: `unitarios` (pytest sem banco e
+Jest), `integracao` (pytest com PostgreSQL 16), `linter` (ruff, ESLint, mypy e
+`tsc --noEmit`) e `build` (`next build` com a API e o banco reais, executando
+após os três primeiros passarem).
 
-**Fonte:** `.github/workflows/ci.yml`.
+**Fonte:** `.github/workflows/ci.yml:L22` (`unitarios`, Jest em `:L49`, `integracao` em `:L53`, `linter` em `:L85`, `build` em `:L124`).
 
 ### RNF28. Documentação da API e padrão de erro
 
 **Categoria:** Manutenibilidade · **Stakeholder:** Equipe de desenvolvimento · **Prioridade:** Média · **Estado:** Implementado
 
-**Descrição:** A API deverá ter documentação gerada do próprio código e responder
-erros sempre no mesmo formato.
+**Descrição:** A API deverá ter documentação gerada do próprio código, responder
+erros sempre no mesmo formato e, em produção, expor apenas JSON e recusar URLs com
+byte nulo (`%00`).
 
 **Critério mensurável:** schema OpenAPI em `/api/schema/` e Swagger UI em
-`/api/docs/` (drf-spectacular); toda falha responde no envelope
-`{ "error": { "code", "message", "details" } }`; rotas versionadas sob `/api/v1/`.
+`/api/docs/` (drf-spectacular, habilitados quando `API_DOCS=True`); toda falha
+responde no envelope `{ "error": { "code", "message", "details" } }`; em produção
+(`DEBUG=False`), `DEFAULT_RENDERER_CLASSES` restringe a API estritamente a
+`JSONRenderer`; middleware `RecusarNul` recusa `%00` na URL com 400; rotas
+versionadas sob `/api/v1/`.
 
 **Critérios de aceite:**
 - CA01: Dada uma requisição inválida a qualquer rota, quando respondida com erro, então o corpo deverá ter a chave `error` com `code` e `message`.
 
-**Fonte:** `backend/config/urls.py`, `backend/apps/core/exceptions.py`, `Docs/Integracao_API/integracao-api.md`.
+**Fonte:** `backend/apps/core/exceptions.py:L52` (`manipulador`), `backend/config/urls.py:L28` (`api/schema/`, `api/docs/` em `:L30`), `backend/config/settings.py:L377` (`JSONRenderer` estrito quando `not DEBUG`), `backend/apps/core/middleware.py:L6` (`RecusarNul`, registrado em `backend/config/settings.py:L373`), `Docs/Integracao_API/integracao-api.md:L1`.
 
 ## 7. Usabilidade
 
@@ -590,7 +608,7 @@ retrô (pixel art), em tema escuro, definida por tokens de cor e tipografia.
 
 **Observação:** há apenas o tema escuro; não existe tema claro nem alternância.
 
-**Fonte:** `frontend/src/app/globals.css`, `frontend/src/app/layout.tsx`, `frontend/src/fontes/`.
+**Fonte:** `frontend/src/app/globals.css:L3` (`@theme`, `--color-brand` em `:L13`), `frontend/src/app/layout.tsx:L23` (`<body>` com variáveis das fontes), `frontend/src/fontes/`.
 
 ### RNF30. Acessibilidade
 
@@ -613,22 +631,23 @@ em `Docs/Rastreabilidade_Requisitos.md` (seção "Verificação de acessibilidad
 Não há teste automatizado com ferramenta como axe, e o contraste das cores, o uso
 com leitor de tela e a ampliação a 200% não foram medidos.
 
-**Fonte:** `frontend/src/app/layout.tsx`, `frontend/src/app/globals.css`, `frontend/src/components/trilhas/TrilhaCard.tsx`.
+**Fonte:** `frontend/src/components/ui/useModal.ts:L13` (`useModal`), `frontend/src/app/layout.tsx:L22` (`lang="pt-BR"`), `frontend/src/app/globals.css:L204` (`:focus-visible`, `prefers-reduced-motion` em `:L210`), `frontend/src/components/trilhas/TrilhaCard.tsx:L15` (`TrilhaCard`).
 
 ### RNF31. Idioma e fuso horário brasileiros
 
 **Categoria:** Usabilidade · **Stakeholder:** Alunos · **Prioridade:** Alta · **Estado:** Implementado
 
-**Descrição:** Interface, mensagens de erro e e-mails deverão estar em português do
-Brasil, com datas no fuso de São Paulo.
+**Descrição:** Interface, mensagens de erro (incluindo a tela 404) e e-mails
+deverão estar em português do Brasil, com datas no fuso de São Paulo.
 
 **Critério mensurável:** `LANGUAGE_CODE = 'pt-br'`, `TIME_ZONE =
-'America/Sao_Paulo'`; mensagens de validação e e-mails escritos em português.
+'America/Sao_Paulo'`; mensagens de validação, e-mails e página 404 (`not-found.tsx`)
+escritos em português.
 
 **Critérios de aceite:**
 - CA01: Dado um cadastro com senha fraca, quando recusado, então a mensagem deverá estar em português.
 
-**Fonte:** `backend/config/settings.py`, `backend/apps/contas/validators.py`, `backend/apps/contas/templates/`.
+**Fonte:** `backend/config/settings.py:L353` (`LANGUAGE_CODE`, `TIME_ZONE` em `:L355`), `backend/apps/contas/validators.py:L105` (`PasswordComplexityValidator`), `frontend/src/app/layout.tsx:L22` (`lang="pt-BR"`), `frontend/src/app/not-found.tsx:L5` (`NaoEncontrado`, página 404 em português), `backend/apps/contas/templates/`.
 
 ## 8. Compatibilidade
 
@@ -648,7 +667,7 @@ modernos (Chrome, Edge, Firefox e Safari).
 **Observação:** o CA01 ainda não foi executado de forma sistemática em vários
 navegadores.
 
-**Fonte:** `frontend/package.json`.
+**Fonte:** `frontend/package.json:L8` (`browserslist`).
 
 ### RNF33. Plataforma tecnológica
 
@@ -659,9 +678,9 @@ equipe.
 
 **Critério mensurável:** backend em Python 3.14, Django 6.0.8, Django REST
 Framework 3.18 e SimpleJWT 5.5; banco PostgreSQL (driver psycopg 3); frontend em
-Next.js 16.3.3 (App Router), React 19.2.8, TypeScript 5 e Tailwind CSS 4.
+Next.js 16.4.3 (App Router), React 19.2.8, TypeScript 5 e Tailwind CSS 4.
 
 **Critérios de aceite:**
 - CA01: Dados `requirements.txt` e `package.json`, quando conferidos, então as versões deverão corresponder às listadas acima.
 
-**Fonte:** `backend/requirements.txt`, `backend/pyproject.toml`, `frontend/package.json`.
+**Fonte:** `backend/requirements.txt:L1` (`Django==6.0.8`), `backend/pyproject.toml:L44` (`python_version = "3.14"`), `frontend/package.json:L27` (`next`, `react` em `:L28`).
