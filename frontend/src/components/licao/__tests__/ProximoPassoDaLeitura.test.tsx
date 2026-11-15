@@ -1,70 +1,76 @@
 import { render, screen } from "@testing-library/react";
 
 import { ProximoPassoDaLeitura } from "@/components/licao/ProximoPassoDaLeitura";
+import { chaveDaFase } from "@/lib/progresso";
 
-const TRILHA = "/trilhas/logica-de-programacao";
+let concluidas: string[] = [];
+
+jest.mock("@/components/progresso/ProvedorProgresso", () => ({
+  useProgresso: () => ({ chaves: new Set(concluidas) }),
+}));
+
+const SLUG = "logica-de-programacao";
+const TRILHA = `/trilhas/${SLUG}`;
 const QUIZ = `${TRILHA}/aulas/variaveis-e-tipos/quiz`;
-const PRATICA = `${TRILHA}/exercicios/fatorial`;
-const PROXIMO = `${TRILHA}/aulas/funcoes`;
+const PROXIMO = `${TRILHA}/aulas/repeticao`;
+const FASES = ["par-ou-impar", "maior-de-tres", "classificar-nota"];
+
+function montar(props: { rotaQuiz?: string | null; rotaProximoModulo?: string | null } = {}) {
+  render(
+    <ProximoPassoDaLeitura
+      trilhaSlug={SLUG}
+      fases={FASES}
+      rotaQuiz={props.rotaQuiz ?? null}
+      rotaProximoModulo={props.rotaProximoModulo === undefined ? PROXIMO : props.rotaProximoModulo}
+      rotaTrilha={TRILHA}
+    />,
+  );
+}
 
 function link(nome: string) {
   return screen.queryByRole("link", { name: nome });
 }
 
 describe("ProximoPassoDaLeitura", () => {
-  it("com quiz, o caminho é o quiz, que já leva aos exercícios", () => {
-    render(
-      <ProximoPassoDaLeitura
-        rotaQuiz={QUIZ}
-        rotaPratica={PRATICA}
-        rotaProximoModulo={PROXIMO}
-        rotaTrilha={TRILHA}
-      />,
-    );
-
-    expect(link("Fazer o quiz")).toHaveAttribute("href", QUIZ);
-    expect(link("Praticar")).toBeNull();
-    expect(link("Próximo módulo")).toHaveAttribute("href", PROXIMO);
+  beforeEach(() => {
+    concluidas = [];
   });
 
-  it("sem quiz, leva aos exercícios do próprio módulo antes do próximo", () => {
-    render(
-      <ProximoPassoDaLeitura
-        rotaQuiz={null}
-        rotaPratica={PRATICA}
-        rotaProximoModulo={PROXIMO}
-        rotaTrilha={TRILHA}
-      />,
-    );
+  it("módulo recém-iniciado: leva ao primeiro exercício, sem próximo módulo", () => {
+    montar();
 
-    expect(link("Praticar")).toHaveAttribute("href", PRATICA);
-    expect(link("Próximo módulo")).toHaveAttribute("href", PROXIMO);
-    expect(link("Voltar para a trilha")).toBeNull();
-  });
-
-  it("no último módulo sem quiz, ainda oferece os exercícios", () => {
-    render(
-      <ProximoPassoDaLeitura
-        rotaQuiz={null}
-        rotaPratica={PRATICA}
-        rotaProximoModulo={null}
-        rotaTrilha={TRILHA}
-      />,
-    );
-
-    expect(link("Praticar")).toHaveAttribute("href", PRATICA);
+    expect(link("Praticar")).toHaveAttribute("href", `${TRILHA}/exercicios/par-ou-impar`);
     expect(link("Próximo módulo")).toBeNull();
   });
 
-  it("sem quiz, exercícios nem próximo módulo, volta para a trilha", () => {
-    render(
-      <ProximoPassoDaLeitura
-        rotaQuiz={null}
-        rotaPratica={null}
-        rotaProximoModulo={null}
-        rotaTrilha={TRILHA}
-      />,
-    );
+  it("no meio do módulo: leva ao próximo exercício pendente", () => {
+    concluidas = [chaveDaFase(SLUG, "par-ou-impar")];
+    montar();
+
+    expect(link("Praticar")).toHaveAttribute("href", `${TRILHA}/exercicios/maior-de-tres`);
+    expect(link("Próximo módulo")).toBeNull();
+  });
+
+  it("com quiz e módulo pendente: o caminho é o quiz", () => {
+    montar({ rotaQuiz: QUIZ });
+
+    expect(link("Fazer o quiz")).toHaveAttribute("href", QUIZ);
+    expect(link("Praticar")).toBeNull();
+    expect(link("Próximo módulo")).toBeNull();
+  });
+
+  it("módulo completo: libera o próximo módulo", () => {
+    concluidas = FASES.map((slug) => chaveDaFase(SLUG, slug));
+    montar({ rotaQuiz: QUIZ });
+
+    expect(link("Próximo módulo")).toHaveAttribute("href", PROXIMO);
+    expect(link("Praticar")).toBeNull();
+    expect(link("Fazer o quiz")).toBeNull();
+  });
+
+  it("último módulo completo: volta para a trilha", () => {
+    concluidas = FASES.map((slug) => chaveDaFase(SLUG, slug));
+    montar({ rotaProximoModulo: null });
 
     expect(link("Voltar para a trilha")).toHaveAttribute("href", TRILHA);
   });

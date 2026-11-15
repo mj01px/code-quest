@@ -5,12 +5,7 @@ import { LeituraDaLicao } from "@/components/licao/LeituraDaLicao";
 import { GuardaDeEtapa } from "@/components/trilhas/GuardaDeEtapa";
 import { MarcaDeLeitura } from "@/components/licao/MarcaDeLeitura";
 import { ProximoPassoDaLeitura } from "@/components/licao/ProximoPassoDaLeitura";
-import {
-  carregarAula,
-  numeroDoModulo,
-  rotaDaAula,
-  rotaDoExercicio,
-} from "@/lib/aulas";
+import { carregarAula, numeroDoModulo, rotaDaAula } from "@/lib/aulas";
 import { plural } from "@/lib/derivados";
 import { minutosDeLeitura, secoesDaLicao } from "@/lib/licao";
 
@@ -35,7 +30,6 @@ export default async function LicaoPage({
 
   const questoes = aula.questoes ?? [];
   const rotaQuiz = `${rotaDaAula(trilha.slug, aula.slug)}/quiz`;
-  const primeiraFase = aula.exercicios[0] ?? null;
 
   const depois = [
     questoes.length > 0
@@ -69,10 +63,9 @@ export default async function LicaoPage({
         ) : null}
 
         <ProximoPassoDaLeitura
+          trilhaSlug={trilha.slug}
+          fases={aula.exercicios.map((exercicio) => exercicio.slug)}
           rotaQuiz={questoes.length > 0 ? rotaQuiz : null}
-          rotaPratica={
-            primeiraFase ? rotaDoExercicio(trilha.slug, primeiraFase.slug) : null
-          }
           rotaProximoModulo={proxima ? rotaDaAula(trilha.slug, proxima.slug) : null}
           rotaTrilha={`/trilhas/${trilha.slug}`}
         />
