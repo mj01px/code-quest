@@ -60,6 +60,7 @@
   --animate-blink: blink 1s steps(1, end) infinite;
   --animate-bob: bob 1.6s steps(2, end) infinite;
   --animate-varredura: varredura 1.4s steps(6, end) infinite alternate;
+  --animate-aparecer: aparecer 0.22s ease-out both;
   /* Entrada dos blocos de conteudo: sobe e aparece, uma vez so. */
   --animate-surgir: surgir 0.34s ease-out both;
   /* Respiro do selo de bonus, em passos para nao destoar do pixel. */
@@ -93,6 +94,15 @@
     }
     50% {
       transform: translateY(-6px);
+    }
+  }
+
+  @keyframes aparecer {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
     }
   }
 
