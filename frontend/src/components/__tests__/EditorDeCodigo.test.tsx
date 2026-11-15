@@ -39,16 +39,23 @@ describe("EditorDeCodigo", () => {
     const editor = screen.getByRole("textbox", { name: "Editor de código" });
     await usuario.click(editor);
     expect(fireEvent.keyDown(editor, { key: "v", ctrlKey: true })).toBe(false);
-    expect(screen.getByRole("dialog", { name: "Colagem interceptada" })).toHaveFocus();
+    const aviso = screen.getByRole("dialog", { name: "Colagem interceptada" });
+    expect(aviso).toHaveFocus();
     expect(editor).toHaveValue(codigo);
     expect(aoMudar).not.toHaveBeenCalled();
 
     await usuario.keyboard("{Escape}");
+    expect(aviso).toHaveClass("animate-recolher");
+    expect(aviso).toHaveFocus();
+    fireEvent.animationEnd(aviso);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(editor).toHaveFocus();
 
     fireEvent.keyDown(editor, { key: "v", ctrlKey: true });
     await usuario.click(screen.getByRole("button", { name: "Voltar ao código" }));
+    const reaberto = screen.getByRole("dialog");
+    expect(reaberto).toHaveClass("animate-recolher");
+    fireEvent.animationEnd(reaberto);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(editor).toHaveFocus();
   });

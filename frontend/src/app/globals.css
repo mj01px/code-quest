@@ -61,6 +61,8 @@
   --animate-bob: bob 1.6s steps(2, end) infinite;
   --animate-varredura: varredura 1.4s steps(6, end) infinite alternate;
   --animate-aparecer: aparecer 0.22s ease-out both;
+  --animate-desaparecer: desaparecer 0.22s ease-in 0.12s both;
+  --animate-recolher: recolher 0.34s ease-in both;
   /* Entrada dos blocos de conteudo: sobe e aparece, uma vez so. */
   --animate-surgir: surgir 0.34s ease-out both;
   /* Respiro do selo de bonus, em passos para nao destoar do pixel. */
@@ -114,6 +116,19 @@
     to {
       opacity: 1;
       transform: translateY(0);
+    }
+  }
+
+  @keyframes desaparecer {
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes recolher {
+    to {
+      opacity: 0;
+      transform: translateY(8px);
     }
   }
 
