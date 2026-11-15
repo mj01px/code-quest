@@ -27,12 +27,17 @@ if [ -n "${ADMIN_EMAIL:-}" ]; then
     python manage.py criar_admin
 fi
 
-# O cache de throttle e o DatabaseCache, entao mais workers nao multiplicam os
-# limites. 2 cabe num droplet de 512MB; subir com GUNICORN_WORKERS em maquina
-# maior. timeout acima do JUDGE0_TIMEOUT (15 s) para a correcao responder.
+# Cada worker e uma copia do Django (~100MB) e, sem threads, atende um pedido
+# por vez: dois envios ao Judge0 (ate 15 s cada) seguravam os 2 workers e o
+# resto do site esperava na fila. As threads esperam o Judge0 em paralelo e
+# dividem a memoria do worker: 2 x 4 = 8 pedidos simultaneos no droplet de 1GB.
+# Mais workers so com mais RAM (o next build do frontend tambem precisa dela).
+# O cache de throttle e o DatabaseCache, entao nada disso multiplica os limites.
+# timeout acima do JUDGE0_TIMEOUT (15 s) para a correcao responder.
 exec gunicorn config.wsgi:application \
     --bind 0.0.0.0:8000 \
     --workers "${GUNICORN_WORKERS:-2}" \
+    --threads "${GUNICORN_THREADS:-4}" \
     --timeout 30 \
     --access-logfile - \
     --error-logfile -

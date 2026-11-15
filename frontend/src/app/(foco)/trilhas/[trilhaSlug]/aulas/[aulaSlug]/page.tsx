@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { ConteudoDaLicao } from "@/components/licao/ConteudoDaLicao";
 import { LeituraDaLicao } from "@/components/licao/LeituraDaLicao";
 import { GuardaDeEtapa } from "@/components/trilhas/GuardaDeEtapa";
-import { LinkDeAcao } from "@/components/licao/LinkDeAcao";
 import { MarcaDeLeitura } from "@/components/licao/MarcaDeLeitura";
+import { ProximoPassoDaLeitura } from "@/components/licao/ProximoPassoDaLeitura";
 import { carregarAula, numeroDoModulo, rotaDaAula } from "@/lib/aulas";
 import { plural } from "@/lib/derivados";
 import { minutosDeLeitura, secoesDaLicao } from "@/lib/licao";
@@ -62,27 +62,13 @@ export default async function LicaoPage({
           <MarcaDeLeitura trilhaSlug={trilha.slug} aulaSlug={aula.slug} />
         ) : null}
 
-        <section
-          aria-label="Próximo passo"
-          className="mt-6 flex flex-col gap-5 border-2 border-brand-shadow bg-panel-deep px-6 py-8 sm:px-8"
-        >
-          <p className="m-0 font-display text-[12px] leading-[1.8] tracking-[1px] text-ink">
-            Leu tudo? Hora de praticar.
-          </p>
-          <div className="flex flex-wrap items-center gap-4">
-            {questoes.length > 0 ? (
-              <LinkDeAcao href={rotaQuiz}>Fazer o quiz</LinkDeAcao>
-            ) : null}
-            {proxima ? (
-              <LinkDeAcao
-                href={rotaDaAula(trilha.slug, proxima.slug)}
-                variante="secundario"
-              >
-                Próximo módulo
-              </LinkDeAcao>
-            ) : null}
-          </div>
-        </section>
+        <ProximoPassoDaLeitura
+          trilhaSlug={trilha.slug}
+          fases={aula.exercicios.map((exercicio) => exercicio.slug)}
+          rotaQuiz={questoes.length > 0 ? rotaQuiz : null}
+          rotaProximoModulo={proxima ? rotaDaAula(trilha.slug, proxima.slug) : null}
+          rotaTrilha={`/trilhas/${trilha.slug}`}
+        />
       </LeituraDaLicao>
     </GuardaDeEtapa>
   );
