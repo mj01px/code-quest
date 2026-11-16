@@ -560,6 +560,18 @@ A suíte do backend cobre a API de conteúdo, o fluxo editorial, a tabela de RBA
 
 Nos testes, o Judge0 dá lugar a um executor Python local, então a suíte não gasta cota nem precisa de rede. Nenhum model é registrado no admin do Django, então toda ação administrativa passa pelas regras de negócio.
 
+### Validação da correção automática
+
+Para conferir se a correção aceita estratégias corretas diferentes e recusa envios errados ou preparados para burlar a avaliação, foram montadas duas baterias de 30 envios no modo *Enviar*: uma no exercício **Contar vogais** (Python) e outra no **Nota entre 0 e 10** (SQL). Cada bateria reuniu 20 soluções corretas diferentes, 5 incorretas e 5 tentativas de burla. Cada solução foi enviada por um aluno novo, na primeira conclusão do exercício, registrando o veredito e o XP creditado.
+
+A bateria de Python roda a API com um executor local em subprocesso no lugar do Judge0 e está versionada como teste automatizado em [`backend/apps/correcao/tests/test_variantes_contar_vogais.py`](backend/apps/correcao/tests/test_variantes_contar_vogais.py). Na bateria de SQL, os envios que passaram pela validação do comando foram executados no Judge0.
+
+| Grupo de envios | Contar vogais (Python) | Nota entre 0 e 10 (SQL) | XP por envio |
+|---|---|---|---|
+| Soluções corretas | 20 aprovadas | 20 aprovadas | 50 |
+| Soluções incorretas | 5 rejeitadas | 5 rejeitadas | 0 |
+| Tentativas de burla | 5 rejeitadas | 5 rejeitadas | 0 |
+
 ## Deploy
 
 Em produção em **[codequest.dev.br](https://codequest.dev.br)**, numa **VPS** (DigitalOcean) com **Docker Compose**: quatro containers no mesmo servidor, não em plataformas serverless. A Cloudflare fica na frente (DNS, HTTPS e WAF), o Nginx recebe tudo dela e repassa ao Next, que serve as telas e encaminha `/api/*` ao Django.
