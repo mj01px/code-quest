@@ -40,6 +40,9 @@ export function proxy(request: NextRequest) {
 
   const cabecalhos = new Headers(request.headers);
   cabecalhos.set("Content-Security-Policy", csp);
+  // Para onde voltar depois de renovar a sessão (lib/sessaoNoServidor). É
+  // sobrescrito aqui, então o navegador não escolhe; /sessao ainda valida.
+  cabecalhos.set("x-caminho", request.nextUrl.pathname + request.nextUrl.search);
   const resposta = NextResponse.next({ request: { headers: cabecalhos } });
   resposta.headers.set("Content-Security-Policy", csp);
   return resposta;

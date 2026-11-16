@@ -76,3 +76,16 @@ def ao_mesmo_tempo(chamada: Callable[[], object], vezes: int = 5) -> list[object
 
     with ThreadPoolExecutor(vezes) as pool:
         return list(pool.map(rodar, range(vezes)))
+
+
+def autenticar(cliente, user: User) -> None:
+    """Loga o cliente de teste como o navegador faz: cookie httpOnly de acesso.
+
+    Serve para o `Client` do Django e para o `APIClient` do DRF. GET não passa
+    pela checagem de CSRF, então o cookie basta para ler rotas autenticadas.
+    """
+    from rest_framework_simplejwt.tokens import AccessToken
+
+    from apps.contas.cookies import ACCESS
+
+    cliente.cookies[ACCESS] = str(AccessToken.for_user(user))

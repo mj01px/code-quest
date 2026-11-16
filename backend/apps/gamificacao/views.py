@@ -4,7 +4,7 @@ from django.db.models import QuerySet
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
-from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated
+from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.serializers import BaseSerializer
@@ -43,11 +43,11 @@ PODE_EVOLUIR_CRIATURA = HasPerm("criaturas.evolve")
 
 @extend_schema(tags=["criaturas"])
 class CatalogoCriaturasView(generics.ListAPIView[Creature]):
-    # A lista de todas as criaturas é pública (vitrine), como o catálogo de
-    # trilhas. O que é do usuário (minhas/adquirir/evoluir/ativa/bônus) é que
-    # passa pelo RBAC.
+    # A lista de todas as criaturas exige login, como o catálogo de trilhas: só
+    # é usada na escolha inicial e no perfil, ambos com sessão. O que é do
+    # usuário (minhas/adquirir/evoluir/ativa/bônus) passa também pelo RBAC.
     serializer_class = CriaturaSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     pagination_class = None
 
     def get_queryset(self) -> QuerySet[Creature]:

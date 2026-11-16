@@ -7,7 +7,7 @@ import { HeroTrilha } from "@/components/trilhas/HeroTrilha";
 import { MapaDeFases } from "@/components/trilhas/MapaDeFases";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { IconeCheck } from "@/components/ui/Icone";
-import { ErroApi, buscarTrilha, listarTrilhas } from "@/lib/api";
+import { ErroApi } from "@/lib/api";
 import {
   competencias,
   duracaoEmHoras,
@@ -16,11 +16,10 @@ import {
   totalDeFases,
   totalDeProjetos,
 } from "@/lib/derivados";
+import { buscarTrilhaDoAluno } from "@/lib/sessaoNoServidor";
 import type { TrilhaDetalhe } from "@/lib/types";
 
-// Slugs fixados no build: só o roteador devolve 404 com status real.
-export const dynamicParams = false;
-export const revalidate = 60;
+// O catálogo exige login: renderiza por request, com a sessão do aluno.
 
 const INCLUI = [
   "Exercícios referentes à trilha escolhida",
@@ -29,14 +28,9 @@ const INCLUI = [
   "XP e evolução do seu pet",
 ];
 
-export async function generateStaticParams() {
-  const trilhas = await listarTrilhas();
-  return trilhas.map((trilha) => ({ trilhaSlug: trilha.slug }));
-}
-
 async function carregar(slug: string): Promise<TrilhaDetalhe> {
   try {
-    return await buscarTrilha(slug);
+    return await buscarTrilhaDoAluno(slug);
   } catch (erro) {
     if (erro instanceof ErroApi && erro.naoEncontrado) {
       notFound();

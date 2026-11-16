@@ -251,6 +251,15 @@ function esperarLiberar(resposta: Response, prazo: AbortSignal): Promise<void> {
 
 let renovacaoEmVoo: Promise<boolean> | null = null;
 
+/**
+ * Renova a sessao a partir do navegador (o cookie de renovacao so vai para
+ * /api/v1/auth/). Usado pela tela /sessao quando o servidor recusa uma pagina
+ * porque o token curto expirou.
+ */
+export function retomarSessao(): Promise<boolean> {
+  return renovar(AbortSignal.timeout(TEMPO_LIMITE_MS)).catch(() => false);
+}
+
 function renovar(prazo: AbortSignal): Promise<boolean> {
   renovacaoEmVoo ??= renovarUmaVez(prazo).finally(() => {
     renovacaoEmVoo = null;
@@ -283,6 +292,12 @@ interface Opcoes {
   revalidacao?: number;
   /** Etiquetas de cache do Next, para invalidacao seletiva. */
   etiquetas?: string[];
+  /**
+   * Cookie de acesso do aluno, so no servidor (ver lib/sessaoNoServidor). Com
+   * ele o pedido vai autenticado e sem cache compartilhado: o catalogo exige
+   * login, e uma resposta guardada serviria a quem nao tem sessao.
+   */
+  sessao?: string;
 }
 
 async function requisicao<T>(
@@ -293,6 +308,7 @@ async function requisicao<T>(
     autenticado = false,
     revalidacao,
     etiquetas,
+    sessao,
   }: Opcoes = {},
   jaRenovou = false,
   // Um prazo por interação, não por fetch. Um prazo novo a cada hop somaria
@@ -305,6 +321,7 @@ async function requisicao<T>(
   if (corpo !== undefined) headers["Content-Type"] = "application/json";
 
   const noNavegador = typeof window !== "undefined";
+  if (sessao) headers.Cookie = sessao;
 
   if (!METODOS_SEGUROS.has(metodo) && noNavegador) {
     const csrf = await garantirCsrf(prazo);
@@ -322,9 +339,11 @@ async function requisicao<T>(
       // páginas de trilha e exercício carregam em generateMetadata e no corpo.
       ...(noNavegador ? { signal: prazo } : {}),
       body: corpo === undefined ? undefined : JSON.stringify(corpo),
-      ...(revalidacao === undefined
-        ? {}
-        : { next: { revalidate: revalidacao, tags: etiquetas } }),
+      ...(sessao
+        ? { cache: "no-store" as const }
+        : revalidacao === undefined
+          ? {}
+          : { next: { revalidate: revalidacao, tags: etiquetas } }),
     });
   } catch (erro) {
     throw eTempoEsgotado(erro) ? ERRO_TEMPO : ERRO_REDE;
@@ -335,7 +354,7 @@ async function requisicao<T>(
     if (autenticado && (await renovar(prazo))) {
       return requisicao<T>(
         caminho,
-        { metodo, corpo, autenticado, revalidacao, etiquetas },
+        { metodo, corpo, autenticado, revalidacao, etiquetas, sessao },
         true,
         prazo,
       );
@@ -347,7 +366,7 @@ async function requisicao<T>(
       await purgarSessao(prazo);
       return requisicao<T>(
         caminho,
-        { metodo, corpo, autenticado, revalidacao, etiquetas },
+        { metodo, corpo, autenticado, revalidacao, etiquetas, sessao },
         true,
         prazo,
       );
@@ -363,7 +382,7 @@ async function requisicao<T>(
     await esperarLiberar(resposta, prazo);
     return requisicao<T>(
       caminho,
-      { metodo, corpo, autenticado, revalidacao, etiquetas },
+      { metodo, corpo, autenticado, revalidacao, etiquetas, sessao },
       jaRenovou,
       prazo,
       true,
@@ -726,7 +745,7 @@ export const api = {
   },
 
   catalogo() {
-    return requisicao<Criatura[]>("/criaturas/");
+    return requisicao<Criatura[]>("/criaturas/", { autenticado: true });
   },
 
   minhasCriaturas() {
@@ -1284,7 +1303,9 @@ export const api = {
 // Sem token, entao "autenticado" fica de fora; o cache do Next segura a carga
 // durante o build estatico das rotas de trilha e exercicio.
 
-const CATALOGO: Opcoes = { revalidacao: 60, etiquetas: ["trilhas"] };
+// Desde 2026-11-16 o catalogo exige login. No navegador o cookie vai sozinho
+// (e o 401 renova a sessao); no servidor, quem chama passa `sessao`.
+const CATALOGO: Opcoes = { revalidacao: 60, etiquetas: ["trilhas"], autenticado: true };
 
 export function buscarDocumentosLegais(): Promise<DocumentosLegais> {
   return requisicao<DocumentosLegais>("/auth/documentos/", {
@@ -1293,26 +1314,28 @@ export function buscarDocumentosLegais(): Promise<DocumentosLegais> {
   });
 }
 
-export function listarTrilhas(): Promise<TrilhaResumo[]> {
-  return requisicao<TrilhaResumo[]>("/trilhas/", { ...CATALOGO });
+export function listarTrilhas(sessao?: string): Promise<TrilhaResumo[]> {
+  return requisicao<TrilhaResumo[]>("/trilhas/", { ...CATALOGO, sessao });
 }
 
-export function buscarTrilha(slug: string): Promise<TrilhaDetalhe> {
+export function buscarTrilha(slug: string, sessao?: string): Promise<TrilhaDetalhe> {
   return requisicao<TrilhaDetalhe>(`/trilhas/${encodeURIComponent(slug)}/`, {
     ...CATALOGO,
+    sessao,
   });
 }
 
-export function buscarDesafioDeHoje(): Promise<DesafioDeHoje> {
-  return requisicao<DesafioDeHoje>("/desafios/hoje/", { ...CATALOGO });
+export function buscarDesafioDeHoje(sessao?: string): Promise<DesafioDeHoje> {
+  return requisicao<DesafioDeHoje>("/desafios/hoje/", { ...CATALOGO, sessao });
 }
 
 export function buscarExercicio(
   trilhaSlug: string,
   exercicioSlug: string,
+  sessao?: string,
 ): Promise<ExercicioDetalhe> {
   const caminho = `/exercicios/${encodeURIComponent(
     trilhaSlug,
   )}/${encodeURIComponent(exercicioSlug)}/`;
-  return requisicao<ExercicioDetalhe>(caminho, { ...CATALOGO });
+  return requisicao<ExercicioDetalhe>(caminho, { ...CATALOGO, sessao });
 }

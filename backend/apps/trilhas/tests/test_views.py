@@ -1,4 +1,4 @@
-"""Endpoints públicos do catálogo de trilhas."""
+"""Endpoints do catálogo de trilhas (exigem login desde 2026-11-16)."""
 
 import json
 
@@ -6,6 +6,7 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
+from apps.contas.tests.helpers import autenticar, criar_aluno
 from apps.trilhas.models import StatusEditorial
 
 from .helpers import PUBLICADO, RASCUNHO, criar_aula, criar_exercicio, criar_trilha
@@ -15,7 +16,16 @@ CACHE_EM_MEMORIA = {
 }
 
 
-class ListaDeTrilhasTest(TestCase):
+
+class ComLogin(TestCase):
+    """O catálogo exige login (2026-11-16): os testes leem como aluno logado."""
+
+    def setUp(self):
+        super().setUp()
+        autenticar(self.client, criar_aluno("leitor"))
+
+
+class ListaDeTrilhasTest(ComLogin):
     @classmethod
     def setUpTestData(cls):
         cls.publicada = criar_trilha("logica", nome="Lógica", ordem=1)
@@ -32,10 +42,12 @@ class ListaDeTrilhasTest(TestCase):
         criar_exercicio(aula_oculta, "invisivel")
 
     def setUp(self):
+        super().setUp()
         self.url = reverse("trilhas:trilha-lista")
 
-    def test_visitante_anonimo_consegue_ler(self):
-        self.assertEqual(self.client.get(self.url).status_code, 200)
+    def test_visitante_anonimo_e_recusado(self):
+        self.client.cookies.clear()
+        self.assertEqual(self.client.get(self.url).status_code, 401)
 
     def test_lista_apenas_trilhas_publicadas_na_ordem(self):
         dados = self.client.get(self.url).json()
@@ -60,7 +72,7 @@ class ListaDeTrilhasTest(TestCase):
         self.assertEqual(self.client.post(self.url, {}).status_code, 405)
 
 
-class DetalheDaTrilhaTest(TestCase):
+class DetalheDaTrilhaTest(ComLogin):
     @classmethod
     def setUpTestData(cls):
         cls.trilha = criar_trilha("logica", nome="Lógica")
@@ -77,10 +89,12 @@ class DetalheDaTrilhaTest(TestCase):
         criar_trilha("nao-publicada", ordem=9, status=RASCUNHO)
 
     def setUp(self):
+        super().setUp()
         self.url = reverse("trilhas:trilha-detalhe", args=["logica"])
 
-    def test_visitante_anonimo_consegue_ler(self):
-        self.assertEqual(self.client.get(self.url).status_code, 200)
+    def test_visitante_anonimo_e_recusado(self):
+        self.client.cookies.clear()
+        self.assertEqual(self.client.get(self.url).status_code, 401)
 
     def test_traz_apenas_aulas_publicadas_na_ordem(self):
         dados = self.client.get(self.url).json()
@@ -116,12 +130,13 @@ class DetalheDaTrilhaTest(TestCase):
     # do conteúdo; em memória, a contagem mede só o que a view busca.
     @override_settings(CACHES=CACHE_EM_MEMORIA)
     def test_numero_de_queries_nao_cresce_com_o_conteudo(self):
-        # Trilha, aulas, exercícios, flashcards e questões: uma consulta cada.
-        with self.assertNumQueries(5):
+        # Usuário logado, trilha, aulas, exercícios, flashcards e questões: uma
+        # consulta cada. O usuário entrou quando o catálogo passou a exigir login.
+        with self.assertNumQueries(6):
             self.client.get(self.url)
 
 
-class DetalheDoExercicioTest(TestCase):
+class DetalheDoExercicioTest(ComLogin):
     @classmethod
     def setUpTestData(cls):
         cls.trilha = criar_trilha("logica", nome="Lógica")
@@ -140,7 +155,12 @@ class DetalheDoExercicioTest(TestCase):
     def _url(self, trilha_slug: str, exercicio_slug: str) -> str:
         return reverse("trilhas:exercicio-detalhe", args=[trilha_slug, exercicio_slug])
 
-    def test_visitante_anonimo_consegue_ler(self):
+    def test_visitante_anonimo_e_recusado(self):
+        self.client.cookies.clear()
+        resposta = self.client.get(self._url("logica", "media"))
+        self.assertEqual(resposta.status_code, 401)
+
+    def test_aluno_logado_consegue_ler(self):
         resposta = self.client.get(self._url("logica", "media"))
         self.assertEqual(resposta.status_code, 200)
 
@@ -200,7 +220,7 @@ class DetalheDoExercicioTest(TestCase):
         self.assertEqual(resposta.status_code, 405)
 
 
-class StatusIntermediarioTest(TestCase):
+class StatusIntermediarioTest(ComLogin):
     """Status aprovado ainda não expõe o conteúdo na API."""
 
     def test_trilha_aprovada_nao_aparece_na_listagem(self):
@@ -215,7 +235,7 @@ class StatusIntermediarioTest(TestCase):
         self.assertEqual(self.client.get(url).status_code, 404)
 
 
-class NaoPublicadosNaoVazamTest(TestCase):
+class NaoPublicadosNaoVazamTest(ComLogin):
     """Nenhum estado fora de PUBLICADO aparece, em nenhum nível do catálogo."""
 
     ESTADOS = [

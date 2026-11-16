@@ -11,7 +11,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from apps.auditoria.models import AcaoAuditoria, RegistroDeAuditoria
-from apps.contas.tests.helpers import criar_admin, criar_aluno, criar_autor
+from apps.contas.tests.helpers import autenticar, criar_admin, criar_aluno, criar_autor
 from apps.correcao.models import CasoDeTeste, EspecificacaoDeCodigo
 from apps.trilhas.models import Aula, Exercicio, StatusEditorial, Trilha
 from apps.trilhas.tests.helpers import criar_aula, criar_exercicio, criar_trilha
@@ -29,6 +29,15 @@ EDICAO = {
     "aulas": {"titulo": "Novo título", "conteudo": "# Novo"},
     "exercicios": {"titulo": "Novo título", "enunciado": "Novo enunciado"},
 }
+
+def _leitor() -> APIClient:
+    """Aluno logado: o catálogo exige login desde 2026-11-16."""
+    from uuid import uuid4
+
+    cliente = APIClient()
+    autenticar(cliente, criar_aluno(f"leitor_{uuid4().hex[:8]}"))
+    return cliente
+
 
 
 def cliente(usuario):
@@ -186,7 +195,7 @@ def test_catalogo_publico_nao_ganha_o_status_editorial():
     trilha = criar_trilha("logica")
     criar_aula(trilha, "vars")
 
-    dados = APIClient().get(reverse("trilhas:trilha-detalhe", args=[trilha.slug])).json()
+    dados = _leitor().get(reverse("trilhas:trilha-detalhe", args=[trilha.slug])).json()
 
     assert "status_editorial" not in dados
     assert "status_editorial" not in dados["aulas"][0]

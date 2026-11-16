@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 import { TelaQuestCompleta } from "@/components/trilhas/TelaQuestCompleta";
-import { carregarTrilha } from "@/lib/aulas";
+import { carregarTrilha } from "@/lib/aulasNoServidor";
 
-export const revalidate = 60;
+// O catálogo exige login: renderiza por request, com a sessão do aluno.
 
 export async function generateMetadata({
   params,

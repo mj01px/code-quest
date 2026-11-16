@@ -17,6 +17,8 @@ RAIZ = Path(__file__).resolve().parents[4]
 
 # Toda view que responde sem login. Rota nova que aceite anônimo reprova aqui
 # até entrar na lista, ou seja, até alguém decidir que ela é pública.
+# Só autenticação e documentos legais. O catálogo (trilhas, exercícios,
+# desafios, criaturas) exige login desde 2026-11-16.
 PUBLICAS = {
     "CsrfView",
     "DocumentosLegaisView",
@@ -31,12 +33,6 @@ PUBLICAS = {
     "SairView",
     "ConfirmarExclusaoView",
     "ConfirmarTrocaEmailView",
-    "CatalogoCriaturasView",
-    "TrilhaListView",
-    "DesafiosView",
-    "DesafioDeHojeView",
-    "TrilhaDetailView",
-    "ExercicioDetailView",
 }
 
 

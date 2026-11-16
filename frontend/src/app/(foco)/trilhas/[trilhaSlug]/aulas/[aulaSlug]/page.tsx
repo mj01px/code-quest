@@ -5,11 +5,12 @@ import { LeituraDaLicao } from "@/components/licao/LeituraDaLicao";
 import { GuardaDeEtapa } from "@/components/trilhas/GuardaDeEtapa";
 import { MarcaDeLeitura } from "@/components/licao/MarcaDeLeitura";
 import { ProximoPassoDaLeitura } from "@/components/licao/ProximoPassoDaLeitura";
-import { carregarAula, numeroDoModulo, rotaDaAula } from "@/lib/aulas";
+import { numeroDoModulo, rotaDaAula } from "@/lib/aulas";
+import { carregarAula } from "@/lib/aulasNoServidor";
 import { plural } from "@/lib/derivados";
 import { minutosDeLeitura, secoesDaLicao } from "@/lib/licao";
 
-export const revalidate = 60;
+// O catálogo exige login: renderiza por request, com a sessão do aluno.
 
 export async function generateMetadata({
   params,

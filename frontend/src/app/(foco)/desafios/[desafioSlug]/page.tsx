@@ -5,19 +5,17 @@ import { AreaDeResolucao } from "@/components/exercicio/AreaDeResolucao";
 import { BlocoAprender } from "@/components/exercicio/BlocoAprender";
 import { PetDoExercicio } from "@/components/exercicio/PetDoExercicio";
 import { BarraDeFoco } from "@/components/layout/BarraDeFoco";
-import { ErroApi, buscarExercicio } from "@/lib/api";
+import { ErroApi } from "@/lib/api";
 import { TRILHA_DOS_DESAFIOS } from "@/lib/desafios";
 import { xpDaFase } from "@/lib/derivados";
+import { buscarExercicioDoAluno } from "@/lib/sessaoNoServidor";
 import type { ExercicioDetalhe } from "@/lib/types";
 
-export const revalidate = 60;
-
-// Sem generateStaticParams: o layout raiz renderiza por request (nonce da CSP),
-// e uma lista vazia no build fazia o slug cair no render estático e dar 500.
+// O catálogo exige login: renderiza por request, com a sessão do aluno.
 
 async function carregar(desafioSlug: string): Promise<ExercicioDetalhe> {
   try {
-    return await buscarExercicio(TRILHA_DOS_DESAFIOS, desafioSlug);
+    return await buscarExercicioDoAluno(TRILHA_DOS_DESAFIOS, desafioSlug);
   } catch (erro) {
     if (erro instanceof ErroApi && erro.naoEncontrado) {
       notFound();

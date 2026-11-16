@@ -191,7 +191,8 @@ constante (`hmac.compare_digest`); TOTP com tolerância de uma janela.
 ser autorizada pela permissão granular correspondente do nível de acesso.
 
 **Critério mensurável:** permissão padrão `IsAuthenticated` em toda a API; rotas
-públicas declaram `AllowAny` explicitamente; capacidades protegidas por
+públicas (só autenticação e documentos legais; o catálogo exige login) declaram
+`AllowAny` explicitamente, e a lista é travada em teste (`RotasPublicasTest`); capacidades protegidas por
 `HasPerm(<codename>)` com códigos do catálogo de 21 permissões; papel e
 `is_superuser` não concedem atalho; conta inativa não tem permissão nenhuma.
 Nenhum modelo é registrado no admin do Django.

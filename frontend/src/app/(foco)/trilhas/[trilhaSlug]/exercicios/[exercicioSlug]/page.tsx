@@ -11,53 +11,23 @@ import {
 } from "@/components/exercicio/NavegacaoDoExercicio";
 import { BarraDeFoco } from "@/components/layout/BarraDeFoco";
 import { GuardaDeEtapa } from "@/components/trilhas/GuardaDeEtapa";
-import {
-  ErroApi,
-  buscarExercicio,
-  buscarTrilha,
-  listarTrilhas,
-} from "@/lib/api";
+import { ErroApi } from "@/lib/api";
 import { numeroDoModulo, rotaDaAula, rotaDoExercicio } from "@/lib/aulas";
 import { fasesEmOrdem, xpDaFase } from "@/lib/derivados";
+import {
+  buscarExercicioDoAluno,
+  buscarTrilhaDoAluno,
+} from "@/lib/sessaoNoServidor";
 import type { ExercicioDetalhe } from "@/lib/types";
 
-// Pares (trilha, exercício) fixados no build, como na página da trilha.
-export const dynamicParams = false;
-export const revalidate = 60;
-
-export async function generateStaticParams() {
-  const trilhas = await listarTrilhas();
-  const detalhes = await Promise.all(
-    trilhas.map((trilha) => buscarTrilha(trilha.slug)),
-  );
-
-  // Rede de segurança: o backend já garante slug único por trilha.
-  const vistos = new Set<string>();
-  const caminhos: { trilhaSlug: string; exercicioSlug: string }[] = [];
-
-  for (const trilha of detalhes) {
-    for (const aula of trilha.aulas) {
-      for (const exercicio of aula.exercicios) {
-        const caminho = `${trilha.slug}/${exercicio.slug}`;
-        if (vistos.has(caminho)) continue;
-        vistos.add(caminho);
-        caminhos.push({
-          trilhaSlug: trilha.slug,
-          exercicioSlug: exercicio.slug,
-        });
-      }
-    }
-  }
-
-  return caminhos;
-}
+// O catálogo exige login: renderiza por request, com a sessão do aluno.
 
 async function carregar(
   trilhaSlug: string,
   exercicioSlug: string,
 ): Promise<ExercicioDetalhe> {
   try {
-    return await buscarExercicio(trilhaSlug, exercicioSlug);
+    return await buscarExercicioDoAluno(trilhaSlug, exercicioSlug);
   } catch (erro) {
     if (erro instanceof ErroApi && erro.naoEncontrado) {
       notFound();
@@ -80,7 +50,7 @@ export default async function ExercicioPage({
 }: PageProps<"/trilhas/[trilhaSlug]/exercicios/[exercicioSlug]">) {
   const { trilhaSlug, exercicioSlug } = await params;
   const exercicio = await carregar(trilhaSlug, exercicioSlug);
-  const trilha = await buscarTrilha(exercicio.trilha_slug);
+  const trilha = await buscarTrilhaDoAluno(exercicio.trilha_slug);
 
   const fases = fasesEmOrdem(trilha);
   const indice = fases.findIndex((fase) => fase.slug === exercicio.slug);

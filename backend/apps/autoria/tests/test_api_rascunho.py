@@ -9,7 +9,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 
 from apps.auditoria.models import AcaoAuditoria, RegistroDeAuditoria
-from apps.contas.tests.helpers import criar_admin, criar_aluno, criar_autor
+from apps.contas.tests.helpers import autenticar, criar_admin, criar_aluno, criar_autor
 from apps.trilhas.models import Aula, Exercicio, Flashcard, StatusEditorial, Trilha
 from apps.trilhas.tests.helpers import criar_aula, criar_exercicio, criar_trilha
 
@@ -23,6 +23,15 @@ EDICAO = {
     "aulas": {"titulo": "Novo título", "conteudo": "# Novo"},
     "exercicios": {"titulo": "Novo título", "enunciado": "Novo enunciado"},
 }
+
+def _leitor() -> APIClient:
+    """Aluno logado: o catálogo exige login desde 2026-11-16."""
+    from uuid import uuid4
+
+    cliente = APIClient()
+    autenticar(cliente, criar_aluno(f"leitor_{uuid4().hex[:8]}"))
+    return cliente
+
 
 
 def cliente(usuario):
@@ -309,7 +318,7 @@ def test_aula_publica_mostra_os_flashcards():
     aula = criar_aula(trilha, "vars")
     card = Flashcard.objects.create(aula=aula, **CARD)
 
-    resposta = APIClient().get(reverse("trilhas:trilha-detalhe", args=[trilha.slug]))
+    resposta = _leitor().get(reverse("trilhas:trilha-detalhe", args=[trilha.slug]))
 
     assert resposta.status_code == 200
     assert resposta.data["aulas"][0]["flashcards"] == [
