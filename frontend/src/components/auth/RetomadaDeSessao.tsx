@@ -4,20 +4,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 
 import { retomarSessao } from "@/lib/api";
+import { destinoSeguro } from "@/lib/destino";
 
-const PADRAO = "/trilhas";
 const MARCA = "cq_retomada";
 // Renovou e o servidor recusou de novo em seguida: algo além do token curto
 // (conta suspensa, cookie bloqueado). Vai para o login em vez de repetir.
 const JANELA_DE_LOOP_MS = 15_000;
-
-/** Só caminho interno: nada de outro domínio (//x, /\x) nem a própria /sessao. */
-export function destinoSeguro(bruto: string | null): string {
-  if (!bruto || !bruto.startsWith("/")) return PADRAO;
-  if (bruto.startsWith("//") || bruto.startsWith("/\\")) return PADRAO;
-  if (bruto === "/sessao" || bruto.startsWith("/sessao?")) return PADRAO;
-  return bruto;
-}
 
 function lerMarca(): number {
   try {
@@ -42,8 +34,9 @@ export function RetomadaDeSessao() {
 
   useEffect(() => {
     let ativo = true;
+    const login = `/entrar?volta=${encodeURIComponent(volta)}`;
     if (Date.now() - lerMarca() < JANELA_DE_LOOP_MS) {
-      router.replace("/entrar");
+      router.replace(login);
       return;
     }
     retomarSessao().then((ok) => {
@@ -52,7 +45,7 @@ export function RetomadaDeSessao() {
         gravarMarca();
         router.replace(volta);
       } else {
-        router.replace("/entrar");
+        router.replace(login);
       }
     });
     return () => {

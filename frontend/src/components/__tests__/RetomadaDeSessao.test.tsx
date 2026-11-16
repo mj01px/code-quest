@@ -1,6 +1,7 @@
 import { render, waitFor } from "@testing-library/react";
 
-import { RetomadaDeSessao, destinoSeguro } from "@/components/auth/RetomadaDeSessao";
+import { RetomadaDeSessao } from "@/components/auth/RetomadaDeSessao";
+import { destinoSeguro } from "@/lib/destino";
 
 const replace = jest.fn();
 let volta: string | null = "/trilhas/logica";
@@ -25,6 +26,7 @@ describe("destinoSeguro", () => {
     ["/\\golpe.com", "/trilhas"],
     ["/sessao", "/trilhas"],
     ["/sessao?volta=/x", "/trilhas"],
+    ["/entrar?volta=/trilhas", "/trilhas"],
   ])("%s vira %s", (bruto, esperado) => {
     expect(destinoSeguro(bruto)).toBe(esperado);
   });
@@ -47,13 +49,13 @@ describe("RetomadaDeSessao", () => {
   it("sem sessão para renovar, vai para o login", async () => {
     retomar.mockResolvedValue(false);
     render(<RetomadaDeSessao />);
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/entrar"));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/entrar?volta=%2Ftrilhas%2Flogica"));
   });
 
   it("recusado logo depois de renovar, não entra em loop", async () => {
     sessionStorage.setItem("cq_retomada", String(Date.now()));
     render(<RetomadaDeSessao />);
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/entrar"));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/entrar?volta=%2Ftrilhas%2Flogica"));
     expect(retomar).not.toHaveBeenCalled();
   });
 

@@ -11,7 +11,10 @@ const minhasCriaturas = jest.fn();
 const reenviarVerificacao = jest.fn();
 const aoDetectarPendente = jest.fn();
 
+let mockBusca = "";
+
 jest.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(mockBusca),
   useRouter: () => ({ push: (rota: string) => empurrar(rota) }),
 }));
 
@@ -33,6 +36,7 @@ const SENHA = "trilha-de-python-8";
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockBusca = "";
   reenviarVerificacao.mockResolvedValue(undefined);
 });
 
@@ -53,6 +57,42 @@ function erroPendente() {
 }
 
 describe("FormularioLogin", () => {
+  it("volta para a tela privada que mandou para o login", async () => {
+    mockBusca = "volta=%2Fclas%2Fconvite%2Fabc";
+    const usuario = userEvent.setup();
+    login.mockResolvedValue({ access: "a", refresh: "r", usuario: {} });
+    minhasCriaturas.mockResolvedValue([{ criatura: "x" }]);
+    render(<FormularioLogin aoDetectarPendente={aoDetectarPendente} />);
+
+    await entrar(usuario);
+
+    await waitFor(() => expect(empurrar).toHaveBeenCalledWith("/clas/convite/abc"));
+  });
+
+  it("ignora volta para outro domínio", async () => {
+    mockBusca = "volta=%2F%2Fgolpe.com";
+    const usuario = userEvent.setup();
+    login.mockResolvedValue({ access: "a", refresh: "r", usuario: {} });
+    minhasCriaturas.mockResolvedValue([{ criatura: "x" }]);
+    render(<FormularioLogin aoDetectarPendente={aoDetectarPendente} />);
+
+    await entrar(usuario);
+
+    await waitFor(() => expect(empurrar).toHaveBeenCalledWith("/trilhas"));
+  });
+
+  it("sem criatura, a escolha vem antes do destino", async () => {
+    mockBusca = "volta=%2Franking";
+    const usuario = userEvent.setup();
+    login.mockResolvedValue({ access: "a", refresh: "r", usuario: {} });
+    minhasCriaturas.mockResolvedValue([]);
+    render(<FormularioLogin aoDetectarPendente={aoDetectarPendente} />);
+
+    await entrar(usuario);
+
+    await waitFor(() => expect(empurrar).toHaveBeenCalledWith("/escolher-criatura"));
+  });
+
   it("entra e vai para a escolha de criatura quando não tem nenhuma", async () => {
     const usuario = userEvent.setup();
     login.mockResolvedValue({ access: "a", refresh: "r", usuario: {} });

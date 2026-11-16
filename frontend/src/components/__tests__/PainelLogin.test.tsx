@@ -8,7 +8,10 @@ const login = jest.fn();
 const minhasCriaturas = jest.fn();
 const reenviarVerificacao = jest.fn();
 
+const mockBusca = "";
+
 jest.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(mockBusca),
   useRouter: () => ({ push: jest.fn() }),
 }));
 

@@ -34,7 +34,54 @@ export function cspCom(nonce: string, dev: boolean): string {
   ].join("; ");
 }
 
+/**
+ * Telas que abrem sem login: a home, o que é de conta (entrar, cadastro,
+ * senha, links que chegam por e-mail) e o que é informativo. Todo o resto
+ * exige sessão. Rota nova nasce privada; entrar aqui é decisão explícita.
+ */
+export const ROTAS_PUBLICAS: ReadonlySet<string> = new Set([
+  "/",
+  "/entrar",
+  "/cadastro",
+  "/recuperar-senha",
+  "/redefinir-senha",
+  "/verificar-email",
+  "/confirmar-email",
+  "/confirmar-exclusao",
+  "/sessao",
+  "/termos",
+  "/privacidade",
+  "/suporte",
+  "/faq",
+]);
+
+export function ePublica(caminho: string): boolean {
+  const normalizado = caminho.length > 1 ? caminho.replace(/\/+$/, "") : caminho;
+  return ROTAS_PUBLICAS.has(normalizado);
+}
+
+/**
+ * Sinal de sessão, não prova: os cookies httpOnly não se validam aqui. Basta
+ * para não mostrar telas privadas a visitante; os dados continuam protegidos
+ * pela API, que recusa quem não tem token válido. `cq_sessao` vive o mesmo
+ * tempo que a renovação, então um token curto vencido não expulsa o aluno.
+ */
+function temSessao(request: NextRequest): boolean {
+  return (
+    request.cookies.get("cq_sessao")?.value === "1" ||
+    request.cookies.has("cq_access")
+  );
+}
+
 export function proxy(request: NextRequest) {
+  const { pathname, search } = request.nextUrl;
+  if (!ePublica(pathname) && !temSessao(request)) {
+    const login = request.nextUrl.clone();
+    login.pathname = "/entrar";
+    login.search = `?volta=${encodeURIComponent(pathname + search)}`;
+    return NextResponse.redirect(login);
+  }
+
   const nonce = btoa(crypto.randomUUID());
   const csp = cspCom(nonce, process.env.NODE_ENV === "development");
 

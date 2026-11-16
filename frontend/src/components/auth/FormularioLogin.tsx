@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { PixelButton } from "@/components/ui/PixelButton";
 import { PixelField } from "@/components/ui/PixelField";
 import { ErroApi, type MfaMetodo, api, pedeMfa } from "@/lib/api";
+import { destinoInterno } from "@/lib/destino";
 import { CODIGO_MFA_MAX, EMAIL_MAX, validarEmail } from "@/lib/validacao";
 
 interface Erros {
@@ -32,6 +33,8 @@ const COPY_METODO: Record<MfaMetodo, string> = {
 
 export function FormularioLogin({ aoDetectarPendente }: Props) {
   const router = useRouter();
+  // Quem caiu no login vindo de uma tela privada volta para ela (proxy.ts).
+  const volta = destinoInterno(useSearchParams()?.get("volta"));
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erros, setErros] = useState<Erros>({});
@@ -43,7 +46,8 @@ export function FormularioLogin({ aoDetectarPendente }: Props) {
 
   async function concluirLogin() {
     const criaturas = await api.minhasCriaturas();
-    router.push(criaturas.length > 0 ? "/trilhas" : "/escolher-criatura");
+    // Sem criatura, a escolha vem antes de tudo; o destino fica para depois.
+    router.push(criaturas.length > 0 ? (volta ?? "/trilhas") : "/escolher-criatura");
   }
 
   async function aoEnviar(evento: React.FormEvent<HTMLFormElement>) {
