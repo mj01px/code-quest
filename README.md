@@ -53,7 +53,11 @@ Antes de qualquer aluno ver uma trilha, ela passa por um **fluxo editorial**, en
 - **LGPD:** o titular vê a própria atividade, exporta os dados em JSON e exclui a conta. Os eventos sensíveis ficam numa trilha de auditoria.
 - **Cadastro a partir de 16 anos**, com aceite versionado dos Termos de Uso e da Política de Privacidade.
 
-## Rodando o projeto
+## No ar
+
+A plataforma roda em **[codequest.dev.br](https://codequest.dev.br)**. Fora a página inicial, o FAQ, o suporte e os documentos legais, tudo pede login: crie uma conta em [codequest.dev.br/cadastro](https://codequest.dev.br/cadastro).
+
+## Rodando localmente
 
 ```
 code-quest/
@@ -61,7 +65,20 @@ code-quest/
 └── frontend/    # Next.js App Router     →  http://localhost:3000
 ```
 
-**Backend**
+**Pré-requisitos:** Python 3.14, Node.js 24 (a versão está em `frontend/.nvmrc`) e PostgreSQL (em produção, o 18).
+
+**1. Banco**
+
+Com o Postgres rodando, crie a role e o banco uma vez:
+
+```bash
+psql -U postgres -c "CREATE ROLE codequest WITH LOGIN PASSWORD 'sua-senha' CREATEDB;"
+psql -U postgres -c "CREATE DATABASE codequest OWNER codequest;"
+```
+
+A `CREATEDB` na role deixa o `pytest` criar o banco de testes.
+
+**2. Backend**
 
 ```bash
 cd backend
@@ -69,38 +86,62 @@ cd backend
 python -m venv venv
 source venv/bin/activate            # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+```
 
-cp .env.example .env                # depois preencha os valores (inclui DATABASE_URL)
+Crie o `backend/.env` com o bloco mínimo de **Variáveis de ambiente**, logo abaixo (o `.env.example` traz a lista completa, com placeholders). Depois:
 
+```bash
 python manage.py migrate
-python manage.py seed_trilhas       # carrega as trilhas e publica Lógica de Programação, Python e Banco de Dados
-python manage.py seed_bonus_xp      # cadastra os bônus de XP por trilha
-python manage.py seed_correcao      # cadastra os casos de teste da correção automática
-python manage.py createsuperuser    # o e-mail que ele pede é o login
+python manage.py seed_trilhas       # trilhas e aulas; publica Lógica de Programação, Python e Banco de Dados
+python manage.py seed_licoes        # leituras, quizzes, flashcards e exercícios das lições
+python manage.py seed_desafios      # os desafios do dia
+python manage.py seed_bonus_xp      # bônus de XP de cada criatura na trilha do seu domínio
+python manage.py seed_correcao      # casos de teste da correção automática
 python manage.py runserver 8000     # → http://localhost:8000
 ```
 
-**Frontend**
+Os seeds rodam nessa ordem, porque cada um usa o que os anteriores criaram. Todos são idempotentes.
+
+**3. Frontend**
+
+Em outro terminal:
 
 ```bash
 cd frontend
-npm install && npm run dev          # → http://localhost:3000
+npm install
+npm run dev                         # → http://localhost:3000
 ```
 
-O banco é **PostgreSQL**. Com o Postgres rodando, crie a role e o banco uma vez antes do `migrate` e aponte o `DATABASE_URL` do `.env` para eles:
+O Next repassa `/api/*` para `http://localhost:8000`. Para apontar para outro endereço, defina `API_ORIGIN` num `frontend/.env.local` (veja `frontend/.env.example`).
+
+**4. Primeiro acesso**
+
+Crie uma conta em `http://localhost:3000/cadastro`. Sem SMTP configurado, o e-mail de verificação não é enviado: o Django imprime a mensagem no terminal do `runserver`, e o link de confirmação está nela.
+
+Para ter um admin (painel `/admin`, RBAC, autoria e revisão), use o `criar_admin`, que já cria a conta verificada e no nível Admin. O `createsuperuser` do Django não serve: a conta sai sem e-mail verificado e não consegue entrar.
 
 ```bash
-psql postgres -c "CREATE ROLE codequest WITH LOGIN PASSWORD 'sua-senha' CREATEDB;"
-psql postgres -c "CREATE DATABASE codequest OWNER codequest;"
+# bash
+ADMIN_EMAIL=admin@exemplo.com ADMIN_NICKNAME=mestre ADMIN_PASSWORD='Troque-Esta-Senha-123' python manage.py criar_admin
 ```
 
-A `CREATEDB` na role deixa o `pytest` criar o banco de testes. A documentação interativa da API (Swagger UI) fica em `http://localhost:8000/api/docs/`, gerada a partir do mesmo schema em `/api/schema/`.
+```powershell
+# PowerShell
+$env:ADMIN_EMAIL="admin@exemplo.com"; $env:ADMIN_NICKNAME="mestre"; $env:ADMIN_PASSWORD="Troque-Esta-Senha-123"; python manage.py criar_admin
+```
+
+A senha precisa de maiúscula, minúscula, número e caractere especial, e nicknames reservados (`admin`, `codequest`, `equipe`, `staff`...) são recusados.
+
+**O que precisa de chave**
+
+- **Correção de código:** sem `JUDGE0_URL` e `JUDGE0_TOKEN`, *Executar* e *Enviar* respondem 503 e o resto da plataforma funciona normalmente.
+- **Swagger:** com `DEBUG=True`, a documentação interativa da API fica em `http://localhost:8000/api/docs/` e o schema em `/api/schema/`. Em produção, só com `API_DOCS=True`.
 
 <details>
 <summary><b>Variáveis de ambiente</b></summary>
 <br>
 
-Crie o `.env` dentro de `backend/`:
+Bloco mínimo do `backend/.env`:
 
 ```env
 # Chave de assinatura do Django
@@ -152,7 +193,16 @@ SPRITE_BASE_URL=/criaturas/
 CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 CSRF_TRUSTED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 
-# Throttle nas rotas públicas de catálogo
+# Swagger em /api/docs/ (padrão: o mesmo valor do DEBUG)
+# API_DOCS=True
+
+# Cookies de login só por HTTPS (padrão: o contrário do DEBUG)
+# AUTH_COOKIE_SECURE=False
+
+# Aulas, quiz e exercícios abrem em ordem dentro da trilha
+PROGRESSAO_SEQUENCIAL=True
+
+# Throttle das rotas de catálogo (trilhas, exercícios e desafios)
 THROTTLE_CATALOGO=60/min
 
 # Correção automática (Judge0). Sem URL e token, executar e enviar código
@@ -171,7 +221,8 @@ JUDGE0_LIMITE_POR_USUARIO=10
 MFA_EMAIL_CODIGO_MAX_AGE=600
 MFA_LOGIN_TOKEN_MAX_AGE=300
 
-# Validade do link que confirma a exclusão da conta, em segundos (30min)
+# Validade dos links da troca de e-mail e da confirmação de exclusão (30min)
+TROCA_EMAIL_MAX_AGE=1800
 EXCLUSAO_TOKEN_MAX_AGE=1800
 
 # Dias que um registro de auditoria vive antes do limpar_auditoria
@@ -189,14 +240,17 @@ CLA_CONVITE_VALIDADE_DIAS=7
 <br>
 
 ```bash
-python manage.py seed_trilhas           # carrega as trilhas (idempotente, pode rodar de novo)
-python manage.py seed_bonus_xp          # bônus de XP de cada criatura na trilha do seu domínio (idempotente)
-python manage.py seed_correcao          # especificações e casos de teste da correção (rode depois do seed_trilhas)
+python manage.py seed_trilhas           # trilhas e aulas (idempotente, pode rodar de novo)
+python manage.py seed_licoes            # leituras, quizzes, flashcards e exercícios das lições
+python manage.py seed_desafios          # os desafios do dia, numa trilha própria fora do catálogo
+python manage.py seed_bonus_xp          # bônus de XP de cada criatura na trilha do seu domínio
+python manage.py seed_correcao          # especificações e casos de teste da correção (rode por último)
+python manage.py seed_demo_pfc          # modo demonstração: deixa só os 9 exercícios da demo publicados
+python manage.py criar_admin            # admin verificado no nível Admin (ADMIN_EMAIL, ADMIN_NICKNAME, ADMIN_PASSWORD)
 python manage.py reavaliar_conquistas   # reavalia as conquistas de todos os alunos ativos
 python manage.py fechar_podios          # grava o pódio dos meses que já viraram (--meses N)
 python manage.py limpar_auditoria       # apaga auditoria além de AUDITORIA_RETENCAO_DIAS (--dry-run só conta)
 python manage.py migrate                # aplica mudanças de schema
-python manage.py createsuperuser        # cria o primeiro admin
 python manage.py runserver 8000         # → http://localhost:8000
 ```
 
@@ -221,16 +275,20 @@ backend/
 │   ├── clas/          clãs, membros, cargos e convites
 │   ├── auditoria/     trilha de auditoria append-only
 │   └── core/          autenticação por cookie, permissões, erros e middleware
-└── tests/
+│                      (cada app tem os testes em tests/)
+├── entrypoint.sh  migrate, seeds opcionais, criar_admin e gunicorn no container
 
 frontend/
 ├── src/app/          as telas (trilhas, exercício, criatura, desafios, ranking,
 │                     clãs, conquistas, autoria, admin, configurações, legais)
 ├── src/components/   um diretório por área, com os testes em __tests__/
+├── src/lib/          cliente da API, sessão e helpers
+├── src/proxy.ts      CSP com nonce e o redirecionamento das telas privadas
 └── public/           sprites das criaturas, bandeiras dos clãs e a marca
 
-nginx/                proxy reverso de produção
-docker-compose.yml    sobe tudo junto
+deploy/               nginx.conf de produção e o crontab
+docker-compose.yml    sobe tudo junto em produção
+.env.prod.example     modelo das variáveis de produção
 Docs/                 requisitos, termos de aceite, integração da API e as imagens deste README
 ```
 
@@ -244,9 +302,9 @@ Docs/                 requisitos, termos de aceite, integração da API e as ima
 
 O conteúdo tem três níveis: uma **Trilha** contém **Aulas** (material em Markdown), e cada aula contém **Exercícios** (de código ou teóricos, do iniciante ao avançado). Uma aula pode declarar um pré-requisito, validado para ser outra aula da mesma trilha, então o mapa de fases nunca aponta para fora da própria trilha.
 
-Nada chega ao aluno por acidente. Cada peça passa por quatro estados editoriais (rascunho, em revisão, aprovado e publicado) e a API pública só devolve o que está publicado. O autor submete para revisão, o revisor aprova ou devolve, e a publicação é uma permissão à parte. Autores editam apenas o próprio conteúdo.
+Nada chega ao aluno por acidente. Cada peça passa por quatro estados editoriais (rascunho, em revisão, aprovado e publicado) e o catálogo só devolve o que está publicado. O autor submete para revisão, o revisor aprova ou devolve, e a publicação é uma permissão à parte. Autores editam apenas o próprio conteúdo.
 
-Os serializers usam uma allowlist explícita de campos, então a solução de referência do autor (`solucao_autor`) nunca aparece num payload público: vê-la exige a permissão `trilhas.view_solution`, por uma rota própria.
+Os serializers usam uma allowlist explícita de campos, então a solução de referência do autor (`solucao_autor`) nunca aparece num payload de aluno: vê-la exige a permissão `trilhas.view_solution`, por uma rota própria.
 
 O `seed_trilhas` é idempotente. Seu `update_or_create` tem chave `(trilha, slug)` nos dois níveis, então rodar de novo reaproveita as linhas em vez de duplicá-las.
 
@@ -284,7 +342,7 @@ Três invariantes mantêm a posse honesta: um usuário só pode ter uma dada cri
 
 A **sequência** conta os dias seguidos em que o aluno concluiu alguma coisa. Ela é atualizada na mesma transação da conclusão, com a linha travada, e guarda o recorde. Um dia sem estudo zera a sequência atual na leitura, mas nunca o recorde.
 
-O **desafio do dia** escolhe três fases entre as trilhas publicadas, sorteadas pela data, então todo mundo vê as mesmas três no mesmo dia. Ele não dá XP extra: concluir uma fase do desafio é concluir o exercício normal da trilha.
+Os **desafios do dia** são exercícios de código próprios, guardados numa trilha à parte que não aparece no catálogo nem na ordem de estudo. Um rodízio fixo pela data (fuso de São Paulo) escolhe um por dia, então todo mundo vê o mesmo desafio no mesmo dia, e a tela também mostra os próximos da agenda. Concluir um desafio credita o XP normal da dificuldade dele, sem bônus extra.
 
 </details>
 
@@ -326,7 +384,7 @@ Clãs públicos aparecem na busca e aceitam entrada direta de quem tiver o níve
 <summary><b>Acesso, contas, papéis e a segunda camada</b></summary>
 <br>
 
-O login é por e-mail, e as senhas usam hash **Argon2**. No sucesso, a API emite um par de JWT do SimpleJWT e o guarda em **cookies httponly** (`cq_access`, `cq_refresh`). O JavaScript nunca toca nos tokens. Um sinalizador `cq_sessao` separado, sem credencial nenhuma, só deixa a interface supor que há sessão. O cookie de refresh tem escopo no caminho `/auth/`, então ele viaja só com as rotas que precisam dele.
+O login é por e-mail, e as senhas usam hash **Argon2**. No sucesso, a API emite um par de JWT do SimpleJWT e o guarda em **cookies httponly** (`cq_access`, `cq_refresh`). O JavaScript nunca toca nos tokens. Um sinalizador `cq_sessao` separado, sem credencial nenhuma, só deixa a interface supor que há sessão. O cookie de refresh tem escopo no caminho `/api/v1/auth/`, então ele viaja só com as rotas que precisam dele.
 
 O cadastro é aberto a partir de **16 anos** (a data de nascimento é conferida no servidor) e exige o aceite da versão vigente dos Termos de Uso e da Política de Privacidade. Contas não verificadas ficam inertes até que o link enviado por e-mail seja usado, e tanto o link de verificação quanto o de redefinição de senha são de uso único e com prazo. Logins que falham repetidamente bloqueiam a conta por uma janela configurável.
 
@@ -354,21 +412,28 @@ A exportação devolve em JSON os dados pessoais do titular. A exclusão tem doi
 <summary><b>API</b></summary>
 <br>
 
-Tudo sob `/api/v1/`. Toda falha responde no mesmo envelope `{ error: { code, message, details } }`. Fora as rotas marcadas como públicas, tudo exige sessão, e a permissão do RBAC que a rota pede, quando pede, vem entre parênteses.
+Tudo sob `/api/v1/`. Toda falha responde no mesmo envelope `{ error: { code, message, details } }`. Fora as rotas marcadas como públicas (só as de conta e os documentos legais), tudo exige sessão, catálogo incluído, e a permissão do RBAC que a rota pede, quando pede, vem entre parênteses.
 
 **Conteúdo**
 
 | Rota | O que faz |
 |---|---|
-| `GET /trilhas/` · `/trilhas/{slug}/` | A lista de trilhas publicadas, e uma trilha com seu mapa de fases. **Público** |
-| `GET /exercicios/{trilha_slug}/{exercicio_slug}/` | Um único exercício publicado. **Público** |
+| `GET /trilhas/` · `/trilhas/{slug}/` | A lista de trilhas publicadas, e uma trilha com aulas, quiz, flashcards e exercícios |
+| `GET /exercicios/{trilha_slug}/{exercicio_slug}/` | Um único exercício publicado |
+| `GET /desafios/` · `/desafios/hoje/` | Os desafios publicados, e o desafio de hoje com os próximos da agenda |
 
 **Autoria e revisão**
 
 | Rota | O que faz |
 |---|---|
-| `GET /autoria/rascunhos/` · `/autoria/fila-revisao/` | Trilhas, aulas e exercícios em rascunho (`trilhas.submit_review`) ou em revisão (`trilhas.review`) |
-| `GET /autoria/{tipo}/{pk}/detalhe/` | O conteúdo inteiro em qualquer status, sem a solução (`trilhas.submit_review` ou `trilhas.review`) |
+| `POST /autoria/solicitacoes/` · `GET /autoria/solicitacoes/minha/` | O aluno pede para virar autor, e acompanha o pedido |
+| `GET /admin/solicitacoes/` · `POST /admin/solicitacoes/{id}/aprovar/` · `/rejeitar/` | Os pedidos de autoria pendentes, e a decisão (`usuarios.grant_author`) |
+| `POST /autoria/trilhas/` · `/autoria/aulas/` · `/autoria/exercicios/` | Cria conteúdo novo em rascunho (`trilhas.create`) |
+| `PUT` · `DELETE /autoria/{tipo}/{pk}/` | Edita ou apaga um rascunho próprio (`trilhas.create`) |
+| `POST /autoria/questoes/` · `/autoria/flashcards/`, `PUT` · `DELETE` em `/{id}/` | As questões do quiz e os flashcards de uma aula (`trilhas.create`) |
+| `GET /autoria/rascunhos/` · `/aprovados/` · `/meus-envios/` · `/meus-conteudos/` | O conteúdo do autor por etapa (`trilhas.submit_review`) |
+| `GET /autoria/fila-revisao/` | O que está esperando revisão (`trilhas.review`) |
+| `GET /autoria/{tipo}/{pk}/detalhe/` · `/diff/` | O conteúdo inteiro em qualquer status, sem a solução, e o que mudou desde a versão publicada (`trilhas.submit_review` ou `trilhas.review`) |
 | `POST /autoria/{tipo}/{pk}/submeter/` | Manda o rascunho para revisão (`trilhas.submit_review`) |
 | `POST /autoria/{tipo}/{pk}/aprovar/` · `/devolver/` | Aprova ou devolve ao autor (`trilhas.review`) |
 | `POST /autoria/{tipo}/{pk}/publicar/` | Publica o que foi aprovado (`trilhas.publish`) |
@@ -384,7 +449,11 @@ Tudo sob `/api/v1/`. Toda falha responde no mesmo envelope `{ error: { code, mes
 | `GET /eu/sequencia/` | A sequência atual, o recorde e se o aluno já estudou hoje |
 | `POST /trilhas/{slug}/iniciar/` | Marca a trilha como iniciada: 201 na primeira vez, 200 nas seguintes (`trilhas.enroll`) |
 | `GET /eu/trilhas/` | Os slugs das trilhas que o aluno já iniciou |
-| `GET /eu/exercicios-concluidos/` | As conclusões do aluno, com filtro opcional `?trilha={slug}` |
+| `GET /eu/exercicios-concluidos/` · `/eu/etapas-concluidas/` | As conclusões de exercícios do aluno (com filtro opcional `?trilha={slug}`) e as de etapas, leitura e quiz |
+| `POST /aulas/{trilha_slug}/{aula_slug}/leitura/concluir/` · `/quiz/concluir/` | Marca a leitura da lição, e corrige o quiz no servidor (`exercicios.complete`) |
+| `GET /eu/trilhas/{slug}/passos/` | A ordem de estudo da trilha e o estado de cada passo para o aluno |
+| `GET /eu/trilhas/{slug}/conclusao/` | O resumo da quest concluída: fases, XP, precisão e conquistas |
+| `GET /eu/trilha-atual/` | A trilha da atividade mais recente, para o "continuar de onde parou" |
 | `POST /exercicios/{trilha_slug}/{exercicio_slug}/concluir/` | Conclui o exercício e credita o XP. Com correção automática, recebe o `codigo` e só credita se o envio passar (`exercicios.complete`, e `submissoes.create` quando há código) |
 
 **Correção de código**
@@ -398,7 +467,7 @@ Tudo sob `/api/v1/`. Toda falha responde no mesmo envelope `{ error: { code, mes
 
 | Rota | O que faz |
 |---|---|
-| `GET /criaturas/` | O catálogo de criaturas. **Público** |
+| `GET /criaturas/` | O catálogo de criaturas |
 | `GET` · `POST /eu/criaturas/` | As criaturas do usuário (`criaturas.view`), e a escolha da inicial (`criaturas.acquire`) |
 | `POST /eu/criaturas/adquirir/` | Adquire outra criatura do catálogo (`criaturas.acquire`) |
 | `GET` · `PUT /eu/criaturas/ativa/` | A criatura ativa, e a troca de qual recebe o XP (`criaturas.view`) |
@@ -412,6 +481,7 @@ Tudo sob `/api/v1/`. Toda falha responde no mesmo envelope `{ error: { code, mes
 | `GET /eu/conquistas/` | O catálogo com as conquistas do aluno marcadas, e as ocultas como ??? |
 | `POST /eu/conquistas/vistas/` | Marca os avisos de desbloqueio como vistos |
 | `GET /ranking/mensal/` | O top 10 do mês, a posição de quem pediu e os pódios dele |
+| `GET /perfil/{nickname}/` | O perfil público de um aluno, aberto pelo ranking e pelos clãs |
 
 **Clãs**
 
@@ -464,10 +534,13 @@ Tudo sob `/api/v1/`. Toda falha responde no mesmo envelope `{ error: { code, mes
 | Rota | O que faz |
 |---|---|
 | `GET /admin/dashboard/` | As métricas do painel e os logs recentes (nível com `acesso_admin`) |
+| `GET /admin/logs/` | Os logs da auditoria, paginados, para o painel (`acesso_admin` e `auditoria.view`) |
 | `GET /auditoria/` | A trilha de auditoria, com filtros `acao`, `actor`, `desde` e `ate` (`auditoria.view`) |
 | `GET /auth/admin/permissoes/` | O catálogo de permissões concedíveis |
 | `/auth/admin/niveis/` · `/niveis/{id}/` | Lista, cria, edita e remove níveis de acesso |
 | `GET /auth/admin/usuarios/` · `PATCH /usuarios/{id}/nivel/` | Os usuários, e a atribuição de nível a um deles |
+| `PATCH /auth/admin/usuarios/{id}/situacao/` | Suspende ou reativa uma conta (`usuarios.suspend`) |
+| `DELETE /auth/admin/usuarios/{id}/` | Anonimiza a conta, com o código do app autenticador do próprio admin |
 
 As rotas `/auth/admin/` exigem um nível com `acesso_admin`. Docs interativas em `/api/docs/`, schema em `/api/schema/`.
 
@@ -476,9 +549,12 @@ As rotas `/auth/admin/` exigem um nível com `acesso_admin`. Docs interativas em
 ## Testes
 
 ```bash
-cd backend && pytest                 # API, regras de negócio e segurança
+cd backend && pytest                 # API, regras de negócio e segurança (usa o DATABASE_URL do .env)
 cd frontend && npm test              # Jest + React Testing Library
+cd frontend && npm run lint          # ESLint
 ```
+
+A CI do GitHub Actions roda as duas suítes, o lint e o build do frontend a cada push e pull request na `main`.
 
 A suíte do backend cobre a API de conteúdo, o fluxo editorial, a tabela de RBAC, os fluxos de autenticação, o 2FA, a troca de e-mail, os direitos da LGPD, a auditoria, o crédito de XP, a correção de código, as conquistas, o ranking e os clãs, incluindo o que **não** pode funcionar: um link de redefinição usado duas vezes, conteúdo não publicado vazando pela API, uma solução de referência chegando a um payload público, o login bloqueando após tentativas demais, um crédito de XP apagando o que outro pedido gravou no meio do caminho e um aluno estourando a cota do Judge0.
 
@@ -486,12 +562,12 @@ Nos testes, o Judge0 dá lugar a um executor Python local, então a suíte não 
 
 ## Deploy
 
-Feito para rodar numa **VPS** (DigitalOcean) com **Docker Compose**: quatro containers no mesmo servidor, não em plataformas serverless. O Nginx recebe tudo e repassa ao Next, que serve as telas e encaminha `/api/*` ao Django.
+Em produção em **[codequest.dev.br](https://codequest.dev.br)**, numa **VPS** (DigitalOcean) com **Docker Compose**: quatro containers no mesmo servidor, não em plataformas serverless. A Cloudflare fica na frente (DNS, HTTPS e WAF), o Nginx recebe tudo dela e repassa ao Next, que serve as telas e encaminha `/api/*` ao Django.
 
 ```
 DigitalOcean Droplet (docker-compose.yml)
 ├── nginx       # porta 80 (443 com o certificado), config em deploy/nginx.conf
-├── frontend    # Next.js; faz o build na subida, porque o prerender lê a API
+├── frontend    # Next.js; roda o `next build` na subida do container
 ├── backend     # Django + gunicorn; migrate, seeds e admin inicial no entrypoint
 └── db          # PostgreSQL 18, publicado só em 127.0.0.1:5432
 ```
@@ -505,21 +581,22 @@ DigitalOcean Droplet (docker-compose.yml)
 4. `crontab deploy/crontab` (limpeza da auditoria e pódio do ranking).
 
 Atualizar: `git pull && docker compose --env-file .env.prod up -d --build`.
-Trilha nova publicada pelo painel só vira página depois de reiniciar o
-`frontend` (`docker compose restart frontend`), que refaz o build.
+As páginas das trilhas são renderizadas a cada acesso, então conteúdo publicado
+pelo painel aparece na hora, sem reiniciar nada.
 
-O banco não fica exposto: para inspecioná-lo (DBeaver, pgAdmin), túnel SSH até
-a VPS e conexão em `localhost:5432`.
+O banco não fica exposto: para inspecioná-lo (DBeaver, pgAdmin), abra um túnel
+SSH até a VPS (`ssh -N -L 5433:localhost:5432 <servidor>`) e conecte em
+`localhost:5433`. A porta local 5433 evita conflito com um Postgres da máquina.
 
 ## Stack
 
 | Camada | Tecnologias |
 |---|---|
 | **Backend** | Python 3.14, Django 6.0, Django REST Framework 3.18, SimpleJWT, Argon2, pytest |
-| **Frontend** | Next.js 16 (App Router), React 19, TypeScript 5, Tailwind CSS v4, Jest + React Testing Library |
-| **Banco** | PostgreSQL |
-| **Correção de código** | Judge0 CE |
-| **Infra** | DigitalOcean, Nginx, Docker Compose |
+| **Frontend** | Node.js 24, Next.js 16 (App Router), React 19, TypeScript 5, Tailwind CSS v4, Jest + React Testing Library |
+| **Banco** | PostgreSQL 18 |
+| **Correção de código** | Judge0 CE (RapidAPI) |
+| **Infra** | DigitalOcean, Cloudflare, Nginx, Docker Compose, gunicorn, GitHub Actions |
 | **Docs da API** | drf-spectacular, Swagger UI |
 
 ## Quem fez
