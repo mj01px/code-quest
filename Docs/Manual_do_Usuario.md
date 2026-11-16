@@ -197,16 +197,15 @@ recusado, a tela mostra o motivo e você pode pedir de novo.
 ### 4.2 A tela de Autoria
 
 Em **AUTORIA** ficam os botões de criação (+ NOVA TRILHA, + NOVA AULA,
-+ NOVO EXERCÍCIO) e a criação rápida, que monta várias peças de uma vez. As listas
++ NOVO EXERCÍCIO) e a criação rápida, que monta várias peças de uma vez. As abas
 da tela acompanham o caminho de cada conteúdo:
 
-| Lista | O que mostra |
+| Aba | O que mostra |
 |---|---|
-| Rascunhos | O que você ainda está escrevendo |
-| Meus envios | O que está em análise, o que foi devolvido e o que foi excluído |
-| Devolvidos para Correção | Conteúdos que o revisor devolveu, com o motivo |
-| Aguardando Revisão | A fila de revisão (só quem revisa, em geral o administrador) |
-| Aprovados | O que foi aprovado e espera você publicar |
+| CRIAÇÃO E PUBLICAÇÃO | Os botões de criação, os **Rascunhos** que você ainda está escrevendo e os itens **Prontos para publicar**, já aprovados pela revisão e à espera da publicação pela administração |
+| MEUS CONTEÚDOS | Tudo o que você criou, em qualquer estado (seção 4.6) |
+| MEUS ENVIOS | O que está **Aguardando Revisão**, o que foi **Devolvido para Correção** (com o motivo) e o que foi excluído |
+| REVISÃO DE CONTEÚDO | A fila de revisão (só para quem revisa, em geral o administrador) |
 
 ### 4.3 Criar uma aula com o editor de seções
 
@@ -246,13 +245,35 @@ Todo conteúdo segue o mesmo caminho:
 `Rascunho` → `Em revisão` → `Aprovado` → `Publicado`
 
 1. Enquanto é rascunho, você edita e exclui à vontade.
-2. Quando estiver pronto, envie para revisão.
+2. Quando estiver pronto, você envia para revisão.
 3. O revisor aprova ou devolve com um parecer. Devolvido volta a ser rascunho, e o
-   parecer aparece na tela para você corrigir.
-4. Depois de aprovado, você mesmo publica.
+   parecer aparece na tela para você corrigir. Quem criou o conteúdo nunca o
+   aprova, nem quando é administrador.
+4. O conteúdo aprovado aparece em **Prontos para publicar**. **Apenas o
+   administrador publica.** Para o autor essa lista é só de acompanhamento: a
+   tela avisa que o conteúdo aprovado será publicado pela administração.
 
 Conteúdo já publicado só pode ser excluído informando o motivo, e a exclusão fica
 registrada no histórico.
+
+### 4.6 Meus Conteúdos e edição do que já foi aprovado
+
+A aba **MEUS CONTEÚDOS** lista tudo o que você criou (trilhas, aulas e exercícios),
+com o estado de cada item: RASCUNHO, EM REVISÃO, APROVADO ou PUBLICADO. Ela mostra
+só os seus conteúdos: nenhum autor vê o conteúdo de outro nessa lista, nem o
+administrador.
+
+Pelo lápis você abre o item no editor. Atenção ao editar o que já foi aprovado ou
+publicado:
+
+- **A edição volta para revisão.** Ao salvar uma mudança, o item passa a EM REVISÃO
+  e sai do catálogo dos alunos até ser aprovado e publicado de novo. O texto novo
+  nunca vai ao ar sem revisão.
+- **O revisor vê o que mudou.** A versão aprovada anterior fica guardada, e a tela
+  de revisão mostra a diferença: em verde o que entrou e em vermelho riscado o que
+  saiu, inclusive nas aulas e exercícios editados dentro da trilha.
+- **Salvar sem mudar nada não tira nada do ar.**
+- **Item em revisão não é editado.** Espere a decisão do revisor.
 
 ---
 
@@ -276,9 +297,15 @@ tela dele.
 
 ### 5.3 Revisão de conteúdo
 
-Em **AUTORIA**, a fila **Aguardando Revisão** traz o que os autores enviaram. Leia o
+Em **AUTORIA**, a aba **REVISÃO DE CONTEÚDO** traz o que os autores enviaram. Leia o
 conteúdo, depois aprove ou devolva com um parecer claro. Ao devolver, o parecer é
-obrigatório: é o que o autor vai ler.
+obrigatório: é o que o autor vai ler. Se o item é a edição de algo já aprovado, a
+revisão mostra o que mudou, em verde o que entrou e em vermelho riscado o que saiu.
+Você não aprova o que você mesmo criou.
+
+Depois de aprovado, o item aparece em **Prontos para publicar**, na aba
+**CRIAÇÃO E PUBLICAÇÃO**. Só o administrador tem o botão **Publicar**: é ele quem
+coloca o conteúdo no ar para os alunos.
 
 ### 5.4 Níveis de acesso
 

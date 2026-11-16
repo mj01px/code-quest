@@ -79,7 +79,7 @@ Consulta rápida para a apresentação: a banca pergunta, você abre o arquivo n
 | Onde está a documentação da API? | `config/urls.py:L26` (condição), `config/urls.py:L28` (schema) e `config/urls.py:L30` (Swagger) | Em `/api/docs/`, mas só quando `API_DOCS=True` (em produção fica desligado). |
 | Qual é o padrão de erro da API? | `apps/core/exceptions.py:L52` e `config/settings.py:L184` (`EXCEPTION_HANDLER`) | Toda exceção sai no mesmo formato, com código e mensagem (RNF28). |
 | Como o banco evolui? | `apps/*/migrations/` (65 arquivos) e `entrypoint.sh:L5` | Migração versionada rodada a cada subida do contêiner (RNF21). |
-| Qual é o tipo de teste e a cobertura de tipos? | `pyproject.toml:L15` (pytest), `pyproject.toml:L43` (mypy strict, cobre 8 de 11 apps), `jest.config.ts:L7` e `tsconfig.json:L7` (strict) | Pytest (1.413 testes) e Jest (638 testes em 87 suítes; total de 2.051); o mypy estrito ainda não cobre `contas`, `progressao` e `clas` (RNF26 parcial). Os caminhos de `pyproject.toml` são do backend; `jest.config.ts` e `tsconfig.json`, do frontend. |
+| Qual é o tipo de teste e a cobertura de tipos? | `pyproject.toml:L15` (pytest), `pyproject.toml:L43` (mypy strict, cobre 8 de 11 apps), `jest.config.ts:L7` e `tsconfig.json:L7` (strict) | Pytest (1.413 testes) e Jest (638 testes em 88 suítes; total de 2.051); o mypy estrito ainda não cobre `contas`, `progressao` e `clas` (RNF26 parcial). Os caminhos de `pyproject.toml` são do backend; `jest.config.ts` e `tsconfig.json`, do frontend. |
 | Como o frontend fala com a API? | `next.config.ts:L19` (rewrite) e `src/lib/api.ts:L254` (renovação do token) | Mesma origem: o Next encaminha `/api/*` ao Django; a renovação do token é automática e só uma por vez. |
 | O banco fica exposto na internet? | `docker-compose.yml:L18` e `apps/core/tests/test_seguranca.py:L95` | Não. O PostgreSQL só publica a porta em `127.0.0.1` da VPS; o teste reprova o projeto se qualquer serviço além do Nginx publicar porta para fora. |
 | O que garante que a configuração de produção é segura? | `.env.prod.example` (raiz) e `apps/core/tests/test_seguranca.py:L104` | O teste exige `DEBUG=False`, cookies só por HTTPS, Swagger desligado, `ALLOWED_HOSTS` sem curinga e nenhum segredo preenchido no arquivo de exemplo. |
@@ -102,7 +102,7 @@ Consulta rápida para a apresentação: a banca pergunta, você abre o arquivo n
 | Taxas gerais | anônimo 60/min, usuário 600/min, login 20/min, verificação 5/min, conclusão 30/min, catálogo 60/min | `config/settings.py:L189` |
 | Gunicorn em produção | 2 workers x 4 threads (8 requisições simultâneas) | `entrypoint.sh:L37`, `entrypoint.sh:L39`, `entrypoint.sh:L40`, `.env.prod.example:L44`, `.env.prod.example:L45` |
 | Apps do backend | 11 (`contas`, `trilhas`, `autoria`, `progressao`, `gamificacao`, `conquistas`, `ranking`, `clas`, `correcao`, `auditoria`, `core`) | `config/urls.py:L6` |
-| Testes automatizados | 2.051 no total (1.413 no backend e 638 no frontend em 87 suítes) | `pyproject.toml:L15`, `jest.config.ts:L7` |
+| Testes automatizados | 2.051 no total (1.413 no backend e 638 no frontend em 88 suítes) | `pyproject.toml:L15`, `jest.config.ts:L7` |
 | Migrações | 65 | `apps/*/migrations/` |
 | Requisitos | 37 RFs e 33 RNFs (32 implementados, RNF26 parcial) | `Docs/Rastreabilidade_Requisitos.md` |
 
