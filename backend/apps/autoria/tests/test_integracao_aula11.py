@@ -93,7 +93,7 @@ def test_listar_trilhas_deve_retornar_200():
     publicada = criar_trilha(f"pub-{_uid()}")
     rascunho = criar_trilha(f"rasc-{_uid()}", status=StatusEditorial.RASCUNHO)
 
-    resposta = _cliente().get(reverse("trilhas:trilha-lista"))
+    resposta = _cliente(criar_aluno(f"leitor_{_uid()}")).get(reverse("trilhas:trilha-lista"))
 
     assert resposta.status_code == 200
     itens = {t["slug"]: t for t in resposta.json()}
@@ -128,7 +128,7 @@ def test_buscar_trilha_inexistente_deve_retornar_404():
     autor = criar_autor(f"autor_{_uid()}")
 
     editorial = _cliente(autor).get(_detalhe("trilhas", 999999))
-    publica = _cliente().get(
+    publica = _cliente(criar_aluno(f"leitor_{_uid()}")).get(
         reverse("trilhas:trilha-detalhe", kwargs={"slug": f"nao-existe-{_uid()}"})
     )
 

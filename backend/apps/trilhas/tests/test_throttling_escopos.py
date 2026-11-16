@@ -1,9 +1,9 @@
 """Os baldes de limite por escopo não se contaminam entre apps.
 
-O catálogo de trilhas é público e navegável: uma visita gera dezenas de
-requisições. Se essas requisições gastassem o balde `anon`, que é o mesmo das
-outras rotas públicas do projeto, navegar nas trilhas derrubaria o catálogo de
-criaturas com 429. É por isso que as views de trilhas declaram
+O catálogo de trilhas (com login desde 2026-11-16) é navegável: uma visita gera
+dezenas de requisições. Se elas gastassem o balde `user`, o mesmo das outras
+rotas autenticadas, navegar nas trilhas derrubaria o catálogo de criaturas com
+429. É por isso que as views de trilhas declaram
 `throttle_classes` próprio em vez de somar o escopo às classes padrão.
 """
 
@@ -19,7 +19,7 @@ from rest_framework.throttling import (
     SimpleRateThrottle,
 )
 
-from apps.contas.tests.helpers import criar_autor
+from apps.contas.tests.helpers import autenticar, criar_aluno, criar_autor
 from apps.trilhas.tests.helpers import (
     RASCUNHO,
     criar_aula,
@@ -31,7 +31,7 @@ from apps.trilhas.views import ExercicioDetailView, TrilhaDetailView, TrilhaList
 
 # O DRF lê a taxa no momento em que instancia o throttle, uma vez por
 # requisição, então trocar o dicionário alcança as duas classes.
-TAXAS_DE_TESTE = {"catalogo": "5/min", "anon": "3/min"}
+TAXAS_DE_TESTE = {"catalogo": "5/min", "user": "3/min"}
 
 
 class BaldesSeparadosTest(TestCase):
@@ -46,8 +46,9 @@ class BaldesSeparadosTest(TestCase):
         patch.start()
         self.addCleanup(patch.stop)
         cache.clear()
+        autenticar(self.client, criar_aluno("leitor"))
 
-    def test_o_catalogo_de_trilhas_nao_gasta_o_balde_anon(self):
+    def test_o_catalogo_de_trilhas_nao_gasta_o_balde_do_usuario(self):
         trilhas = reverse("trilhas:trilha-lista")
         for _ in range(4):
             self.assertEqual(self.client.get(trilhas).status_code, 200)
@@ -55,13 +56,13 @@ class BaldesSeparadosTest(TestCase):
         criaturas = reverse("gamificacao:catalogo")
         self.assertEqual(self.client.get(criaturas).status_code, 200)
 
-    def test_as_rotas_do_mauro_seguem_limitadas_pelo_balde_anon(self):
+    def test_as_rotas_do_mauro_seguem_limitadas_pelo_balde_do_usuario(self):
         criaturas = reverse("gamificacao:catalogo")
         for _ in range(3):
             self.assertEqual(self.client.get(criaturas).status_code, 200)
         self.assertEqual(self.client.get(criaturas).status_code, 429)
 
-    def test_estourar_o_balde_anon_nao_fecha_o_catalogo_de_trilhas(self):
+    def test_estourar_o_balde_do_usuario_nao_fecha_o_catalogo_de_trilhas(self):
         criaturas = reverse("gamificacao:catalogo")
         for _ in range(4):
             self.client.get(criaturas)
@@ -108,6 +109,7 @@ class BaldeDaAutoriaTest(TestCase):
 
         self.cliente = APIClient()
         self.cliente.force_authenticate(user=criar_autor())
+        autenticar(self.client, criar_aluno("leitor"))
         self.url = reverse(
             "autoria:solucao-autor",
             kwargs={"trilha_slug": "logica", "exercicio_slug": "media"},

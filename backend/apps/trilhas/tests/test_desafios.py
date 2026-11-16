@@ -8,7 +8,7 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from apps.contas.tests.helpers import criar_aluno
+from apps.contas.tests.helpers import autenticar, criar_aluno
 from apps.correcao.models import EspecificacaoDeCodigo
 from apps.progressao.models import EventoXP, Origem
 from apps.progressao.sequencia import exigir_liberado
@@ -70,6 +70,17 @@ class SeedDesafiosTest(TestCase):
                 )
 
 
+
+def _cliente_logado() -> APIClient:
+    """O catálogo de desafios exige login desde 2026-11-16."""
+    from apps.contas.models import User
+
+    aluno = User.objects.filter(nickname="leitor_desafios").first()
+    cliente = APIClient()
+    autenticar(cliente, aluno or criar_aluno("leitor_desafios"))
+    return cliente
+
+
 class DesafioDoDiaTest(TestCase):
     def setUp(self) -> None:
         _semear()
@@ -84,13 +95,13 @@ class DesafioDoDiaTest(TestCase):
     def test_sem_desafios_devolve_nulo(self) -> None:
         Exercicio.objects.filter(trilha__slug=TRILHA_DOS_DESAFIOS).delete()
 
-        resposta = APIClient().get(reverse("trilhas:desafio-de-hoje"))
+        resposta = _cliente_logado().get(reverse("trilhas:desafio-de-hoje"))
 
         self.assertEqual(resposta.status_code, 200)
         self.assertIsNone(resposta.data["desafio"])
 
     def test_hoje_traz_os_proximos_quatro_dias_do_rodizio(self) -> None:
-        resposta = APIClient().get(reverse("trilhas:desafio-de-hoje"))
+        resposta = _cliente_logado().get(reverse("trilhas:desafio-de-hoje"))
 
         proximos = resposta.data["proximos"]
         hoje = date.fromisoformat(resposta.data["dia"])
@@ -105,8 +116,8 @@ class DesafioDoDiaTest(TestCase):
         self.assertEqual(proximos[0]["slug"], amanha.slug if amanha else None)
 
     def test_endpoint_de_hoje_e_lista(self) -> None:
-        hoje = APIClient().get(reverse("trilhas:desafio-de-hoje"))
-        lista = APIClient().get(reverse("trilhas:desafios"))
+        hoje = _cliente_logado().get(reverse("trilhas:desafio-de-hoje"))
+        lista = _cliente_logado().get(reverse("trilhas:desafios"))
 
         self.assertEqual(hoje.status_code, 200)
         self.assertEqual(hoje.data["desafio"]["trilha_slug"], TRILHA_DOS_DESAFIOS)
@@ -122,7 +133,7 @@ class DesacoplamentoTest(TestCase):
         )
 
     def test_fica_fora_do_catalogo(self) -> None:
-        resposta = APIClient().get(reverse("trilhas:trilha-lista"))
+        resposta = _cliente_logado().get(reverse("trilhas:trilha-lista"))
 
         slugs = [t["slug"] for t in resposta.data]
         self.assertNotIn(TRILHA_DOS_DESAFIOS, slugs)

@@ -40,9 +40,11 @@ Algumas decisões merecem registro:
 
 ## API
 
-A leitura é pública, com `AllowAny` explícito, já que o projeto exige
-autenticação por padrão. As três rotas são somente-leitura, e qualquer outro
-método recebe 405.
+A leitura exige login (`IsAuthenticated` explícito) desde 2026-11-16. Antes
+ela era pública (`AllowAny`), o que expunha o conteúdo, inclusive as respostas
+do quiz, a quem não tinha conta. As páginas do Next buscam essas rotas por
+request, com o cookie de acesso do próprio aluno (`lib/sessaoNoServidor.ts`).
+As rotas são somente-leitura, e qualquer outro método recebe 405.
 
 | Método | Rota | Resposta |
 |---|---|---|
@@ -88,11 +90,11 @@ Ainda não há dono no conteúdo.
 > no `save()`, e a `UniqueConstraint` recai sobre `(trilha, slug)`. Repetir um
 > slug na mesma trilha levanta `IntegrityError`, e há um teste que prova isso.
 
-## Segurança dos endpoints públicos
+## Segurança dos endpoints do catálogo
 
-Como o catálogo é `AllowAny`, o abuso possível é de volume, não de vazamento.
+Com o catálogo exigindo login, o abuso possível é de volume, por conta.
 
-- **Limite por IP.** As três views declaram `throttle_scope = "catalogo"`, e
+- **Limite por conta.** As views declaram `throttle_scope = "catalogo"`, e
   o `ScopedRateThrottle` do DRF aplica `THROTTLE_CATALOGO` (por padrão,
   `60/min`). O escopo é opt-in: view que não o declara segue sem limite, e o
   comportamento dos outros módulos não mudou.

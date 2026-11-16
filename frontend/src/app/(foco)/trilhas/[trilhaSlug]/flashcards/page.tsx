@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { SessaoFlashcards, type CardDaSessao } from "@/components/licao/SessaoFlashcards";
-import { carregarTrilha } from "@/lib/aulas";
+import { carregarTrilha } from "@/lib/aulasNoServidor";
 
-export const revalidate = 60;
+// O catálogo exige login: renderiza por request, com a sessão do aluno.
 
 export async function generateMetadata({
   params,

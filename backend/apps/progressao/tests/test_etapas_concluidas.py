@@ -132,7 +132,7 @@ class EtapasConcluidasTest(TestCase):
     def test_catalogo_conta_leituras_e_quizzes(self):
         criar_aula(self.trilha, "sem-quiz", ordem=2)
 
-        resposta = APIClient().get(reverse("trilhas:trilha-lista"))
+        resposta = self.client.get(reverse("trilhas:trilha-lista"))
 
         logica = next(t for t in resposta.data if t["slug"] == "logica")
         self.assertEqual(logica["total_etapas"], 3)

@@ -3,8 +3,8 @@ import Link from "next/link";
 
 import { PainelDeDesafios } from "@/components/desafios/PainelDeDesafios";
 import { PortaDeAcesso } from "@/components/layout/PortaDeAcesso";
-import { buscarDesafioDeHoje } from "@/lib/api";
 import { dataPorExtenso, desafioDaApi } from "@/lib/desafios";
+import { buscarDesafioDeHojeDoAluno } from "@/lib/sessaoNoServidor";
 import { TIPO } from "@/lib/tipografia";
 
 export const metadata: Metadata = {
@@ -12,11 +12,11 @@ export const metadata: Metadata = {
   description: "Um desafio de código por dia, fora das trilhas.",
 };
 
-export const revalidate = 60;
+// O catálogo exige login: renderiza por request, com a sessão do aluno.
 
 export default async function DesafiosPage() {
   const hoje = new Date();
-  const { desafio, proximos } = await buscarDesafioDeHoje();
+  const { desafio, proximos } = await buscarDesafioDeHojeDoAluno();
 
   if (!desafio) {
     return (

@@ -1,4 +1,4 @@
-"""Limite de requisições dos endpoints públicos do catálogo."""
+"""Limite de requisições do catálogo (exige login desde 2026-11-16)."""
 
 from unittest import mock
 
@@ -7,6 +7,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework.throttling import SimpleRateThrottle
 
+from apps.contas.tests.helpers import autenticar, criar_aluno
 from apps.trilhas.throttling import _redes_isentas
 from apps.trilhas.views import ExercicioDetailView, TrilhaDetailView, TrilhaListView
 
@@ -17,7 +18,9 @@ from .helpers import criar_aula, criar_exercicio, criar_trilha
 TAXA_DE_TESTE = {"catalogo": "3/min"}
 
 
-class LimitePorIpTest(TestCase):
+class LimitePorAlunoTest(TestCase):
+    """Com o catálogo exigindo login, o balde é de cada aluno, não de cada IP."""
+
     @classmethod
     def setUpTestData(cls):
         cls.trilha = criar_trilha("logica")
@@ -29,6 +32,7 @@ class LimitePorIpTest(TestCase):
         patch.start()
         self.addCleanup(patch.stop)
         cache.clear()
+        autenticar(self.client, criar_aluno("leitor"))
 
     def test_libera_ate_o_limite_e_recusa_a_seguinte(self):
         url = reverse("trilhas:trilha-lista")
@@ -67,13 +71,13 @@ class LimitePorIpTest(TestCase):
         )
         self.assertEqual(resposta.status_code, 429)
 
-    def test_alunos_atras_do_proxy_nao_dividem_o_balde(self):
-        # Com NUM_PROXIES=0 todo pedido via Next tinha o mesmo REMOTE_ADDR.
+    def test_alunos_diferentes_no_mesmo_ip_nao_dividem_o_balde(self):
+        # Escola atrás de um IP só: o limite é de cada conta, não da rede.
         url = reverse("trilhas:trilha-lista")
         for _ in range(3):
-            self.client.get(url, headers={"x-forwarded-for": "203.0.113.7"})
-        resposta = self.client.get(url, headers={"x-forwarded-for": "203.0.113.8"})
-        self.assertEqual(resposta.status_code, 200)
+            self.client.get(url)
+        autenticar(self.client, criar_aluno("colega"))
+        self.assertEqual(self.client.get(url).status_code, 200)
 
     def test_a_resposta_recusada_diz_quando_tentar_de_novo(self):
         url = reverse("trilhas:trilha-lista")
@@ -106,6 +110,7 @@ class RedeIsentaTest(TestCase):
         _redes_isentas.cache_clear()
         self.addCleanup(_redes_isentas.cache_clear)
         self.url = reverse("trilhas:trilha-lista")
+        autenticar(self.client, criar_aluno("leitor"))
 
     @override_settings(THROTTLE_REDES_ISENTAS=["172.28.0.0/24"])
     def test_pedido_da_rede_interna_passa_do_limite(self):

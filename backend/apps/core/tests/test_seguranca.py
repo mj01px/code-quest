@@ -8,7 +8,7 @@ from typing import Any
 
 from django.contrib.auth.models import AnonymousUser
 from django.test import SimpleTestCase, TestCase
-from django.urls import get_resolver
+from django.urls import get_resolver, resolve
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
 from rest_framework.views import APIView
@@ -17,6 +17,8 @@ RAIZ = Path(__file__).resolve().parents[4]
 
 # Toda view que responde sem login. Rota nova que aceite anônimo reprova aqui
 # até entrar na lista, ou seja, até alguém decidir que ela é pública.
+# Só autenticação e documentos legais. O catálogo (trilhas, exercícios,
+# desafios, criaturas) exige login desde 2026-11-16.
 PUBLICAS = {
     "CsrfView",
     "DocumentosLegaisView",
@@ -31,12 +33,6 @@ PUBLICAS = {
     "SairView",
     "ConfirmarExclusaoView",
     "ConfirmarTrocaEmailView",
-    "CatalogoCriaturasView",
-    "TrilhaListView",
-    "DesafiosView",
-    "DesafioDeHojeView",
-    "TrilhaDetailView",
-    "ExercicioDetailView",
 }
 
 
@@ -91,6 +87,22 @@ class InfraDeDeployTest(SimpleTestCase):
         if not arquivo.exists():  # imagem Docker: só `backend/` é copiado
             self.skipTest(f"{caminho} fora do alcance")
         return arquivo.read_text(encoding="utf-8")
+
+    def test_sondas_de_saude_usam_rota_publica(self) -> None:
+        # 2026-11-16: o catálogo passou a exigir login e o healthcheck batia em
+        # /trilhas/. Com 401 o backend ficaria "unhealthy" e o compose nunca
+        # subiria frontend e nginx. Sonda de saúde só em rota pública.
+        sondas = {
+            "backend/Dockerfile": r"urlopen\('http://127\.0\.0\.1:8000(/api/[^']*)'",
+            ".github/workflows/ci.yml": r"curl -sf http://127\.0\.0\.1:8000(/api/\S*)",
+        }
+        for arquivo, padrao in sondas.items():
+            with self.subTest(arquivo=arquivo):
+                caminhos = re.findall(padrao, self._ler(arquivo))
+                self.assertTrue(caminhos, f"sonda não encontrada em {arquivo}")
+                for caminho in caminhos:
+                    view = resolve(caminho).func.view_class  # type: ignore[attr-defined]
+                    self.assertIn(view.__name__, PUBLICAS, caminho)
 
     def test_so_o_nginx_publica_porta_para_a_internet(self) -> None:
         compose = self._ler("docker-compose.yml")

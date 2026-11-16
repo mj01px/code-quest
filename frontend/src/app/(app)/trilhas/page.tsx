@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { PortaDeAcesso } from "@/components/layout/PortaDeAcesso";
 import { PainelDeTrilhas } from "@/components/trilhas/PainelDeTrilhas";
-import { buscarTrilha, listarTrilhas } from "@/lib/api";
+import { buscarTrilhaDoAluno, listarTrilhasDoAluno } from "@/lib/sessaoNoServidor";
 
 export const metadata: Metadata = {
   title: "Trilhas",
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default async function TrilhasPage() {
-  const trilhas = await listarTrilhas();
+  const trilhas = await listarTrilhasDoAluno();
 
   if (trilhas.length === 0) {
     return (
@@ -34,7 +34,7 @@ export default async function TrilhasPage() {
     await Promise.all(
       trilhas.map(
         async (trilha) =>
-          [trilha.slug, await buscarTrilha(trilha.slug)] as const,
+          [trilha.slug, await buscarTrilhaDoAluno(trilha.slug)] as const,
       ),
     ),
   );

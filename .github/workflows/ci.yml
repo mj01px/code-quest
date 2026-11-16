@@ -159,13 +159,14 @@ jobs:
         working-directory: backend
         env:
           ALLOWED_HOSTS: localhost,127.0.0.1
-          # O build consulta o catálogo em rajada; o limite anônimo de 60/min barraria.
+          # O catálogo exige login e as páginas buscam por request, então o build
+          # não lê a API; ela sobe só para o build achar o backend no ar.
           THROTTLE_CATALOGO: 10000/min
         run: |
           python manage.py migrate --noinput
           python manage.py seed_trilhas
           nohup python manage.py runserver 127.0.0.1:8000 --insecure > ../api.log 2>&1 &
-          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8000/api/v1/trilhas/ > /dev/null && exit 0; sleep 1; done
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8000/api/v1/auth/documentos/ > /dev/null && exit 0; sleep 1; done
           cat ../api.log; exit 1
       - name: Build
         working-directory: frontend

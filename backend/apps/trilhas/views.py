@@ -3,7 +3,7 @@ from django.http import Http404
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.throttling import BaseThrottle
@@ -20,11 +20,11 @@ from .serializers import (
 )
 from .throttling import CatalogoThrottle
 
-# Catálogo publicado é leitura pública: AllowAny explícito, escrita devolve 405.
-# As telas de trilha renderizam no servidor com fetch anônimo, então a leitura
-# não pode exigir login; o RBAC de `trilhas.view` é aplicado no frontend (esconde
-# a área e bloqueia a tela). As CAPACIDADES (iniciar trilha, concluir exercício,
-# criaturas) essas sim são barradas no backend.
+# O catálogo exige login: só quem tem conta lê trilhas, exercícios e desafios.
+# As telas renderizam no servidor do Next com o cookie do próprio aluno, então
+# não existe leitura anônima legítima. Escrita aqui devolve 405; o RBAC de
+# `trilhas.view` continua no frontend, e as CAPACIDADES (iniciar trilha,
+# concluir exercício) são barradas no backend.
 # O escopo "catalogo" liga o limite definido em REST_FRAMEWORK.
 #
 # `throttle_classes` substitui as classes padrão em vez de somar a elas. Sem
@@ -42,7 +42,7 @@ THROTTLES: list[type[BaseThrottle]] = [CatalogoThrottle]
 
 class TrilhaListView(generics.ListAPIView[Trilha]):
     serializer_class = TrilhaListaSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     throttle_classes = THROTTLES
     throttle_scope = ESCOPO
 
@@ -76,7 +76,7 @@ class TrilhaListView(generics.ListAPIView[Trilha]):
 
 class TrilhaDetailView(generics.RetrieveAPIView[Trilha]):
     serializer_class = TrilhaDetalheSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     throttle_classes = THROTTLES
     throttle_scope = ESCOPO
     lookup_field = "slug"
@@ -100,7 +100,7 @@ class TrilhaDetailView(generics.RetrieveAPIView[Trilha]):
 
 class ExercicioDetailView(generics.RetrieveAPIView[Exercicio]):
     serializer_class = ExercicioDetalheSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     throttle_classes = THROTTLES
     throttle_scope = ESCOPO
 
@@ -124,7 +124,7 @@ class ExercicioDetailView(generics.RetrieveAPIView[Exercicio]):
 
 class DesafiosView(generics.ListAPIView[Exercicio]):
     serializer_class = DesafioSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     throttle_classes = THROTTLES
     throttle_scope = ESCOPO
     pagination_class = None
@@ -135,7 +135,7 @@ class DesafiosView(generics.ListAPIView[Exercicio]):
 
 @extend_schema(responses=DesafioDoDiaSerializer)
 class DesafioDeHojeView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     throttle_classes = THROTTLES
     throttle_scope = ESCOPO
 

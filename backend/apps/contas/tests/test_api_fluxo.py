@@ -270,7 +270,16 @@ class PerfilTest(APITestCase):
 
 
 class CatalogoTest(APITestCase):
-    def test_catalogo_e_publico_e_traz_as_cinco_em_ordem(self):
+    def setUp(self):
+        # O catálogo de criaturas exige login desde 2026-11-16.
+        self.client.force_authenticate(user=criar_aluno("leitor"))
+
+    def test_visitante_anonimo_e_recusado(self):
+        self.client.force_authenticate(user=None)
+        r = self.client.get(reverse("gamificacao:catalogo"))
+        self.assertEqual(r.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_catalogo_traz_as_cinco_em_ordem(self):
         r = self.client.get(reverse("gamificacao:catalogo"))
         self.assertEqual(r.status_code, status.HTTP_200_OK)
         slugs = [c["slug"] for c in r.data]

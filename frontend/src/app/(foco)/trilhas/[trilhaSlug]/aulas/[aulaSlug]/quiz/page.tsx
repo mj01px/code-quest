@@ -3,9 +3,10 @@ import { notFound } from "next/navigation";
 
 import { QuizDaAula } from "@/components/licao/QuizDaAula";
 import { GuardaDeEtapa } from "@/components/trilhas/GuardaDeEtapa";
-import { carregarAula, rotaDaAula, rotaDoExercicio } from "@/lib/aulas";
+import { rotaDaAula, rotaDoExercicio } from "@/lib/aulas";
+import { carregarAula } from "@/lib/aulasNoServidor";
 
-export const revalidate = 60;
+// O catálogo exige login: renderiza por request, com a sessão do aluno.
 
 export async function generateMetadata({
   params,

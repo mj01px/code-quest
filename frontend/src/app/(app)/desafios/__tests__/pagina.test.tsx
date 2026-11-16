@@ -14,6 +14,18 @@ import Erro from "../error";
 import Carregando from "../loading";
 import DesafiosPage from "../page";
 
+// As páginas buscam com a sessão do aluno (lib/sessaoNoServidor, que lê cookies
+// do Next); aqui elas caem nos mesmos mocks de @/lib/api.
+jest.mock("@/lib/sessaoNoServidor", () => {
+  const api = jest.requireMock<Record<string, jest.Mock>>("@/lib/api");
+  return {
+    listarTrilhasDoAluno: (...a: unknown[]) => api.listarTrilhas(...a),
+    buscarTrilhaDoAluno: (...a: unknown[]) => api.buscarTrilha(...a),
+    buscarExercicioDoAluno: (...a: unknown[]) => api.buscarExercicio(...a),
+    buscarDesafioDeHojeDoAluno: (...a: unknown[]) => api.buscarDesafioDeHoje(...a),
+  };
+});
+
 jest.mock("@/lib/api", () => {
   const real = jest.requireActual<typeof import("@/lib/api")>("@/lib/api");
   return {

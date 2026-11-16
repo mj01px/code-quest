@@ -9,7 +9,7 @@ import pytest
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from apps.contas.tests.helpers import criar_autor
+from apps.contas.tests.helpers import autenticar, criar_aluno, criar_autor
 from apps.trilhas.models import Questao, StatusEditorial
 from apps.trilhas.tests.helpers import criar_aula, criar_trilha
 
@@ -19,6 +19,15 @@ RASCUNHO = StatusEditorial.RASCUNHO
 APROVADO = StatusEditorial.APROVADO
 
 OPCOES = ["print", "echo", "say", "puts"]
+
+def _leitor() -> APIClient:
+    """Aluno logado: o catálogo exige login desde 2026-11-16."""
+    from uuid import uuid4
+
+    cliente = APIClient()
+    autenticar(cliente, criar_aluno(f"leitor_{uuid4().hex[:8]}"))
+    return cliente
+
 
 
 def cliente(usuario):
@@ -89,7 +98,7 @@ def test_catalogo_publico_mostra_questoes():
     aula = criar_aula(trilha)
     Questao.objects.create(aula=aula, enunciado="?", opcoes=OPCOES, resposta_correta="B")
 
-    resposta = APIClient().get(
+    resposta = _leitor().get(
         reverse("trilhas:trilha-detalhe", kwargs={"slug": "publica"})
     )
 
