@@ -1,7 +1,8 @@
 """Conteúdo da trilha de Banco de Dados.
 
-O SQL é o mesmo em qualquer banco relacional, e os exemplos seguem o padrão,
-sem recurso exclusivo de um fornecedor. O fio da trilha é o de sempre: primeiro
+Os exercícios rodam em SQLite (apps/correcao/sql.py). Os exemplos ficam no SQL
+comum a qualquer banco relacional, e a lição de modelagem avisa o aluno das
+diferenças entre SQLite, PostgreSQL e MySQL. O fio da trilha é o de sempre: primeiro
 guardar direito, depois perguntar, depois perguntar rápido.
 """
 

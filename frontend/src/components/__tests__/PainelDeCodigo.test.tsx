@@ -129,6 +129,7 @@ describe("PainelDeCodigo", () => {
     );
 
     expect(screen.getByText("exercicio.sql")).toBeInTheDocument();
+    expect(screen.getByText("SQLite")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Resultado SQL" })).toBeInTheDocument();
     expect(screen.getByText("Aceita a nota 0")).toBeInTheDocument();
     const terminal = await screen.findByTestId("terminal");

@@ -272,6 +272,17 @@ O que vem depois dos dois-pontos é o **formato**. `.2f` quer dizer "número com
 
 LICAO_MODELAGEM = """Um banco de dados guarda fatos depois que o programa fecha. Nesta lição você aprende a desenhar tabelas que só aceitam dado válido, porque consertar dado ruim depois custa muito mais caro.
 
+## Em qual banco os exercícios rodam
+
+Os exercícios desta trilha rodam em **SQLite**. O que você aprende aqui (tabelas, chaves, `SELECT`, `WHERE`, `JOIN`, `GROUP BY`) vale em qualquer banco relacional, mas alguns detalhes mudam de um banco para outro:
+
+- **Juntar textos:** no SQLite e no PostgreSQL é `nome || ' ' || sobrenome`. No MySQL, o `||` vira "ou" lógico, e o certo é `CONCAT(nome, ' ', sobrenome)`.
+- **Data de hoje:** `date('now')` no SQLite, `CURRENT_DATE` no PostgreSQL e `CURDATE()` no MySQL.
+- **id automático:** no SQLite, `INTEGER PRIMARY KEY` já gera o número sozinho. O PostgreSQL usa `GENERATED ALWAYS AS IDENTITY` (ou `SERIAL`), e o MySQL, `AUTO_INCREMENT`.
+- **Tipos:** o SQLite aceita um texto numa coluna `INTEGER` sem reclamar, e o PostgreSQL recusa. Por isso, aqui, as restrições (`NOT NULL`, `UNIQUE`, `CHECK`) fazem ainda mais diferença.
+
+Se você já conhece outro banco, escreva os exercícios no jeito do SQLite.
+
 ## 1. A tabela guarda um tipo de coisa
 
 Uma tabela guarda fatos sobre **uma coisa só**. `aluno` guarda alunos, e `matricula` guarda matrículas. Cada **linha** é um aluno, e cada **coluna** é uma informação sobre ele.

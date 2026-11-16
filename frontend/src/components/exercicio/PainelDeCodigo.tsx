@@ -237,6 +237,11 @@ export function PainelDeCodigo({
                                 <span aria-hidden="true" className="h-2.5 w-2.5 bg-brand"/>
                                 {emSql ? "exercicio.sql" : `${especificacao.funcao}.py`}
                             </span>
+                            {emSql ? (
+                                <span className="text-ink-muted" title="Os exercícios de SQL rodam em SQLite: escreva no jeito dele.">
+                                    SQLite
+                                </span>
+                            ) : null}
                         </CabecalhoDoPainel>
                         <ExemploDeExecucao especificacao={especificacao} argumentos={argumentosDoRodar}/>
                         {especificacao.requisitos.length > 0 ? (
