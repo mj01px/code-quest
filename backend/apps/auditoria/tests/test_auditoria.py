@@ -151,6 +151,18 @@ class EndpointAuditoriaTests(APITestCase):
             ).exists()
         )
 
+    def test_email_do_actor_vem_mascarado(self):
+        admin = criar_admin()
+        self.client.force_authenticate(admin)
+        registrar(AcaoAuditoria.LOGIN_OK, actor=admin)
+        registrar(AcaoAuditoria.LOGIN_FALHA, email_desconhecido=True)
+
+        resposta = self.client.get(self.url)
+
+        snapshots = {linha["actor_email_snapshot"] for linha in resposta.data["results"]}
+        self.assertEqual(snapshots, {"admini*********.com", ""})
+        self.assertNotIn(admin.email, str(resposta.content))
+
     def test_filtro_por_acao(self):
         admin = criar_admin()
         self.client.force_authenticate(admin)

@@ -166,6 +166,8 @@ def test_admin_lista_so_pendentes_com_o_solicitante():
     assert resposta.status_code == 200
     assert [s["id"] for s in resposta.data] == [pendente.pk]
     assert resposta.data[0]["solicitante"]["nickname"] == aluno.nickname
+    assert resposta.data[0]["solicitante"]["email"] == "al*********.com"
+    assert aluno.email not in str(resposta.content)
 
 
 @pytest.mark.parametrize("quem", [criar_aluno, criar_autor])

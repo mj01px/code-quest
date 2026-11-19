@@ -4,6 +4,7 @@ acesso (CRUD) e a atribuição de nível a um usuário.
 
 from rest_framework import serializers
 
+from .lgpd import mascarar_email
 from .models import NivelDeAcesso, Permissao, User
 
 
@@ -75,6 +76,7 @@ class UsuarioAdminSerializer(serializers.ModelSerializer):
     nivel = serializers.SerializerMethodField()
     ativo = serializers.BooleanField(source="is_active", read_only=True)
     anonimizado = serializers.BooleanField(source="is_anonymized", read_only=True)
+    email = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -89,6 +91,9 @@ class UsuarioAdminSerializer(serializers.ModelSerializer):
             "ativo",
             "anonimizado",
         )
+
+    def get_email(self, obj) -> str:
+        return mascarar_email(obj.email)
 
     def get_nivel(self, obj) -> dict | None:
         if obj.nivel_de_acesso_id is None:

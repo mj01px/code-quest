@@ -8,6 +8,17 @@ quebraria a inicialização. Em tempo de execução o registro de apps já está
 from django.db import transaction
 from django.utils import timezone
 
+MASCARA_EMAIL = "*" * 9
+
+
+def mascarar_email(email: str) -> str:
+    local, _, dominio = (email or "").partition("@")
+    if not local or not dominio:
+        return MASCARA_EMAIL
+    visiveis = min(8, len(local) // 2)
+    sufixo = dominio.rsplit(".", 1)[-1] if "." in dominio else ""
+    return f"{local[:visiveis]}{MASCARA_EMAIL}{'.' + sufixo if sufixo else ''}"
+
 
 def exportar_dados(user) -> dict:
     """Monta o pacote de dados pessoais do titular (portabilidade)."""

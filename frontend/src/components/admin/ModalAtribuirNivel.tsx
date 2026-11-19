@@ -221,7 +221,7 @@ export function ModalAtribuirNivel({ onFechar, onAtribuido, onExcluir }: Props) 
                 type="search"
                 value={termo}
                 onChange={(e) => setTermo(e.target.value)}
-                placeholder="Buscar por nickname, e-mail ou nível"
+                placeholder="Buscar por nickname, nível ou e-mail completo"
                 className="min-h-9 w-full bg-transparent font-body text-base tracking-[1px] text-ink outline-none placeholder:text-ink-dim"
               />
             </label>

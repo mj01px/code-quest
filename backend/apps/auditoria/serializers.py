@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from apps.contas.lgpd import mascarar_email
+
 from .models import RegistroDeAuditoria
 
 
@@ -11,6 +13,7 @@ class RegistroDeAuditoriaSerializer(
     )
     acao_rotulo = serializers.CharField(source="get_acao_display", read_only=True)
     detalhes = serializers.CharField(read_only=True)
+    actor_email_snapshot = serializers.SerializerMethodField()
 
     class Meta:
         model = RegistroDeAuditoria
@@ -30,6 +33,11 @@ class RegistroDeAuditoriaSerializer(
             "metadata",
         ]
         read_only_fields = fields
+
+    def get_actor_email_snapshot(self, obj: RegistroDeAuditoria) -> str:
+        if not obj.actor_email_snapshot:
+            return ""
+        return mascarar_email(obj.actor_email_snapshot)
 
 
 class AtividadeSerializer(serializers.ModelSerializer[RegistroDeAuditoria]):

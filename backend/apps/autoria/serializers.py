@@ -5,6 +5,7 @@ from django.db import IntegrityError, transaction
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
+from apps.contas.lgpd import mascarar_email
 from apps.correcao.models import CasoDeTeste, EspecificacaoDeCodigo
 from apps.correcao.serializers import EspecificacaoSerializer
 from apps.gamificacao.models import Creature, UserCreature, XpBonus
@@ -251,7 +252,7 @@ class SolicitacaoAdminSerializer(SolicitacaoAutoriaSerializer):
         return {
             "id": str(obj.usuario_id),
             "nickname": obj.usuario.nickname,
-            "email": obj.usuario.email,
+            "email": mascarar_email(obj.usuario.email),
             "criatura": pet["criatura"] if pet else None,
             "nivel": pet["nivel"] if pet else None,
         }

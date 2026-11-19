@@ -36,8 +36,16 @@ class BuscaDeUsuariosTest(APITestCase):
 
     def test_busca_por_nickname_email_e_nivel_sem_caixa(self):
         self.assertEqual(self.buscar("MAR"), ["maria"])
-        self.assertEqual(self.buscar("joao@example"), ["joao"])
+        self.assertEqual(self.buscar("JOAO@example.com"), ["joao"])
         self.assertEqual(self.buscar("monitor"), ["joao"])
+
+    def test_email_parcial_nao_encontra(self):
+        self.assertEqual(self.buscar("joao@example"), [])
+
+    def test_resposta_traz_email_mascarado(self):
+        r = self.client.get(reverse("contas:admin-usuarios"), {"q": "maria"})
+        self.assertEqual(r.data[0]["email"], "ma*********.com")
+        self.assertNotIn("maria@example.com", str(r.content))
 
     def test_sem_termo_lista_todos(self):
         self.assertEqual(self.buscar("  "), ["administrador", "joao", "maria"])

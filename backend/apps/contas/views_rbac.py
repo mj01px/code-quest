@@ -152,12 +152,12 @@ class NivelDetailView(generics.RetrieveUpdateDestroyAPIView):
     tags=["admin"],
     parameters=[
         OpenApiParameter(
-            "q", str, description="Busca em nickname, e-mail ou nome do nível."
+            "q", str, description="Busca em nickname, nome do nível ou e-mail completo (exato)."
         )
     ],
 )
 class UsuarioListView(generics.ListAPIView):
-    """Todos os usuários com nickname, e-mail, cadastro, papel e nível."""
+    """Todos os usuários com nickname, e-mail mascarado, cadastro, papel e nível."""
 
     permission_classes = [IsAdmin]
     serializer_class = UsuarioAdminSerializer
@@ -171,7 +171,7 @@ class UsuarioListView(generics.ListAPIView):
         if termo:
             usuarios = usuarios.filter(
                 Q(nickname__icontains=termo)
-                | Q(email__icontains=termo)
+                | Q(email__iexact=termo)
                 | Q(nivel_de_acesso__nome__icontains=termo)
             )
         return usuarios
