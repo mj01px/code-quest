@@ -26,6 +26,12 @@ from .views import (
     TrocarEmailView,
     VerificarEmailView,
 )
+from .views_documentos import (
+    DocumentoLegalView,
+    PublicarVersaoDeDocumentoView,
+    VersaoDeDocumentoDetailView,
+    VersaoDeDocumentoListCreateView,
+)
 from .views_rbac import (
     NivelDetailView,
     NivelListCreateView,
@@ -41,6 +47,11 @@ app_name = "contas"
 urlpatterns = [
     path("auth/csrf/", CsrfView.as_view(), name="csrf"),
     path("auth/documentos/", DocumentosLegaisView.as_view(), name="documentos"),
+    path(
+        "auth/documentos/<slug:slug>/",
+        DocumentoLegalView.as_view(),
+        name="documento",
+    ),
     path("auth/registrar/", RegistrarView.as_view(), name="registrar"),
     path("auth/verificar/", VerificarEmailView.as_view(), name="verificar"),
     path(
@@ -92,6 +103,21 @@ urlpatterns = [
         "auth/admin/niveis/<uuid:pk>/",
         NivelDetailView.as_view(),
         name="admin-nivel",
+    ),
+    path(
+        "auth/admin/documentos/",
+        VersaoDeDocumentoListCreateView.as_view(),
+        name="admin-documentos",
+    ),
+    path(
+        "auth/admin/documentos/<uuid:pk>/",
+        VersaoDeDocumentoDetailView.as_view(),
+        name="admin-documento",
+    ),
+    path(
+        "auth/admin/documentos/<uuid:pk>/publicar/",
+        PublicarVersaoDeDocumentoView.as_view(),
+        name="admin-documento-publicar",
     ),
     path("auth/admin/usuarios/", UsuarioListView.as_view(), name="admin-usuarios"),
     path(

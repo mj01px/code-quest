@@ -20,7 +20,7 @@ O sistema está no ar numa VPS da DigitalOcean. Ele usa o banco de produção, e
 
 Regras do cadastro:
 
-- idade mínima de 16 anos;
+- idade mínima de 18 anos;
 - nickname de 3 a 20 caracteres, só com letras sem acento, números e sublinhado;
 - senha que siga a política exibida na própria tela.
 

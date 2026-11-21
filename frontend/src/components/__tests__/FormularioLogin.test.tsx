@@ -93,6 +93,21 @@ describe("FormularioLogin", () => {
     await waitFor(() => expect(empurrar).toHaveBeenCalledWith("/escolher-criatura"));
   });
 
+  it("com termo pendente, entra mesmo assim e o aviso de aceite assume", async () => {
+    mockBusca = "volta=%2Franking";
+    const usuario = userEvent.setup();
+    login.mockResolvedValue({ access: "a", refresh: "r", usuario: {} });
+    minhasCriaturas.mockRejectedValue(
+      new ErroApi(403, "consentimento_pendente", "Aceite a nova versão."),
+    );
+    render(<FormularioLogin aoDetectarPendente={aoDetectarPendente} />);
+
+    await entrar(usuario);
+
+    await waitFor(() => expect(empurrar).toHaveBeenCalledWith("/ranking"));
+    expect(screen.queryByText("Aceite a nova versão.")).toBeNull();
+  });
+
   it("entra e vai para a escolha de criatura quando não tem nenhuma", async () => {
     const usuario = userEvent.setup();
     login.mockResolvedValue({ access: "a", refresh: "r", usuario: {} });

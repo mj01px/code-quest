@@ -10,7 +10,7 @@ NICKNAME_MAX_LENGTH = 20
 
 # Idade mínima para criar conta por conta própria. Verificada no cadastro pela
 # data de nascimento.
-IDADE_MINIMA_ANOS = 16
+IDADE_MINIMA_ANOS = 18
 
 
 def calcular_idade(nascimento: date, hoje: date | None = None) -> int:

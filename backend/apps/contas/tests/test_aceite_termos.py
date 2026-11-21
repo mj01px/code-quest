@@ -3,7 +3,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from apps.contas.documentos import VIGENTES, Documento, versao_vigente
+from apps.contas.documentos import Documento, versao_vigente
 from apps.contas.models import AceiteDeTermos, User
 
 from .helpers import SENHA_PADRAO, criar_aluno, payload_aceite
@@ -29,7 +29,7 @@ class AceiteNoCadastroTest(APITestCase):
 
         usuario = User.objects.get(nickname="novato")
         aceites = AceiteDeTermos.objects.filter(user=usuario)
-        self.assertEqual(aceites.count(), len(VIGENTES))
+        self.assertEqual(aceites.count(), len(Documento.values))
         self.assertEqual(
             {a.documento for a in aceites},
             {Documento.TERMOS, Documento.PRIVACIDADE},

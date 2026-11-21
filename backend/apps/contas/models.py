@@ -3,12 +3,13 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models.functions import Lower
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from .documentos import VERSAO_MAX_LENGTH, VIGENTES, Documento
+from .documentos import VERSAO_FORMATO, VERSAO_MAX_LENGTH, Documento, vigentes
 from .managers import UserManager
 from .rbac import permissions_for_role
 from .validators import (
@@ -63,13 +64,6 @@ class User(AbstractBaseUser, PermissionsMixin):
             nickname_format_validator,
             validate_nickname_not_reserved,
         ],
-    )
-
-    birth_date = models.DateField(
-        null=True,
-        blank=True,
-        verbose_name=_("data de nascimento"),
-        help_text=_("Usada para confirmar a idade mínima no cadastro."),
     )
 
     role = models.CharField(
@@ -303,7 +297,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         self.email = f"anon-{marca}@anonimizado.invalid"
         self.email_pendente = ""
         self.nickname = f"anon_{marca}"
-        self.birth_date = None
         self.set_unusable_password()
         self.failed_logins = 0
         self.locked_until = None
@@ -316,7 +309,6 @@ class User(AbstractBaseUser, PermissionsMixin):
                 "email",
                 "email_pendente",
                 "nickname",
-                "birth_date",
                 "password",
                 "failed_logins",
                 "locked_until",
@@ -467,8 +459,8 @@ class AceiteDeTermos(models.Model):
     def registrar_vigentes(cls, user, ip=None) -> list[AceiteDeTermos]:
         return cls.objects.bulk_create(
             [
-                cls(user=user, documento=documento, versao=vigente.versao, ip=ip)
-                for documento, vigente in VIGENTES.items()
+                cls(user=user, documento=documento, versao=atual.versao, ip=ip)
+                for documento, atual in vigentes().items()
             ]
         )
 
@@ -480,11 +472,148 @@ class AceiteDeTermos(models.Model):
             cls.objects.filter(user=user).values_list("documento", "versao")
         )
         novos = [
-            cls(user=user, documento=documento, versao=vigente.versao, ip=ip)
-            for documento, vigente in VIGENTES.items()
-            if (documento, vigente.versao) not in aceitos
+            cls(user=user, documento=documento, versao=atual.versao, ip=ip)
+            for documento, atual in vigentes().items()
+            if (documento, atual.versao) not in aceitos
         ]
         return cls.objects.bulk_create(novos)
+
+
+
+class VersaoDeDocumentoImutavelError(Exception):
+    pass
+
+
+class VersaoDeDocumentoQuerySet(models.QuerySet):
+    def publicadas(self) -> VersaoDeDocumentoQuerySet:
+        return self.filter(situacao=VersaoDeDocumento.Situacao.PUBLICADA)
+
+    def rascunhos(self) -> VersaoDeDocumentoQuerySet:
+        return self.filter(situacao=VersaoDeDocumento.Situacao.RASCUNHO)
+
+
+class VersaoDeDocumento(models.Model):
+
+    class Situacao(models.TextChoices):
+        RASCUNHO = "RASCUNHO", _("Rascunho")
+        PUBLICADA = "PUBLICADA", _("Publicada")
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid7,
+        editable=False,
+        verbose_name=_("identificador"),
+    )
+    documento = models.CharField(
+        max_length=20,
+        choices=Documento.choices,
+        verbose_name=_("documento"),
+    )
+    versao = models.CharField(
+        max_length=VERSAO_MAX_LENGTH,
+        validators=[
+            RegexValidator(
+                VERSAO_FORMATO,
+                _("Use números separados por ponto, como 1.4 ou 2.0.1."),
+                code="versao_invalida",
+            )
+        ],
+        verbose_name=_("versão"),
+    )
+    conteudo = models.TextField(verbose_name=_("conteúdo em Markdown"))
+    situacao = models.CharField(
+        max_length=10,
+        choices=Situacao.choices,
+        default=Situacao.RASCUNHO,
+        verbose_name=_("situação"),
+    )
+    vigente_desde = models.DateField(verbose_name=_("vigente desde"))
+    criado_por = models.ForeignKey(
+        "contas.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("criado por"),
+    )
+    criado_em = models.DateTimeField(default=timezone.now, editable=False)
+    atualizado_em = models.DateTimeField(auto_now=True)
+    publicado_por = models.ForeignKey(
+        "contas.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("publicado por"),
+    )
+    publicado_em = models.DateTimeField(
+        null=True, blank=True, verbose_name=_("publicado em")
+    )
+
+    objects = VersaoDeDocumentoQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = _("versão de documento legal")
+        verbose_name_plural = _("versões de documentos legais")
+        ordering = ["documento", "-vigente_desde", "-criado_em"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["documento", "versao"],
+                name="versao_documento_unica",
+                violation_error_message=_("Já existe esta versão do documento."),
+            ),
+            models.UniqueConstraint(
+                fields=["documento"],
+                condition=models.Q(situacao="RASCUNHO"),
+                name="um_rascunho_por_documento",
+                violation_error_message=_(
+                    "Já existe um rascunho deste documento."
+                ),
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(situacao="RASCUNHO", publicado_em__isnull=True)
+                    | models.Q(situacao="PUBLICADA", publicado_em__isnull=False)
+                ),
+                name="versao_publicada_tem_data",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["documento", "situacao", "-vigente_desde"],
+                name="versao_doc_vigencia_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.documento} v{self.versao}"
+
+    @property
+    def publicada(self) -> bool:
+        return self.situacao == self.Situacao.PUBLICADA
+
+    def _publicada_no_banco(self) -> bool:
+        if self._state.adding:
+            return False
+        return (
+            type(self)
+            .objects.filter(pk=self.pk, situacao=self.Situacao.PUBLICADA)
+            .exists()
+        )
+
+    def save(self, *args, **kwargs):
+        if self._publicada_no_banco():
+            raise VersaoDeDocumentoImutavelError(
+                "Versão publicada não pode ser alterada."
+            )
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self._publicada_no_banco():
+            raise VersaoDeDocumentoImutavelError(
+                "Versão publicada não pode ser excluída."
+            )
+        return super().delete(*args, **kwargs)
 
 
 class ConfiguracaoMFA(models.Model):

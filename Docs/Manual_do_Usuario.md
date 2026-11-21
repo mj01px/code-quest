@@ -26,7 +26,7 @@ depois, pela equipe do CodeQuest.
 
 Regras que valem a pena saber:
 
-- É preciso ter 16 anos completos.
+- É preciso ter 18 anos completos.
 - O nickname tem de 3 a 20 caracteres, só com letras sem acento, números e sublinhado.
 - Se o e-mail já tiver conta, a tela responde como se o cadastro tivesse dado certo.
   É de propósito: protege quem já tem conta.

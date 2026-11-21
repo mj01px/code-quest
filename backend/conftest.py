@@ -41,3 +41,9 @@ def progressao_livre_por_padrao(request, settings) -> None:
     """A trava de ordem só vale nos testes marcados com `sequencial`."""
     if request.node.get_closest_marker("sequencial") is None:
         settings.PROGRESSAO_SEQUENCIAL = False
+
+
+@pytest.fixture(autouse=True)
+def consentimento_livre_por_padrao(request, settings) -> None:
+    if request.node.get_closest_marker("consentimento") is None:
+        settings.CONSENTIMENTO_OBRIGATORIO = False

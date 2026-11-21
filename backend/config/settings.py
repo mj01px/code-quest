@@ -175,7 +175,7 @@ PROGRESSAO_SEQUENCIAL = env.bool('PROGRESSAO_SEQUENCIAL', default=True)
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'apps.contas.autenticacao.CookieJWTAuthentication',
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'apps.contas.autenticacao.HeaderJWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
@@ -311,6 +311,15 @@ MFA_LOGIN_TOKEN_MAX_AGE = env.int('MFA_LOGIN_TOKEN_MAX_AGE', default=60 * 5)
 # apagado pelo comando limpar_auditoria. Fecha o ciclo de descarte exigido
 # pelo plano de retencao (o guia pede que o descarte prometido seja implementado).
 AUDITORIA_RETENCAO_DIAS = env.int('AUDITORIA_RETENCAO_DIAS', default=180)
+
+CONSENTIMENTO_OBRIGATORIO = env.bool('CONSENTIMENTO_OBRIGATORIO', default=True)
+
+CONTA_EXCLUIDA_RETENCAO_PROGRESSO_DIAS = env.int(
+    'CONTA_EXCLUIDA_RETENCAO_PROGRESSO_DIAS', default=365
+)
+CONTA_EXCLUIDA_RETENCAO_ACEITE_DIAS = env.int(
+    'CONTA_EXCLUIDA_RETENCAO_ACEITE_DIAS', default=365 * 5
+)
 
 LOGGING = {
     'version': 1,

@@ -22,6 +22,7 @@ RAIZ = Path(__file__).resolve().parents[4]
 PUBLICAS = {
     "CsrfView",
     "DocumentosLegaisView",
+    "DocumentoLegalView",
     "RegistrarView",
     "VerificarEmailView",
     "ReenviarVerificacaoView",

@@ -16,7 +16,10 @@ import type {
   DetalheEditorial,
   DiffEditorial,
   Dificuldade,
+  DadosDaVersao,
+  DocumentoLegalCompleto,
   DocumentosLegais,
+  VersaoDeDocumento,
   EdicaoRascunho,
   EspecificacaoDeCodigo,
   Evolucao,
@@ -62,6 +65,7 @@ import type {
   UsuarioAdmin,
 } from "./types";
 import { esquecerProgresso } from "@/lib/cacheDeProgresso";
+import { avisarConsentimentoPendente } from "@/lib/consentimento";
 import { avisarLimite } from "@/lib/limite";
 
 // No navegador tudo passa pela mesma origem, via rewrite do Next: e o que
@@ -201,6 +205,9 @@ async function interpretar(resposta: Response) {
   // mensagem própria na tela, e "alguns segundos" seria mentira para ele.
   if (resposta.status === 429 && erro?.code === "throttled") {
     avisarLimite(Number(resposta.headers.get("Retry-After")));
+  }
+  if (resposta.status === 403 && erro?.code === "consentimento_pendente") {
+    avisarConsentimentoPendente();
   }
   throw new ErroApi(
     resposta.status,
@@ -611,6 +618,44 @@ export const api = {
       metodo: "DELETE",
       autenticado: true,
     });
+  },
+
+  adminVersoesDeDocumentos() {
+    return requisicao<VersaoDeDocumento[]>("/auth/admin/documentos/", {
+      autenticado: true,
+    });
+  },
+
+  adminCriarVersaoDeDocumento(dados: DadosDaVersao) {
+    return requisicao<VersaoDeDocumento>("/auth/admin/documentos/", {
+      metodo: "POST",
+      corpo: dados,
+      autenticado: true,
+    });
+  },
+
+  adminAtualizarVersaoDeDocumento(
+    id: string,
+    dados: Partial<Omit<DadosDaVersao, "documento">>,
+  ) {
+    return requisicao<VersaoDeDocumento>(
+      `/auth/admin/documentos/${encodeURIComponent(id)}/`,
+      { metodo: "PATCH", corpo: dados, autenticado: true },
+    );
+  },
+
+  adminExcluirVersaoDeDocumento(id: string) {
+    return requisicao<void>(
+      `/auth/admin/documentos/${encodeURIComponent(id)}/`,
+      { metodo: "DELETE", autenticado: true },
+    );
+  },
+
+  adminPublicarVersaoDeDocumento(id: string) {
+    return requisicao<VersaoDeDocumento>(
+      `/auth/admin/documentos/${encodeURIComponent(id)}/publicar/`,
+      { metodo: "POST", autenticado: true },
+    );
   },
 
   adminUsuarios(busca = "") {
@@ -1310,6 +1355,17 @@ const CATALOGO: Opcoes = { revalidacao: 60, etiquetas: ["trilhas"], autenticado:
 export function buscarDocumentosLegais(): Promise<DocumentosLegais> {
   return requisicao<DocumentosLegais>("/auth/documentos/", {
     revalidacao: 300,
+    etiquetas: ["documentos"],
+  });
+}
+
+export function buscarDocumentoLegal(
+  slug: "termos" | "privacidade",
+  versao?: string,
+): Promise<DocumentoLegalCompleto> {
+  const consulta = versao ? `?versao=${encodeURIComponent(versao)}` : "";
+  return requisicao<DocumentoLegalCompleto>(`/auth/documentos/${slug}/${consulta}`, {
+    revalidacao: 60,
     etiquetas: ["documentos"],
   });
 }

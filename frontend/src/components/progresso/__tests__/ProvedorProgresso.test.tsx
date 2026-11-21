@@ -148,6 +148,18 @@ describe("ProvedorProgresso", () => {
     expect(result.current.usuario).toBeNull();
   });
 
+  it("termo pendente carrega só a conta, sem virar erro de API", async () => {
+    minhasCriaturas.mockRejectedValue(
+      Object.assign(new Error("bloqueado"), { code: "consentimento_pendente" }),
+    );
+
+    const { result } = renderHook(() => useProgresso(), { wrapper: envolver });
+
+    await waitFor(() => expect(result.current.usuario).not.toBeNull());
+    expect(result.current.erro).toBe(false);
+    expect(result.current.criatura).toBeNull();
+  });
+
   it("sessão morta depois da falha é visitante, sem aviso de erro", async () => {
     // O api.ts apaga o cookie-sinal quando o refresh também falha.
     eu.mockImplementation(async () => {

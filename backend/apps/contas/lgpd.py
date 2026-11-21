@@ -5,10 +5,20 @@ Os imports de outras apps são locais de propósito: `contas` é carregada antes
 quebraria a inicialização. Em tempo de execução o registro de apps já está pronto.
 """
 
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
 MASCARA_EMAIL = "*" * 9
+
+
+@dataclass(frozen=True)
+class ResultadoDescarte:
+    registros_de_progresso: int
+    contas: int
 
 
 def mascarar_email(email: str) -> str:
@@ -75,7 +85,6 @@ def exportar_dados(user) -> dict:
             "nivel_de_acesso": (
                 user.nivel_de_acesso.nome if user.nivel_de_acesso_id else None
             ),
-            "data_nascimento": iso(user.birth_date),
             "criado_em": iso(user.created_at),
             "email_verificado_em": iso(user.email_verified_at),
         },
@@ -162,3 +171,60 @@ def anonimizar_conta(user, **metadata) -> bool:
         CodigoRecuperacaoMFA.objects.filter(user=user).delete()
 
     return True
+
+
+def descartar_contas_excluidas(
+    *, simular: bool = False, agora: datetime | None = None
+) -> ResultadoDescarte:
+    from apps.autoria.models import SolicitacaoAutoria
+    from apps.conquistas.models import ConquistaDesbloqueada
+    from apps.correcao.models import Submissao
+    from apps.gamificacao.models import UserCreature
+    from apps.progressao.models import (
+        EtapaConcluida,
+        EventoXP,
+        Sequencia,
+        TrilhaIniciada,
+    )
+    from apps.ranking.models import PodioMensal
+
+    from .models import User
+
+    agora = agora or timezone.now()
+    limite_progresso = agora - timedelta(
+        days=settings.CONTA_EXCLUIDA_RETENCAO_PROGRESSO_DIAS
+    )
+    limite_aceite = agora - timedelta(days=settings.CONTA_EXCLUIDA_RETENCAO_ACEITE_DIAS)
+
+    vencidas = User.objects.filter(
+        anonymized_at__isnull=False, anonymized_at__lt=limite_progresso
+    )
+    encerradas = User.objects.filter(
+        anonymized_at__isnull=False, anonymized_at__lt=limite_aceite
+    )
+    progresso = [
+        EventoXP.objects.filter(user__in=vencidas),
+        Submissao.objects.filter(user__in=vencidas),
+        ConquistaDesbloqueada.objects.filter(user__in=vencidas),
+        UserCreature.objects.filter(user__in=vencidas),
+        EtapaConcluida.objects.filter(user__in=vencidas),
+        TrilhaIniciada.objects.filter(user__in=vencidas),
+        Sequencia.objects.filter(user__in=vencidas),
+        PodioMensal.objects.filter(user__in=vencidas),
+        SolicitacaoAutoria.objects.filter(usuario__in=vencidas),
+    ]
+
+    if simular:
+        return ResultadoDescarte(
+            registros_de_progresso=sum(qs.count() for qs in progresso),
+            contas=encerradas.count(),
+        )
+
+    with transaction.atomic():
+        registros = sum(qs.delete()[0] for qs in progresso)
+        _, por_modelo = encerradas.delete()
+
+    return ResultadoDescarte(
+        registros_de_progresso=registros,
+        contas=por_modelo.get(User._meta.label, 0),
+    )

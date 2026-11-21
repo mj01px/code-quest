@@ -30,6 +30,7 @@ class AcaoAuditoria(models.TextChoices):
     CRIATURA_EVOLUIDA = "CRIATURA_EVOLUIDA", _("Criatura evoluída")
     EXPORTACAO_DADOS = "EXPORTACAO_DADOS", _("Exportação de dados do titular")
     CONSENTIMENTO_ACEITO = "CONSENTIMENTO_ACEITO", _("Consentimento (re)aceito")
+    DOCUMENTO_PUBLICADO = "DOCUMENTO_PUBLICADO", _("Versão de documento legal publicada")
     MFA_ATIVADO = "MFA_ATIVADO", _("Verificação em duas etapas ativada")
     MFA_DESATIVADO = "MFA_DESATIVADO", _("Verificação em duas etapas desativada")
     ACESSO_AUDITORIA = "ACESSO_AUDITORIA", _("Consulta à trilha de auditoria")

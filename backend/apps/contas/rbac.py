@@ -49,6 +49,11 @@ CATALOG: tuple[PermissionSpec, ...] = (
     PermissionSpec("usuarios.grant_author", "Conceder ou remover o papel de autor", "usuarios"),
     PermissionSpec("usuarios.suspend", "Suspender ou reativar contas", "usuarios"),
     PermissionSpec("auditoria.view", "Consultar a trilha de auditoria", "auditoria"),
+    PermissionSpec(
+        "documentos.manage",
+        "Criar e publicar versões dos Termos de Uso e da Política de Privacidade",
+        "documentos",
+    ),
 )
 
 ALL_CODENAMES = frozenset(spec.codename for spec in CATALOG)
@@ -91,6 +96,7 @@ _ADMIN = _AUTHOR | frozenset(
         "usuarios.grant_author",
         "usuarios.suspend",
         "auditoria.view",
+        "documentos.manage",
     }
 )
 

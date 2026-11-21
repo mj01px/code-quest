@@ -14,6 +14,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.contas.cookies import ACCESS, REFRESH
+from apps.contas.lgpd import exportar_dados
 from apps.contas.models import User
 from apps.gamificacao.models import UserCreature
 
@@ -57,11 +58,15 @@ class CadastroTest(APITestCase):
         r = self.client.post(self.url, self.payload, format="json")
         self.assertNotIn("senha", r.data.get("usuario", {}))
 
-    # ---------------------------------------------------- idade mínima (16)
-    def test_guarda_a_data_de_nascimento(self):
-        self.client.post(self.url, self.payload, format="json")
+    # ---------------------------------------------------- idade mínima (18)
+    def test_nao_guarda_a_data_de_nascimento(self):
+        r = self.client.post(self.url, self.payload, format="json")
+        self.assertEqual(r.status_code, status.HTTP_201_CREATED)
         criado = User.objects.get(nickname="novato")
-        self.assertEqual(criado.birth_date.isoformat(), "2000-01-01")
+        self.assertNotIn("data_nascimento", exportar_dados(criado)["perfil"])
+        self.assertNotIn(
+            "birth_date", {campo.name for campo in User._meta.get_fields()}
+        )
 
     def test_data_de_nascimento_e_obrigatoria(self):
         del self.payload["data_nascimento"]
@@ -70,14 +75,14 @@ class CadastroTest(APITestCase):
         self.assertEqual(r.data["error"]["details"][0]["field"], "data_nascimento")
         self.assertFalse(User.objects.filter(nickname="novato").exists())
 
-    def test_exatamente_16_hoje_pode(self):
-        self.payload["data_nascimento"] = _anos_atras(16)
+    def test_exatamente_18_hoje_pode(self):
+        self.payload["data_nascimento"] = _anos_atras(18)
         r = self.client.post(self.url, self.payload, format="json")
         self.assertEqual(r.status_code, status.HTTP_201_CREATED)
 
-    def test_um_dia_antes_de_completar_16_nao_pode(self):
-        # Faria 16 só amanhã: hoje ainda tem 15.
-        self.payload["data_nascimento"] = _anos_atras(16, dias=1)
+    def test_um_dia_antes_de_completar_18_nao_pode(self):
+        # Faria 18 só amanhã: hoje ainda tem 17.
+        self.payload["data_nascimento"] = _anos_atras(18, dias=1)
         r = self.client.post(self.url, self.payload, format="json")
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(

@@ -15,8 +15,8 @@ from apps.contas.validators import (
     [
         (date(2000, 3, 10), date(2026, 8, 1), 26),
         (date(2000, 3, 10), date(2026, 2, 1), 25),
-        (date(2010, 6, 15), date(2026, 6, 15), IDADE_MINIMA_ANOS),
-        (date(2010, 6, 15), date(2026, 6, 14), IDADE_MINIMA_ANOS - 1),
+        (date(2008, 6, 15), date(2026, 6, 15), IDADE_MINIMA_ANOS),
+        (date(2008, 6, 15), date(2026, 6, 14), IDADE_MINIMA_ANOS - 1),
     ],
     ids=["aniversario_ja_passou", "antes_do_aniversario", "no_dia", "na_vespera"],
 )

@@ -21,6 +21,7 @@ testpaths = ["apps"]
 addopts = "--reuse-db"
 markers = [
     "sequencial: liga a trava de progressão em ordem da trilha",
+    "consentimento: liga o bloqueio de quem não aceitou a versão vigente dos documentos",
     "integracao: usa o banco (aplicado no conftest); a CI roda à parte",
 ]
 

@@ -336,9 +336,10 @@ registros de auditoria e IP apagado dos aceites; falha ao gravar o registro
 a versão aceita, e o cadastro deverá respeitar a idade mínima.
 
 **Critério mensurável:** registro por documento com versão, data e IP, único por
-usuário, documento e versão; versão vigente 1.2 dos Termos de Uso e da Política de
-Privacidade (desde 26/09/2026); idade mínima de 16 anos completos, conferida no
-servidor.
+usuário, documento e versão; versões dos Termos de Uso e da Política de Privacidade
+guardadas no banco e publicadas pelo painel administrativo, sem edição depois de
+publicadas; idade mínima de 18 anos completos, conferida no servidor, sem armazenar
+a data de nascimento.
 
 **Critérios de aceite:**
 - CA01: Dado um cadastro com versão de documento diferente da vigente, quando enviado, então o sistema deverá recusar com `versao_desatualizada`.

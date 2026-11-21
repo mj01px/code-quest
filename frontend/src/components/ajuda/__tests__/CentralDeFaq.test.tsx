@@ -39,12 +39,12 @@ describe("CentralDeFaq", () => {
 
     await userEvent.click(idade);
     expect(idade).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText(/16 anos completos/)).toBeInTheDocument();
+    expect(screen.getByText(/18 anos completos/)).toBeInTheDocument();
 
     await userEvent.click(paga);
     expect(paga).toHaveAttribute("aria-expanded", "true");
     expect(idade).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByText(/16 anos completos/)).toBeNull();
+    expect(screen.queryByText(/18 anos completos/)).toBeNull();
   });
 
   it("a busca procura em todas as categorias e mostra de onde veio", async () => {

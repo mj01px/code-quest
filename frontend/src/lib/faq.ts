@@ -41,7 +41,7 @@ export const CATEGORIAS_FAQ: CategoriaFaq[] = [
         id: "idade-minima",
         pergunta: "Tem idade mínima?",
         resposta:
-          "Tem: 16 anos completos. A gente pede a data de nascimento no cadastro e confere na hora.",
+          "Tem: 18 anos completos. A gente pede a data de nascimento no cadastro, confere na hora e não guarda a data.",
       },
       {
         id: "instalar",

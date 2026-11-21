@@ -292,6 +292,42 @@ export interface DocumentosLegais {
   privacidade: DocumentoVigente;
 }
 
+export interface VersaoNoHistorico {
+  versao: string;
+  vigente_desde: string;
+}
+
+export interface DocumentoLegalCompleto extends DocumentoVigente {
+  conteudo: string;
+  vigente: boolean;
+  historico: VersaoNoHistorico[];
+}
+
+export type SituacaoDaVersao = "RASCUNHO" | "PUBLICADA";
+
+export interface VersaoDeDocumento {
+  id: string;
+  documento: DocumentoLegal;
+  rotulo: string;
+  versao: string;
+  conteudo: string;
+  situacao: SituacaoDaVersao;
+  vigente_desde: string;
+  vigente: boolean;
+  criado_por: string | null;
+  criado_em: string;
+  atualizado_em: string;
+  publicado_por: string | null;
+  publicado_em: string | null;
+}
+
+export interface DadosDaVersao {
+  documento: DocumentoLegal;
+  versao: string;
+  vigente_desde: string;
+  conteudo: string;
+}
+
 export type Dificuldade = "INICIANTE" | "INTERMEDIARIO" | "AVANCADO";
 export type TipoExercicio = "CODIGO" | "TEORICO" | "ALTERNATIVA" | "FLASHCARD";
 

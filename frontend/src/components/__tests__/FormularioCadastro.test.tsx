@@ -91,7 +91,7 @@ describe("FormularioCadastro", () => {
     ).toBeInTheDocument();
   });
 
-  it("não cria conta para menor de 16 anos", async () => {
+  it("não cria conta para menor de 18 anos", async () => {
     const usuario = criarUsuario();
     render(<FormularioCadastro aoCadastrar={aoCadastrar} />);
     await waitFor(() => expect(caixaDeAceite()).toBeEnabled());
@@ -103,7 +103,7 @@ describe("FormularioCadastro", () => {
     expect(registrar).not.toHaveBeenCalled();
     expect(
       screen.getByText(
-        "É preciso ter pelo menos 16 anos para criar uma conta.",
+        "É preciso ter pelo menos 18 anos para criar uma conta.",
       ),
     ).toBeInTheDocument();
   });

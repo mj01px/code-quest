@@ -128,9 +128,7 @@ class RegistroSerializer(serializers.ModelSerializer):
         trim_whitespace=False,
     )
 
-    data_nascimento = serializers.DateField(
-        write_only=True, required=True, source="birth_date"
-    )
+    data_nascimento = serializers.DateField(write_only=True, required=True)
 
     aceite_documentos = serializers.BooleanField(write_only=True, required=True)
 
@@ -218,7 +216,6 @@ class RegistroSerializer(serializers.ModelSerializer):
                 email=dados["email"],
                 nickname=dados["nickname"],
                 password=dados["senha"],
-                birth_date=dados["birth_date"],
             )
             AceiteDeTermos.registrar_vigentes(usuario, ip=ip)
 
@@ -431,8 +428,8 @@ class DocumentoLegalSerializer(serializers.Serializer):
 
 
 class DocumentosLegaisSerializer(serializers.Serializer):
-    termos = DocumentoLegalSerializer()
-    privacidade = DocumentoLegalSerializer()
+    termos = DocumentoLegalSerializer(allow_null=True)
+    privacidade = DocumentoLegalSerializer(allow_null=True)
 
 
 class SenhaEsquecidaSerializer(serializers.Serializer):

@@ -137,8 +137,18 @@ export function ProvedorProgresso({ children }: { children: ReactNode }) {
         setDados(novos);
         setGeracao(guardarProgresso(novos));
       })
-      .catch(() => {
+      .catch((falha: unknown) => {
         if (!ativo) return;
+        if ((falha as { code?: unknown } | null)?.code === "consentimento_pendente") {
+          setErro(false);
+          api
+            .eu()
+            .then((usuario) => {
+              if (ativo) setDados({ ...SEM_DADOS, usuario });
+            })
+            .catch(() => {});
+          return;
+        }
         // Sessão morta: o api.ts já tentou renovar e apagou o cookie-sinal.
         // Aí é visitante de fato, e mandar para /entrar uma vez está certo.
         if (!temSessao()) {

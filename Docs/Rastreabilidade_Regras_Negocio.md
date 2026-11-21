@@ -17,7 +17,7 @@ Quando o código faz algo diferente do que a RN escreve, ou a regra existe só p
 
 | RN | Regra e observação | Onde está a trava | Camada |
 |---|---|---|---|
-| RF01-RN01 | Idade mínima de 16 anos, calculada no servidor. | `apps/contas/serializers.py:L159` (`validate_data_nascimento`), com a constante em `apps/contas/validators.py:L13` e o cálculo em `apps/contas/validators.py:L16` | Servidor |
+| RF01-RN01 | Idade mínima de 18 anos, calculada no servidor; a data de nascimento não é armazenada. | `apps/contas/serializers.py:L157` (`validate_data_nascimento`), com a constante em `apps/contas/validators.py:L13` e o cálculo em `apps/contas/validators.py:L16` | Servidor |
 | RF01-RN02 | Aceite dos dois documentos, com a versão vigente; versão velha é recusada. | `apps/contas/serializers.py:L180` (aceite obrigatório), `apps/contas/serializers.py:L189` (compara com a versão vigente), `apps/contas/documentos.py:L37` (`versao_vigente`) | Servidor |
 | RF01-RN03 | Nickname de 3 a 20 caracteres, sem acento, único sem diferenciar caixa e fora das palavras reservadas. | Tamanho em `apps/contas/validators.py:L8` e `apps/contas/validators.py:L9`; formato em `apps/contas/validators.py:L33`; reservadas em `apps/contas/validators.py:L97`; unicidade sem caixa em `apps/contas/models.py:L179` (restrição do banco) e `apps/contas/serializers.py:L173` (mensagem amigável) | Servidor e Banco |
 | RF01-RN04 | A senha segue a política do RNF01. | `apps/contas/validators.py:L105` (`PasswordComplexityValidator`), chamado em `apps/contas/serializers.py:L207` e ligado em `config/settings.py:L330` | Servidor |

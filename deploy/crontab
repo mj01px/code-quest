@@ -8,6 +8,8 @@
 # RNF13: descarta a auditoria alem de AUDITORIA_RETENCAO_DIAS, todo dia as 3h30.
 30 3 * * * cd /home/deploy/code-quest && docker compose exec -T backend python manage.py limpar_auditoria >> /home/deploy/codequest-cron.log 2>&1
 
+45 3 * * * cd /home/deploy/code-quest && docker compose exec -T backend python manage.py limpar_contas_excluidas >> /home/deploy/codequest-cron.log 2>&1
+
 # Podio do ranking: grava o mes encerrado no dia 1. As 6h UTC, para ja ser dia 1
 # em America/Sao_Paulo. Idempotente.
 0 6 1 * * cd /home/deploy/code-quest && docker compose exec -T backend python manage.py fechar_podios >> /home/deploy/codequest-cron.log 2>&1

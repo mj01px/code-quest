@@ -148,7 +148,7 @@ Todos os caminhos abaixo são relativos a `/api/v1`.
    | `email` | E-mail válido; normalizado para minúsculas |
    | `nickname` | Único sem diferenciar maiúsculas |
    | `senha` | Passa pelos validadores de senha do Django |
-   | `data_nascimento` | `AAAA-MM-DD`; idade mínima de **16 anos** (`idade_minima`) |
+   | `data_nascimento` | `AAAA-MM-DD`; idade mínima de **18 anos** (`idade_minima`); a data só é conferida e não fica armazenada |
    | `aceite_documentos` | Precisa ser `true` (`aceite_obrigatorio`) |
    | `versao_termos`, `versao_privacidade` | Precisam ser as versões vigentes do passo 1 (`versao_desatualizada`) |
 
@@ -259,12 +259,12 @@ Toda falha responde no mesmo formato, montado por `apps/core/exceptions.py`:
 {
   "error": {
     "code": "validacao",
-    "message": "É preciso ter pelo menos 16 anos para criar uma conta.",
+    "message": "É preciso ter pelo menos 18 anos para criar uma conta.",
     "details": [
       {
         "field": "data_nascimento",
         "code": "idade_minima",
-        "message": "É preciso ter pelo menos 16 anos para criar uma conta."
+        "message": "É preciso ter pelo menos 18 anos para criar uma conta."
       }
     ]
   }

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
@@ -109,6 +110,14 @@ export function PainelAdmin() {
           >
             NÍVEIS DE ACESSO
           </button>
+          {usuario.permissoes.includes("documentos.manage") ? (
+            <Link
+              href="/admin/documentos"
+              className="flex min-h-11 items-center border-2 border-brand bg-brand-void px-5 font-label text-[11px] tracking-[2px] text-ink shadow-pixel hover:border-brand-light"
+            >
+              DOCUMENTOS LEGAIS
+            </Link>
+          ) : null}
         </div>
       </div>
 

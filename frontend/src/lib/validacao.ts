@@ -7,7 +7,7 @@ export const NICKNAME_MAX = 20;
 export const SENHA_MIN = 8;
 export const SENHA_MAX = 128;
 export const EMAIL_MAX = 254;
-export const IDADE_MINIMA = 16;
+export const IDADE_MINIMA = 18;
 // Código de 2FA: 6 dígitos (TOTP/e-mail) ou recuperação "xxxx-xxxx" (9 chars).
 export const CODIGO_MFA_MAX = 12;
 

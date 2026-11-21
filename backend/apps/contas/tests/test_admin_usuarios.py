@@ -1,7 +1,5 @@
 """Painel de usuários do admin: busca por `?q=` e exclusão por anonimização."""
 
-from datetime import date
-
 import pyotp
 from django.urls import reverse
 from rest_framework import status
@@ -141,7 +139,6 @@ class ExclusaoPeloAdminTest(APITestCase):
         )
 
     def test_nao_sobra_pii_derivada_e_sessoes_caem(self):
-        User.objects.filter(pk=self.aluno.pk).update(birth_date=date(2000, 1, 1))
         RegistroDeAuditoria.objects.create(
             acao=AcaoAuditoria.LOGIN_OK, actor=self.aluno, ip="10.0.0.1", user_agent="ua"
         )
@@ -151,7 +148,6 @@ class ExclusaoPeloAdminTest(APITestCase):
 
         self.excluir(self.aluno)
 
-        self.assertIsNone(User.objects.get(pk=self.aluno.pk).birth_date)
         self.assertFalse(
             RegistroDeAuditoria.objects.filter(actor=self.aluno)
             .exclude(ip=None, user_agent="")

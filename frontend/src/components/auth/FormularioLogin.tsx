@@ -45,7 +45,16 @@ export function FormularioLogin({ aoDetectarPendente }: Props) {
   const [erroMfa, setErroMfa] = useState<string | null>(null);
 
   async function concluirLogin() {
-    const criaturas = await api.minhasCriaturas();
+    let criaturas;
+    try {
+      criaturas = await api.minhasCriaturas();
+    } catch (erro) {
+      if (erro instanceof ErroApi && erro.code === "consentimento_pendente") {
+        router.push(volta ?? "/trilhas");
+        return;
+      }
+      throw erro;
+    }
     // Sem criatura, a escolha vem antes de tudo; o destino fica para depois.
     router.push(criaturas.length > 0 ? (volta ?? "/trilhas") : "/escolher-criatura");
   }

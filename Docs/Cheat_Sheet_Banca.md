@@ -93,7 +93,7 @@ Consulta rápida para a apresentação: a banca pergunta, você abre o arquivo n
 | Bloqueio de login | 5 falhas, 15 minutos | `config/settings.py:L294`, `config/settings.py:L295` |
 | Link de e-mail / senha / troca / exclusão | 24 horas / 30 / 30 / 30 minutos | `config/settings.py:L289`, `config/settings.py:L290`, `config/settings.py:L292`, `config/settings.py:L303` |
 | 2FA: token de login / código por e-mail | 5 / 10 minutos | `config/settings.py:L308`, `config/settings.py:L307` |
-| Idade mínima | 16 anos | `apps/contas/validators.py:L13` |
+| Idade mínima | 18 anos (data de nascimento não é armazenada) | `apps/contas/validators.py:L13` |
 | Retenção da auditoria | 180 dias | `config/settings.py:L313` |
 | Judge0: por usuário / total diário / disjuntor | 10 / 50 por dia / 90% | `config/settings.py:L169`, `config/settings.py:L167`, `apps/correcao/services.py:L33` |
 | Judge0: rajada | 5 por minuto por usuário | `config/settings.py:L201` |

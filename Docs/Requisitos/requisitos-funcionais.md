@@ -108,7 +108,7 @@ vigente dos Termos de Uso e da Política de Privacidade.
 5. O sistema informa que o e-mail de confirmação foi enviado.
 
 **Regras de negócio:**
-- RN01: A idade mínima é de 16 anos completos, calculada no servidor a partir da data de nascimento.
+- RN01: A idade mínima é de 18 anos completos, calculada no servidor a partir da data de nascimento, que não é armazenada.
 - RN02: O aceite dos dois documentos é obrigatório e precisa citar a versão vigente; versão desatualizada é recusada.
 - RN03: O nickname tem de 3 a 20 caracteres (letras sem acento, números e underscore), é único sem diferenciar maiúsculas e não pode ser uma palavra reservada.
 - RN04: A senha segue a política descrita no RNF01.
